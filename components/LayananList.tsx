@@ -7,8 +7,8 @@ import { motion } from 'framer-motion'
 import {
   Search, Filter, Download, Eye,
   CheckCircle, XCircle, Calendar, User, Phone,
-  Tag, DollarSign, FileText, Trash2, Image as ImageIcon,
-  ChevronDown, ChevronUp, Printer, RefreshCw
+  Tag, DollarSign, FileText, Trash2,
+  ChevronDown, ChevronUp, RefreshCw, Image
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -17,9 +17,14 @@ interface LayananListProps {
   onEdit?: (layanan: Layanan) => void
 }
 
+// Extend Layanan type to include photo_url
+interface LayananWithPhoto extends Layanan {
+  photo_url?: string
+}
+
 export default function LayananList({ isAdmin = false, onEdit }: LayananListProps) {
-  const [layanan, setLayanan] = useState<Layanan[]>([])
-  const [filteredLayanan, setFilteredLayanan] = useState<Layanan[]>([])
+  const [layanan, setLayanan] = useState<LayananWithPhoto[]>([])
+  const [filteredLayanan, setFilteredLayanan] = useState<LayananWithPhoto[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -63,7 +68,7 @@ export default function LayananList({ isAdmin = false, onEdit }: LayananListProp
     toast.success('Data berhasil di-refresh')
   }
 
-  const calculateTotal = (data: Layanan[]) => {
+  const calculateTotal = (data: LayananWithPhoto[]) => {
     const total = data.reduce((sum, item) => sum + (item.nominal || 0), 0)
     setTotalNominal(total)
   }
@@ -189,7 +194,7 @@ export default function LayananList({ isAdmin = false, onEdit }: LayananListProp
     setFilterMetode('')
     setStartDate('')
     setEndDate('')
-    toast.info('Filter direset')
+    toast.success('Filter berhasil direset') // Ganti toast.info dengan toast.success
   }
 
   const jenisLayananOptions = [
@@ -396,7 +401,7 @@ export default function LayananList({ isAdmin = false, onEdit }: LayananListProp
                   <span className="text-[10px] text-gray-400">
                     {new Date(item.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                 </td>
+                </td>
                 <td className="px-3 py-3">
                   <div>
                     <p className="font-bold text-sm">{item.customer_name}</p>
@@ -420,9 +425,9 @@ export default function LayananList({ isAdmin = false, onEdit }: LayananListProp
                   {formatRupiah(item.nominal)}
                  </td>
                 <td className="px-3 py-3">
-                  {item.photo_url ? (
+                  {(item as any).photo_url ? (
                     <button
-                      onClick={() => setSelectedPhoto(item.photo_url)}
+                      onClick={() => setSelectedPhoto((item as any).photo_url)}
                       className="p-1.5 bg-[#3B82F6] text-white border-2 border-black hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
                       title="Lihat Foto"
                     >
@@ -455,7 +460,7 @@ export default function LayananList({ isAdmin = false, onEdit }: LayananListProp
                         </>
                       )}
                     </div>
-                   </td>
+                  </td>
                 )}
               </motion.tr>
             ))}
