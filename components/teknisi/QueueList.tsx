@@ -318,39 +318,42 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
       )}
 
       {/* Timeline Modal */}
-      {selectedService && (
-        <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all ${showTimelineModal ? 'visible' : 'invisible'}`}
-          style={{ display: showTimelineModal ? 'flex' : 'none' }}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col"
-          >
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white">
-              <div>
-                <h3 className="text-xl font-bold text-gray-800">Service Timeline</h3>
-                <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
-              </div>
-              <button
-                onClick={() => setShowTimelineModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              <ServiceTimeline
-                serviceId={selectedService.id}
-                onUpdate={() => {
-                  fetchQueues()
-                }}
-              />
-            </div>
-          </motion.div>
+      // Update the Timeline Modal section to include customer info
+{selectedService && (
+  <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all ${showTimelineModal ? 'visible' : 'invisible'}`}
+    style={{ display: showTimelineModal ? 'flex' : 'none' }}
+  >
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.9, opacity: 0 }}
+      className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col"
+    >
+      <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white">
+        <div>
+          <h3 className="text-xl font-bold text-gray-800">Service Timeline</h3>
+          <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
         </div>
-      )}
+        <button
+          onClick={() => setShowTimelineModal(false)}
+          className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+        >
+          <X className="w-5 h-5 text-gray-500" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-5">
+        <ServiceTimeline
+          serviceId={selectedService.id}
+          customerPhone={selectedService.customer_phone}
+          customerName={selectedService.customer_name}
+          onUpdate={() => {
+            fetchQueues()
+          }}
+        />
+      </div>
+    </motion.div>
+  </div>
+)}s
     </div>
   )
 }

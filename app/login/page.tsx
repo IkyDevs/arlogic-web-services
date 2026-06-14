@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
-import { motion } from 'framer-motion'
-import { Mail, Lock, ArrowRight, Sparkles, Shield, Zap, Users } from 'lucide-react'
+import { Watch, Sparkles, Clock, Shield, Users, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function LoginPage() {
@@ -28,23 +27,20 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .single()
 
-      if (profileError || !profile) {
+      if (!profile) {
         toast.error('Profile not found')
         return
       }
 
       setUser(profile)
-      toast.success(`Welcome back, ${profile.full_name}!`)
-
-      setTimeout(() => {
-        router.push(`/${profile.role}`)
-      }, 100)
+      toast.success(`Welcome back!`)
+      router.push(`/${profile.role}`)
     } catch (error: any) {
       toast.error(error.message)
     } finally {
@@ -52,145 +48,127 @@ export default function LoginPage() {
     }
   }
 
-  const features = [
-    { icon: Shield, title: 'Secure', description: 'Enterprise-grade security' },
-    { icon: Zap, title: 'Fast', description: 'Lightning fast performance' },
-    { icon: Users, title: 'Multi-role', description: 'Complete role management' },
-  ]
-
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-2000" />
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      {/* Brutalist Decorative Elements */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-10 left-10 w-32 h-32 border-2 border-[#FF6B9D]" />
+        <div className="absolute bottom-10 right-10 w-48 h-48 border-2 border-[#FFDE00]" />
+        <div className="absolute top-1/3 left-1/4 w-24 h-24 border-2 border-[#3B82F6]" />
+        <div className="absolute bottom-1/3 right-1/4 w-16 h-16 bg-[#FF6B9D] opacity-10" />
       </div>
 
-      <div className="relative container mx-auto px-4 min-h-screen flex items-center justify-center">
-        <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl">
-          {/* Left side - Branding */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="text-white"
-          >
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-8"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm">Service Management System</span>
-            </motion.div>
-
-            <h1 className="text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent">
-              Manage Services
-              <br />
-              Like Never Before
-            </h1>
-
-            <p className="text-lg text-purple-200 mb-8">
-              Complete solution for service management with real-time tracking,
-              attendance system, and comprehensive reporting.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-3"
-                >
-                  <feature.icon className="w-5 h-5 text-purple-300" />
-                  <div>
-                    <p className="font-semibold text-sm">{feature.title}</p>
-                    <p className="text-xs text-purple-300">{feature.description}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Right side - Login Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-white/20">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-white mb-2">Welcome Back</h2>
-                <p className="text-purple-200">Sign in to your account</p>
+      <div className="max-w-5xl w-full relative z-10">
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Left Side - Branding */}
+          <div className="space-y-6">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-[#FF6B9D] flex items-center justify-center border-2 border-black shadow-[4px_4px_0px_0px_black]">
+                <Watch className="w-6 h-6 text-white" />
               </div>
-
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-4 py-3 bg-white/10 border border-purple-300/20 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      placeholder="admin@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-purple-200 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full pl-10 pr-4 py-3 bg-white/10 border border-purple-300/20 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      Sign In
-                      <ArrowRight className="w-5 h-5" />
-                    </>
-                  )}
-                </motion.button>
-              </form>
-
-              <div className="mt-6 p-4 bg-white/5 rounded-xl">
-                <p className="text-xs text-purple-300 text-center mb-2">Demo Credentials:</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="text-purple-200">Admin: admin@example.com</div>
-                  <div className="text-purple-200">Teknisi: teknisi@example.com</div>
-                  <div className="text-purple-200">Supervisor: supervisor@example.com</div>
-                  <div className="text-purple-200">Password: password</div>
-                </div>
+              <div>
+                <h1 className="text-2xl font-black tracking-tighter">WATCH<span className="text-[#FF6B9D]">SERVICE</span></h1>
+                <p className="text-xs font-mono">MANAGEMENT SYSTEM</p>
               </div>
             </div>
-          </motion.div>
+
+            {/* Hero Card */}
+            <div className="border-2 border-black bg-white shadow-[8px_8px_0px_0px_black] p-8">
+              <h2 className="text-5xl font-black tracking-tighter leading-tight mb-4">
+                SERVICE
+                <br />
+                FOR YOUR
+                <br />
+                <span className="text-[#FF6B9D]">TIMEPIECE</span>
+              </h2>
+              <div className="w-16 h-1 bg-[#FFDE00] my-4" />
+              <p className="text-gray-600 font-mono text-sm">
+                Professional watch repair & service center.
+                From classic mechanical to modern smartwatches.
+              </p>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="border-2 border-black bg-[#FF6B9D] p-4 shadow-[4px_4px_0px_0px_black]">
+                <p className="text-2xl font-black text-white">50+</p>
+                <p className="text-xs font-mono text-white">YEARS EXP.</p>
+              </div>
+              <div className="border-2 border-black bg-[#FFDE00] p-4 shadow-[4px_4px_0px_0px_black]">
+                <p className="text-2xl font-black">10K+</p>
+                <p className="text-xs font-mono">WATCHES</p>
+              </div>
+              <div className="border-2 border-black bg-[#3B82F6] p-4 shadow-[4px_4px_0px_0px_black]">
+                <p className="text-2xl font-black text-white">100%</p>
+                <p className="text-xs font-mono text-white">SATISFACTION</p>
+              </div>
+              <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_black]">
+                <p className="text-2xl font-black">24/7</p>
+                <p className="text-xs font-mono">SUPPORT</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side - Login Form */}
+          <div className="border-2 border-black bg-white shadow-[8px_8px_0px_0px_black] p-6">
+            <div className="text-center mb-6">
+              <div className="inline-block bg-[#FF6B9D] text-white px-3 py-1 text-xs font-mono mb-3 border-2 border-black">
+                SECURE ACCESS
+              </div>
+              <h3 className="text-2xl font-black">LOGIN</h3>
+              <p className="text-sm font-mono text-gray-500">Sign in to your account</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase mb-1">EMAIL</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 bg-white border-2 border-black font-mono text-sm focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
+                  placeholder="admin@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase mb-1">PASSWORD</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 bg-white border-2 border-black font-mono text-sm focus:outline-none focus:translate-x-[2px] focus:translate-y-[2px] transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#FFDE00] text-black font-black py-3 border-2 border-black shadow-[4px_4px_0px_0px_black] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_black] transition-all disabled:opacity-50"
+              >
+                {loading ? 'LOADING...' : '→ LOGIN →'}
+              </button>
+            </form>
+
+            {/* Demo Credentials */}
+            <div className="mt-6 p-4 bg-[#F5F5F5] border-2 border-black">
+              <p className="text-xs font-black uppercase mb-2 flex items-center gap-2">
+                <Sparkles className="w-3 h-3" />
+                DEMO ACCESS
+              </p>
+              <div className="grid grid-cols-2 gap-1 text-xs font-mono">
+                <div>admin@arlogic.com</div>
+                <div>password</div>
+                <div>iky@arlogic.com</div>
+                <div>password</div>
+
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

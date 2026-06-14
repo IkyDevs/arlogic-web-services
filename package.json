@@ -24,6 +24,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.40.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^1.18.0",
     "next": "16.2.9",
@@ -36,6 +38,7 @@
     "sharp": "^0.35.1",
     "tailwind-merge": "^3.6.0",
     "use-debounce": "^10.1.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },

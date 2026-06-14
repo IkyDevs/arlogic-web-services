@@ -1,131 +1,167 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
-  --color-primary: #3b82f6;
-  --color-primary-dark: #2563eb;
-  --color-primary-light: #60a5fa;
-  --color-secondary: #64748b;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-dark: #1e293b;
-
-  /* Animation durations */
-  --duration-fast: 150ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
-
-  /* Easing functions */
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+  /* Neobrutalism Colors - Bright & Bold */
+  --color-brutal-white: #FFFFFF;
+  --color-brutal-pink: #FF6B9D;
+  --color-brutal-yellow: #FFDE00;
+  --color-brutal-blue: #3B82F6;
+  --color-brutal-black: #1A1A1A;
+  --color-brutal-gray: #F5F5F5;
 }
 
 @layer base {
   body {
-    @apply bg-gradient-to-br from-gray-50 via-gray-50 to-blue-50/30 min-h-screen;
-    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+    @apply bg-white text-[#1A1A1A];
+    font-family: 'Space Grotesk', 'Inter', monospace;
   }
 
-  /* Custom scrollbar */
+  /* Brutalist Scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 12px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-gray-100 rounded-full;
+    background: #F5F5F5;
+    border-left: 2px solid #1A1A1A;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-400 rounded-full hover:bg-gray-500 transition-colors;
+    background: #1A1A1A;
   }
 }
 
 @layer components {
-  .glass-effect {
-    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl;
+  /* Button Styles */
+  .btn-brutal {
+    @apply relative font-bold text-center transition-all duration-100 cursor-pointer;
+    padding: 12px 24px;
+    border-radius: 0px;
   }
 
-  .card-premium {
-    @apply bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.98) 0%,
-      rgba(255, 255, 255, 0.95) 100%
-    );
-    backdrop-filter: blur(0px);
+  .btn-brutal:hover {
+    transform: translate(2px, 2px);
   }
 
-  .btn-premium {
-    @apply relative overflow-hidden transition-all duration-300 font-semibold rounded-xl;
-    background: linear-gradient(
-      135deg,
-      var(--color-primary) 0%,
-      var(--color-primary-dark) 100%
-    );
+  .btn-brutal:active {
+    transform: translate(4px, 4px);
   }
 
-  .btn-premium::before {
-    content: "";
-    @apply absolute inset-0 bg-white/20 transform -translate-x-full transition-transform duration-300;
+  .btn-pink {
+    background-color: #FF6B9D;
+    color: white;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0px 0px #1A1A1A;
   }
 
-  .btn-premium:hover::before {
-    @apply translate-x-0;
+  .btn-pink:hover {
+    box-shadow: 2px 2px 0px 0px #1A1A1A;
   }
 
-  .input-premium {
-    @apply w-full px-4 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200;
+  .btn-yellow {
+    background-color: #FFDE00;
+    color: #1A1A1A;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0px 0px #1A1A1A;
   }
 
-  .shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.3),
-      transparent
-    );
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
+  .btn-blue {
+    background-color: #3B82F6;
+    color: white;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0px 0px #1A1A1A;
+  }
+
+  .btn-black {
+    background-color: #1A1A1A;
+    color: white;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0px 0px #1A1A1A;
+  }
+
+  /* Card Styles */
+  .card-brutal {
+    @apply bg-white;
+    border: 2px solid #1A1A1A;
+    box-shadow: 6px 6px 0px 0px #1A1A1A;
+    border-radius: 0px;
+    padding: 20px;
+  }
+
+  .card-pink {
+    background-color: #FF6B9D;
+    border: 2px solid #1A1A1A;
+    box-shadow: 6px 6px 0px 0px #1A1A1A;
+    border-radius: 0px;
+    padding: 20px;
+    color: white;
+  }
+
+  .card-yellow {
+    background-color: #FFDE00;
+    border: 2px solid #1A1A1A;
+    box-shadow: 6px 6px 0px 0px #1A1A1A;
+    border-radius: 0px;
+    padding: 20px;
+    color: #1A1A1A;
+  }
+
+  .card-blue {
+    background-color: #3B82F6;
+    border: 2px solid #1A1A1A;
+    box-shadow: 6px 6px 0px 0px #1A1A1A;
+    border-radius: 0px;
+    padding: 20px;
+    color: white;
+  }
+
+  /* Input Styles */
+  .input-brutal {
+    @apply w-full px-4 py-3 bg-white;
+    border: 2px solid #1A1A1A;
+    border-radius: 0px;
+    transition: all 0.1s ease;
+  }
+
+  .input-brutal:focus {
+    outline: none;
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px #1A1A1A;
+  }
+
+  /* Badge Styles */
+  .badge-brutal {
+    @apply inline-block px-3 py-1 text-xs font-bold;
+    border: 2px solid #1A1A1A;
+    border-radius: 0px;
+  }
+
+  .badge-pink {
+    background-color: #FF6B9D;
+    color: white;
+  }
+
+  .badge-yellow {
+    background-color: #FFDE00;
+    color: #1A1A1A;
+  }
+
+  .badge-blue {
+    background-color: #3B82F6;
+    color: white;
+  }
+
+  /* Divider */
+  .divider-brutal {
+    border-top: 3px solid #1A1A1A;
+    margin: 20px 0;
+  }
+
+  /* Tag */
+  .tag-brutal {
+    @apply inline-block px-2 py-1 text-xs font-bold uppercase;
+    background-color: #1A1A1A;
+    color: #FFDE00;
+    border: 1px solid #1A1A1A;
   }
 }
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-pulse-ring {
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
