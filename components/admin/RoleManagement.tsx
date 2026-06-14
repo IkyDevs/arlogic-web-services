@@ -14,6 +14,7 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from "lucide-react";
 import SearchInput from "@/components/ui/SearchInput";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -37,6 +38,8 @@ export default function RoleManagement() {
     role: "customer" as UserRole,
     password: "",
   });
+  const [deletingUser, setDeletingUser] = useState<Profile | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const supabase = createClient();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -174,6 +177,35 @@ export default function RoleManagement() {
     "owner",
     "customer",
   ];
+
+  const handleDeleteUser = useCallback(async () => {
+    if (!deletingUser) return
+
+    setDeleting(true)
+    const loadingToast = toast.loading('Deleting user...')
+
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deletingUser.id }),
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        throw new Error(result.error || 'Failed to delete user')
+      }
+
+      toast.success(`User ${deletingUser.full_name} deleted successfully`, { id: loadingToast })
+      setDeletingUser(null)
+      fetchUsers()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete user', { id: loadingToast })
+    } finally {
+      setDeleting(false)
+    }
+  }, [deletingUser, fetchUsers]);
 
   const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -399,15 +431,23 @@ export default function RoleManagement() {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => {
-                              setEditingUser(user.id);
-                              setSelectedRole(user.role);
-                            }}
-                            className="text-blue-600 hover:text-blue-700 p-1"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingUser(user.id);
+                                setSelectedRole(user.role);
+                              }}
+                              className="text-blue-600 hover:text-blue-700 p-1"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingUser(user)}
+                              className="text-red-600 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </motion.tr>
@@ -494,6 +534,58 @@ export default function RoleManagement() {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl p-6 w-full max-w-md"
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Delete User</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete{' '}
+                <span className="font-semibold">{deletingUser.full_name}</span>?
+                <br />
+                <span className="text-sm text-red-500">
+                  This action cannot be undone.
+                </span>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeletingUser(null)}
+                  disabled={deleting}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={deleting}
+                  className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </motion.div>
         </div>
       )}
