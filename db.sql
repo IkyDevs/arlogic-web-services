@@ -37,17 +37,17 @@ CREATE TABLE IF NOT EXISTS service_orders (
   invoice_number TEXT UNIQUE NOT NULL,
   token TEXT NOT NULL,
   token_expires_at TIMESTAMPTZ,
-  
+
   -- Customer Information
   customer_name TEXT NOT NULL,
   customer_phone TEXT NOT NULL,
   serial_number TEXT,
-  
+
   -- Device Information (Watch specific)
   device_type TEXT DEFAULT 'smartwatch',
   device_brand TEXT,
   device_model TEXT,
-  
+
   -- Watch Specific Fields
   watch_brand TEXT,
   watch_model TEXT,
@@ -56,32 +56,32 @@ CREATE TABLE IF NOT EXISTS service_orders (
   watch_condition TEXT CHECK (watch_condition IN ('new', 'excellent', 'good', 'fair', 'poor')),
   watch_accessories TEXT[],
   watch_serial_number TEXT,
-  
+
   -- Service Information
   issue_description TEXT NOT NULL,
   request TEXT,
   notes TEXT,
-  
+
   -- Status Workflow
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'qc_pending', 'completed', 'cancelled')),
-  
+
   -- Assignment
   assigned_teknisi_id UUID REFERENCES profiles(id),
-  
+
   -- Timeline
   created_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ,
   start_date TIMESTAMPTZ,
   done_date TIMESTAMPTZ,
   work_duration TEXT,
-  
+
   -- Financial
   estimated_cost DECIMAL(10,2),
   final_cost DECIMAL(10,2),
-  
+
   -- Completion
   completion_notes TEXT,
-  
+
   -- Warranty
   warranty_months INTEGER DEFAULT 3,
   warranty_expiry TIMESTAMPTZ
@@ -259,83 +259,83 @@ ALTER TABLE watch_database ENABLE ROW LEVEL SECURITY;
 ALTER TABLE warranties ENABLE ROW LEVEL SECURITY;
 
 -- 4.1 PROFILES POLICIES
-CREATE POLICY "profiles_select_own" ON profiles 
+CREATE POLICY "profiles_select_own" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "profiles_insert_own" ON profiles 
+CREATE POLICY "profiles_insert_own" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "profiles_update_own" ON profiles 
+CREATE POLICY "profiles_update_own" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "profiles_admin_all" ON profiles 
+CREATE POLICY "profiles_admin_all" ON profiles
   FOR ALL USING (
     (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
   );
 
 -- 4.2 SERVICE ORDERS POLICIES
-CREATE POLICY "service_orders_select_all" ON service_orders 
+CREATE POLICY "service_orders_select_all" ON service_orders
   FOR SELECT USING (true);
 
-CREATE POLICY "service_orders_insert_auth" ON service_orders 
+CREATE POLICY "service_orders_insert_auth" ON service_orders
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
-CREATE POLICY "service_orders_update_assigned" ON service_orders 
+CREATE POLICY "service_orders_update_assigned" ON service_orders
   FOR UPDATE USING (
-    auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin') 
+    auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin')
     OR assigned_teknisi_id = auth.uid()
   );
 
 -- 4.3 SERVICE TIMELINE POLICIES
-CREATE POLICY "timeline_select_all" ON service_timeline 
+CREATE POLICY "timeline_select_all" ON service_timeline
   FOR SELECT USING (true);
 
-CREATE POLICY "timeline_insert_teknisi" ON service_timeline 
+CREATE POLICY "timeline_insert_teknisi" ON service_timeline
   FOR INSERT WITH CHECK (
-    auth.uid() = teknisi_id OR 
+    auth.uid() = teknisi_id OR
     (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
   );
 
 -- 4.4 ATTENDANCES POLICIES
-CREATE POLICY "attendances_insert_own" ON attendances 
+CREATE POLICY "attendances_insert_own" ON attendances
   FOR INSERT WITH CHECK (auth.uid() = teknisi_id);
 
-CREATE POLICY "attendances_select_own" ON attendances 
+CREATE POLICY "attendances_select_own" ON attendances
   FOR SELECT USING (true);
 
-CREATE POLICY "attendances_update_own" ON attendances 
+CREATE POLICY "attendances_update_own" ON attendances
   FOR UPDATE USING (auth.uid() = teknisi_id);
 
 -- 4.5 INVENTORY POLICIES
-CREATE POLICY "inventory_select_all" ON inventory 
+CREATE POLICY "inventory_select_all" ON inventory
   FOR SELECT USING (true);
 
-CREATE POLICY "inventory_insert_admin" ON inventory 
+CREATE POLICY "inventory_insert_admin" ON inventory
   FOR INSERT WITH CHECK (
     (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
   );
 
-CREATE POLICY "inventory_update_admin" ON inventory 
+CREATE POLICY "inventory_update_admin" ON inventory
   FOR UPDATE USING (
     (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
   );
 
 -- 4.6 QC REVIEWS POLICIES
-CREATE POLICY "qc_reviews_select_all" ON qc_reviews 
+CREATE POLICY "qc_reviews_select_all" ON qc_reviews
   FOR SELECT USING (true);
 
-CREATE POLICY "qc_reviews_insert_supervisor" ON qc_reviews 
+CREATE POLICY "qc_reviews_insert_supervisor" ON qc_reviews
   FOR INSERT WITH CHECK (
     (SELECT role FROM profiles WHERE id = auth.uid()) IN ('supervisor', 'admin')
   );
 
 -- 4.7 ACTIVITY LOGS POLICIES
-CREATE POLICY "activity_logs_select_admin" ON activity_logs 
+CREATE POLICY "activity_logs_select_admin" ON activity_logs
   FOR SELECT USING (
     (SELECT role FROM profiles WHERE id = auth.uid()) IN ('admin', 'owner')
   );
 
-CREATE POLICY "activity_logs_insert_auth" ON activity_logs 
+CREATE POLICY "activity_logs_insert_auth" ON activity_logs
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- 4.8 CONTACT LOGS POLICIES
@@ -372,8 +372,8 @@ RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, full_name, role)
   VALUES (
-    NEW.id, 
-    NEW.email, 
+    NEW.id,
+    NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
     COALESCE(NEW.raw_user_meta_data->>'role', 'customer')
   );
@@ -402,7 +402,7 @@ BEGIN
         'invoice', NEW.invoice_number
       )
     );
-    
+
     -- Add to timeline automatically
     INSERT INTO service_timeline (service_order_id, status, message)
     VALUES (
@@ -455,8 +455,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- =====================================================
 
 -- Create storage buckets
-INSERT INTO storage.buckets (id, name, public) 
-VALUES 
+INSERT INTO storage.buckets (id, name, public)
+VALUES
   ('attendance-photos', 'attendance-photos', true),
   ('service-photos', 'service-photos', true),
   ('watch-images', 'watch-images', true)
@@ -518,14 +518,14 @@ ON CONFLICT (sku) DO NOTHING;
 -- =====================================================
 
 -- Check all tables
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_schema = 'public' 
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
 ORDER BY table_name;
 
 -- Check all policies
-SELECT schemaname, tablename, policyname 
-FROM pg_policies 
+SELECT schemaname, tablename, policyname
+FROM pg_policies
 ORDER BY tablename;
 
 -- Check all triggers
@@ -535,6 +535,119 @@ ORDER BY event_object_table;
 
 -- Check storage buckets
 SELECT * FROM storage.buckets;
+
+-- =====================================================
+-- 9. NOTIFICATIONS TABLE
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN (
+    'service_status', 'new_service', 'qc_approved', 'qc_rejected',
+    'assignment', 'feedback', 'system'
+  )),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  data JSONB,
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "notifications_select_own" ON notifications
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "notifications_update_own" ON notifications
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "notifications_insert_auth" ON notifications
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- =====================================================
+-- 10. FEEDBACKS & RATINGS TABLE
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS feedbacks (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE UNIQUE,
+  customer_name TEXT NOT NULL,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT,
+  teknisi_id UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedbacks_service ON feedbacks(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_teknisi ON feedbacks(teknisi_id);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_rating ON feedbacks(rating);
+
+ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "feedbacks_select_all" ON feedbacks
+  FOR SELECT USING (true);
+
+CREATE POLICY "feedbacks_insert_public" ON feedbacks
+  FOR INSERT WITH CHECK (true);
+
+-- =====================================================
+-- 11. AUTO-NOTIFY ON STATUS CHANGE (Function update)
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION notify_on_status_change()
+RETURNS TRIGGER AS $$
+DECLARE
+  notif_title TEXT;
+  notif_message TEXT;
+  target_user_id UUID;
+BEGIN
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    -- Notify assigned teknisi
+    IF NEW.assigned_teknisi_id IS NOT NULL THEN
+      notif_title := 'Service Status Updated';
+      notif_message := 'Service ' || NEW.invoice_number || ' is now ' || NEW.status;
+
+      INSERT INTO notifications (user_id, type, title, message, data)
+      VALUES (
+        NEW.assigned_teknisi_id,
+        'service_status',
+        notif_title,
+        notif_message,
+        jsonb_build_object('service_id', NEW.id, 'invoice', NEW.invoice_number, 'status', NEW.status)
+      );
+    END IF;
+
+    -- Notify admin & owner on QC pending
+    IF NEW.status = 'qc_pending' THEN
+      INSERT INTO notifications (user_id, type, title, message, data)
+      SELECT id, 'new_service', 'QC Review Required',
+        'Service ' || NEW.invoice_number || ' is ready for QC review',
+        jsonb_build_object('service_id', NEW.id, 'invoice', NEW.invoice_number)
+      FROM profiles WHERE role IN ('supervisor', 'admin');
+    END IF;
+
+    -- Notify owner on completed
+    IF NEW.status = 'completed' THEN
+      INSERT INTO notifications (user_id, type, title, message, data)
+      SELECT id, 'service_status', 'Service Completed',
+        'Service ' || NEW.invoice_number || ' has been completed',
+        jsonb_build_object('service_id', NEW.id, 'invoice', NEW.invoice_number)
+      FROM profiles WHERE role = 'owner';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS notify_status_change ON service_orders;
+CREATE TRIGGER notify_status_change
+  AFTER UPDATE OF status ON service_orders
+  FOR EACH ROW EXECUTE FUNCTION notify_on_status_change();
 
 -- =====================================================
 -- END OF SCHEMA

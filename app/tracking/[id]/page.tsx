@@ -561,18 +561,38 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-6 text-white shadow-xl"
+            className="space-y-4"
           >
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-white" />
+            <div className="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <CheckCircle className="w-8 h-8 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold mb-1">Service Complete!</h3>
+                  <p className="text-emerald-100">
+                    Your device is ready for pickup. Please bring your invoice and tracking token.
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold mb-1">Service Complete!</h3>
-                <p className="text-emerald-100">
-                  Your device is ready for pickup. Please bring your invoice and tracking token.
-                </p>
+            </div>
+
+            {/* Rate Us Banner */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 text-center">
+              <div className="flex items-center justify-center gap-1 mb-3">
+                {[1,2,3,4,5].map(s => (
+                  <Star key={s} className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                ))}
               </div>
+              <h3 className="font-bold text-lg mb-1">How was your experience?</h3>
+              <p className="text-gray-500 text-sm mb-4">Your feedback helps us improve our service quality</p>
+              <a
+                href={`/feedback/${service.invoice_number}?token=${service.token}`}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+              >
+                <Star className="w-4 h-4" />
+                Rate This Service
+              </a>
             </div>
           </motion.div>
         )}

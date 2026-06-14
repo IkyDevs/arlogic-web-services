@@ -28,6 +28,25 @@ export interface ServiceOrder {
   created_at: string
   completed_at?: string
   token_expires_at?: string
+  // Watch-specific fields
+  watch_brand?: string
+  watch_model?: string
+  watch_year?: number
+  watch_movement?: string
+  watch_condition?: string
+  watch_accessories?: string[]
+  watch_serial_number?: string
+  serial_number?: string
+  request?: string
+  notes?: string
+  start_date?: string
+  done_date?: string
+  work_duration?: string
+  completion_notes?: string
+  warranty_months?: number
+  warranty_expiry?: string
+  // Joined data
+  last_update?: { created_at: string }
 }
 
 export interface ServiceItem {

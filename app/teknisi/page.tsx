@@ -18,6 +18,7 @@ import ProgressUpdate from '@/components/teknisi/ProgressUpdate'
 import GlassCard from '@/components/ui/GlassCard'
 import NeonButton from '@/components/ui/NeonButton'
 import StatCard from '@/components/ui/StatCard'
+import NotificationBell from '@/components/ui/NotificationBell'
 import toast from 'react-hot-toast'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
@@ -241,9 +242,9 @@ export default function TeknisiDashboard() {
       <AnimatePresence>
         {(sidebarOpen || !isMobile) && (
           <motion.aside
-            initial={isMobile ? { x: -320 } : false}
+            initial={isMobile ? { x: -320 } : undefined}
             animate={{ x: 0 }}
-            exit={isMobile ? { x: -320 } : false}
+            exit={isMobile ? { x: -320 } : undefined}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className={`fixed left-0 top-0 h-full bg-white/95 backdrop-blur-sm shadow-2xl z-50 flex flex-col
               ${isMobile ? 'w-80' : isTablet ? 'w-64' : 'w-80'}`}
@@ -450,10 +451,7 @@ export default function TeknisiDashboard() {
               >
                 <RefreshCw className="w-4 h-4 text-gray-500" />
               </button>
-              <button className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                <Bell className="w-4 h-4 text-gray-500" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full animate-pulse" />
-              </button>
+              <NotificationBell />
             </div>
           </div>
         </motion.header>

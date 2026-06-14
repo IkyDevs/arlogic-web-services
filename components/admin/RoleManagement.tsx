@@ -81,19 +81,19 @@ export default function RoleManagement() {
 
     // Sort
     filtered.sort((a, b) => {
-      let aVal = a[sortField];
-      let bVal = b[sortField];
+      let aVal: any = a[sortField];
+      let bVal: any = b[sortField];
 
       if (sortField === "role") {
-        const roleOrder = {
+        const roleOrder: Record<string, number> = {
           admin: 0,
           owner: 1,
           supervisor: 2,
           teknisi: 3,
           customer: 4,
         };
-        aVal = roleOrder[a.role as keyof typeof roleOrder];
-        bVal = roleOrder[b.role as keyof typeof roleOrder];
+        aVal = roleOrder[a.role] ?? 99;
+        bVal = roleOrder[b.role] ?? 99;
       }
 
       if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
@@ -124,43 +124,48 @@ export default function RoleManagement() {
 
   const addNewUser = useCallback(
     async (e: React.FormEvent) => {
-      e.preventDefault();
+      e.preventDefault()
 
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-      });
-
-      if (authError) {
-        toast.error(authError.message);
-        return;
+      if (!newUser.email || !newUser.password || !newUser.full_name) {
+        toast.error('All fields are required')
+        return
       }
 
-      if (authData.user) {
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: authData.user.id,
-          email: newUser.email,
-          full_name: newUser.full_name,
-          role: newUser.role,
-        });
+      if (newUser.password.length < 6) {
+        toast.error('Password must be at least 6 characters')
+        return
+      }
 
-        if (profileError) {
-          toast.error("Failed to create user profile");
-        } else {
-          toast.success("User added successfully");
-          setShowAddUser(false);
-          setNewUser({
-            email: "",
-            full_name: "",
-            role: "customer",
-            password: "",
-          });
-          fetchUsers();
+      const loadingToast = toast.loading('Creating user...')
+
+      try {
+        const res = await fetch('/api/admin/create-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: newUser.email,
+            password: newUser.password,
+            full_name: newUser.full_name,
+            role: newUser.role,
+          }),
+        })
+
+        const result = await res.json()
+
+        if (!res.ok) {
+          throw new Error(result.error || 'Failed to create user')
         }
+
+        toast.success(`User ${newUser.full_name} created successfully!`, { id: loadingToast })
+        setShowAddUser(false)
+        setNewUser({ email: '', full_name: '', role: 'customer', password: '' })
+        fetchUsers()
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to create user', { id: loadingToast })
       }
     },
     [newUser, fetchUsers],
-  );
+  )
 
   const roles: UserRole[] = [
     "admin",

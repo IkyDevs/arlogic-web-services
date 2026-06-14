@@ -6,13 +6,12 @@ import { useAuthStore } from '@/stores/authStore'
 import {
   LayoutDashboard, Package, ClipboardList, Users, LogOut,
   Clock, Menu, X, Watch, Zap, Target, TrendingUp,
-  CheckCircle, AlertCircle
+  CheckCircle, AlertCircle, Download
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
-
-// Dynamic imports
 import dynamic from 'next/dynamic'
+import NotificationBell from '@/components/ui/NotificationBell'
 
 const RoleManagement = dynamic(() => import('@/components/admin/RoleManagement'), {
   loading: () => <div className="border-2 border-black p-8 text-center font-mono bg-white">LOADING...</div>
@@ -21,6 +20,9 @@ const InventoryManagement = dynamic(() => import('@/components/admin/InventoryMa
   loading: () => <div className="border-2 border-black p-8 text-center font-mono bg-white">LOADING...</div>
 })
 const ServiceInput = dynamic(() => import('@/components/admin/ServiceInput'), {
+  loading: () => <div className="border-2 border-black p-8 text-center font-mono bg-white">LOADING...</div>
+})
+const ExportReports = dynamic(() => import('@/components/admin/ExportReports'), {
   loading: () => <div className="border-2 border-black p-8 text-center font-mono bg-white">LOADING...</div>
 })
 
@@ -71,6 +73,7 @@ export default function AdminDashboard() {
     { id: 'services', label: 'NEW SERVICE', icon: ClipboardList, color: 'yellow' },
     { id: 'users', label: 'USERS', icon: Users, color: 'blue' },
     { id: 'inventory', label: 'INVENTORY', icon: Package, color: 'pink' },
+    { id: 'export', label: 'EXPORT', icon: Download, color: 'yellow' },
   ]
 
   return (
@@ -78,14 +81,23 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <div className={`fixed left-0 top-0 h-full w-72 bg-white border-r-2 border-black z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="p-5 border-b-2 border-black">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-[#FF6B9D] flex items-center justify-center border-2 border-black">
-              <Watch className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-[#FF6B9D] flex items-center justify-center border-2 border-black">
+                <Watch className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tighter">WATCH<span className="text-[#FF6B9D]">SERVICE</span></h1>
+                <p className="text-[10px] font-mono">ADMIN PANEL</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tighter">WATCH<span className="text-[#FF6B9D]">SERVICE</span></h1>
-              <p className="text-[10px] font-mono">ADMIN PANEL</p>
-            </div>
+            {/* Mobile close button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-2 border-2 border-black hover:bg-gray-100"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="mt-5 p-3 border-2 border-black bg-[#F5F5F5]">
@@ -111,7 +123,10 @@ export default function AdminDashboard() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  setActiveTab(item.id)
+                  setSidebarOpen(false)
+                }}
                 className={`w-full text-left px-3 py-2 font-bold text-sm flex items-center gap-3 border-2 border-black shadow-[3px_3px_0px_0px_black] transition-all ${
                   activeTab === item.id ? colorClasses[item.color as keyof typeof colorClasses] : 'bg-white text-black hover:translate-x-[1px] hover:translate-y-[1px]'
                 }`}
@@ -152,6 +167,7 @@ export default function AdminDashboard() {
               <p className="text-xs font-mono">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
             </div>
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <div className="bg-[#FF6B9D] px-3 py-1 border-2 border-black text-white text-xs font-bold">
                 WATCH SERVICE v2
               </div>
@@ -274,6 +290,7 @@ export default function AdminDashboard() {
           {activeTab === 'services' && <ServiceInput />}
           {activeTab === 'users' && <RoleManagement />}
           {activeTab === 'inventory' && <InventoryManagement />}
+          {activeTab === 'export' && <ExportReports />}
         </main>
       </div>
     </div>

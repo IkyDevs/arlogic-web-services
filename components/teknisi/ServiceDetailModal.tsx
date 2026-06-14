@@ -7,7 +7,8 @@ import {
   X, Clock, User, Phone, Hash, AlertCircle,
   FileText, Calendar, Watch, Settings, Battery,
   Shield, CheckCircle, XCircle, ArrowRight,
-  Smartphone, Cpu, Activity, Package, DollarSign
+  Smartphone, Cpu, Activity, Package, DollarSign,
+  Camera
 } from 'lucide-react'
 import GlassCard from '@/components/ui/GlassCard'
 import NeonButton from '@/components/ui/NeonButton'
@@ -30,6 +31,26 @@ export default function ServiceDetailModal({
 }: ServiceDetailModalProps) {
   const [loading, setLoading] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [initialPhotos, setInitialPhotos] = useState<any[]>([])
+  const supabase = createClient()
+
+  // Fetch initial condition photos
+  useEffect(() => {
+    if (isOpen && service?.id) {
+      fetchInitialPhotos()
+    }
+  }, [isOpen, service?.id])
+
+  const fetchInitialPhotos = async () => {
+    const { data } = await supabase
+      .from('service_documentation')
+      .select('*')
+      .eq('service_order_id', service.id)
+      .eq('stage', 'initial_condition')
+      .order('created_at', { ascending: true })
+
+    if (data) setInitialPhotos(data)
+  }
 
   if (!isOpen || !service) return null
 
@@ -195,24 +216,30 @@ export default function ServiceDetailModal({
             )}
           </GlassCard>
 
-          {/* Timeline Preview (if any) */}
-          {service.timeline && service.timeline.length > 0 && (
+          {/* Initial Condition Photos */}
+          {initialPhotos.length > 0 && (
             <GlassCard className="p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-emerald-500" />
-                <h4 className="font-semibold text-gray-800">Previous Updates</h4>
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                  <Camera className="w-4 h-4 text-white" />
+                </div>
+                <h4 className="font-semibold text-gray-800">Initial Condition Photos</h4>
               </div>
-              <div className="space-y-3 max-h-40 overflow-y-auto">
-                {service.timeline.slice(0, 3).map((update: any, i: number) => (
-                  <div key={i} className="flex gap-3 text-sm">
-                    <div className="w-2 h-2 mt-1.5 bg-emerald-500 rounded-full" />
-                    <div>
-                      <p className="text-gray-700">{update.message}</p>
-                      <p className="text-xs text-gray-400">{new Date(update.created_at).toLocaleString()}</p>
-                    </div>
+              <div className="grid grid-cols-2 gap-2">
+                {initialPhotos.map((photo, i) => (
+                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-gray-200">
+                    <img
+                      src={photo.photo_url}
+                      alt={`Initial condition ${i + 1}`}
+                      className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(photo.photo_url, '_blank')}
+                    />
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Photos taken when the watch was received for service
+              </p>
             </GlassCard>
           )}
         </div>

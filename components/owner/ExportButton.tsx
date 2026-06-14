@@ -133,7 +133,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
         styles: { fontSize: 10, cellPadding: 3, font: 'helvetica' },
         headStyles: { fillColor: [255, 111, 157], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0] },
         bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
-        alternateRowStyles: { fillColor: [255, 222, 0, 1] },
+        alternateRowStyles: { fillColor: [255, 222, 0] as [number, number, number] },
       });
 
       // Service Statistics
@@ -192,7 +192,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
           styles: { fontSize: 9, cellPadding: 3, font: 'helvetica' },
           headStyles: { fillColor: [255, 222, 0], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.3, lineColor: [0, 0, 0] },
           bodyStyles: { lineWidth: 0.3, lineColor: [0, 0, 0] },
-          alternateRowStyles: { fillColor: [255, 111, 157, 1] },
+          alternateRowStyles: { fillColor: [255, 111, 157] as [number, number, number] },
           columnStyles: {
             0: { cellWidth: 60 },
             1: { cellWidth: 40 },

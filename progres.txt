@@ -1,0 +1,227 @@
+PROJECT STATUS - WATCH SERVICE MANAGEMENT SYSTEM
+📋 PROJECT OVERVIEW
+
+Nama Project: Watch Service Management System
+Tipe: Aplikasi Manajemen Service Jam Tangan
+Stack: Next.js 16, Tailwind CSS, Supabase, Zustand, Framer Motion, Recharts
+Style: Neobrutalism (Background putih, Pink #FF6B9D, Kuning #FFDE00, Biru #3B82F6)
+
+✅ SEMUA FITUR SUDAH SELESAI (100%)
+
+1. Authentication System
+    - Login dengan email/password
+    - Role-based redirect setelah login
+    - Session management dengan Supabase
+    - Middleware untuk proteksi route berdasarkan role
+    - Auto-create profile saat user baru register
+
+Role yang didukung: admin, teknisi, supervisor, owner, customer
+
+2. Admin Dashboard (/admin)
+    - Dashboard overview dengan statistik
+    - Role Management (CRUD users, edit role)
+    - Inventory Management (store stock & warehouse stock)
+    - Service Input (multi-step form + QR Code otomatis di success step)
+    - Attendance System untuk Admin (Check In/Out dengan foto + lokasi)
+    - Export Reports (Attendance, Inventory, Services → Excel)
+    - Notification Bell (real-time, mark as read, mark all)
+
+3. Teknisi Dashboard (/teknisi)
+    - Attendance system (Check In/Out dengan foto + lokasi + kompresi)
+    - Queue management
+    - My projects list
+    - Service detail modal + Decision button
+    - Progress update (upload foto + deskripsi)
+    - Service timeline
+    - WhatsApp integration
+    - Performance stats
+    - Notification Bell (real-time)
+
+4. QC / Supervisor Dashboard (/qc)
+    - Review pending services (status qc_pending)
+    - Approve/Reject service dengan notes
+    - View service details (items, photos, customer info, device info)
+    - Statistics tab dengan bar chart weekly activity
+    - Approval rate tracker dengan visual target 90%
+    - Auto-notify teknisi saat QC approved/rejected
+    - Notification Bell (real-time)
+    - Sidebar dengan navigasi proper
+
+5. Customer Tracking (/tracking/[id])
+    - Track service dengan invoice + token
+    - View progress status (pending → assigned → in_progress → qc_pending → completed)
+    - View service details + watch info + timeline
+    - View photos dari progress service
+    - Token expired setelah service selesai (30 hari)
+    - Rate Us banner saat service selesai (link ke feedback page)
+
+6. Customer Feedback (/feedback/[id])  ← BARU
+    - Halaman rating untuk customer setelah service selesai
+    - Star rating 1-5 dengan label deskriptif
+    - Komentar opsional
+    - Validasi token + cek status 'completed'
+    - Cek duplicate submission
+    - Auto-notify owner saat ada feedback baru
+    - Success page dengan tampilan rating
+
+7. Owner Dashboard (/owner)
+    - Sidebar dengan navigasi (Overview, Revenue, Performance, Feedback, Watch DB)
+    - Dashboard overview dengan 5 stats cards (revenue, profit, services, teknisi, avg duration)
+    - Date range filter (today, week, month, custom)
+    - RevenueChart: Revenue/Profit/YoY Comparison charts (Recharts)
+    - PerformanceChart: Bar/Pie/Radar charts per teknisi
+    - Financial Summary panel
+    - Export Report (Excel, PDF, Print)
+    - FeedbackList: daftar rating + filter per bintang + distribusi
+    - WatchDatabase: CRUD brand/model watch
+    - Notification Bell (real-time)
+    - Logout button
+
+8. Notification System  ← BARU
+    - Tabel: notifications (user_id, type, title, message, data, is_read)
+    - NotificationBell component (real-time subscription Supabase)
+    - Panel dropdown dengan mark as read / mark all as read
+    - Trigger otomatis via DB trigger saat:
+        - Status service berubah → notify teknisi
+        - Service jadi qc_pending → notify supervisor + admin
+        - Service completed → notify owner
+        - QC approved/rejected → notify teknisi (dari QCReviewList)
+        - Feedback baru → notify owner
+    - Badge unread count dengan animasi
+    - Dipasang di: Admin, Teknisi, QC, Owner dashboard
+
+9. QR Code Tracking  ← BARU
+    - QRCodeGenerator component (library: qrcode)
+    - Generate QR otomatis setelah service order dibuat
+    - Download QR (plain PNG)
+    - Download QR dengan label (Invoice, customer name, branding)
+    - Copy tracking URL ke clipboard
+    - Tampil di success step ServiceInput
+
+10. Watch Database Management  ← BARU
+    - WatchDatabase component (CRUD)
+    - Tambah/edit/hapus brand & model jam tangan
+    - Filter berdasarkan movement type
+    - Search brand/model/movement
+
+11. FeedbackList di Owner  ← BARU
+    - Lihat semua rating dari customer
+    - Average rating + distribusi bintang (1-5) dengan bar visual
+    - Filter per rating + search per customer/comment
+    - Styled neobrutalism
+
+12. Export Reports Enhancement  ← BARU
+    - ExportReports component di Admin
+    - Export Attendance ke Excel (nama, tanggal, check in/out, durasi)
+    - Export Inventory ke Excel (SKU, stok toko, gudang, status)
+    - Export Services ke Excel (invoice, customer, watch, status, revenue)
+    - Filter date range untuk attendance + services
+
+13. QC Dashboard Enhancement  ← BARU
+    - Sidebar dengan navigasi (Reviews, Statistics)
+    - Weekly bar chart (approved vs rejected per hari)
+    - Approval rate tracker dengan visual gauge
+    - Today's summary breakdown
+
+14. Database Schema v4.0
+    - Semua tabel lama + 2 tabel baru:
+      - notifications: real-time notification system
+      - feedbacks: rating + komentar dari customer
+    - DB trigger baru: notify_on_status_change
+    - Semua RLS policies
+
+15. Bug Fixes
+    - Fix: import supabase salah di owner/page.tsx
+    - Fix: Activity icon tidak diimport di teknisi/page.tsx
+    - Fix: Framer Motion type error (false → undefined) di teknisi page
+    - Fix: TypeScript errors di RoleManagement, ExportButton, PerformanceChart
+    - Fix: toast.warning/info (tidak ada di react-hot-toast v3)
+    - Fix: ServiceOrder type kurang watch fields
+    - Fix: next.config.ts deprecated (swcMinify, images.domains)
+
+📁 STRUKTUR FOLDER PROJECT (LENGKAP)
+
+app/
+├── admin/page.tsx                    ✅
+├── owner/page.tsx                    ✅
+├── teknisi/page.tsx                  ✅
+├── qc/page.tsx                       ✅
+├── login/page.tsx                    ✅
+├── tracking/[id]/page.tsx            ✅
+├── feedback/[id]/page.tsx            ✅ BARU
+├── api/upload/route.ts               ✅
+├── api/test-r2/route.ts              ✅
+├── globals.css, layout.tsx, page.tsx ✅
+
+components/
+├── admin/
+│   ├── AdminAttendanceModal.tsx      ✅
+│   ├── InventoryManagement.tsx       ✅
+│   ├── RoleManagement.tsx            ✅
+│   ├── ServiceInput.tsx              ✅ (+ QR Code)
+│   ├── QRCodeGenerator.tsx           ✅ BARU
+│   └── ExportReports.tsx             ✅ BARU
+├── owner/
+│   ├── RevenueChart.tsx              ✅
+│   ├── PerformanceChart.tsx          ✅
+│   ├── ExportButton.tsx              ✅
+│   ├── WatchDatabase.tsx             ✅ BARU
+│   └── FeedbackList.tsx              ✅ BARU
+├── qc/
+│   └── QCReviewList.tsx              ✅ (enhanced)
+├── teknisi/
+│   ├── AttendanceModal.tsx           ✅
+│   ├── ProgressUpdate.tsx            ✅
+│   ├── QueueList.tsx                 ✅
+│   ├── ServiceDetailModal.tsx        ✅
+│   └── ServiceTimeline.tsx           ✅
+└── ui/
+    ├── NotificationBell.tsx          ✅ BARU
+    ├── GlassCard.tsx, StatCard.tsx   ✅
+    └── ... (other UI components)    ✅
+
+🎨 STYLE GUIDE - NEOBRUTALISM
+Primary: Pink #FF6B9D
+Secondary: Kuning #FFDE00
+Tertiary: Biru #3B82F6
+Background: Putih #FFFFFF
+Border/Text: Hitam #1A1A1A
+
+🔧 TEKNOLOGI
+Framework: Next.js 16 (App Router)
+Language: TypeScript 5.x
+Styling: Tailwind CSS 4.x
+Animation: Framer Motion 12.x
+Database: Supabase
+Auth: Supabase Auth
+State: Zustand 5.x
+Charts: Recharts 3.x
+Image: Sharp 0.35.x
+Storage: Cloudflare R2 + Supabase
+Package Manager: Bun
+QR Code: qrcode 1.5.x
+PDF: jsPDF + jspdf-autotable
+Excel: xlsx
+
+📦 ENVIRONMENT VARIABLES
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+R2_ACCOUNT_ID= (optional)
+R2_ACCESS_KEY_ID= (optional)
+R2_SECRET_ACCESS_KEY= (optional)
+R2_BUCKET_NAME= (optional)
+R2_PUBLIC_URL= (optional)
+R2_ENDPOINT= (optional)
+
+📝 CATATAN DB
+Run db.sql di Supabase SQL Editor untuk setup semua tabel, RLS, triggers, dan storage buckets.
+Versi 4.0 sudah include tabel notifications dan feedbacks.
+
+⚠️ CATATAN MIDDLEWARE
+Next.js 16 deprecated middleware.ts → gunakan proxy.ts di masa depan.
+Saat ini masih berfungsi dan tidak perlu diubah segera.
+
+Last Updated: 2026-06-14
+Status: COMPLETE ✅
+Build: Passing ✅

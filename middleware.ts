@@ -44,7 +44,6 @@ export async function middleware(request: NextRequest) {
         .single()
 
       userRole = profile?.role
-      console.log('User role from middleware:', userRole) // Debug log
     } catch (error) {
       console.error('Error fetching profile in middleware:', error)
     }
@@ -53,7 +52,7 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   // Public routes
-  const publicRoutes = ['/login', '/tracking']
+  const publicRoutes = ['/login', '/tracking', '/feedback']
   const isPublicRoute = publicRoutes.some(route => path.startsWith(route))
 
   // Redirect to login if not authenticated
@@ -63,25 +62,42 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to dashboard if already logged in and trying to access login
   if (user && path === '/login') {
-    // Default to admin if role not found
-    const redirectPath = userRole ? `/${userRole}` : '/admin'
+    const roleDashboard: Record<string, string> = {
+      admin: '/admin',
+      teknisi: '/teknisi',
+      supervisor: '/qc',
+      owner: '/owner',
+      customer: '/tracking',
+    }
+    const redirectPath = userRole ? (roleDashboard[userRole] || '/admin') : '/admin'
     return NextResponse.redirect(new URL(redirectPath, request.url))
   }
 
   // Role-based route protection (only if role exists)
   if (user && userRole && path !== '/login' && path !== '/') {
+    // Map role to its allowed dashboard path
+    const roleDashboard: Record<string, string> = {
+      admin: '/admin',
+      teknisi: '/teknisi',
+      supervisor: '/qc',
+      owner: '/owner',
+      customer: '/tracking',
+    }
+
     const roleRoutes: Record<string, string[]> = {
       admin: ['/admin'],
       teknisi: ['/teknisi'],
       supervisor: ['/qc'],
       owner: ['/owner'],
+      customer: ['/tracking'],
     }
 
     const allowedPaths = roleRoutes[userRole] || []
     const isAllowed = allowedPaths.some(allowedPath => path.startsWith(allowedPath))
+    const dashboard = roleDashboard[userRole] || '/login'
 
     if (!isAllowed && !isPublicRoute) {
-      return NextResponse.redirect(new URL(`/${userRole}`, request.url))
+      return NextResponse.redirect(new URL(dashboard, request.url))
     }
   }
 

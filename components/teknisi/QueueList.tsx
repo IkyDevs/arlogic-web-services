@@ -116,7 +116,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
 
   const skipProject = () => {
     setShowDetailModal(false)
-    toast.info('Service skipped. It will be available for other teknisi.')
+    toast('Service skipped. It will be available for other teknisi.', { icon: 'ℹ️' })
   }
 
   const viewServiceDetails = (service: ServiceOrder) => {
@@ -171,9 +171,9 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                         }`}>
                           {service.status === 'assigned' ? 'Assigned' : 'In Progress'}
                         </span>
-                        {service.last_update && (
+                        {(service as any).last_update && (
                           <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                            Last update: {new Date(service.last_update.created_at).toLocaleDateString()}
+                            Last update: {new Date((service as any).last_update.created_at).toLocaleDateString()}
                           </span>
                         )}
                       </div>
@@ -196,7 +196,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                       {service.last_update && (
                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
                           <Clock className="w-3 h-3" />
-                          <span>Latest: {service.last_update.message}</span>
+                          <span>Latest: {(service.last_update as any)?.message}</span>
                         </div>
                       )}
                     </div>
