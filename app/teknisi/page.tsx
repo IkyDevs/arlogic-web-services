@@ -16,6 +16,8 @@ import {
 import AttendanceModal from '@/components/teknisi/AttendanceModal'
 import QueueList from '@/components/teknisi/QueueList'
 import ProgressUpdate from '@/components/teknisi/ProgressUpdate'
+import LayananForm from '@/components/layanan/LayananForm'
+import LayananList from '@/components/layanan/LayananList'
 import toast from 'react-hot-toast'
 
 // Dynamic imports
@@ -423,7 +425,7 @@ export default function TeknisiDashboard() {
                 transition={{ duration: 0.3 }}
                 className="space-y-6"
               >
-                {/* Stats Cards - Neobrutalism */}
+                {/* Stats Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_black]">
                     <div className="flex items-center justify-between">
@@ -694,6 +696,3 @@ export default function TeknisiDashboard() {
 
 // Import missing icon
 import { Activity } from 'lucide-react'
-import LayananForm from '@/components/layanan/LayananForm'
-import LayananList from '@/components/layanan/LayananList'
-

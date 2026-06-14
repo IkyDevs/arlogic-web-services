@@ -4,15 +4,26 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ServiceOrder } from '@/types'
 import toast from 'react-hot-toast'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   CheckCircle, Clock, Wrench, Calendar, User,
-  Watch, Eye, Package, AlertCircle, Phone,
-  MessageSquare, ShoppingCart, Truck, Check,
-  XCircle, Loader, Send, Camera
+  Watch, Eye, Package, AlertCircle,
+  X, ChevronRight
 } from 'lucide-react'
 import ServiceDetailModal from './ServiceDetailModal'
 import ServiceTimeline from './ServiceTimeline'
+import AddSparepartModal from './AddSparepartModal'
+
+// Extend ServiceOrder type locally
+interface ExtendedServiceOrder extends ServiceOrder {
+  last_update?: {
+    id: string
+    message: string
+    status: string
+    created_at: string
+    photo_url?: string
+  }
+}
 
 interface QueueListProps {
   teknisiId: string
@@ -20,14 +31,13 @@ interface QueueListProps {
 }
 
 export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) {
-  const [pendingServices, setPendingServices] = useState<ServiceOrder[]>([])
-  const [myServices, setMyServices] = useState<ServiceOrder[]>([])
-  const [selectedService, setSelectedService] = useState<ServiceOrder | null>(null)
+  const [pendingServices, setPendingServices] = useState<ExtendedServiceOrder[]>([])
+  const [myServices, setMyServices] = useState<ExtendedServiceOrder[]>([])
+  const [selectedService, setSelectedService] = useState<ExtendedServiceOrder | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showTimelineModal, setShowTimelineModal] = useState(false)
-  const [showSparepartModal, setShowSparepartModal] = useState(false)
+  const [showAddSparepart, setShowAddSparepart] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [whatsappLoading, setWhatsappLoading] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -52,7 +62,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
   const fetchQueues = async () => {
     setLoading(true)
 
-    // Get pending services (available for taking)
+    // Get pending services
     const { data: pending } = await supabase
       .from('service_orders')
       .select('*')
@@ -64,11 +74,11 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
       .from('service_orders')
       .select('*')
       .eq('assigned_teknisi_id', teknisiId)
-      .in('status', ['assigned', 'in_progress', 'waiting_sparepart'])
+      .in('status', ['assigned', 'in_progress'])
       .order('created_at', { ascending: false })
 
     // Get timeline for each service
-    if (assigned) {
+    if (assigned && assigned.length > 0) {
       for (const service of assigned) {
         const { data: timeline } = await supabase
           .from('service_timeline')
@@ -78,17 +88,17 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
           .limit(1)
 
         if (timeline && timeline.length > 0) {
-          service.last_update = timeline[0]
+          (service as ExtendedServiceOrder).last_update = timeline[0]
         }
       }
     }
 
-    if (pending) setPendingServices(pending)
-    if (assigned) setMyServices(assigned)
+    if (pending) setPendingServices(pending as ExtendedServiceOrder[])
+    if (assigned) setMyServices(assigned as ExtendedServiceOrder[])
     setLoading(false)
   }
 
-  const takeProject = async (service: ServiceOrder) => {
+  const takeProject = async (service: ExtendedServiceOrder) => {
     const { error } = await supabase
       .from('service_orders')
       .update({
@@ -101,7 +111,6 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
     if (error) {
       toast.error('Gagal mengambil proyek')
     } else {
-      // Add to timeline
       await supabase.from('service_timeline').insert({
         service_order_id: service.id,
         teknisi_id: teknisiId,
@@ -110,28 +119,11 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
         details: { action: 'take_project' }
       })
 
-      // Send notification to customer (via WhatsApp simulation)
-      await sendWhatsAppNotification(service.customer_phone, service.customer_name, service.invoice_number)
-
       toast.success('Proyek berhasil diambil!')
       fetchQueues()
       onTakeProject(service)
       setShowDetailModal(false)
     }
-  }
-
-  const sendWhatsAppNotification = async (phone: string, name: string, invoice: string) => {
-    // Format phone number
-    let formattedPhone = phone.replace(/\D/g, '')
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = '62' + formattedPhone.substring(1)
-    } else if (formattedPhone.startsWith('+')) {
-      formattedPhone = formattedPhone.substring(1)
-    }
-
-    const message = `Halo ${name}, service jam tangan Anda dengan invoice ${invoice} sudah mulai kami kerjakan. Kami akan update progressnya secara berkala. Terima kasih.`
-    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
-    window.open(whatsappUrl, '_blank')
   }
 
   const updateStatus = async (serviceId: string, newStatus: string) => {
@@ -143,14 +135,10 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
     if (error) {
       toast.error('Gagal update status')
     } else {
-      // Add to timeline
       let statusMessage = ''
       switch(newStatus) {
         case 'in_progress':
           statusMessage = 'Service sedang dalam proses pengerjaan'
-          break
-        case 'waiting_sparepart':
-          statusMessage = 'Menunggu konfirmasi sparepart dari customer'
           break
         case 'qc_pending':
           statusMessage = 'Service selesai, menunggu pengecekan QC'
@@ -172,28 +160,28 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
     }
   }
 
-  const openSparepartRequest = (service: ServiceOrder) => {
+  const openAddSparepart = (service: ExtendedServiceOrder) => {
     setSelectedService(service)
-    setShowSparepartModal(true)
+    setShowAddSparepart(true)
   }
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; color: string }> = {
       assigned: { label: 'DITUGASKAN', color: 'bg-blue-100 text-blue-700 border-blue-200' },
       in_progress: { label: 'DALAM PENGERJAAN', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-      waiting_sparepart: { label: 'MENUNGGU SPAREPART', color: 'bg-orange-100 text-orange-700 border-orange-200' },
       qc_pending: { label: 'SIAP QC', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-      pending: { label: 'MENUNGGU', color: 'bg-gray-100 text-gray-700 border-gray-200' }
+      pending: { label: 'MENUNGGU', color: 'bg-gray-100 text-gray-700 border-gray-200' },
+      completed: { label: 'SELESAI', color: 'bg-green-100 text-green-700 border-green-200' }
     }
-    return badges[status] || { label: status, color: 'bg-gray-100 text-gray-700' }
+    return badges[status] || { label: status.toUpperCase(), color: 'bg-gray-100 text-gray-700' }
   }
 
-  const viewServiceDetails = (service: ServiceOrder) => {
+  const viewServiceDetails = (service: ExtendedServiceOrder) => {
     setSelectedService(service)
     setShowDetailModal(true)
   }
 
-  const openTimeline = (service: ServiceOrder) => {
+  const openTimeline = (service: ExtendedServiceOrder) => {
     setSelectedService(service)
     setShowTimelineModal(true)
   }
@@ -228,6 +216,9 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
           <div className="grid gap-4">
             {myServices.map((service, index) => {
               const statusBadge = getStatusBadge(service.status)
+              // Safe access to last_update message
+              const lastUpdateMessage = service.last_update?.message || 'Belum ada update'
+
               return (
                 <motion.div
                   key={service.id}
@@ -269,9 +260,9 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                         </p>
 
                         {service.last_update && (
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
                             <Clock className="w-3 h-3" />
-                            <span>Terakhir: {service.last_update.message}</span>
+                            <span>Terakhir: {lastUpdateMessage}</span>
                           </div>
                         )}
                       </div>
@@ -296,13 +287,13 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                         )}
 
                         {service.status === 'in_progress' && (
-                          <>
+                          <div className="flex gap-2">
                             <button
-                              onClick={() => openSparepartRequest(service)}
-                              className="px-3 py-1.5 text-sm bg-[#3B82F6] text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
+                              onClick={() => openAddSparepart(service)}
+                              className="px-3 py-1.5 text-sm bg-[#FFDE00] text-black font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
                             >
                               <Package className="w-4 h-4" />
-                              REQUEST SPAREPART
+                              TAMBAH SPAREPART
                             </button>
                             <button
                               onClick={() => onTakeProject(service)}
@@ -311,13 +302,13 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                               <CheckCircle className="w-4 h-4" />
                               UPDATE PROGRES
                             </button>
-                          </>
+                          </div>
                         )}
 
-                        {service.status === 'waiting_sparepart' && (
-                          <div className="px-3 py-1.5 text-sm bg-orange-100 text-orange-700 border-2 border-orange-300 flex items-center gap-1">
+                        {service.status === 'qc_pending' && (
+                          <div className="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 border-2 border-purple-300 flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            MENUNGGU SPAREPART
+                            MENUNGGU QC
                           </div>
                         )}
                       </div>
@@ -330,7 +321,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
         )}
       </div>
 
-      {/* Available Queue Section - NEW SERVICES */}
+      {/* Available Queue Section */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-[#FFDE00] flex items-center justify-center border-2 border-black">
@@ -379,7 +370,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                         </div>
                         <div className="flex items-center gap-1 text-sm">
                           <AlertCircle className="w-4 h-4 text-gray-400" />
-                          <span className="line-clamp-1">{service.issue_description.substring(0, 50)}...</span>
+                          <span className="line-clamp-1">{service.issue_description?.substring(0, 50)}...</span>
                         </div>
                       </div>
                     </div>
@@ -401,67 +392,62 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
         )}
       </div>
 
-      {/* Service Detail Modal */}
+      {/* Modals */}
       {selectedService && (
-        <ServiceDetailModal
-          isOpen={showDetailModal}
-          onClose={() => setShowDetailModal(false)}
-          service={selectedService}
-          onTake={() => takeProject(selectedService)}
-          onSkip={() => setShowDetailModal(false)}
-        />
-      )}
+        <>
+          <ServiceDetailModal
+            isOpen={showDetailModal}
+            onClose={() => setShowDetailModal(false)}
+            service={selectedService}
+            onTake={() => takeProject(selectedService)}
+            onSkip={() => setShowDetailModal(false)}
+          />
 
-      {/* Timeline Modal */}
-      {selectedService && (
-        <div className={`fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-all ${showTimelineModal ? 'visible' : 'invisible'}`}
-          style={{ display: showTimelineModal ? 'flex' : 'none' }}
-        >
-          <div className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b-2 border-black flex justify-between items-center sticky top-0 bg-white">
-              <div>
-                <h3 className="text-xl font-black">TIMELINE SERVICE</h3>
-                <p className="text-xs font-mono">{selectedService.invoice_number}</p>
+          {showTimelineModal && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+              <div className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+                <div className="p-4 border-b-2 border-black flex justify-between items-center sticky top-0 bg-white">
+                  <div>
+                    <h3 className="text-xl font-black">TIMELINE SERVICE</h3>
+                    <p className="text-xs font-mono">{selectedService.invoice_number}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowTimelineModal(false)}
+                    className="p-1 border-2 border-black hover:bg-gray-100"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-5">
+                  <ServiceTimeline
+                    serviceId={selectedService.id}
+                    customerPhone={selectedService.customer_phone}
+                    customerName={selectedService.customer_name}
+                    onUpdate={() => fetchQueues()}
+                  />
+                </div>
               </div>
-              <button
-                onClick={() => setShowTimelineModal(false)}
-                className="p-1 border-2 border-black hover:bg-gray-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              <ServiceTimeline
-                serviceId={selectedService.id}
-                customerPhone={selectedService.customer_phone}
-                customerName={selectedService.customer_name}
-                onUpdate={() => {
-                  fetchQueues()
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Sparepart Request Modal */}
-      {selectedService && (
-        <SparepartRequestModal
-          isOpen={showSparepartModal}
-          onClose={() => setShowSparepartModal(false)}
-          service={selectedService}
-          teknisiId={teknisiId}
-          onSuccess={() => {
-            setShowSparepartModal(false)
-            fetchQueues()
-          }}
-        />
+          {showAddSparepart && (
+            <AddSparepartModal
+              isOpen={showAddSparepart}
+              onClose={() => {
+                setShowAddSparepart(false)
+                setSelectedService(null)
+              }}
+              service={selectedService}
+              onSuccess={() => {
+                setShowAddSparepart(false)
+                setSelectedService(null)
+                fetchQueues()
+                toast.success('Sparepart berhasil ditambahkan ke service')
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   )
 }
-
-// Import X icon
-import { X } from 'lucide-react'
-import SparepartRequestModal from './SparepartRequestModal'
-
