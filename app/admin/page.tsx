@@ -8,10 +8,15 @@ import {
   Clock, Menu, X, Watch, Zap, Target, TrendingUp,
   CheckCircle, AlertCircle, Download
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import NotificationBell from '@/components/ui/NotificationBell'
+import LayananForm from '@/components/LayananForm'
+import LayananList from '@/components/LayananList'
+
+// Import Layanan Components
 
 const RoleManagement = dynamic(() => import('@/components/admin/RoleManagement'), {
   loading: () => <div className="border-2 border-black p-8 text-center font-mono bg-white">LOADING...</div>
@@ -36,6 +41,9 @@ export default function AdminDashboard() {
     pendingServices: 0,
     completedToday: 0
   })
+  const [showLayananForm, setShowLayananForm] = useState(false)
+  const [refreshLayanan, setRefreshLayanan] = useState(0)
+
   const supabase = createClient()
   const { user, logout } = useAuthStore()
   const router = useRouter()
@@ -68,12 +76,19 @@ export default function AdminDashboard() {
     toast.success('Logged out')
   }
 
+  const handleLayananSuccess = () => {
+    setShowLayananForm(false)
+    setRefreshLayanan(prev => prev + 1)
+    toast.success('Layanan berhasil ditambahkan!')
+  }
+
   const menuItems = [
     { id: 'overview', label: 'DASHBOARD', icon: LayoutDashboard, color: 'pink' },
     { id: 'services', label: 'NEW SERVICE', icon: ClipboardList, color: 'yellow' },
-    { id: 'users', label: 'USERS', icon: Users, color: 'blue' },
-    { id: 'inventory', label: 'INVENTORY', icon: Package, color: 'pink' },
-    { id: 'export', label: 'EXPORT', icon: Download, color: 'yellow' },
+    { id: 'layanan', label: 'LAYANAN', icon: ClipboardList, color: 'blue' },
+    { id: 'users', label: 'USERS', icon: Users, color: 'pink' },
+    { id: 'inventory', label: 'INVENTORY', icon: Package, color: 'yellow' },
+    { id: 'export', label: 'EXPORT', icon: Download, color: 'blue' },
   ]
 
   return (
@@ -91,7 +106,6 @@ export default function AdminDashboard() {
                 <p className="text-[10px] font-mono">ADMIN PANEL</p>
               </div>
             </div>
-            {/* Mobile close button */}
             <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden p-2 border-2 border-black hover:bg-gray-100"
@@ -291,8 +305,48 @@ export default function AdminDashboard() {
           {activeTab === 'users' && <RoleManagement />}
           {activeTab === 'inventory' && <InventoryManagement />}
           {activeTab === 'export' && <ExportReports />}
+
+          {/* Layanan Tab */}
+          {activeTab === 'layanan' && (
+            <motion.div
+              key="layanan"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Tombol Tambah Layanan */}
+              <div className="mb-6 flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-black tracking-tighter">MANAJEMEN LAYANAN</h3>
+                  <p className="text-xs font-mono text-gray-500">Kelola semua transaksi layanan</p>
+                </div>
+                <button
+                  onClick={() => setShowLayananForm(true)}
+                  className="bg-[#FF6B9D] text-white font-bold px-4 py-2 border-2 border-black shadow-[3px_3px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-2"
+                >
+                  + TAMBAH LAYANAN
+                </button>
+              </div>
+
+              {/* List Layanan */}
+              <LayananList
+                isAdmin={true}
+                key={refreshLayanan}
+              />
+            </motion.div>
+          )}
         </main>
       </div>
+
+      {/* Modal Form Layanan */}
+      {showLayananForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <LayananForm
+            onSuccess={handleLayananSuccess}
+            onClose={() => setShowLayananForm(false)}
+          />
+        </div>
+      )}
     </div>
   )
 }

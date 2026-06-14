@@ -1,16 +1,11 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 
-interface UploadOptions {
-  type: 'attendance' | 'service'
-  onProgress?: (progress: number) => void
-}
-
 export function useUpload() {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
 
-  const uploadFile = async (file: File, options: UploadOptions): Promise<string | null> => {
+  const uploadFile = async (file: File, options: { type: 'attendance' | 'service' }): Promise<string | null> => {
     setUploading(true)
     setProgress(0)
 

@@ -1,5 +1,88 @@
 export type UserRole = 'admin' | 'teknisi' | 'supervisor' | 'owner' | 'customer'
 
+// Layanan Types
+export type JenisLayanan =
+  | 'ambil_jam_service'
+  | 'order_online'
+  | 'beli_jam'
+  | 'pengeluaran'
+  | 'dp_service'
+  | 'service_langsung';
+
+export type MetodePembayaran =
+  | 'cash'
+  | 'edc_mandiri'
+  | 'tf_bca'
+  | 'bri'
+  | 'kudus'
+  | 'edc_bca'
+  | 'tf_mandiri'
+  | 'qris';
+
+export type LeadSource =
+  | 'instagram'
+  | 'wom'
+  | 'dekat_lewat'
+  | 'google'
+  | 'dash'
+  | 'facebook'
+  | 'old'
+  | 'tiktok'
+  | 'tulis_sendiri';
+
+export interface Layanan {
+  id: string;
+  customer_name: string;
+  customer_whatsapp: string;
+  jenis_layanan: JenisLayanan;
+  handled_by: string;
+  handled_by_name: string;
+  metode_pembayaran: MetodePembayaran;
+  lead_source: LeadSource;
+  lead_source_custom?: string;
+  detail_sku: string;
+  nominal: number;
+  status: 'active' | 'cancelled' | 'completed';
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+  notes?: string;
+}
+
+// Label mappings for display
+export const jenisLayananLabels: Record<JenisLayanan, string> = {
+  ambil_jam_service: 'Ambil Jam Service',
+  order_online: 'Order Online',
+  beli_jam: 'Beli Jam',
+  pengeluaran: 'Pengeluaran',
+  dp_service: 'DP Service',
+  service_langsung: 'Service Langsung'
+};
+
+export const metodePembayaranLabels: Record<MetodePembayaran, string> = {
+  cash: 'Cash',
+  edc_mandiri: 'EDC Mandiri',
+  tf_bca: 'Transfer BCA',
+  bri: 'BRI',
+  kudus: 'Kudus',
+  edc_bca: 'EDC BCA',
+  tf_mandiri: 'Transfer Mandiri',
+  qris: 'QRIS'
+};
+
+export const leadSourceLabels: Record<LeadSource, string> = {
+  instagram: 'Instagram',
+  wom: 'WOM (Word of Mouth)',
+  dekat_lewat: 'Dekat / Lewat',
+  google: 'Google',
+  dash: '-',
+  facebook: 'Facebook',
+  old: 'Old Customer',
+  tiktok: 'TikTok',
+  tulis_sendiri: 'Tulis Sendiri'
+};
+
 export interface Profile {
   id: string
   email: string
