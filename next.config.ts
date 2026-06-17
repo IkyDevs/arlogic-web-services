@@ -1,19 +1,25 @@
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '*.r2.dev' },
-      { protocol: 'https', hostname: '*.supabase.co' },
-    ],
-    formats: ['image/avif', 'image/webp'],
+    domains: ['*.supabase.co', 'pub-*.r2.dev'],
   },
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+  // Konfigurasi untuk Vercel
+  experimental: {
+    serverComponentsExternalPackages: ['sharp'],
   },
+  // Body size limit
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+  // Optimasi untuk Vercel
+  swcMinify: true,
   compress: true,
-  reactStrictMode: true,
-  poweredByHeader: false,
+  // Skip Sharp cache di production
+  serverRuntimeConfig: {
+    PROJECT_ROOT: __dirname,
+  },
 }
 
-export default nextConfig
+module.exports = nextConfig
