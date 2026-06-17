@@ -1,167 +1,241 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { ServiceOrder, ServiceItem } from '@/types'
-import { motion, AnimatePresence } from 'framer-motion'
-import { QRCodeSVG } from 'qrcode.react'
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { ServiceOrder, ServiceItem } from "@/types";
+import { motion, AnimatePresence } from "framer-motion";
+import { QRCodeSVG } from "qrcode.react";
 import {
-  CheckCircle, Clock, Wrench, UserCheck, Package,
-  Smartphone, Calendar, DollarSign, AlertCircle,
-  Phone, Mail, MapPin, Watch, Settings, Battery,
-  ChevronRight, ChevronDown, MessageSquare, Image,
-  User, Hash, FileText, Star, Award, Shield,
-  Copy, Check, ExternalLink
-} from 'lucide-react'
-import toast from 'react-hot-toast'
+  CheckCircle,
+  Clock,
+  Wrench,
+  UserCheck,
+  Package,
+  Smartphone,
+  Calendar,
+  DollarSign,
+  AlertCircle,
+  Phone,
+  Mail,
+  MapPin,
+  Watch,
+  Settings,
+  Battery,
+  ChevronRight,
+  ChevronDown,
+  MessageSquare,
+  Image,
+  User,
+  Hash,
+  FileText,
+  Star,
+  Award,
+  Shield,
+  Copy,
+  Check,
+  ExternalLink,
+} from "lucide-react";
+import toast from "react-hot-toast";
 
 // Extend ServiceOrder type for timeline
 interface TimelineUpdate {
-  id: string
-  message: string
-  status: string
-  photo_url?: string
-  created_at: string
-  details?: any
+  id: string;
+  message: string;
+  status: string;
+  photo_url?: string;
+  created_at: string;
+  details?: any;
 }
 
 export default function TrackingPage({ params }: { params: { id: string } }) {
-  const [token, setToken] = useState('')
-  const [service, setService] = useState<any>(null)
-  const [items, setItems] = useState<ServiceItem[]>([])
-  const [timeline, setTimeline] = useState<TimelineUpdate[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [token, setToken] = useState("");
+  const [service, setService] = useState<any>(null);
+  const [items, setItems] = useState<ServiceItem[]>([]);
+  const [timeline, setTimeline] = useState<TimelineUpdate[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     device: true,
     items: false,
-    timeline: true
-  })
-  const supabase = createClient()
+    timeline: true,
+  });
+  const supabase = createClient();
 
   const statusSteps = [
-    { status: 'pending', label: 'Order Received', icon: Clock, description: 'Service order has been received', color: 'from-gray-400 to-gray-500' },
-    { status: 'assigned', label: 'Assigned to Teknisi', icon: UserCheck, description: 'A teknisi has been assigned to your device', color: 'from-blue-500 to-cyan-500' },
-    { status: 'in_progress', label: 'Service in Progress', icon: Wrench, description: 'Your device is being serviced', color: 'from-purple-500 to-pink-500' },
-    { status: 'waiting_sparepart', label: 'Waiting Sparepart', icon: Package, description: 'Waiting for sparepart approval', color: 'from-orange-500 to-red-500' },
-    { status: 'qc_pending', label: 'Quality Check', icon: Shield, description: 'Final quality check in progress', color: 'from-indigo-500 to-purple-500' },
-    { status: 'completed', label: 'Service Complete', icon: CheckCircle, description: 'Your device is ready for pickup', color: 'from-emerald-500 to-green-600' },
-  ]
+    {
+      status: "pending",
+      label: "Order Received",
+      icon: Clock,
+      description: "Service order has been received",
+      color: "from-gray-400 to-gray-500",
+    },
+    {
+      status: "assigned",
+      label: "Assigned to Teknisi",
+      icon: UserCheck,
+      description: "A teknisi has been assigned to your device",
+      color: "from-blue-500 to-cyan-500",
+    },
+    {
+      status: "in_progress",
+      label: "Service in Progress",
+      icon: Wrench,
+      description: "Your device is being serviced",
+      color: "from-purple-500 to-pink-500",
+    },
+    {
+      status: "waiting_sparepart",
+      label: "Waiting Sparepart",
+      icon: Package,
+      description: "Waiting for sparepart approval",
+      color: "from-orange-500 to-red-500",
+    },
+    {
+      status: "qc_pending",
+      label: "Quality Check",
+      icon: Shield,
+      description: "Final quality check in progress",
+      color: "from-indigo-500 to-purple-500",
+    },
+    {
+      status: "completed",
+      label: "Service Complete",
+      icon: CheckCircle,
+      description: "Your device is ready for pickup",
+      color: "from-emerald-500 to-green-600",
+    },
+  ];
 
   const getCurrentStep = () => {
-    if (!service) return 0
-    const index = statusSteps.findIndex(step => step.status === service.status)
-    return index >= 0 ? index : 0
-  }
+    if (!service) return 0;
+    const index = statusSteps.findIndex(
+      (step) => step.status === service.status,
+    );
+    return index >= 0 ? index : 0;
+  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-gray-100 text-gray-700 border-gray-200',
-      assigned: 'bg-blue-100 text-blue-700 border-blue-200',
-      in_progress: 'bg-purple-100 text-purple-700 border-purple-200',
-      waiting_sparepart: 'bg-orange-100 text-orange-700 border-orange-200',
-      qc_pending: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-      completed: 'bg-green-100 text-green-700 border-green-200',
-      cancelled: 'bg-red-100 text-red-700 border-red-200'
-    }
-    return colors[status] || colors.pending
-  }
+      pending: "bg-gray-100 text-gray-700 border-gray-200",
+      assigned: "bg-blue-100 text-blue-700 border-blue-200",
+      in_progress: "bg-purple-100 text-purple-700 border-purple-200",
+      waiting_sparepart: "bg-orange-100 text-orange-700 border-orange-200",
+      qc_pending: "bg-indigo-100 text-indigo-700 border-indigo-200",
+      completed: "bg-green-100 text-green-700 border-green-200",
+      cancelled: "bg-red-100 text-red-700 border-red-200",
+    };
+    return colors[status] || colors.pending;
+  };
 
   const getMovementIcon = (movement: string) => {
-    switch(movement) {
-      case 'automatic': return <Settings className="w-4 h-4" />
-      case 'quartz': return <Battery className="w-4 h-4" />
-      case 'mechanical': return <Settings className="w-4 h-4" />
-      case 'smartwatch': return <Smartphone className="w-4 h-4" />
-      default: return <Watch className="w-4 h-4" />
+    switch (movement) {
+      case "automatic":
+        return <Settings className="w-4 h-4" />;
+      case "quartz":
+        return <Battery className="w-4 h-4" />;
+      case "mechanical":
+        return <Settings className="w-4 h-4" />;
+      case "smartwatch":
+        return <Smartphone className="w-4 h-4" />;
+      default:
+        return <Watch className="w-4 h-4" />;
     }
-  }
+  };
 
   const trackService = async () => {
     if (!token.trim()) {
-      setError('Masukkan token tracking')
-      return
+      setError("Masukkan token tracking");
+      return;
     }
 
-    setLoading(true)
-    setError('')
+    setLoading(true);
+    setError("");
 
     try {
       // Fetch service order
       const { data, error: fetchError } = await supabase
-        .from('service_orders')
-        .select('*')
-        .eq('token', token.toUpperCase())
-        .single()
+        .from("service_orders")
+        .select("*")
+        .eq("token", token.toUpperCase())
+        .single();
 
       if (fetchError || !data) {
-        setError('Token tidak valid. Silakan cek kembali.')
-        setService(null)
-        setItems([])
-        setTimeline([])
-        return
+        setError("Token tidak valid. Silakan cek kembali.");
+        setService(null);
+        setItems([]);
+        setTimeline([]);
+        return;
       }
 
       // Check if token is expired
-      if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) {
-        setError('Token sudah kadaluarsa karena service sudah selesai.')
-        setService(null)
-        return
+      if (
+        data.token_expires_at &&
+        new Date(data.token_expires_at) < new Date()
+      ) {
+        setError("Token sudah kadaluarsa karena service sudah selesai.");
+        setService(null);
+        return;
       }
 
-      setService(data)
+      setService(data);
 
       // Fetch service items
       const { data: itemsData } = await supabase
-        .from('service_items')
-        .select('*')
-        .eq('service_order_id', data.id)
-      if (itemsData) setItems(itemsData)
+        .from("service_items")
+        .select("*")
+        .eq("service_order_id", data.id);
+      if (itemsData) setItems(itemsData);
 
       // Fetch timeline updates
       const { data: timelineData } = await supabase
-        .from('service_timeline')
-        .select('*')
-        .eq('service_order_id', data.id)
-        .order('created_at', { ascending: true })
-      if (timelineData) setTimeline(timelineData)
-
+        .from("service_timeline")
+        .select("*")
+        .eq("service_order_id", data.id)
+        .order("created_at", { ascending: true });
+      if (timelineData) setTimeline(timelineData);
     } catch (error) {
-      console.error('Tracking error:', error)
-      setError('Gagal mengambil informasi service')
+      console.error("Tracking error:", error);
+      setError("Gagal mengambil informasi service");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const copyToken = () => {
-    navigator.clipboard.writeText(token)
-    setCopied(true)
-    toast.success('Token disalin!')
-    setTimeout(() => setCopied(false), 2000)
-  }
+    navigator.clipboard.writeText(token);
+    setCopied(true);
+    toast.success("Token disalin!");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))
-  }
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const formatRupiah = (nominal: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal)
-  }
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(nominal);
+  };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+    return new Date(date).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
-  const isWatch = service?.device_type === 'smartwatch'
-  const trackingUrl = typeof window !== 'undefined' ? `${window.location.origin}/tracking/${token}` : ''
+  const isWatch = service?.device_type === "smartwatch";
+  const trackingUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/tracking/${token}`
+      : "";
 
   if (!service) {
     return (
@@ -177,7 +251,9 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                 <Watch className="w-8 h-8 text-white" />
               </div>
               <h1 className="text-2xl font-black">TRACK SERVICE</h1>
-              <p className="text-sm font-mono text-gray-500 mt-2">Masukkan token tracking Anda</p>
+              <p className="text-sm font-mono text-gray-500 mt-2">
+                Masukkan token tracking Anda
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -189,7 +265,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                   onChange={(e) => setToken(e.target.value.toUpperCase())}
                   placeholder="Masukkan token tracking"
                   className="w-full pl-9 pr-4 py-3 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all uppercase"
-                  onKeyPress={(e) => e.key === 'Enter' && trackService()}
+                  onKeyPress={(e) => e.key === "Enter" && trackService()}
                 />
               </div>
 
@@ -218,14 +294,14 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
 
             <div className="mt-6 p-4 bg-[#F5F5F5] border-2 border-black">
               <p className="text-xs font-mono text-center">
-                Token diberikan saat membuat service order.
-                Hubungi kami jika kehilangan token.
+                Token diberikan saat membuat service order. Hubungi kami jika
+                kehilangan token.
               </p>
             </div>
           </motion.div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -246,26 +322,43 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                 </div>
                 <span className="text-xl font-black">WATCH SERVICE</span>
               </div>
-              <p className="text-xs font-mono text-gray-500">Official Service Center</p>
+              <p className="text-xs font-mono text-gray-500">
+                Official Service Center
+              </p>
             </div>
 
             {/* Invoice Info */}
             <div className="p-5 text-center">
-              <p className="text-xs font-black uppercase text-gray-500">INVOICE</p>
-              <p className="text-lg font-black font-mono">{service.invoice_number}</p>
-              <p className="text-xs text-gray-500 mt-1">{formatDate(service.created_at)}</p>
+              <p className="text-xs font-black uppercase text-gray-500">
+                INVOICE
+              </p>
+              <p className="text-lg font-black font-mono">
+                {service.invoice_number}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {formatDate(service.created_at)}
+              </p>
             </div>
 
             {/* Status */}
             <div className="p-5 text-center">
-              <p className="text-xs font-black uppercase text-gray-500">STATUS</p>
-              <span className={`inline-block px-3 py-1 text-sm font-bold border ${getStatusColor(service.status)}`}>
-                {service.status === 'qc_pending' ? 'QUALITY CHECK' :
-                 service.status === 'assigned' ? 'ASSIGNED' :
-                 service.status === 'in_progress' ? 'IN PROGRESS' :
-                 service.status === 'waiting_sparepart' ? 'WAITING SPAREPART' :
-                 service.status === 'completed' ? 'COMPLETED' :
-                 service.status.toUpperCase()}
+              <p className="text-xs font-black uppercase text-gray-500">
+                STATUS
+              </p>
+              <span
+                className={`inline-block px-3 py-1 text-sm font-bold border ${getStatusColor(service.status)}`}
+              >
+                {service.status === "qc_pending"
+                  ? "QUALITY CHECK"
+                  : service.status === "assigned"
+                    ? "ASSIGNED"
+                    : service.status === "in_progress"
+                      ? "IN PROGRESS"
+                      : service.status === "waiting_sparepart"
+                        ? "WAITING SPAREPART"
+                        : service.status === "completed"
+                          ? "COMPLETED"
+                          : service.status.toUpperCase()}
               </span>
             </div>
           </div>
@@ -284,7 +377,9 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                 <QrCode className="w-4 h-4" />
                 SCAN QR CODE UNTUK TRACKING
               </p>
-              <p className="text-sm text-gray-500 mt-1">Scan dengan camera HP untuk akses cepat</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Scan dengan camera HP untuk akses cepat
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <div className="border-2 border-black p-2 bg-white">
@@ -306,7 +401,11 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                     onClick={copyToken}
                     className="p-1 border-2 border-black hover:bg-gray-100 transition-all"
                   >
-                    {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                    {copied ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -327,8 +426,8 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           </h2>
           <div className="relative">
             {statusSteps.map((step, index) => {
-              const isCompleted = index <= getCurrentStep()
-              const isCurrent = index === getCurrentStep()
+              const isCompleted = index <= getCurrentStep();
+              const isCurrent = index === getCurrentStep();
 
               return (
                 <div key={step.status} className="relative mb-6 last:mb-0">
@@ -337,7 +436,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                       <div
                         className={`
                           w-10 h-10 flex items-center justify-center z-10 relative border-2 border-black
-                          ${isCompleted ? `bg-gradient-to-br ${step.color} text-white` : 'bg-gray-200 text-gray-500'}
+                          ${isCompleted ? `bg-blue-500-to-br ${step.color} text-white` : "bg-gray-200 text-gray-500"}
                         `}
                       >
                         {isCompleted ? (
@@ -347,30 +446,38 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                         )}
                       </div>
                       {index < statusSteps.length - 1 && (
-                        <div className={`
+                        <div
+                          className={`
                           absolute top-10 left-5 w-0.5 h-12
-                          ${isCompleted ? 'bg-black' : 'bg-gray-300'}
-                        `} />
+                          ${isCompleted ? "bg-black" : "bg-gray-300"}
+                        `}
+                        />
                       )}
                     </div>
-                    <div className={`flex-1 ${isCurrent ? 'bg-yellow-50 p-3 -mt-2 border-2 border-yellow-300' : ''}`}>
-                      <h3 className={`font-black ${isCompleted ? 'text-black' : 'text-gray-500'}`}>
+                    <div
+                      className={`flex-1 ${isCurrent ? "bg-yellow-50 p-3 -mt-2 border-2 border-yellow-300" : ""}`}
+                    >
+                      <h3
+                        className={`font-black ${isCompleted ? "text-black" : "text-gray-500"}`}
+                      >
                         {step.label}
                       </h3>
-                      <p className="text-xs text-gray-500">{step.description}</p>
-                      {isCurrent && service.status === 'in_progress' && (
+                      <p className="text-xs text-gray-500">
+                        {step.description}
+                      </p>
+                      {isCurrent && service.status === "in_progress" && (
                         <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                           <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
                           Sedang dikerjakan...
                         </p>
                       )}
-                      {isCurrent && service.status === 'waiting_sparepart' && (
+                      {isCurrent && service.status === "waiting_sparepart" && (
                         <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
                           Menunggu konfirmasi sparepart
                         </p>
                       )}
-                      {isCurrent && service.status === 'completed' && (
+                      {isCurrent && service.status === "completed" && (
                         <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" />
                           Siap diambil!
@@ -379,7 +486,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </motion.div>
@@ -394,7 +501,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           {/* Customer & Device Info */}
           <div className="border-2 border-black bg-white shadow-[6px_6px_0px_0px_black]">
             <button
-              onClick={() => toggleSection('device')}
+              onClick={() => toggleSection("device")}
               className="w-full flex items-center justify-between p-4 border-b-2 border-black hover:bg-gray-50"
             >
               <div className="flex items-center gap-2">
@@ -403,7 +510,11 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                 </div>
                 <h3 className="font-black">INFORMASI SERVICE</h3>
               </div>
-              {expandedSections.device ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+              {expandedSections.device ? (
+                <ChevronDown className="w-5 h-5" />
+              ) : (
+                <ChevronRight className="w-5 h-5" />
+              )}
             </button>
 
             {expandedSections.device && (
@@ -414,54 +525,92 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                     <div>
                       <p className="text-xs text-gray-500">Customer</p>
                       <p className="font-bold">{service.customer_name}</p>
-                      <p className="text-sm font-mono">{service.customer_phone}</p>
+                      <p className="text-sm font-mono">
+                        {service.customer_phone}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-[#F5F5F5] border border-black">
-                    {isWatch ? <Watch className="w-5 h-5 text-[#FF6B9D]" /> : <Smartphone className="w-5 h-5 text-[#FF6B9D]" />}
+                    {isWatch ? (
+                      <Watch className="w-5 h-5 text-[#FF6B9D]" />
+                    ) : (
+                      <Smartphone className="w-5 h-5 text-[#FF6B9D]" />
+                    )}
                     <div>
                       <p className="text-xs text-gray-500">Device</p>
                       <p className="font-bold">
-                        {isWatch ? service.watch_brand || service.device_brand : service.device_brand}
+                        {isWatch
+                          ? service.watch_brand || service.device_brand
+                          : service.device_brand}
                         {service.device_model && ` ${service.device_model}`}
                       </p>
-                      <p className="text-xs capitalize">{service.device_type}</p>
+                      <p className="text-xs capitalize">
+                        {service.device_type}
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Watch-specific details */}
-                {isWatch && (service.watch_movement || service.watch_condition) && (
-                  <div className="p-3 bg-[#FFDE00]/10 border border-black">
-                    <p className="text-xs font-black mb-2">DETAIL JAM TANGAN</p>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      {service.watch_brand && (
-                        <div><span className="text-gray-500">Brand:</span> <span className="font-bold">{service.watch_brand}</span></div>
-                      )}
-                      {service.watch_model && (
-                        <div><span className="text-gray-500">Model:</span> <span className="font-bold">{service.watch_model}</span></div>
-                      )}
-                      {service.watch_movement && (
-                        <div className="flex items-center gap-1">
-                          {getMovementIcon(service.watch_movement)}
-                          <span className="text-gray-500">Movement:</span>
-                          <span className="font-bold capitalize">{service.watch_movement}</span>
-                        </div>
-                      )}
-                      {service.watch_condition && (
-                        <div><span className="text-gray-500">Condition:</span> <span className="font-bold capitalize">{service.watch_condition}</span></div>
-                      )}
-                      {service.watch_year && (
-                        <div><span className="text-gray-500">Year:</span> <span className="font-bold">{service.watch_year}</span></div>
-                      )}
+                {isWatch &&
+                  (service.watch_movement || service.watch_condition) && (
+                    <div className="p-3 bg-[#FFDE00]/10 border border-black">
+                      <p className="text-xs font-black mb-2">
+                        DETAIL JAM TANGAN
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        {service.watch_brand && (
+                          <div>
+                            <span className="text-gray-500">Brand:</span>{" "}
+                            <span className="font-bold">
+                              {service.watch_brand}
+                            </span>
+                          </div>
+                        )}
+                        {service.watch_model && (
+                          <div>
+                            <span className="text-gray-500">Model:</span>{" "}
+                            <span className="font-bold">
+                              {service.watch_model}
+                            </span>
+                          </div>
+                        )}
+                        {service.watch_movement && (
+                          <div className="flex items-center gap-1">
+                            {getMovementIcon(service.watch_movement)}
+                            <span className="text-gray-500">Movement:</span>
+                            <span className="font-bold capitalize">
+                              {service.watch_movement}
+                            </span>
+                          </div>
+                        )}
+                        {service.watch_condition && (
+                          <div>
+                            <span className="text-gray-500">Condition:</span>{" "}
+                            <span className="font-bold capitalize">
+                              {service.watch_condition}
+                            </span>
+                          </div>
+                        )}
+                        {service.watch_year && (
+                          <div>
+                            <span className="text-gray-500">Year:</span>{" "}
+                            <span className="font-bold">
+                              {service.watch_year}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {service.serial_number && (
                   <div className="flex items-center gap-2 p-3 bg-gray-50 border border-black">
                     <Hash className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm">Serial Number: <span className="font-mono">{service.serial_number}</span></span>
+                    <span className="text-sm">
+                      Serial Number:{" "}
+                      <span className="font-mono">{service.serial_number}</span>
+                    </span>
                   </div>
                 )}
 
@@ -497,7 +646,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           {items.length > 0 && (
             <div className="border-2 border-black bg-white shadow-[6px_6px_0px_0px_black]">
               <button
-                onClick={() => toggleSection('items')}
+                onClick={() => toggleSection("items")}
                 className="w-full flex items-center justify-between p-4 border-b-2 border-black hover:bg-gray-50"
               >
                 <div className="flex items-center gap-2">
@@ -506,19 +655,30 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                   </div>
                   <h3 className="font-black">SPAREPART & BIAYA</h3>
                 </div>
-                {expandedSections.items ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                {expandedSections.items ? (
+                  <ChevronDown className="w-5 h-5" />
+                ) : (
+                  <ChevronRight className="w-5 h-5" />
+                )}
               </button>
 
               {expandedSections.items && (
                 <div className="p-5 space-y-3">
                   {items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-black">
+                    <div
+                      key={index}
+                      className="flex justify-between items-center p-3 bg-gray-50 border border-black"
+                    >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 text-xs font-bold border ${
-                            item.item_type === 'jasa' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-purple-100 text-purple-700 border-purple-200'
-                          }`}>
-                            {item.item_type === 'jasa' ? 'JASA' : 'SPAREPART'}
+                          <span
+                            className={`px-2 py-0.5 text-xs font-bold border ${
+                              item.item_type === "jasa"
+                                ? "bg-blue-100 text-blue-700 border-blue-200"
+                                : "bg-purple-100 text-purple-700 border-purple-200"
+                            }`}
+                          >
+                            {item.item_type === "jasa" ? "JASA" : "SPAREPART"}
                           </span>
                           <span className="font-bold">{item.name}</span>
                         </div>
@@ -526,12 +686,18 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                           {item.quantity} x {formatRupiah(item.price)}
                         </p>
                       </div>
-                      <span className="font-bold">{formatRupiah(item.price * item.quantity)}</span>
+                      <span className="font-bold">
+                        {formatRupiah(item.price * item.quantity)}
+                      </span>
                     </div>
                   ))}
                   <div className="flex justify-between items-center p-3 bg-black text-white font-bold">
                     <span>TOTAL</span>
-                    <span className="text-xl">{formatRupiah(service.final_cost || service.estimated_cost || 0)}</span>
+                    <span className="text-xl">
+                      {formatRupiah(
+                        service.final_cost || service.estimated_cost || 0,
+                      )}
+                    </span>
                   </div>
                 </div>
               )}
@@ -542,7 +708,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           {timeline.length > 0 && (
             <div className="border-2 border-black bg-white shadow-[6px_6px_0px_0px_black]">
               <button
-                onClick={() => toggleSection('timeline')}
+                onClick={() => toggleSection("timeline")}
                 className="w-full flex items-center justify-between p-4 border-b-2 border-black hover:bg-gray-50"
               >
                 <div className="flex items-center gap-2">
@@ -551,13 +717,20 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                   </div>
                   <h3 className="font-black">TIMELINE UPDATE</h3>
                 </div>
-                {expandedSections.timeline ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                {expandedSections.timeline ? (
+                  <ChevronDown className="w-5 h-5" />
+                ) : (
+                  <ChevronRight className="w-5 h-5" />
+                )}
               </button>
 
               {expandedSections.timeline && (
                 <div className="p-5 space-y-4 max-h-96 overflow-y-auto">
                   {timeline.map((update, index) => (
-                    <div key={update.id} className="relative pl-6 pb-4 last:pb-0">
+                    <div
+                      key={update.id}
+                      className="relative pl-6 pb-4 last:pb-0"
+                    >
                       {index < timeline.length - 1 && (
                         <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-gray-300" />
                       )}
@@ -567,27 +740,42 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                           <span className="text-xs text-gray-500">
                             {formatDate(update.created_at)}
                           </span>
-                          <span className={`text-xs font-bold px-2 py-0.5 border ${
-                            update.status === 'completed' ? 'bg-green-100 text-green-700 border-green-200' :
-                            update.status === 'waiting_sparepart' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            update.status === 'in_progress' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                            'bg-gray-100 text-gray-600 border-gray-200'
-                          }`}>
-                            {update.status === 'completed' ? 'SELESAI' :
-                             update.status === 'waiting_sparepart' ? 'MENUNGGU SPAREPART' :
-                             update.status === 'in_progress' ? 'DALAM PENGERJAAN' :
-                             update.status === 'assigned' ? 'DITUGASKAN' :
-                             update.status === 'qc_pending' ? 'QUALITY CHECK' : 'UPDATE'}
+                          <span
+                            className={`text-xs font-bold px-2 py-0.5 border ${
+                              update.status === "completed"
+                                ? "bg-green-100 text-green-700 border-green-200"
+                                : update.status === "waiting_sparepart"
+                                  ? "bg-orange-100 text-orange-700 border-orange-200"
+                                  : update.status === "in_progress"
+                                    ? "bg-purple-100 text-purple-700 border-purple-200"
+                                    : "bg-gray-100 text-gray-600 border-gray-200"
+                            }`}
+                          >
+                            {update.status === "completed"
+                              ? "SELESAI"
+                              : update.status === "waiting_sparepart"
+                                ? "MENUNGGU SPAREPART"
+                                : update.status === "in_progress"
+                                  ? "DALAM PENGERJAAN"
+                                  : update.status === "assigned"
+                                    ? "DITUGASKAN"
+                                    : update.status === "qc_pending"
+                                      ? "QUALITY CHECK"
+                                      : "UPDATE"}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-700">{update.message}</p>
+                        <p className="text-sm text-gray-700">
+                          {update.message}
+                        </p>
                         {update.photo_url && (
                           <div className="mt-2">
                             <img
                               src={update.photo_url}
                               alt="Progress"
                               className="rounded border border-black max-h-48 object-cover cursor-pointer hover:opacity-90"
-                              onClick={() => window.open(update.photo_url, '_blank')}
+                              onClick={() =>
+                                window.open(update.photo_url, "_blank")
+                              }
                             />
                           </div>
                         )}
@@ -601,11 +789,11 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
         </motion.div>
 
         {/* Completion Message */}
-        {service.status === 'completed' && (
+        {service.status === "completed" && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="border-2 border-black bg-gradient-to-r from-emerald-500 to-green-600 p-5 text-white shadow-[6px_6px_0px_0px_black]"
+            className="border-2 border-black bg-blue-500-to-r from-emerald-500 to-green-600 p-5 text-white shadow-[6px_6px_0px_0px_black]"
           >
             <div className="flex items-center gap-4 flex-wrap">
               <div className="w-12 h-12 bg-white/20 flex items-center justify-center border-2 border-white">
@@ -613,7 +801,10 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-black">SERVICE SELESAI!</h3>
-                <p className="text-sm opacity-90">Jam tangan Anda sudah siap diambil. Bawa invoice dan token ini.</p>
+                <p className="text-sm opacity-90">
+                  Jam tangan Anda sudah siap diambil. Bawa invoice dan token
+                  ini.
+                </p>
               </div>
             </div>
           </motion.div>
@@ -623,13 +814,18 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
         <div className="text-center pt-4">
           <p className="text-sm text-gray-500">
             Butuh bantuan? Hubungi kami di
-            <a href="tel:+62123456789" className="text-[#FF6B9D] font-bold ml-1">+62 123 456 789</a>
+            <a
+              href="tel:+62123456789"
+              className="text-[#FF6B9D] font-bold ml-1"
+            >
+              +62 123 456 789
+            </a>
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 // Import QR code icon
-import { QrCode } from 'lucide-react'
+import { QrCode } from "lucide-react";

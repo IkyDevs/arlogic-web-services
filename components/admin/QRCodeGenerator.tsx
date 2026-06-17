@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { QrCode, Download, X, Copy, Check } from 'lucide-react';
+import {
+  QrCode, Download, X, Copy, Check,
+  Share2, Send, MessageCircle, Printer
+} from 'lucide-react';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 
@@ -10,13 +13,21 @@ interface QRCodeGeneratorProps {
   invoiceNumber: string;
   token: string;
   customerName: string;
+  customerPhone?: string;
   onClose?: () => void;
 }
 
-export default function QRCodeGenerator({ invoiceNumber, token, customerName, onClose }: QRCodeGeneratorProps) {
+export default function QRCodeGenerator({
+  invoiceNumber,
+  token,
+  customerName,
+  customerPhone,
+  onClose
+}: QRCodeGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const trackingUrl = `${appUrl}/tracking/${invoiceNumber}?token=${token}`;
 
@@ -30,7 +41,7 @@ export default function QRCodeGenerator({ invoiceNumber, token, customerName, on
         width: 300,
         margin: 2,
         color: {
-          dark: '#1A1A1A',
+          dark: '#1A1A2E',
           light: '#FFFFFF',
         },
         errorCorrectionLevel: 'H',
@@ -64,21 +75,21 @@ export default function QRCodeGenerator({ invoiceNumber, token, customerName, on
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Border
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+    ctx.strokeStyle = '#E9ECEF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
 
-    // Header bg
-    ctx.fillStyle = '#FF6B9D';
-    ctx.fillRect(2, 2, canvas.width - 4, 64);
+    // Header
+    ctx.fillStyle = '#1A1A2E';
+    ctx.fillRect(0, 0, canvas.width, 64);
 
     // Title
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 22px monospace';
+    ctx.font = 'bold 20px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('WATCH SERVICE', canvas.width / 2, 32);
-    ctx.font = '13px monospace';
-    ctx.fillText('TRACKING QR CODE', canvas.width / 2, 54);
+    ctx.fillText('WATCH SERVICE', canvas.width / 2, 30);
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillText('TRACKING QR CODE', canvas.width / 2, 50);
 
     // QR Image
     const img = new Image();
@@ -86,17 +97,17 @@ export default function QRCodeGenerator({ invoiceNumber, token, customerName, on
       ctx.drawImage(img, 30, 80, 300, 300);
 
       // Invoice info
-      ctx.fillStyle = '#1A1A1A';
-      ctx.font = 'bold 16px monospace';
+      ctx.fillStyle = '#1A1A2E';
+      ctx.font = 'bold 18px Inter, sans-serif';
       ctx.fillText(invoiceNumber, canvas.width / 2, 406);
 
-      ctx.font = '13px monospace';
-      ctx.fillStyle = '#555555';
-      ctx.fillText(customerName, canvas.width / 2, 426);
+      ctx.font = '14px Inter, sans-serif';
+      ctx.fillStyle = '#6C757D';
+      ctx.fillText(customerName, canvas.width / 2, 428);
 
-      ctx.font = '11px monospace';
-      ctx.fillStyle = '#888888';
-      ctx.fillText('Scan to track service progress', canvas.width / 2, 448);
+      ctx.font = '11px Inter, sans-serif';
+      ctx.fillStyle = '#ADB5BD';
+      ctx.fillText('Scan to track service progress', canvas.width / 2, 450);
 
       const link = document.createElement('a');
       link.download = `QR_Label_${invoiceNumber}.png`;
@@ -107,6 +118,56 @@ export default function QRCodeGenerator({ invoiceNumber, token, customerName, on
     img.src = qrDataUrl;
   };
 
+  const shareViaWhatsApp = async () => {
+    if (!customerPhone) {
+      toast.error('Nomor WhatsApp customer tidak tersedia');
+      return;
+    }
+
+    setWhatsappLoading(true);
+
+    try {
+      // Format phone number
+      let phone = customerPhone.replace(/\D/g, '');
+      if (phone.startsWith('0')) {
+        phone = '62' + phone.substring(1);
+      } else if (phone.startsWith('+')) {
+        phone = phone.substring(1);
+      }
+
+      // Create message with QR and token
+      const message = `*WATCH SERVICE - TRACKING INFORMATION*
+
+Halo ${customerName},
+
+Berikut adalah informasi tracking untuk service Anda:
+
+📋 *Invoice:* ${invoiceNumber}
+🔑 *Token:* ${token}
+📱 *Link Tracking:* ${trackingUrl}
+
+Scan QR Code di bawah atau klik link di atas untuk melihat progress service Anda.
+
+Terima kasih telah menggunakan layanan kami. 🙏
+
+---
+*Watch Service Management*
+`;
+
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+
+      // Open WhatsApp in new tab
+      window.open(whatsappUrl, '_blank');
+
+      toast.success('WhatsApp dibuka! Kirim pesan ke customer.');
+    } catch (error) {
+      toast.error('Gagal membuka WhatsApp');
+    } finally {
+      setWhatsappLoading(false);
+    }
+  };
+
   const copyUrl = async () => {
     await navigator.clipboard.writeText(trackingUrl);
     setCopied(true);
@@ -114,73 +175,154 @@ export default function QRCodeGenerator({ invoiceNumber, token, customerName, on
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyMessage = () => {
+    const message = `*WATCH SERVICE - TRACKING INFORMATION*
+
+Halo ${customerName},
+
+Berikut adalah informasi tracking untuk service Anda:
+
+📋 *Invoice:* ${invoiceNumber}
+🔑 *Token:* ${token}
+📱 *Link Tracking:* ${trackingUrl}
+
+Terima kasih telah menggunakan layanan kami. 🙏
+
+---
+*Watch Service Management*
+`;
+    navigator.clipboard.writeText(message);
+    toast.success('Pesan copy! Bisa langsung paste ke WhatsApp.');
+  };
+
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-white border-2 border-black shadow-[12px_12px_0_0_#000] p-6 w-full max-w-sm"
+      className="bg-white rounded-xl shadow-sm border border-[#E9ECEF] p-6 w-full max-w-sm"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#FF6B9D] border-2 border-black flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
             <QrCode className="w-4 h-4 text-white" />
           </div>
-          <h3 className="font-black font-mono text-lg">QR CODE</h3>
+          <h3 className="font-semibold text-[#1A1A2E]">QR & Tracking</h3>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1 border-2 border-black hover:bg-gray-100">
-            <X size={16} />
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X size={16} className="text-gray-500" />
           </button>
         )}
       </div>
 
       {/* Info */}
-      <div className="bg-[#FFDE00] border-2 border-black p-3 mb-4">
-        <p className="font-black font-mono text-sm">{invoiceNumber}</p>
-        <p className="font-mono text-xs text-gray-700">{customerName}</p>
+      <div className="bg-[#F8F9FA] rounded-lg p-3 mb-4 border border-[#E9ECEF]">
+        <p className="font-mono text-sm font-semibold text-[#1A1A2E]">{invoiceNumber}</p>
+        <p className="text-sm text-gray-500">{customerName}</p>
       </div>
 
       {/* QR Display */}
-      <div className="flex items-center justify-center border-2 border-black p-4 bg-white mb-4 shadow-[4px_4px_0_0_#000]">
+      <div className="flex items-center justify-center border border-[#E9ECEF] rounded-lg p-4 bg-white mb-4">
         {qrDataUrl ? (
-          <img src={qrDataUrl} alt="QR Code" className="w-56 h-56" />
+          <img src={qrDataUrl} alt="QR Code" className="w-48 h-48" />
         ) : (
-          <div className="w-56 h-56 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-4 border-black border-t-[#FF6B9D]" />
+          <div className="w-48 h-48 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#E94560] border-t-transparent" />
           </div>
         )}
       </div>
 
-      {/* Tracking URL */}
-      <div className="border-2 border-black p-2 mb-4 flex items-center gap-2 bg-gray-50">
-        <p className="font-mono text-[10px] flex-1 truncate text-gray-600">{trackingUrl}</p>
-        <button
-          onClick={copyUrl}
-          className="p-1 border border-black bg-white hover:bg-[#FFDE00] transition-colors flex-shrink-0"
-        >
-          {copied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
-        </button>
+      {/* Token & URL */}
+      <div className="space-y-3 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500">Token:</span>
+          <code className="flex-1 text-xs font-mono bg-[#F8F9FA] px-2 py-1 rounded border border-[#E9ECEF] truncate">
+            {token}
+          </code>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(token);
+              toast.success('Token copied!');
+            }}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+          >
+            <Copy size={14} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500">Link:</span>
+          <code className="flex-1 text-xs font-mono bg-[#F8F9FA] px-2 py-1 rounded border border-[#E9ECEF] truncate">
+            {trackingUrl}
+          </code>
+          <button
+            onClick={copyUrl}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+          >
+            {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-gray-500" />}
+          </button>
+        </div>
       </div>
 
-      {/* Download Buttons */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Action Buttons */}
+      <div className="space-y-2">
+        {/* Share via WhatsApp */}
+        {customerPhone && (
+          <button
+            onClick={shareViaWhatsApp}
+            disabled={whatsappLoading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#25D366] text-white rounded-lg hover:bg-[#20bd5a] transition-all font-medium text-sm disabled:opacity-50"
+          >
+            {whatsappLoading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+            ) : (
+              <>
+                <MessageCircle size={16} />
+                Share via WhatsApp
+              </>
+            )}
+          </button>
+        )}
+
+        {/* Copy Message */}
         <button
-          onClick={downloadQR}
-          disabled={!qrDataUrl}
-          className="flex items-center justify-center gap-2 py-2.5 bg-[#3B82F6] text-white border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-[2px_2px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] font-mono font-bold text-xs transition-all disabled:opacity-50"
+          onClick={copyMessage}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#0F3460] transition-all font-medium text-sm"
         >
-          <Download size={14} />
-          DOWNLOAD QR
+          <Share2 size={16} />
+          Copy Tracking Message
         </button>
-        <button
-          onClick={downloadWithLabel}
-          disabled={!qrDataUrl}
-          className="flex items-center justify-center gap-2 py-2.5 bg-[#FFDE00] text-black border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-[2px_2px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] font-mono font-bold text-xs transition-all disabled:opacity-50"
-        >
-          <Download size={14} />
-          WITH LABEL
-        </button>
+
+        {/* Download Buttons */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={downloadQR}
+            disabled={!qrDataUrl}
+            className="flex items-center justify-center gap-2 py-2 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all font-medium text-sm disabled:opacity-50"
+          >
+            <Download size={14} />
+            QR Code
+          </button>
+          <button
+            onClick={downloadWithLabel}
+            disabled={!qrDataUrl}
+            className="flex items-center justify-center gap-2 py-2 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all font-medium text-sm disabled:opacity-50"
+          >
+            <Printer size={14} />
+            With Label
+          </button>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-4 pt-4 border-t border-[#E9ECEF]">
+        <p className="text-xs text-gray-400 text-center">
+          QR Code & Token untuk tracking service customer
+        </p>
       </div>
     </motion.div>
   );

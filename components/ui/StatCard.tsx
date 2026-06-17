@@ -1,18 +1,25 @@
-'use client'
+"use client";
 
-import { motion } from 'framer-motion'
-import { ReactNode } from 'react'
+import { motion } from "framer-motion";
+import { ReactNode } from "react";
 
 interface StatCardProps {
-  title: string
-  value: number | string
-  icon: ReactNode
-  color: string
-  trend?: number
-  delay?: number
+  title: string;
+  value: number | string;
+  icon: ReactNode;
+  color: string;
+  trend?: number;
+  delay?: number;
 }
 
-export default function StatCard({ title, value, icon, color, trend, delay = 0 }: StatCardProps) {
+export default function StatCard({
+  title,
+  value,
+  icon,
+  color,
+  trend,
+  delay = 0,
+}: StatCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -21,7 +28,7 @@ export default function StatCard({ title, value, icon, color, trend, delay = 0 }
       whileHover={{ y: -5, transition: { duration: 0.2 } }}
       className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
     >
-      <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
+      <div className="absolute inset-0 bg-blue-500-to-br opacity-0 group-hover:opacity-5 transition-opacity duration-300" />
 
       <div className="relative p-6">
         <div className="flex items-start justify-between">
@@ -36,8 +43,10 @@ export default function StatCard({ title, value, icon, color, trend, delay = 0 }
               {value}
             </motion.p>
             {trend !== undefined && (
-              <div className={`flex items-center gap-1 mt-2 text-sm ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% from last month
+              <div
+                className={`flex items-center gap-1 mt-2 text-sm ${trend >= 0 ? "text-green-600" : "text-red-600"}`}
+              >
+                {trend >= 0 ? "↑" : "↓"} {Math.abs(trend)}% from last month
               </div>
             )}
           </div>
@@ -45,7 +54,7 @@ export default function StatCard({ title, value, icon, color, trend, delay = 0 }
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: delay + 0.15, type: 'spring', stiffness: 200 }}
+            transition={{ delay: delay + 0.15, type: "spring", stiffness: 200 }}
             className={`${color} w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg`}
           >
             {icon}
@@ -53,12 +62,12 @@ export default function StatCard({ title, value, icon, color, trend, delay = 0 }
         </div>
 
         <motion.div
-          className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500"
+          className="absolute bottom-0 left-0 h-1 bg-blue-500-to-r from-blue-500 to-purple-500"
           initial={{ width: 0 }}
-          animate={{ width: '100%' }}
+          animate={{ width: "100%" }}
           transition={{ delay: delay + 0.2, duration: 0.8 }}
         />
       </div>
     </motion.div>
-  )
+  );
 }

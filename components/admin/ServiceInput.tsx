@@ -8,29 +8,30 @@ import {
   User, Watch, Calendar, Send, CheckCircle,
   AlertCircle, ArrowRight, Settings, Battery,
   Cpu, Sparkles, Camera, X, Image as ImageIcon,
-  Hash, Phone
+  Hash, Phone, Loader2, RotateCw, Smartphone, Circle
 } from 'lucide-react'
 import { useUpload } from '@/hooks/useUpload'
 import dynamic from 'next/dynamic'
 
 const QRCodeGenerator = dynamic(() => import('@/components/admin/QRCodeGenerator'), {
-  loading: () => <div className="border-2 border-black p-4 text-center font-mono text-sm">Loading QR...</div>
+  loading: () => <div className="text-center py-4 text-sm text-gray-400">Loading QR...</div>
 })
 
+// Updated watch movements
 const watchMovements = [
-  { value: 'automatic', label: 'AUTOMATIC', icon: Settings, color: 'pink' },
-  { value: 'quartz', label: 'QUARTZ', icon: Battery, color: 'yellow' },
-  { value: 'mechanical', label: 'MECHANICAL', icon: Cpu, color: 'blue' },
+  { value: 'automatic', label: 'AUTOMATIC', icon: Settings },
+  { value: 'quartz', label: 'QUARTZ', icon: Battery },
+  { value: 'digital', label: 'DIGITAL', icon: RotateCw },
+  { value: 'smartwatch', label: 'SMARTWATCH', icon: Smartphone },
 ]
 
 const watchBrands = [
   'ROLEX', 'OMEGA', 'TAG HEUER', 'CASIO', 'SEIKO',
   'CITIZEN', 'TISSOT', 'LONGINES', 'BREITLING', 'CARTIER',
-  'APPLE WATCH', 'SAMSUNG WATCH', 'GARMIN'
+  'APPLE WATCH', 'SAMSUNG WATCH', 'GARMIN', 'FOSSIL', 'SWATCH'
 ]
 
-const STEP_LABELS = ['CUSTOMER', 'WATCH', 'PHOTOS', 'ISSUE']
-const STEP_COLORS = ['bg-[#FF6B9D] text-white', 'bg-[#FFDE00] text-black', 'bg-[#3B82F6] text-white', 'bg-black text-white']
+const STEP_LABELS = ['Customer', 'Watch', 'Photos', 'Issue']
 
 export default function ServiceInput() {
   const supabase = createClient()
@@ -44,7 +45,6 @@ export default function ServiceInput() {
     serial_number: '',
     watch_brand: '',
     watch_model: '',
-    watch_year: '',
     watch_movement: '',
     problem: '',
     request: '',
@@ -94,7 +94,6 @@ export default function ServiceInput() {
       toast.error('Fill watch brand and movement!')
       return
     }
-    // Step 3 (photos) is optional — warn but allow skip
     if (step === 3 && photos.length === 0) {
       toast('No photos added. Teknisi won\'t have initial condition reference.', { icon: '⚠️' })
     }
@@ -134,7 +133,6 @@ export default function ServiceInput() {
           device_model: formData.watch_model || null,
           watch_brand: formData.watch_brand,
           watch_model: formData.watch_model || null,
-          watch_year: formData.watch_year ? parseInt(formData.watch_year) : null,
           watch_movement: formData.watch_movement,
           issue_description: formData.problem,
           request: formData.request || null,
@@ -148,7 +146,6 @@ export default function ServiceInput() {
 
       const serviceId = orderData.id
 
-      // Upload initial condition photos
       if (photos.length > 0) {
         for (const photo of photos) {
           const url = await uploadFile(photo, { type: 'service' })
@@ -176,7 +173,11 @@ export default function ServiceInput() {
 
   const resetForm = () => {
     photoPreviews.forEach(url => URL.revokeObjectURL(url))
-    setFormData({ cs_name: '', cs_phone: '', serial_number: '', watch_brand: '', watch_model: '', watch_year: '', watch_movement: '', problem: '', request: '', notes: '' })
+    setFormData({
+      cs_name: '', cs_phone: '', serial_number: '',
+      watch_brand: '', watch_model: '', watch_movement: '',
+      problem: '', request: '', notes: ''
+    })
     setPhotos([])
     setPhotoPreviews([])
     setSuccess(false)
@@ -184,32 +185,39 @@ export default function ServiceInput() {
     setLastInvoice(null)
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto py-4">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-[#FF6B9D] flex items-center justify-center border-2 border-black shadow-[4px_4px_0_0_black]">
-          <Watch className="w-6 h-6 text-white" />
+        <div className="w-10 h-10 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+          <Watch className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h2 className="text-2xl font-black tracking-tighter">NEW WATCH SERVICE</h2>
-          <p className="text-xs font-mono">Create service order for timepiece</p>
+          <h2 className="text-xl font-bold text-[#1A1A2E]">New Watch Service</h2>
+          <p className="text-sm text-gray-400">Create service order for timepiece</p>
         </div>
       </div>
 
-      {/* Progress Bar (steps 1–4) */}
+      {/* Progress Steps */}
       {step <= 4 && (
-        <div className="flex mb-8 border-2 border-black">
+        <div className="flex gap-1 mb-8">
           {STEP_LABELS.map((label, i) => (
             <div
               key={i}
-              className={`flex-1 py-2.5 text-center font-black text-xs border-r-2 border-black last:border-r-0 transition-colors ${
-                step > i + 1 ? 'bg-gray-100 text-gray-400' : step === i + 1 ? STEP_COLORS[i] : 'bg-white text-gray-400'
+              className={`flex-1 flex items-center gap-2 py-2.5 px-3 rounded-lg transition-all ${
+                step > i + 1
+                  ? 'bg-gray-100 text-gray-400'
+                  : step === i + 1
+                    ? 'bg-[#1A1A2E] text-white shadow-sm'
+                    : 'bg-gray-50 text-gray-400 border border-[#E9ECEF]'
               }`}
             >
-              {label}
+              <span className={`text-xs font-medium ${step === i + 1 ? 'text-white' : 'text-gray-400'}`}>
+                {i + 1}
+              </span>
+              <span className={`text-xs font-medium ${step === i + 1 ? 'text-white' : 'text-gray-500'}`}>
+                {label}
+              </span>
             </div>
           ))}
         </div>
@@ -219,195 +227,348 @@ export default function ServiceInput() {
 
         {/* ── STEP 1: Customer ─────────────────────────────────────────── */}
         {step === 1 && (
-          <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="border-2 border-black bg-white p-6 shadow-[6px_6px_0_0_black]">
-            <StepHeader icon={<User />} title="CUSTOMER INFO" step="1/4" color="bg-[#FF6B9D] text-white" />
-            <div className="space-y-4 mt-5">
-              <Field label="Full Name *">
-                <input type="text" value={formData.cs_name}
-                  onChange={e => setFormData(p => ({ ...p, cs_name: e.target.value }))}
-                  className="input-brutal w-full" placeholder="John Doe" />
-              </Field>
-              <Field label="WhatsApp / Phone *">
-                <input type="tel" value={formData.cs_phone}
-                  onChange={e => setFormData(p => ({ ...p, cs_phone: e.target.value }))}
-                  className="input-brutal w-full" placeholder="+62 812 3456 7890" />
-              </Field>
-              <Field label="Serial Number">
-                <input type="text" value={formData.serial_number}
-                  onChange={e => setFormData(p => ({ ...p, serial_number: e.target.value }))}
-                  className="input-brutal w-full" placeholder="Watch serial number (optional)" />
-              </Field>
-              <Field label="In Date">
-                <div className="flex items-center gap-2 px-3 py-2 border-2 border-black bg-gray-50 font-mono text-sm">
-                  <Calendar className="w-4 h-4 text-[#FF6B9D]" />
-                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </div>
-              </Field>
+          <motion.div
+            key="s1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
+              <User className="w-4 h-4 text-[#1A1A2E]" />
+              <h3 className="font-semibold text-[#1A1A2E]">Customer Information</h3>
+              <span className="ml-auto text-xs text-gray-400 font-medium">1/4</span>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Full Name <span className="text-[#E94560]">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.cs_name}
+                    onChange={e => setFormData(p => ({ ...p, cs_name: e.target.value }))}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    placeholder="John Doe"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  WhatsApp / Phone <span className="text-[#E94560]">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={formData.cs_phone}
+                    onChange={e => setFormData(p => ({ ...p, cs_phone: e.target.value }))}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    placeholder="+62 812 3456 7890"
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Serial Number
+                </label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.serial_number}
+                    onChange={e => setFormData(p => ({ ...p, serial_number: e.target.value }))}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end mt-6">
-              <BtnNext onClick={nextStep} color="bg-[#FF6B9D] text-white" />
+              <button
+                onClick={nextStep}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+              >
+                Continue <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </motion.div>
         )}
 
         {/* ── STEP 2: Watch Details ─────────────────────────────────────── */}
         {step === 2 && (
-          <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="border-2 border-black bg-white p-6 shadow-[6px_6px_0_0_black]">
-            <StepHeader icon={<Watch />} title="WATCH DETAILS" step="2/4" color="bg-[#FFDE00] text-black" />
-            <div className="space-y-4 mt-5">
-              <Field label="Brand *">
-                <input type="text" list="watchBrandsList" value={formData.watch_brand}
+          <motion.div
+            key="s2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
+              <Watch className="w-4 h-4 text-[#1A1A2E]" />
+              <h3 className="font-semibold text-[#1A1A2E]">Watch Details</h3>
+              <span className="ml-auto text-xs text-gray-400 font-medium">2/4</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Brand <span className="text-[#E94560]">*</span>
+                </label>
+                <input
+                  type="text"
+                  list="watchBrandsList"
+                  value={formData.watch_brand}
                   onChange={e => setFormData(p => ({ ...p, watch_brand: e.target.value.toUpperCase() }))}
-                  className="input-brutal w-full uppercase" placeholder="ROLEX, OMEGA, CASIO..." />
+                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm uppercase"
+                  placeholder="ROLEX, OMEGA, CASIO..."
+                />
                 <datalist id="watchBrandsList">
                   {watchBrands.map(b => <option key={b} value={b} />)}
                 </datalist>
-              </Field>
-              <Field label="Model">
-                <input type="text" value={formData.watch_model}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Model
+                </label>
+                <input
+                  type="text"
+                  value={formData.watch_model}
                   onChange={e => setFormData(p => ({ ...p, watch_model: e.target.value.toUpperCase() }))}
-                  className="input-brutal w-full uppercase" placeholder="SUBMARINER, SPEEDMASTER..." />
-              </Field>
-              <Field label="Year">
-                <input type="number" value={formData.watch_year}
-                  onChange={e => setFormData(p => ({ ...p, watch_year: e.target.value }))}
-                  className="input-brutal w-full" placeholder="e.g. 2020" min="1900" max={new Date().getFullYear()} />
-              </Field>
-              <Field label="Movement *">
-                <div className="grid grid-cols-3 gap-2">
+                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm uppercase"
+                  placeholder="SUBMARINER, SPEEDMASTER..."
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Movement <span className="text-[#E94560]">*</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {watchMovements.map(m => (
-                    <button key={m.value} type="button"
+                    <button
+                      key={m.value}
+                      type="button"
                       onClick={() => setFormData(p => ({ ...p, watch_movement: m.value }))}
-                      className={`py-3 text-xs font-black border-2 border-black flex flex-col items-center gap-1 transition-all ${
+                      className={`py-3 text-xs font-medium rounded-lg border transition-all flex flex-col items-center gap-1.5 ${
                         formData.watch_movement === m.value
-                          ? m.color === 'pink' ? 'bg-[#FF6B9D] text-white shadow-[3px_3px_0_0_black]'
-                            : m.color === 'yellow' ? 'bg-[#FFDE00] text-black shadow-[3px_3px_0_0_black]'
-                            : 'bg-[#3B82F6] text-white shadow-[3px_3px_0_0_black]'
-                          : 'bg-white text-black hover:bg-gray-50'
-                      }`}>
-                      <m.icon className="w-4 h-4" />
+                          ? 'border-[#1A1A2E] bg-[#1A1A2E] text-white'
+                          : 'border-[#E9ECEF] bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <m.icon className="w-5 h-5" />
                       {m.label}
                     </button>
                   ))}
                 </div>
-              </Field>
+              </div>
             </div>
+
             <div className="flex justify-between mt-6">
-              <BtnBack onClick={prevStep} />
-              <BtnNext onClick={nextStep} color="bg-[#FFDE00] text-black" />
+              <button
+                onClick={prevStep}
+                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={nextStep}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+              >
+                Continue <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </motion.div>
         )}
 
-        {/* ── STEP 3: Photos (Initial Condition) ───────────────────────── */}
+        {/* ── STEP 3: Photos ───────────────────────────────────────────── */}
         {step === 3 && (
-          <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="border-2 border-black bg-white p-6 shadow-[6px_6px_0_0_black]">
-            <StepHeader icon={<Camera />} title="INITIAL CONDITION PHOTOS" step="3/4" color="bg-[#3B82F6] text-white" />
-            <p className="text-xs font-mono text-gray-500 mt-2 mb-5">
-              Foto kondisi jam sebelum diservice. Teknisi dan QC akan melihat ini sebagai referensi awal.
+          <motion.div
+            key="s3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
+              <Camera className="w-4 h-4 text-[#1A1A2E]" />
+              <h3 className="font-semibold text-[#1A1A2E]">Initial Condition Photos</h3>
+              <span className="ml-auto text-xs text-gray-400 font-medium">3/4</span>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-4">
+              Photos of the watch before service. Teknisi will use this as reference.
             </p>
 
             {/* Photo Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-              {photoPreviews.map((src, i) => (
-                <div key={i} className="relative group border-2 border-black overflow-hidden">
-                  <img src={src} alt={`Foto ${i + 1}`} className="w-full h-36 object-cover" />
-                  <button onClick={() => removePhoto(i)}
-                    className="absolute top-1 right-1 bg-red-600 text-white p-1 border border-white opacity-0 group-hover:opacity-100 transition-opacity">
-                    <X className="w-3 h-3" />
-                  </button>
-                  <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] font-mono py-0.5 px-1">
-                    Foto {i + 1}
+            {photoPreviews.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                {photoPreviews.map((src, i) => (
+                  <div key={i} className="relative group border border-[#E9ECEF] rounded-lg overflow-hidden">
+                    <img src={src} alt={`Foto ${i + 1}`} className="w-full h-28 object-cover" />
+                    <button
+                      onClick={() => removePhoto(i)}
+                      className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3 text-gray-600" />
+                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Upload Buttons */}
-            <div className="grid grid-cols-2 gap-3 mb-2">
-              {/* Camera capture */}
-              <button onClick={() => cameraInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 py-3 bg-[#FF6B9D] text-white border-2 border-black shadow-[4px_4px_0_0_black] hover:shadow-[2px_2px_0_0_black] hover:translate-x-[2px] hover:translate-y-[2px] font-mono font-black text-sm transition-all">
+            <div className="flex gap-3">
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+              >
                 <Camera className="w-4 h-4" />
-                KAMERA
+                Take Photo
               </button>
-              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment"
-                multiple onChange={e => handleAddPhoto(e.target.files)} className="hidden" />
-
-              {/* File picker */}
-              <button onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 py-3 bg-white border-2 border-black shadow-[4px_4px_0_0_black] hover:shadow-[2px_2px_0_0_black] hover:translate-x-[2px] hover:translate-y-[2px] font-mono font-black text-sm transition-all">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium text-[#1A1A2E]"
+              >
                 <ImageIcon className="w-4 h-4" />
-                GALERI
+                Upload from Gallery
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple
-                onChange={e => handleAddPhoto(e.target.files)} className="hidden" />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={e => handleAddPhoto(e.target.files)}
+                className="hidden"
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={e => handleAddPhoto(e.target.files)}
+                className="hidden"
+              />
             </div>
 
-            <p className="text-[10px] font-mono text-gray-400 text-center">
-              {photos.length > 0 ? `${photos.length} foto dipilih` : 'Opsional — bisa di-skip'}
+            <p className="text-xs text-gray-400 mt-3">
+              {photos.length > 0 ? `${photos.length} photos selected` : 'Optional — can be skipped'}
             </p>
 
             <div className="flex justify-between mt-6">
-              <BtnBack onClick={prevStep} />
-              <BtnNext onClick={nextStep} color="bg-[#3B82F6] text-white" label={photos.length === 0 ? 'SKIP →' : undefined} />
+              <button
+                onClick={prevStep}
+                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={nextStep}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+              >
+                {photos.length === 0 ? 'Skip →' : 'Continue →'}
+              </button>
             </div>
           </motion.div>
         )}
 
         {/* ── STEP 4: Issue ─────────────────────────────────────────────── */}
         {step === 4 && (
-          <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="border-2 border-black bg-white p-6 shadow-[6px_6px_0_0_black]">
-            <StepHeader icon={<AlertCircle />} title="SERVICE ISSUE" step="4/4" color="bg-black text-white" />
-            <div className="space-y-4 mt-5">
-              <Field label="Problem / Kendala *">
-                <textarea value={formData.problem}
+          <motion.div
+            key="s4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
+              <AlertCircle className="w-4 h-4 text-[#1A1A2E]" />
+              <h3 className="font-semibold text-[#1A1A2E]">Service Issue</h3>
+              <span className="ml-auto text-xs text-gray-400 font-medium">4/4</span>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Problem / Kendala <span className="text-[#E94560]">*</span>
+                </label>
+                <textarea
+                  value={formData.problem}
                   onChange={e => setFormData(p => ({ ...p, problem: e.target.value }))}
-                  rows={3} className="input-brutal w-full resize-none"
-                  placeholder="Describe the watch issue in detail..." />
-              </Field>
-              <Field label="Customer Request">
-                <textarea value={formData.request}
+                  rows={3}
+                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                  placeholder="Describe the watch issue in detail..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Customer Request
+                </label>
+                <textarea
+                  value={formData.request}
                   onChange={e => setFormData(p => ({ ...p, request: e.target.value }))}
-                  rows={2} className="input-brutal w-full resize-none"
-                  placeholder="Special requests from customer..." />
-              </Field>
-              <Field label="Additional Notes">
-                <textarea value={formData.notes}
+                  rows={2}
+                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                  placeholder="Special requests from customer..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Additional Notes
+                </label>
+                <textarea
+                  value={formData.notes}
                   onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
-                  rows={2} className="input-brutal w-full resize-none"
-                  placeholder="Any additional notes..." />
-              </Field>
+                  rows={2}
+                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                  placeholder="Any additional notes..."
+                />
+              </div>
 
               {/* Summary */}
-              <div className="p-4 border-2 border-black bg-[#F5F5F5]">
-                <p className="text-xs font-black uppercase mb-2 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#FFDE00]" /> SUMMARY
+              <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> Summary
                 </p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono">
-                  <span className="text-gray-500">Customer:</span><span className="font-bold">{formData.cs_name || '—'}</span>
-                  <span className="text-gray-500">Watch:</span><span className="font-bold">{[formData.watch_brand, formData.watch_model].filter(Boolean).join(' ') || '—'}</span>
-                  <span className="text-gray-500">Movement:</span><span className="font-bold uppercase">{formData.watch_movement || '—'}</span>
-                  <span className="text-gray-500">Photos:</span><span className="font-bold">{photos.length} foto</span>
+                <div className="grid grid-cols-2 gap-1 text-sm">
+                  <span className="text-gray-500">Customer:</span>
+                  <span className="font-medium text-[#1A1A2E]">{formData.cs_name || '—'}</span>
+                  <span className="text-gray-500">Watch:</span>
+                  <span className="font-medium text-[#1A1A2E]">{[formData.watch_brand, formData.watch_model].filter(Boolean).join(' ') || '—'}</span>
+                  <span className="text-gray-500">Movement:</span>
+                  <span className="font-medium text-[#1A1A2E] uppercase">{formData.watch_movement || '—'}</span>
+                  <span className="text-gray-500">Photos:</span>
+                  <span className="font-medium text-[#1A1A2E]">{photos.length} photos</span>
                 </div>
               </div>
             </div>
 
             <div className="flex justify-between mt-6">
-              <BtnBack onClick={prevStep} />
-              <button onClick={handleSubmit} disabled={loading || uploading}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#FF6B9D] text-white border-2 border-black shadow-[4px_4px_0_0_black] hover:shadow-[2px_2px_0_0_black] hover:translate-x-[2px] hover:translate-y-[2px] font-black text-sm transition-all disabled:opacity-50">
+              <button
+                onClick={prevStep}
+                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading || uploading}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-sm font-medium disabled:opacity-50"
+              >
                 {loading || uploading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    {uploading ? `UPLOADING ${progress}%` : 'CREATING...'}
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {uploading ? `Uploading ${progress}%` : 'Creating...'}
                   </>
                 ) : (
-                  <><Send className="w-4 h-4" /> CREATE ORDER</>
+                  <>
+                    <Send className="w-4 h-4" />
+                    Create Order
+                  </>
                 )}
               </button>
             </div>
@@ -416,43 +577,67 @@ export default function ServiceInput() {
 
         {/* ── STEP 5: Success ───────────────────────────────────────────── */}
         {step === 5 && success && lastInvoice && (
-          <motion.div key="s5" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className="border-2 border-black bg-white p-8 text-center shadow-[8px_8px_0_0_black]">
-            <div className="w-16 h-16 bg-[#FF6B9D] flex items-center justify-center mx-auto mb-4 border-2 border-black">
+          <motion.div
+            key="s5"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm"
+          >
+            <div className="w-16 h-16 bg-[#2ECC71] rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-2xl font-black mb-1">ORDER CREATED!</h3>
-            <p className="font-mono text-sm text-gray-600 mb-5">
-              Watch service order berhasil dibuat{photos.length > 0 ? ` dengan ${photos.length} foto kondisi awal` : ''}.
+
+            <h3 className="text-2xl font-bold text-[#1A1A2E] mb-1">Order Created!</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Watch service order has been created
+              {photos.length > 0 && ` with ${photos.length} initial condition photos`}.
             </p>
 
-            <div className="border-2 border-black p-4 mb-5 bg-[#F5F5F5] text-left">
-              <div className="mb-3">
-                <p className="text-[10px] font-black uppercase text-gray-500">INVOICE NUMBER</p>
-                <p className="text-xl font-black font-mono">{lastInvoice.invoice}</p>
-              </div>
-              <div className="border-t border-black pt-3">
-                <p className="text-[10px] font-black uppercase text-gray-500">TRACKING TOKEN</p>
-                <p className="text-lg font-black font-mono text-[#FF6B9D]">{lastInvoice.token}</p>
+            <div className="bg-[#FAFAFA] rounded-lg p-4 mb-6 text-left border border-[#E9ECEF]">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Invoice</p>
+                  <p className="text-lg font-mono font-bold text-[#1A1A2E]">{lastInvoice.invoice}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Token</p>
+                  <p className="text-lg font-mono font-bold text-[#E94560]">{lastInvoice.token}</p>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-center mb-5">
+            <div className="flex justify-center mb-6">
               <QRCodeGenerator
                 invoiceNumber={lastInvoice.invoice}
                 token={lastInvoice.token}
                 customerName={formData.cs_name}
+                customerPhone={formData.cs_phone}
               />
             </div>
 
-            <div className="flex gap-3 justify-center">
-              <button onClick={resetForm}
-                className="px-5 py-2 border-2 border-black bg-white font-black text-sm hover:bg-gray-100 transition-colors">
-                NEW ORDER
+            <div className="flex gap-3 justify-center flex-wrap">
+              <button
+                onClick={resetForm}
+                className="px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+              >
+                New Order
               </button>
-              <button onClick={() => { navigator.clipboard.writeText(lastInvoice.token); toast.success('Token copied!') }}
-                className="px-5 py-2 bg-[#FFDE00] border-2 border-black shadow-[3px_3px_0_0_black] hover:translate-x-[1px] hover:translate-y-[1px] font-black text-sm transition-all">
-                COPY TOKEN
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(lastInvoice.token)
+                  toast.success('Token copied!')
+                }}
+                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+              >
+                Copy Token
+              </button>
+              <button
+                onClick={() => {
+                  window.open(`/tracking/${lastInvoice.token}`, '_blank')
+                }}
+                className="px-5 py-2.5 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-sm font-medium"
+              >
+                Open Tracking
               </button>
             </div>
           </motion.div>
@@ -460,57 +645,16 @@ export default function ServiceInput() {
 
       </AnimatePresence>
 
-      {/* Upload progress toast */}
+      {/* Upload progress */}
       {uploading && (
-        <div className="fixed bottom-4 right-4 bg-white border-2 border-black shadow-[6px_6px_0_0_black] p-4 w-64 z-50">
-          <p className="font-mono font-black text-xs mb-2">UPLOADING PHOTOS...</p>
-          <div className="h-2 bg-gray-200 border border-black overflow-hidden">
-            <div className="h-full bg-[#FF6B9D] transition-all duration-200" style={{ width: `${progress}%` }} />
+        <div className="fixed bottom-4 right-4 bg-white rounded-lg border border-[#E9ECEF] shadow-lg p-4 w-64 z-50">
+          <p className="text-xs font-medium text-[#1A1A2E] mb-2">Uploading photos...</p>
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-[#E94560] transition-all duration-200" style={{ width: `${progress}%` }} />
           </div>
-          <p className="font-mono text-[10px] text-gray-500 mt-1">{progress}% complete</p>
+          <p className="text-xs text-gray-400 mt-1.5">{progress}% complete</p>
         </div>
       )}
     </div>
-  )
-}
-
-// ─── Helper Components ─────────────────────────────────────────────────────
-
-function StepHeader({ icon, title, step, color }: { icon: React.ReactNode; title: string; step: string; color: string }) {
-  return (
-    <div className="flex items-center gap-2 pb-3 border-b-2 border-black">
-      <div className={`w-8 h-8 flex items-center justify-center border-2 border-black ${color}`}>
-        {icon}
-      </div>
-      <h3 className="text-lg font-black">{title}</h3>
-      <span className={`ml-auto text-xs font-mono px-2 py-0.5 border border-black ${color}`}>{step}</span>
-    </div>
-  )
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs font-black uppercase mb-1">{label}</label>
-      {children}
-    </div>
-  )
-}
-
-function BtnNext({ onClick, color = 'bg-[#3B82F6] text-white', label }: { onClick: () => void; color?: string; label?: string }) {
-  return (
-    <button onClick={onClick}
-      className={`flex items-center gap-2 px-6 py-2.5 border-2 border-black shadow-[4px_4px_0_0_black] hover:shadow-[2px_2px_0_0_black] hover:translate-x-[2px] hover:translate-y-[2px] font-black text-sm transition-all ${color}`}>
-      {label ?? 'NEXT'} <ArrowRight className="w-4 h-4" />
-    </button>
-  )
-}
-
-function BtnBack({ onClick }: { onClick: () => void }) {
-  return (
-    <button onClick={onClick}
-      className="px-6 py-2.5 border-2 border-black bg-white font-black text-sm hover:bg-gray-50 transition-colors">
-      ← BACK
-    </button>
   )
 }

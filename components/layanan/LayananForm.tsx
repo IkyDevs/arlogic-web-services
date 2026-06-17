@@ -16,11 +16,12 @@ import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import {
   User, Phone, Tag, DollarSign, FileText,
-  Send, X, Camera, Loader, Trash2,
-  AlertCircle, Calendar, Clock,
+  Send, X, Camera, Loader2, Trash2,
+  AlertCircle, Calendar,
   CreditCard, Share2, Hash, Users,
-  ShoppingBag, TrendingDown, Wrench, QrCode,
-   MapPin, Globe, Star, Music, Edit, Minus
+  ShoppingBag, TrendingDown, Wrench,
+  MapPin, Globe, Star, Music, Edit, Minus,
+  Image as ImageIcon
 } from 'lucide-react'
 
 interface LayananFormProps {
@@ -223,88 +224,94 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+      className="bg-white rounded-xl border border-[#E9ECEF] shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
     >
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10 flex justify-between items-center p-5 pb-3 border-b-2 border-black">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#FF6B9D] flex items-center justify-center border-2 border-black">
+      <div className="sticky top-0 bg-white z-10 flex justify-between items-center px-6 py-4 border-b border-[#E9ECEF]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
             <FileText className="w-4 h-4 text-white" />
           </div>
-          <h2 className="text-xl font-black">TAMBAH LAYANAN</h2>
+          <div>
+            <h2 className="text-lg font-bold text-[#1A1A2E]">New Transaction</h2>
+            <p className="text-xs text-gray-400">Input customer transaction</p>
+          </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 border-2 border-black">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-4 h-4 text-gray-400" />
           </button>
         )}
       </div>
 
       {/* Form Body */}
-      <form onSubmit={handleSubmit} className="p-5 space-y-5">
+      <form onSubmit={handleSubmit} className="p-6 space-y-5">
         {/* Customer Information */}
-        <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-          <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
+        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
             <User className="w-4 h-4" />
-            DATA CUSTOMER
+            Customer Data
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black uppercase mb-1">Nama Customer *</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Customer Name <span className="text-[#E94560]">*</span>
+              </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   value={formData.customer_name}
                   onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
-                  placeholder="Nama customer"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  placeholder="Customer name"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-1">WhatsApp *</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                WhatsApp <span className="text-[#E94560]">*</span>
+              </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="tel"
                   value={formData.customer_whatsapp}
                   onChange={(e) => setFormData({ ...formData, customer_whatsapp: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
                   placeholder="081234567890"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-1">Tanggal</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={new Date().toLocaleDateString('id-ID')}
-                  disabled
-                  className="w-full pl-9 pr-3 py-2 border-2 border-black bg-gray-100 font-mono"
-                />
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Date
+              </label>
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-[#E9ECEF] rounded-lg text-sm text-gray-600">
+                <Calendar className="w-4 h-4 text-gray-400" />
+                {new Date().toLocaleDateString('id-ID')}
               </div>
             </div>
           </div>
         </div>
 
         {/* Service Details */}
-        <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-          <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
+        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
             <Wrench className="w-4 h-4" />
-            DETAIL LAYANAN
+            Service Details
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black uppercase mb-1">Jenis Layanan *</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Service Type <span className="text-[#E94560]">*</span>
+              </label>
               <select
                 value={formData.jenis_layanan}
                 onChange={(e) => setFormData({ ...formData, jenis_layanan: e.target.value as JenisLayanan })}
-                className="w-full px-3 py-2 border-2 border-black font-mono bg-white focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
               >
                 {jenisLayananOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -312,29 +319,33 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               </select>
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-1">Handle By *</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Handled By <span className="text-[#E94560]">*</span>
+              </label>
               <select
                 value={formData.handled_by}
                 onChange={(e) => setFormData({ ...formData, handled_by: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-black font-mono bg-white focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
                 required
               >
-                <option value="">Pilih yang melayani</option>
+                <option value="">Select handler</option>
                 {users.map(u => (
                   <option key={u.id} value={u.id}>{u.full_name}</option>
                 ))}
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-black uppercase mb-1">Detail SKU</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                SKU / Description
+              </label>
               <div className="relative">
                 <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   value={formData.detail_sku}
                   onChange={(e) => setFormData({ ...formData, detail_sku: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
-                  placeholder="Deskripsi item / SKU..."
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  placeholder="Item description / SKU..."
                 />
               </div>
             </div>
@@ -342,18 +353,20 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
         </div>
 
         {/* Transaction Details */}
-        <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-          <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
+        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
             <DollarSign className="w-4 h-4" />
-            TRANSAKSI
+            Transaction
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black uppercase mb-1">Metode Pembayaran *</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Payment Method <span className="text-[#E94560]">*</span>
+              </label>
               <select
                 value={formData.metode_pembayaran}
                 onChange={(e) => setFormData({ ...formData, metode_pembayaran: e.target.value as MetodePembayaran })}
-                className="w-full px-3 py-2 border-2 border-black font-mono bg-white focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
               >
                 {metodePembayaranOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -361,25 +374,29 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               </select>
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-1">Nominal *</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Amount <span className="text-[#E94560]">*</span>
+              </label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="number"
                   value={formData.nominal}
                   onChange={(e) => setFormData({ ...formData, nominal: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
                   placeholder="0"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-1">Lead Source *</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Lead Source <span className="text-[#E94560]">*</span>
+              </label>
               <select
                 value={formData.lead_source}
                 onChange={(e) => setFormData({ ...formData, lead_source: e.target.value as LeadSource })}
-                className="w-full px-3 py-2 border-2 border-black font-mono bg-white focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
               >
                 {leadSourceOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -387,13 +404,15 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-black uppercase mb-1">Catatan</label>
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                Notes
+              </label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all resize-none"
-                placeholder="Catatan tambahan..."
+                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                placeholder="Additional notes..."
               />
             </div>
           </div>
@@ -401,23 +420,25 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
 
         {/* Custom Lead Source (conditional) */}
         {showCustomLeadSource && (
-          <div className="border-2 border-black p-4 bg-[#FFDE00]/20">
-            <label className="block text-xs font-black uppercase mb-1">Tulis Lead Source</label>
+          <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+              Custom Lead Source
+            </label>
             <input
               type="text"
               value={formData.lead_source_custom}
               onChange={(e) => setFormData({ ...formData, lead_source_custom: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
-              placeholder="Tulis sumber customer..."
+              className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+              placeholder="Type custom lead source..."
             />
           </div>
         )}
 
         {/* Photo Upload - WAJIB */}
-        <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-          <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
+        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Camera className="w-4 h-4" />
-            FOTO BUKTI TRANSAKSI <span className="text-[#FF6B9D]">*WAJIB</span>
+            Transaction Photo <span className="text-[#E94560]">*Required</span>
           </p>
 
           {photoPreview ? (
@@ -425,12 +446,12 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               <img
                 src={photoPreview}
                 alt="Preview"
-                className="w-full max-h-64 object-cover border-2 border-black"
+                className="w-full max-h-64 object-cover rounded-lg border border-[#E9ECEF]"
               />
               <button
                 type="button"
                 onClick={removePhoto}
-                className="absolute top-2 right-2 bg-red-500 text-white p-1.5 border-2 border-black hover:bg-red-600 transition-colors"
+                className="absolute top-2 right-2 bg-[#E94560] text-white p-1.5 rounded-lg hover:bg-[#c73d54] transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -438,11 +459,11 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
           ) : (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-black p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+              className="border-2 border-dashed border-[#E9ECEF] rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
             >
-              <Camera className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm font-mono font-bold">Klik untuk upload foto bukti</p>
-              <p className="text-xs text-gray-500 mt-1">JPG, PNG (max 10MB, akan dikompres)</p>
+              <Camera className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium text-gray-500">Click to upload photo</p>
+              <p className="text-xs text-gray-400 mt-1">JPG, PNG (max 10MB, auto compressed)</p>
             </div>
           )}
 
@@ -458,43 +479,43 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
           {(uploadingPhoto || (uploading && progress > 0)) && (
             <div className="mt-3">
               <div className="flex justify-between text-xs mb-1">
-                <span>Mengkompres & mengupload...</span>
-                <span>{progress}%</span>
+                <span className="text-gray-500">Compressing & uploading...</span>
+                <span className="font-medium text-[#1A1A2E]">{progress}%</span>
               </div>
-              <div className="w-full bg-gray-200 h-2 border border-black">
+              <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-[#FF6B9D] h-2 transition-all duration-300"
+                  className="bg-[#E94560] h-1.5 transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Foto akan dikompres 70-80% lebih kecil</p>
+              <p className="text-xs text-gray-400 mt-1">Image will be compressed 70-80%</p>
             </div>
           )}
 
           {!photoPreview && !initialData?.photo_url && (
-            <p className="text-xs text-red-500 flex items-center gap-1 mt-3">
+            <p className="text-xs text-[#E94560] flex items-center gap-1 mt-2">
               <AlertCircle className="w-3 h-3" />
-              Foto bukti transaksi wajib diupload
+              Photo is required
             </p>
           )}
         </div>
 
         {/* Submit Button */}
-        <div className="flex gap-3 pt-4 border-t-2 border-black">
+        <div className="flex gap-3 pt-4 border-t border-[#E9ECEF]">
           <button
             type="submit"
             disabled={loading || uploadingPhoto || (!photoPreview && !initialData?.photo_url)}
-            className="flex-1 bg-[#FF6B9D] text-white font-bold py-3 border-2 border-black shadow-[4px_4px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all disabled:opacity-50 disabled:hover:translate-x-0 disabled:hover:translate-y-0 flex items-center justify-center gap-2 text-lg"
+            className="flex-1 bg-[#E94560] text-white font-medium py-3 rounded-lg hover:bg-[#c73d54] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
             {loading || uploadingPhoto ? (
               <>
-                <Loader className="w-5 h-5 animate-spin" />
-                {uploadingPhoto ? 'MENGUPLOAD FOTO...' : 'MENYIMPAN...'}
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {uploadingPhoto ? 'Uploading Photo...' : 'Saving...'}
               </>
             ) : (
               <>
-                <Send className="w-5 h-5" />
-                SIMPAN LAYANAN
+                <Send className="w-4 h-4" />
+                Save Transaction
               </>
             )}
           </button>
@@ -502,9 +523,9 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
             <button
               type="button"
               onClick={onClose}
-              className="px-6 bg-white text-black font-bold py-3 border-2 border-black hover:bg-gray-100 transition-all"
+              className="px-6 bg-white text-[#1A1A2E] font-medium py-3 rounded-lg border border-[#E9ECEF] hover:bg-gray-50 transition-all text-sm"
             >
-              BATAL
+              Cancel
             </button>
           )}
         </div>
