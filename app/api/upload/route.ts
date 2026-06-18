@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
-import sharp from 'sharp'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { r2Client } from '@/lib/cloudflare-r2'
 
-// Konfigurasi Cloudflare R2
-const s3Client = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-  forcePathStyle: true,
-})
+// Hapus import sharp - kita akan skip kompresi di Vercel
+// import sharp from 'sharp'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 30 // 30 detik timeout
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📤 Upload API called - Cloudflare R2')
+    console.log('📤 Upload API called - Vercel Production')
+    console.log('🔑 R2 Config:', {
+      endpoint: process.env.R2_ENDPOINT ? '✅' : '❌',
+      bucket: process.env.R2_BUCKET_NAME ? '✅' : '❌',
+      accessKey: process.env.R2_ACCESS_KEY_ID ? '✅' : '❌',
+    })
 
     const formData = await request.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string
 
     if (!file) {
+      console.log('❌ No file provided')
       return NextResponse.json(
         { error: 'No file uploaded' },
         { status: 400 }
@@ -32,49 +34,28 @@ export async function POST(request: NextRequest) {
 
     // Convert to buffer
     const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    let buffer = Buffer.from(bytes)
 
-    // Compress image
-    let compressedBuffer: Buffer
-    let contentType: string
+    // SKIP SHARP di Vercel - langsung upload original
+    // Kompresi akan dilakukan di client side sebelum upload
 
-    try {
-      if (type === 'attendance') {
-        compressedBuffer = await sharp(buffer)
-          .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 70 })
-          .toBuffer()
-      } else {
-        compressedBuffer = await sharp(buffer)
-          .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 75 })
-          .toBuffer()
-      }
-      contentType = 'image/jpeg'
-      console.log(`✅ Compressed: ${buffer.length} → ${compressedBuffer.length} bytes`)
-    } catch (sharpError) {
-      console.error('⚠️ Compression error, using original:', sharpError)
-      compressedBuffer = buffer
-      contentType = file.type || 'image/jpeg'
-    }
+    console.log(`📤 Uploading to R2: ${type}/${Date.now()}`)
 
-    // Generate unique filename
+    // Generate filename
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 8)
     const fileName = `${type}/${timestamp}_${randomString}.jpg`
-
-    console.log(`📤 Uploading to R2: ${fileName}`)
 
     // Upload to Cloudflare R2
     const uploadParams = {
       Bucket: process.env.R2_BUCKET_NAME,
       Key: fileName,
-      Body: compressedBuffer,
-      ContentType: contentType,
+      Body: buffer,
+      ContentType: file.type || 'image/jpeg',
       CacheControl: 'public, max-age=31536000',
     }
 
-    await s3Client.send(new PutObjectCommand(uploadParams))
+    await r2Client.send(new PutObjectCommand(uploadParams))
     console.log('✅ Upload to R2 successful')
 
     // Get public URL
@@ -88,11 +69,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('❌ Upload error:', error)
+
+    // Error detail untuk debugging
     return NextResponse.json(
       {
         error: 'Upload failed',
-        details: error.message,
-        code: error.code
+        details: error.message || 'Unknown error',
+        code: error.code || 'UNKNOWN',
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }
     )
