@@ -238,17 +238,28 @@ export default function AdminAttendanceModal({
         if (dbError) throw dbError
         toast.success('Admin check in successful!')
       } else {
+        // Calculate work duration
+        const checkIn = new Date(existingAttendance.check_in)
+        const checkOut = new Date()
+        const diffMs = checkOut.getTime() - checkIn.getTime()
+        const diffMinutes = Math.floor(diffMs / 60000)
+        const hours = Math.floor(diffMinutes / 60)
+        const minutes = diffMinutes % 60
+        const workDuration = `${hours}h ${minutes}m`
+
         const { error: dbError } = await supabase
           .from('attendances')
           .update({
-            check_out: new Date().toISOString(),
-            status: 'checked_out'
+            check_out: checkOut.toISOString(),
+            status: 'checked_out',
+            work_duration: workDuration,
+            total_minutes: diffMinutes
           })
           .eq('id', existingAttendance?.id)
           .eq('teknisi_id', user?.id)
 
         if (dbError) throw dbError
-        toast.success('Admin check out successful!')
+        toast.success(`Admin check out successful! Total: ${workDuration}`)
       }
 
       await supabase.from('activity_logs').insert({
@@ -276,147 +287,144 @@ export default function AdminAttendanceModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
+        initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl p-6 w-full max-w-md"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-[#E9ECEF]"
       >
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center p-4 border-b border-[#E9ECEF]">
           <div className="flex items-center gap-2">
             <div className={`p-2 rounded-full ${isCheckIn ? 'bg-green-100' : 'bg-orange-100'}`}>
               {icon}
             </div>
-            <h3 className="text-xl font-bold">{title}</h3>
+            <h3 className="text-lg font-semibold">{title}</h3>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {step === 'camera' && (
-          <div>
-            {cameraError ? (
-              <div className="text-center py-8">
-                <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                <p className="text-red-600 mb-4">{cameraError}</p>
-                {permissionDenied && (
-                  <div className="text-sm text-gray-600 mb-4">
-                    <p>To enable camera access:</p>
-                    <ol className="list-decimal list-inside text-left mt-2">
-                      <li>Click the camera icon in your browser's address bar</li>
-                      <li>Select "Allow" for camera permission</li>
-                      <li>Refresh the page</li>
-                    </ol>
-                  </div>
-                )}
-                <button onClick={startCamera} className="btn-primary mt-4">
-                  Try Again
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="relative mb-4 bg-black rounded-lg overflow-hidden">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-auto min-h-[300px] object-cover"
-                  />
-                  <canvas ref={canvasRef} className="hidden" />
+        <div className="p-5">
+          {step === 'camera' && (
+            <>
+              {cameraError ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                  <p className="text-red-600 mb-4">{cameraError}</p>
+                  {permissionDenied && (
+                    <div className="text-sm text-gray-600 mb-4">
+                      <p>To enable camera access:</p>
+                      <ol className="list-decimal list-inside text-left mt-2">
+                        <li>Click the camera icon in your browser's address bar</li>
+                        <li>Select "Allow" for camera permission</li>
+                        <li>Refresh the page</li>
+                      </ol>
+                    </div>
+                  )}
+                  <button onClick={startCamera} className="btn-primary mt-4">
+                    Try Again
+                  </button>
                 </div>
-                <div className="flex gap-3">
+              ) : (
+                <>
+                  <div className="relative mb-4 bg-black rounded-lg overflow-hidden">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-auto min-h-[300px] object-cover"
+                    />
+                    <canvas ref={canvasRef} className="hidden" />
+                  </div>
                   <button
                     onClick={capturePhoto}
-                    className="flex-1 btn-primary flex items-center justify-center gap-2"
+                    className="w-full btn-primary flex items-center justify-center gap-2"
                   >
                     <Camera className="w-5 h-5" />
                     Take Photo
                   </button>
-                </div>
-                <p className="text-xs text-gray-500 text-center mt-3">
-                  Make sure your face is clearly visible
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        {step === 'location' && (
-          <div>
-            <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-              {photoPreview && (
-                <img src={photoPreview} alt="Captured" className="w-full rounded-lg mb-4" />
+                </>
               )}
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="font-medium">Your Location:</p>
-                  <p className="text-sm text-gray-600 break-words">{location?.address || 'Getting location...'}</p>
-                  {location && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+            </>
+          )}
 
-            {uploading && (
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Compressing & uploading...</span>
-                  <span>{progress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={retakePhoto}
-                disabled={uploading}
-                className="flex-1 btn-secondary"
-              >
-                Retake Photo
-              </button>
-              <button
-                onClick={submitAttendance}
-                disabled={uploading || !location}
-                className="flex-1 btn-primary disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {uploading ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  isCheckIn ? 'Confirm Check In' : 'Confirm Check Out'
+          {step === 'location' && (
+            <>
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#E9ECEF]">
+                {photoPreview && (
+                  <img src={photoPreview} alt="Captured" className="w-full rounded-lg mb-4" />
                 )}
-              </button>
-            </div>
-          </div>
-        )}
+                <div className="flex items-start gap-3">
+                  <MapPin className="w-5 h-5 text-[#E94560] mt-1 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium">Your Location:</p>
+                    <p className="text-sm text-gray-600 break-words">{location?.address || 'Getting location...'}</p>
+                    {location && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-        {step === 'success' && (
-          <div className="text-center py-8">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h4 className="text-lg font-semibold mb-2">
-              {isCheckIn ? 'Check In Successful!' : 'Check Out Successful!'}
-            </h4>
-            <p className="text-gray-600">
-              {isCheckIn
-                ? 'You have successfully checked in. Have a productive day!'
-                : 'You have successfully checked out. See you tomorrow!'}
-            </p>
-          </div>
-        )}
+              {uploading && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Compressing & uploading...</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-[#E94560] h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={retakePhoto}
+                  disabled={uploading}
+                  className="flex-1 btn-secondary"
+                >
+                  Retake
+                </button>
+                <button
+                  onClick={submitAttendance}
+                  disabled={uploading || !location}
+                  className="flex-1 btn-primary disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    isCheckIn ? 'Confirm Check In' : 'Confirm Check Out'
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === 'success' && (
+            <div className="text-center py-8">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h4 className="text-lg font-semibold mb-2">
+                {isCheckIn ? 'Check In Successful!' : 'Check Out Successful!'}
+              </h4>
+              <p className="text-gray-500">
+                {isCheckIn
+                  ? 'You have successfully checked in.'
+                  : `You have successfully checked out.`}
+              </p>
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   )

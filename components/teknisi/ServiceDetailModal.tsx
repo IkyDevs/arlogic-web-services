@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, User, Phone, Watch, AlertCircle, FileText,
-  Calendar, Hash, CheckCircle, ArrowRight, Camera
+  Calendar, Hash, CheckCircle, ArrowRight, Camera,
+  Image as ImageIcon, ChevronLeft, ChevronRight,
+  ZoomIn, Download, Clock, Tag, Package, Award
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuthStore } from '@/stores/authStore'
 
 interface ServiceDetailModalProps {
   isOpen: boolean
@@ -26,6 +29,11 @@ export default function ServiceDetailModal({
 }: ServiceDetailModalProps) {
   const [loading, setLoading] = useState(false)
   const [photos, setPhotos] = useState<string[]>([])
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
+  const [showFullscreen, setShowFullscreen] = useState(false)
+  const [loadingPhotos, setLoadingPhotos] = useState(true)
+  const supabase = createClient()
+  const { user } = useAuthStore()
 
   useEffect(() => {
     if (service && isOpen) {
@@ -34,16 +42,70 @@ export default function ServiceDetailModal({
   }, [service, isOpen])
 
   const fetchPhotos = async () => {
-    const supabase = createClient()
+    setLoadingPhotos(true)
     const { data } = await supabase
       .from('service_documentation')
       .select('photo_url')
       .eq('service_order_id', service.id)
-      .eq('stage', 'initial')
+      .order('created_at', { ascending: true })
 
     if (data) {
       setPhotos(data.map(p => p.photo_url))
     }
+    setLoadingPhotos(false)
+  }
+
+  const handleTake = async () => {
+    setLoading(true)
+    try {
+      const { error } = await supabase
+        .from('service_orders')
+        .update({
+          assigned_teknisi_id: user?.id,
+          teknisi_name: user?.full_name,
+          status: 'assigned',
+          start_date: new Date().toISOString()
+        })
+        .eq('id', service.id)
+
+      if (error) throw error
+
+      await supabase.from('service_timeline').insert({
+        service_order_id: service.id,
+        teknisi_id: user?.id,
+        status: 'assigned',
+        message: `Service diambil oleh teknisi ${user?.full_name}`,
+        details: { action: 'take_project' }
+      })
+
+      toast.success('Service berhasil diambil!')
+      onTake()
+      onClose()
+    } catch (error: any) {
+      toast.error(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const nextPhoto = () => {
+    if (photos.length > 0) {
+      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length)
+    }
+  }
+
+  const prevPhoto = () => {
+    if (photos.length > 0) {
+      setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length)
+    }
+  }
+
+  const downloadPhoto = (url: string) => {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `service_${service.invoice_number}_photo.jpg`
+    link.click()
+    toast.success('Foto didownload!')
   }
 
   if (!isOpen || !service) return null
@@ -58,144 +120,313 @@ export default function ServiceDetailModal({
     })
   }
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount)
+  }
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      assigned: 'bg-blue-100 text-blue-700',
+      in_progress: 'bg-purple-100 text-purple-700',
+      qc_pending: 'bg-orange-100 text-orange-700',
+      completed: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700'
+    }
+    return colors[status] || 'bg-gray-100 text-gray-700'
+  }
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
-      >
-        {/* Header */}
-        <div className="p-4 border-b-2 border-black flex justify-between items-center sticky top-0 bg-white">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#FF6B9D] flex items-center justify-center border border-black">
-              <Watch className="w-4 h-4 text-white" />
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-[#E9ECEF] flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-xl flex items-center justify-center shadow-sm">
+                  <Watch className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[#1A1A2E]">Detail Service</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-gray-400">{service.invoice_number}</span>
+                    <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${getStatusColor(service.status)}`}>
+                      {service.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div>
-              <h3 className="text-xl font-black">DETAIL SERVICE</h3>
-              <p className="text-xs font-mono">{service.invoice_number}</p>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Photos Section */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-[#E94560]" />
+                    <h4 className="text-sm font-medium text-[#1A1A2E]">Dokumentasi Service</h4>
+                    {photos.length > 0 && (
+                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                        {photos.length} foto
+                      </span>
+                    )}
+                  </div>
+                  {photos.length > 0 && (
+                    <button
+                      onClick={() => setShowFullscreen(true)}
+                      className="text-xs text-[#E94560] hover:underline font-medium"
+                    >
+                      Lihat semua
+                    </button>
+                  )}
+                </div>
+
+                {loadingPhotos ? (
+                  <div className="bg-[#F8F9FA] rounded-xl border border-[#E9ECEF] p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#E94560] border-t-transparent mx-auto" />
+                    <p className="text-xs text-gray-400 mt-2">Memuat foto...</p>
+                  </div>
+                ) : photos.length === 0 ? (
+                  <div className="bg-[#F8F9FA] rounded-xl border border-[#E9ECEF] p-8 text-center border-dashed">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <ImageIcon className="w-6 h-6 text-gray-300" />
+                    </div>
+                    <p className="text-sm text-gray-400">Belum ada foto dokumentasi</p>
+                    <p className="text-xs text-gray-300">Foto akan muncul setelah teknisi upload</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {photos.slice(0, 6).map((photo, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="group relative aspect-square rounded-xl overflow-hidden border border-[#E9ECEF] bg-[#F8F9FA] cursor-pointer hover:shadow-md transition-all"
+                        onClick={() => {
+                          setCurrentPhotoIndex(index)
+                          setShowFullscreen(true)
+                        }}
+                      >
+                        <img
+                          src={photo}
+                          alt={`Service ${index + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                          <span className="text-white text-[10px] font-medium bg-black/50 px-2 py-0.5 rounded-full">
+                            Foto {index + 1}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                    {photos.length > 6 && (
+                      <div
+                        className="aspect-square rounded-xl border-2 border-dashed border-[#E9ECEF] flex items-center justify-center bg-[#F8F9FA] cursor-pointer hover:bg-gray-50 transition-all"
+                        onClick={() => setShowFullscreen(true)}
+                      >
+                        <div className="text-center">
+                          <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-1" />
+                          <span className="text-sm font-medium text-gray-500">+{photos.length - 6} lagi</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Info Grid */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Customer Info */}
+                <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[#E9ECEF]">
+                  <div className="flex items-center gap-2 mb-3">
+                    <User className="w-4 h-4 text-[#1A1A2E]" />
+                    <h4 className="text-xs font-semibold text-[#1A1A2E] uppercase tracking-wider">Customer</h4>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium text-[#1A1A2E]">{service.customer_name}</p>
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {service.customer_phone}
+                    </p>
+                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {formatDate(service.created_at)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Watch Info */}
+                <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[#E9ECEF]">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Watch className="w-4 h-4 text-[#1A1A2E]" />
+                    <h4 className="text-xs font-semibold text-[#1A1A2E] uppercase tracking-wider">Jam Tangan</h4>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium text-[#1A1A2E]">
+                      {service.watch_brand || service.device_brand || '-'}
+                      {service.watch_model && ` ${service.watch_model}`}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {service.watch_movement && (
+                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-[#E9ECEF]">
+                          {service.watch_movement}
+                        </span>
+                      )}
+                      {service.watch_condition && (
+                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-[#E9ECEF]">
+                          {service.watch_condition}
+                        </span>
+                      )}
+                    </div>
+                    {service.serial_number && (
+                      <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <Hash className="w-3 h-3" />
+                        {service.serial_number}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Issue Description */}
+              <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[#E9ECEF]">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-4 h-4 text-[#E94560]" />
+                  <h4 className="text-xs font-semibold text-[#1A1A2E] uppercase tracking-wider">Deskripsi Kerusakan</h4>
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed">{service.issue_description}</p>
+                {service.request && (
+                  <>
+                    <div className="h-px bg-[#E9ECEF] my-3" />
+                    <p className="text-xs font-medium text-gray-500">Request Customer</p>
+                    <p className="text-sm text-gray-700">{service.request}</p>
+                  </>
+                )}
+                {service.notes && (
+                  <>
+                    <div className="h-px bg-[#E9ECEF] my-3" />
+                    <p className="text-xs font-medium text-gray-500">Catatan Tambahan</p>
+                    <p className="text-sm text-gray-700">{service.notes}</p>
+                  </>
+                )}
+              </div>
+
+              {/* Estimated Cost */}
+              {service.estimated_cost && (
+                <div className="bg-gradient-to-r from-[#1A1A2E] to-[#0F3460] rounded-xl p-4 text-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm font-medium">Estimasi Biaya</span>
+                    </div>
+                    <span className="text-xl font-bold">{formatCurrency(service.estimated_cost)}</span>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-          <button onClick={onClose} className="p-1 border-2 border-black hover:bg-gray-100">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Customer Information */}
-          <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-            <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
-              <User className="w-4 h-4" />
-              DATA CUSTOMER
-            </p>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Nama</span>
-                <span className="font-bold">{service.customer_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">WhatsApp</span>
-                <span className="font-mono">{service.customer_phone}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Tanggal Masuk</span>
-                <span>{formatDate(service.created_at)}</span>
-              </div>
+            {/* Actions */}
+            <div className="px-6 py-4 border-t border-[#E9ECEF] flex gap-3 bg-white/95 backdrop-blur-sm">
+              <button
+                onClick={onSkip}
+                className="flex-1 bg-white text-[#1A1A2E] font-medium px-4 py-2.5 rounded-xl border border-[#E9ECEF] hover:bg-gray-50 transition-all"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleTake}
+                disabled={loading}
+                className="flex-1 bg-[#1A1A2E] text-white font-medium px-4 py-2.5 rounded-xl hover:bg-[#0F3460] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Ambil Service Ini
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Watch Information */}
-          <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-            <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
-              <Watch className="w-4 h-4" />
-              INFORMASI JAM TANGAN
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-gray-600 text-sm">Brand</p>
-                <p className="font-bold">{service.watch_brand || service.device_brand || '-'}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 text-sm">Model</p>
-                <p className="font-bold">{service.watch_model || service.device_model || '-'}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 text-sm">Movement</p>
-                <p className="font-bold capitalize">{service.watch_movement || '-'}</p>
-              </div>
-              <div>
-                <p className="text-gray-600 text-sm">Serial Number</p>
-                <p className="font-mono text-sm">{service.serial_number || '-'}</p>
-              </div>
-            </div>
-          </div>
+          {/* Fullscreen Photo Modal */}
+          {showFullscreen && photos.length > 0 && (
+            <div className="fixed inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center z-[60]">
+              <div className="relative w-full max-w-4xl mx-auto p-4">
+                <button
+                  onClick={() => setShowFullscreen(false)}
+                  className="absolute top-4 right-4 z-10 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
 
-          {/* Service Issue */}
-          <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-            <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              DESKRIPSI KERUSAKAN
-            </p>
-            <p className="text-gray-700">{service.issue_description}</p>
-            {service.request && (
-              <>
-                <div className="h-px bg-black my-3" />
-                <p className="text-xs font-black uppercase mb-1">REQUEST CUSTOMER</p>
-                <p className="text-gray-700">{service.request}</p>
-              </>
-            )}
-            {service.notes && (
-              <>
-                <div className="h-px bg-black my-3" />
-                <p className="text-xs font-black uppercase mb-1">CATATAN TAMBAHAN</p>
-                <p className="text-gray-700">{service.notes}</p>
-              </>
-            )}
-          </div>
-
-          {/* Photos */}
-          {photos.length > 0 && (
-            <div className="border-2 border-black p-4 bg-[#F5F5F5]">
-              <p className="text-xs font-black uppercase mb-3 flex items-center gap-2">
-                <Camera className="w-4 h-4" />
-                FOTO DOKUMENTASI
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {photos.map((photo, i) => (
+                <div className="relative w-full h-[70vh] flex items-center justify-center">
                   <img
-                    key={i}
-                    src={photo}
-                    alt={`Service ${i + 1}`}
-                    className="w-full h-24 object-cover border border-black cursor-pointer hover:opacity-80"
-                    onClick={() => window.open(photo, '_blank')}
+                    src={photos[currentPhotoIndex]}
+                    alt={`Service photo ${currentPhotoIndex + 1}`}
+                    className="max-w-full max-h-full object-contain rounded-xl"
                   />
-                ))}
+                </div>
+
+                <button
+                  onClick={() => downloadPhoto(photos[currentPhotoIndex])}
+                  className="absolute bottom-4 right-4 z-10 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+
+                {photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={prevPhoto}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={nextPhoto}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+
+                    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1">
+                      {photos.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentPhotoIndex(index)}
+                          className={`w-2 h-2 rounded-full transition-all ${
+                            index === currentPhotoIndex ? 'bg-white w-4' : 'bg-white/40'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="absolute bottom-20 right-4 text-white/60 text-xs font-mono">
+                      {currentPhotoIndex + 1} / {photos.length}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
         </div>
-
-        {/* Actions */}
-        <div className="p-4 border-t-2 border-black flex gap-3 bg-white">
-          <button
-            onClick={onSkip}
-            className="flex-1 bg-white text-black font-bold py-2 border-2 border-black hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
-          >
-            SKIP
-          </button>
-          <button
-            onClick={onTake}
-            disabled={loading}
-            className="flex-1 bg-[#FF6B9D] text-white font-bold py-2 border-2 border-black shadow-[3px_3px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center justify-center gap-2"
-          >
-            <CheckCircle className="w-4 h-4" />
-            AMBIL JAM INI
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </motion.div>
-    </div>
+      )}
+    </AnimatePresence>
   )
 }

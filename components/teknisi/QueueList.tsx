@@ -2,19 +2,28 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/stores/authStore'
 import { ServiceOrder } from '@/types'
 import toast from 'react-hot-toast'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   CheckCircle, Clock, Wrench, Calendar, User,
-  Watch, Eye, Package, AlertCircle,
-  X, ChevronRight
+  Watch, Eye, Package, AlertCircle, Phone,
+  MessageSquare, ShoppingCart, Truck, X,
+  ChevronRight, RefreshCw, FileText, Box, Bell
 } from 'lucide-react'
 import ServiceDetailModal from './ServiceDetailModal'
 import ServiceTimeline from './ServiceTimeline'
+import ProgressUpdate from './ProgressUpdate'
 import AddSparepartModal from './AddSparepartModal'
+import AddJasaModal from './AddJasaModal'
+import RequestSparepartModal from './RequestSparepartModal'
 
-// Extend ServiceOrder type locally
+interface QueueListProps {
+  teknisiId: string
+  onTakeProject: (project: ServiceOrder) => void
+}
+
 interface ExtendedServiceOrder extends ServiceOrder {
   last_update?: {
     id: string
@@ -25,20 +34,20 @@ interface ExtendedServiceOrder extends ServiceOrder {
   }
 }
 
-interface QueueListProps {
-  teknisiId: string
-  onTakeProject: (project: ServiceOrder) => void
-}
-
 export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) {
   const [pendingServices, setPendingServices] = useState<ExtendedServiceOrder[]>([])
   const [myServices, setMyServices] = useState<ExtendedServiceOrder[]>([])
   const [selectedService, setSelectedService] = useState<ExtendedServiceOrder | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showTimelineModal, setShowTimelineModal] = useState(false)
+  const [showProgressModal, setShowProgressModal] = useState(false)
   const [showAddSparepart, setShowAddSparepart] = useState(false)
+  const [showAddJasa, setShowAddJasa] = useState(false)
+  const [showRequestSparepart, setShowRequestSparepart] = useState(false)
+  const [requestSparepartQuery, setRequestSparepartQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+  const { user } = useAuthStore()
 
   useEffect(() => {
     fetchQueues()
@@ -62,22 +71,19 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
   const fetchQueues = async () => {
     setLoading(true)
 
-    // Get pending services
     const { data: pending } = await supabase
       .from('service_orders')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
 
-    // Get my assigned and in-progress services
     const { data: assigned } = await supabase
       .from('service_orders')
       .select('*')
       .eq('assigned_teknisi_id', teknisiId)
-      .in('status', ['assigned', 'in_progress'])
+      .in('status', ['assigned', 'in_progress', 'req_sparepart_admin', 'po_pending', 'sparepart_ready'])
       .order('created_at', { ascending: false })
 
-    // Get timeline for each service
     if (assigned && assigned.length > 0) {
       for (const service of assigned) {
         const { data: timeline } = await supabase
@@ -126,37 +132,28 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
     }
   }
 
-  const updateStatus = async (serviceId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('service_orders')
-      .update({ status: newStatus })
-      .eq('id', serviceId)
+  const sendReminderToAdmin = async (service: ExtendedServiceOrder) => {
+    try {
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin')
 
-    if (error) {
-      toast.error('Gagal update status')
-    } else {
-      let statusMessage = ''
-      switch(newStatus) {
-        case 'in_progress':
-          statusMessage = 'Service sedang dalam proses pengerjaan'
-          break
-        case 'qc_pending':
-          statusMessage = 'Service selesai, menunggu pengecekan QC'
-          break
-        default:
-          statusMessage = `Status diupdate menjadi ${newStatus}`
+      if (admins && admins.length > 0) {
+        for (const admin of admins) {
+          await supabase.from('notifications').insert({
+            user_id: admin.id,
+            title: '⏰ Peringatan: PO Belum Direspon',
+            message: `Teknisi ${user?.full_name} mengingatkan PO untuk ${service.po_sparepart} (${service.invoice_number}) belum direspon. Mohon segera ditindaklanjuti.`,
+            type: 'warning',
+            link: '/admin',
+            is_read: false
+          })
+        }
       }
-
-      await supabase.from('service_timeline').insert({
-        service_order_id: serviceId,
-        teknisi_id: teknisiId,
-        status: newStatus,
-        message: statusMessage,
-        details: { action: 'status_update' }
-      })
-
-      toast.success(`Status diupdate menjadi ${newStatus}`)
-      fetchQueues()
+      toast.success('Peringatan terkirim ke admin!')
+    } catch (error: any) {
+      toast.error(error.message)
     }
   }
 
@@ -165,11 +162,30 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
     setShowAddSparepart(true)
   }
 
+  const openAddJasa = (service: ExtendedServiceOrder) => {
+    setSelectedService(service)
+    setShowAddJasa(true)
+  }
+
+  const openRequestSparepart = (service: ExtendedServiceOrder, query?: string) => {
+    setSelectedService(service)
+    setRequestSparepartQuery(query || '')
+    setShowRequestSparepart(true)
+  }
+
+  const openProgressUpdate = (service: ExtendedServiceOrder) => {
+    setSelectedService(service)
+    setShowProgressModal(true)
+  }
+
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; color: string }> = {
       assigned: { label: 'DITUGASKAN', color: 'bg-blue-100 text-blue-700 border-blue-200' },
       in_progress: { label: 'DALAM PENGERJAAN', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-      qc_pending: { label: 'SIAP QC', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+      req_sparepart_admin: { label: 'REQUEST PO', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+      po_pending: { label: 'PO PENDING', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+      sparepart_ready: { label: 'SPAREPART READY', color: 'bg-green-100 text-green-700 border-green-200' },
+      qc_pending: { label: 'SIAP QC', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
       pending: { label: 'MENUNGGU', color: 'bg-gray-100 text-gray-700 border-gray-200' },
       completed: { label: 'SELESAI', color: 'bg-green-100 text-green-700 border-green-200' }
     }
@@ -184,6 +200,31 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
   const openTimeline = (service: ExtendedServiceOrder) => {
     setSelectedService(service)
     setShowTimelineModal(true)
+  }
+
+  const handleSubmitToQC = async (service: ExtendedServiceOrder) => {
+    try {
+      const { error } = await supabase
+        .from('service_orders')
+        .update({ status: 'qc_pending' })
+        .eq('id', service.id)
+
+      if (error) throw error
+
+      await supabase.from('service_timeline').insert({
+        service_order_id: service.id,
+        teknisi_id: teknisiId,
+        status: 'qc_pending',
+        message: `Service telah selesai dan dikirim ke QC oleh teknisi`,
+        details: { action: 'submit_to_qc' }
+      })
+
+      toast.success('Service berhasil dikirim ke QC!')
+      setShowProgressModal(false)
+      fetchQueues()
+    } catch (error: any) {
+      toast.error(error.message)
+    }
   }
 
   if (loading) {
@@ -216,7 +257,6 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
           <div className="grid gap-4">
             {myServices.map((service, index) => {
               const statusBadge = getStatusBadge(service.status)
-              // Safe access to last_update message
               const lastUpdateMessage = service.last_update?.message || 'Belum ada update'
 
               return (
@@ -225,18 +265,33 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_black] overflow-hidden"
+                  className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm hover:shadow-md transition-all overflow-hidden"
                 >
                   <div className="p-4">
                     <div className="flex flex-wrap justify-between items-start gap-3">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="px-2 py-0.5 bg-black text-white text-xs font-mono">
+                          <span className="px-2 py-0.5 bg-[#1A1A2E] text-white text-xs font-mono rounded">
                             {service.invoice_number}
                           </span>
-                          <span className={`px-2 py-0.5 text-xs font-bold border ${statusBadge.color}`}>
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}>
                             {statusBadge.label}
                           </span>
+                          {service.status === 'req_sparepart_admin' && (
+                            <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full border border-orange-200">
+                              ⏳ Menunggu Admin
+                            </span>
+                          )}
+                          {service.status === 'po_pending' && (
+                            <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full border border-purple-200">
+                              📦 PO Diproses
+                            </span>
+                          )}
+                          {service.status === 'sparepart_ready' && (
+                            <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full border border-green-200">
+                              ✅ Siap Diambil
+                            </span>
+                          )}
                           {service.last_update && (
                             <span className="text-xs text-gray-400">
                               Update: {new Date(service.last_update.created_at).toLocaleDateString()}
@@ -247,7 +302,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
                           <div className="flex items-center gap-1 text-sm">
                             <User className="w-4 h-4 text-gray-400" />
-                            <span className="font-bold">{service.customer_name}</span>
+                            <span className="font-medium">{service.customer_name}</span>
                           </div>
                           <div className="flex items-center gap-1 text-sm">
                             <Watch className="w-4 h-4 text-gray-400" />
@@ -268,45 +323,52 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                       </div>
 
                       <div className="flex gap-2 flex-wrap">
+                        {/* Timeline - Selalu muncul */}
                         <button
                           onClick={() => openTimeline(service)}
-                          className="px-3 py-1.5 text-sm bg-white text-black font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
+                          className="px-3 py-1.5 text-sm bg-white text-[#1A1A2E] font-medium border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all flex items-center gap-1"
                         >
                           <Clock className="w-4 h-4" />
                           TIMELINE
                         </button>
 
-                        {service.status === 'assigned' && (
+                        {/* UPDATE SERVICE - Untuk assigned dan in_progress */}
+                        {(service.status === 'assigned' || service.status === 'in_progress') && (
                           <button
-                            onClick={() => updateStatus(service.id, 'in_progress')}
-                            className="px-3 py-1.5 text-sm bg-[#FFDE00] text-black font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
+                            onClick={() => openProgressUpdate(service)}
+                            className="px-3 py-1.5 text-sm bg-[#1A1A2E] text-white font-medium rounded-lg hover:bg-[#0F3460] transition-all flex items-center gap-1"
                           >
                             <Wrench className="w-4 h-4" />
-                            MULAI KERJA
+                            UPDATE SERVICE
                           </button>
                         )}
 
-                        {service.status === 'in_progress' && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => openAddSparepart(service)}
-                              className="px-3 py-1.5 text-sm bg-[#FFDE00] text-black font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
-                            >
-                              <Package className="w-4 h-4" />
-                              TAMBAH SPAREPART
-                            </button>
-                            <button
-                              onClick={() => onTakeProject(service)}
-                              className="px-3 py-1.5 text-sm bg-[#FF6B9D] text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              UPDATE PROGRES
-                            </button>
-                          </div>
+                        {/* REMINDER - Untuk req_sparepart_admin dan po_pending */}
+                        {(service.status === 'req_sparepart_admin' || service.status === 'po_pending') && (
+                          <button
+                            onClick={() => sendReminderToAdmin(service)}
+                            className="px-3 py-1.5 text-sm bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-all flex items-center gap-1"
+                            title="Kirim peringatan ke admin"
+                          >
+                            <Bell className="w-4 h-4" />
+                            REMINDER
+                          </button>
                         )}
 
+                        {/* AMBIL SPAREPART - Hanya untuk sparepart_ready */}
+                        {service.status === 'sparepart_ready' && (
+                          <button
+                            onClick={() => openAddSparepart(service)}
+                            className="px-3 py-1.5 text-sm bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all flex items-center gap-1"
+                          >
+                            <Package className="w-4 h-4" />
+                            AMBIL SPAREPART
+                          </button>
+                        )}
+
+                        {/* QC Pending - Status info saja */}
                         {service.status === 'qc_pending' && (
-                          <div className="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 border-2 border-purple-300 flex items-center gap-1">
+                          <div className="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 border border-purple-300 rounded-lg flex items-center gap-1">
                             <Clock className="w-4 h-4" />
                             MENUNGGU QC
                           </div>
@@ -321,7 +383,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
         )}
       </div>
 
-      {/* Available Queue Section */}
+      {/* Available Queue Section - NEW SERVICES */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-[#FFDE00] flex items-center justify-center border-2 border-black">
@@ -344,17 +406,17 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_black] overflow-hidden hover:translate-x-[2px] hover:translate-y-[2px] transition-all cursor-pointer"
+                className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-[#E94560]"
                 onClick={() => viewServiceDetails(service)}
               >
                 <div className="p-4">
                   <div className="flex flex-wrap justify-between items-start gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-black text-white text-xs font-mono">
+                        <span className="px-2 py-0.5 bg-[#1A1A2E] text-white text-xs font-mono rounded">
                           {service.invoice_number}
                         </span>
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold border border-green-200">
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
                           BARU
                         </span>
                       </div>
@@ -362,7 +424,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <div className="flex items-center gap-1 text-sm">
                           <User className="w-4 h-4 text-gray-400" />
-                          <span className="font-bold">{service.customer_name}</span>
+                          <span className="font-medium">{service.customer_name}</span>
                         </div>
                         <div className="flex items-center gap-1 text-sm">
                           <Watch className="w-4 h-4 text-gray-400" />
@@ -378,7 +440,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                     <div className="flex gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); viewServiceDetails(service); }}
-                        className="px-3 py-1.5 text-sm bg-[#3B82F6] text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 text-sm bg-[#1A1A2E] text-white font-medium rounded-lg hover:bg-[#0F3460] transition-all flex items-center gap-1"
                       >
                         <Eye className="w-4 h-4" />
                         DETAIL
@@ -392,7 +454,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
         )}
       </div>
 
-      {/* Modals */}
+      {/* All Modals */}
       {selectedService && (
         <>
           <ServiceDetailModal
@@ -404,18 +466,18 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
           />
 
           {showTimelineModal && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-              <div className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-                <div className="p-4 border-b-2 border-black flex justify-between items-center sticky top-0 bg-white">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+                <div className="px-5 py-4 border-b border-[#E9ECEF] flex justify-between items-center sticky top-0 bg-white">
                   <div>
-                    <h3 className="text-xl font-black">TIMELINE SERVICE</h3>
-                    <p className="text-xs font-mono">{selectedService.invoice_number}</p>
+                    <h3 className="text-lg font-semibold text-[#1A1A2E]">TIMELINE SERVICE</h3>
+                    <p className="text-xs text-gray-400">{selectedService.invoice_number}</p>
                   </div>
                   <button
                     onClick={() => setShowTimelineModal(false)}
-                    className="p-1 border-2 border-black hover:bg-gray-100"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-all"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-5 h-5 text-gray-400" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-5">
@@ -424,6 +486,43 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                     customerPhone={selectedService.customer_phone}
                     customerName={selectedService.customer_name}
                     onUpdate={() => fetchQueues()}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showProgressModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="px-5 py-4 border-b border-[#E9ECEF] flex justify-between items-center sticky top-0 bg-white">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+                      <Wrench className="w-4 h-4 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-[#1A1A2E]">UPDATE SERVICE</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowProgressModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-all"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-5">
+                  <p className="text-sm text-gray-500 mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
+                  <ProgressUpdate
+                    service={selectedService}
+                    onUpdate={() => fetchQueues()}
+                    onAddSparepart={() => {
+                      setShowProgressModal(false)
+                      openAddSparepart(selectedService)
+                    }}
+                    onAddJasa={() => {
+                      setShowProgressModal(false)
+                      openAddJasa(selectedService)
+                    }}
+                    onSubmitToQC={() => handleSubmitToQC(selectedService)}
                   />
                 </div>
               </div>
@@ -443,6 +542,44 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                 setSelectedService(null)
                 fetchQueues()
                 toast.success('Sparepart berhasil ditambahkan ke service')
+              }}
+              onRequestSparepart={(query: string) => {
+                setShowAddSparepart(false)
+                openRequestSparepart(selectedService, query)
+              }}
+            />
+          )}
+
+          {showAddJasa && (
+            <AddJasaModal
+              isOpen={showAddJasa}
+              onClose={() => {
+                setShowAddJasa(false)
+                setSelectedService(null)
+              }}
+              service={selectedService}
+              onSuccess={() => {
+                setShowAddJasa(false)
+                setSelectedService(null)
+                fetchQueues()
+                toast.success('Jasa berhasil ditambahkan ke service')
+              }}
+            />
+          )}
+
+          {showRequestSparepart && (
+            <RequestSparepartModal
+              isOpen={showRequestSparepart}
+              onClose={() => {
+                setShowRequestSparepart(false)
+                setSelectedService(null)
+              }}
+              service={selectedService}
+              onSuccess={() => {
+                setShowRequestSparepart(false)
+                setSelectedService(null)
+                fetchQueues()
+                toast.success('Request sparepart terkirim!')
               }}
             />
           )}

@@ -28,6 +28,9 @@ export type ServiceStatus =
   | 'pending'
   | 'assigned'
   | 'in_progress'
+  | 'req_sparepart_admin'  // ← TAMBAHKAN
+  | 'po_pending'           // ← TAMBAHKAN
+  | 'sparepart_ready'      // ← TAMBAHKAN
   | 'qc_pending'
   | 'completed'
   | 'cancelled'
@@ -66,6 +69,12 @@ export interface ServiceOrder {
 
   // Status
   status: ServiceStatus
+
+  // PO Fields
+  po_status?: string
+  po_sparepart?: string
+  po_requested_at?: string
+  po_admin_response?: string
 
   // Assignment
   assigned_teknisi_id?: string
@@ -154,6 +163,8 @@ export interface Attendance {
   check_in: string
   check_out?: string
   status: 'checked_in' | 'checked_out'
+  work_duration?: string
+  total_minutes?: number
   created_at: string
 }
 
@@ -169,10 +180,28 @@ export interface Inventory {
   warehouse_stock: number
   unit: string
   min_stock: number
+  category?: string
+  photo_url?: string
   compatible_brands?: string[]
   compatible_models?: string[]
   created_at: string
   updated_at: string
+}
+
+// =====================================================
+// CATEGORY TYPES
+// =====================================================
+
+export interface Category {
+  id: string
+  name: string
+  description?: string
+  created_at: string
+}
+
+export interface InventoryWithCategory extends Inventory {
+  category?: string
+  photo_url?: string
 }
 
 // =====================================================
@@ -357,6 +386,9 @@ export const serviceStatusLabels: Record<ServiceStatus, string> = {
   pending: 'Menunggu',
   assigned: 'Ditugaskan',
   in_progress: 'Dalam Pengerjaan',
+  req_sparepart_admin: 'Request PO',      // ← TAMBAHKAN
+  po_pending: 'PO Pending',               // ← TAMBAHKAN
+  sparepart_ready: 'Sparepart Ready',     // ← TAMBAHKAN
   qc_pending: 'Quality Check',
   completed: 'Selesai',
   cancelled: 'Dibatalkan'
@@ -438,7 +470,10 @@ export const getStatusColor = (status: ServiceStatus): string => {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     assigned: 'bg-blue-100 text-blue-700 border-blue-200',
     in_progress: 'bg-purple-100 text-purple-700 border-purple-200',
-    qc_pending: 'bg-orange-100 text-orange-700 border-orange-200',
+    req_sparepart_admin: 'bg-orange-100 text-orange-700 border-orange-200',  // ← TAMBAHKAN
+    po_pending: 'bg-purple-100 text-purple-700 border-purple-200',            // ← TAMBAHKAN
+    sparepart_ready: 'bg-green-100 text-green-700 border-green-200',           // ← TAMBAHKAN
+    qc_pending: 'bg-indigo-100 text-indigo-700 border-indigo-200',
     completed: 'bg-green-100 text-green-700 border-green-200',
     cancelled: 'bg-red-100 text-red-700 border-red-200'
   }

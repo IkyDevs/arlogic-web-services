@@ -1,29 +1,36 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState } from 'react'
 import { Search, X } from 'lucide-react'
-import { useDebounce } from '@/hooks/useDebounce'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SearchInputProps {
-  onSearch: (query: string) => void
+  value: string
+  onChange: (value: string) => void
   placeholder?: string
+  onSelect?: (item: any) => void
+  items?: any[]
+  renderItem?: (item: any) => React.ReactNode
+  loading?: boolean
   className?: string
-  debounceMs?: number
 }
 
 export default function SearchInput({
-  onSearch,
-  placeholder = 'Search...',
-  className = '',
-  debounceMs = 300
+  value,
+  onChange,
+  placeholder = 'Cari...',
+  onSelect,
+  items = [],
+  renderItem,
+  loading = false,
+  className = ''
 }: SearchInputProps) {
-  const [query, setQuery] = useState('')
-  const debouncedQuery = useDebounce(query, debounceMs)
+  const [isOpen, setIsOpen] = useState(false)
 
-  useEffect(() => {
-    onSearch(debouncedQuery)
-  }, [debouncedQuery, onSearch])
+  const handleSelect = (item: any) => {
+    if (onSelect) onSelect(item)
+    setIsOpen(false)
+  }
 
   return (
     <div className={`relative ${className}`}>
@@ -31,25 +38,56 @@ export default function SearchInput({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full pl-9 pr-8 py-2 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+          className="w-full pl-9 pr-8 py-2.5 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] focus:ring-2 focus:ring-[#E94560]/10 transition-all"
         />
-        <AnimatePresence>
-          {query && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              onClick={() => setQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <X className="w-4 h-4 text-gray-400" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+        {value && (
+          <button
+            onClick={() => {
+              onChange('')
+              setIsOpen(false)
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-all"
+          >
+            <X className="w-3 h-3 text-gray-400" />
+          </button>
+        )}
       </div>
+
+      <AnimatePresence>
+        {isOpen && value && items.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-20 w-full mt-1 bg-white border border-[#E9ECEF] rounded-lg shadow-lg max-h-48 overflow-y-auto"
+          >
+            {items.map((item, index) => (
+              <div
+                key={index}
+                onClick={() => handleSelect(item)}
+                className="cursor-pointer hover:bg-gray-50 transition-all last:border-0"
+              >
+                {renderItem ? renderItem(item) : (
+                  <div className="px-3 py-2 text-sm">{item}</div>
+                )}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {loading && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="w-4 h-4 border-2 border-[#E94560] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
     </div>
   )
 }
