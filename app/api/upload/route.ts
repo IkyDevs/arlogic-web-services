@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
+
+// Konfigurasi Cloudflare R2
+const s3Client = new S3Client({
+  region: 'auto',
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+  forcePathStyle: true,
+})
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📤 Upload API called')
+    console.log('📤 Upload API called - Cloudflare R2')
 
     const formData = await request.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string
 
     if (!file) {
-      console.log('❌ No file provided')
       return NextResponse.json(
         { error: 'No file uploaded' },
         { status: 400 }
@@ -20,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`📤 File: ${file.name}, Type: ${type}, Size: ${file.size} bytes`)
 
-    // Convert file to buffer
+    // Convert to buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
@@ -48,54 +58,55 @@ export async function POST(request: NextRequest) {
       contentType = file.type || 'image/jpeg'
     }
 
-    // Generate filename
+    // Generate unique filename
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 8)
     const fileName = `${type}/${timestamp}_${randomString}.jpg`
 
-    // Upload to Supabase
-    const supabase = await createClient()
-    const bucket = type === 'attendance' ? 'attendance-photos' : 'service-photos'
+    console.log(`📤 Uploading to R2: ${fileName}`)
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, compressedBuffer, {
-        contentType: contentType,
-        cacheControl: '3600',
-        upsert: false,
-      })
-
-    if (uploadError) {
-      console.error('❌ Upload error:', uploadError)
-      return NextResponse.json(
-        { error: 'Upload to storage failed', details: uploadError.message },
-        { status: 500 }
-      )
+    // Upload to Cloudflare R2
+    const uploadParams = {
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: fileName,
+      Body: compressedBuffer,
+      ContentType: contentType,
+      CacheControl: 'public, max-age=31536000',
     }
 
-    const { data: urlData } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(fileName)
+    await s3Client.send(new PutObjectCommand(uploadParams))
+    console.log('✅ Upload to R2 successful')
 
-    console.log('✅ Upload success:', fileName)
+    // Get public URL
+    const publicUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`
 
     return NextResponse.json({
       success: true,
-      url: urlData.publicUrl,
+      url: publicUrl,
       fileName: fileName,
-      originalSize: buffer.length,
-      compressedSize: compressedBuffer.length,
     })
 
   } catch (error: any) {
-    console.error('❌ Upload API error:', error)
+    console.error('❌ Upload error:', error)
     return NextResponse.json(
       {
         error: 'Upload failed',
-        details: error.message || 'Internal server error',
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: error.message,
+        code: error.code
       },
       { status: 500 }
     )
   }
+}
+
+// OPTIONS method untuk CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  })
 }
