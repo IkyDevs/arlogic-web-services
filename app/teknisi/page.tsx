@@ -11,7 +11,7 @@ import {
   ClipboardList, TrendingUp, Award, Zap, Shield,
   Battery, Signal, Wifi, ChevronRight, RefreshCw,
   Bell, Settings, Star, Users, Package, DollarSign,
-  AlertCircle, FileText, Watch
+  AlertCircle, FileText, Watch, Box, Activity
 } from 'lucide-react'
 import AttendanceModal from '@/components/teknisi/AttendanceModal'
 import QueueList from '@/components/teknisi/QueueList'
@@ -24,7 +24,7 @@ import toast from 'react-hot-toast'
 import dynamic from 'next/dynamic'
 
 const ServiceTimeline = dynamic(() => import('@/components/teknisi/ServiceTimeline'), {
-  loading: () => <div className="border-2 border-black p-8 text-center font-mono">LOADING...</div>
+  loading: () => <div className="text-center py-8 text-gray-500">Loading...</div>
 })
 
 export default function TeknisiDashboard() {
@@ -212,9 +212,9 @@ export default function TeknisiDashboard() {
   }
 
   const getAttendanceStatus = () => {
-    if (!todayAttendance) return { text: 'BELUM ABSEN', color: 'text-red-600', bg: 'bg-red-100', icon: '❌' }
-    if (!todayAttendance.check_out) return { text: 'SUDAH CHECK IN', color: 'text-yellow-600', bg: 'bg-yellow-100', icon: '✅' }
-    return { text: 'SUDAH PULANG', color: 'text-green-600', bg: 'bg-green-100', icon: '✓' }
+    if (!todayAttendance) return { text: 'Belum Absen', color: 'text-red-500', bg: 'bg-red-50', icon: '❌' }
+    if (!todayAttendance.check_out) return { text: 'Checked In', color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '✅' }
+    return { text: 'Selesai', color: 'text-green-600', bg: 'bg-green-50', icon: '✓' }
   }
 
   const formatRupiah = (nominal: number) => {
@@ -224,196 +224,166 @@ export default function TeknisiDashboard() {
   const attendanceStatus = getAttendanceStatus()
 
   const menuItems = [
-    { id: 'queue', label: 'ANTREAN & PROYEK', icon: ClipboardList, description: 'Lihat dan ambil proyek', color: 'pink' },
-    { id: 'stats', label: 'PERFORMASI', icon: TrendingUp, description: 'Lihat statistik Anda', color: 'yellow' },
-    { id: 'layanan', label: 'LAYANAN', icon: FileText, description: 'Input transaksi layanan', color: 'blue' },
+    { id: 'queue', label: 'Antrean & Proyek', icon: ClipboardList, description: 'Lihat dan ambil proyek' },
+    { id: 'stats', label: 'Performa', icon: TrendingUp, description: 'Lihat statistik Anda' },
+    { id: 'layanan', label: 'Transaksi', icon: FileText, description: 'Input transaksi layanan' },
   ]
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-10 h-10 border-2 border-black border-t-transparent rounded-full animate-spin" />
-          <p className="mt-3 font-mono">LOADING DASHBOARD...</p>
+          <div className="w-10 h-10 border-3 border-[#E94560] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-gray-500 font-medium">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full w-80 bg-white border-r-2 border-black z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="p-5 border-b-2 border-black">
+    <div className="min-h-screen bg-[#FAFAFA]">
+      {/* ==================== SIDEBAR ==================== */}
+      <div className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="p-4 border-b border-[#E9ECEF]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-[#FF6B9D] flex items-center justify-center border-2 border-black">
-                <Wrench className="w-5 h-5 text-white" />
+              <div className="w-9 h-9 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-lg flex items-center justify-center">
+                <Wrench className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tighter">WATCH<span className="text-[#FF6B9D]">SERVICE</span></h1>
-                <p className="text-[10px] font-mono">TEKNISI PANEL</p>
+                <h1 className="text-lg font-bold text-[#1A1A2E]">Watch<span className="text-[#E94560]">Service</span></h1>
+                <p className="text-[10px] text-gray-400">Teknisi Panel</p>
               </div>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 border-2 border-black">
-              <X className="w-5 h-5" />
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* User Profile */}
-          <div className="mt-5 p-3 border-2 border-black bg-[#F5F5F5]">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-[#3B82F6] flex items-center justify-center text-white font-bold text-sm border-2 border-black">
-                {user?.full_name?.charAt(0) || 'T'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm truncate">{user?.full_name}</p>
-                <p className="text-[10px] font-mono truncate">{user?.teknisi_name || user?.full_name}</p>
-              </div>
+          <div className="mt-4 flex items-center gap-3 p-2.5 bg-[#FAFAFA] rounded-lg">
+            <div className="w-9 h-9 bg-[#1A1A2E] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              {user?.full_name?.charAt(0) || 'T'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">{user?.full_name}</p>
+              <p className="text-xs text-gray-400 truncate">{user?.teknisi_name || user?.full_name}</p>
             </div>
           </div>
 
           {/* Attendance Status */}
-          <div className={`mt-3 p-2.5 border-2 border-black ${attendanceStatus.bg}`}>
+          <div className={`mt-3 p-2 rounded-lg ${attendanceStatus.bg}`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{attendanceStatus.icon}</span>
-                <span className={`text-xs font-bold ${attendanceStatus.color}`}>{attendanceStatus.text}</span>
+              <div className="flex items-center gap-2 text-xs">
+                <span>{attendanceStatus.icon}</span>
+                <span className={attendanceStatus.color}>{attendanceStatus.text}</span>
               </div>
-              <div className="flex items-center gap-1 text-[10px] font-mono text-gray-500">
-                <Wifi className="w-3 h-3" />
-                <span>ONLINE</span>
-              </div>
+              <span className="text-[10px] text-gray-400">Teknisi</span>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-2">
-          {menuItems.map((item) => {
-            const colorClasses = {
-              pink: 'bg-[#FF6B9D] text-white hover:bg-[#ff5588]',
-              yellow: 'bg-[#FFDE00] text-black hover:bg-[#e6c800]',
-              blue: 'bg-[#3B82F6] text-white hover:bg-[#2563eb]'
-            }
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id)
-                  setSidebarOpen(false)
-                }}
-                className={`w-full text-left px-3 py-2.5 rounded-none font-bold text-sm flex items-center gap-3 border-2 border-black shadow-[3px_3px_0px_0px_black] transition-all ${
-                  activeTab === item.id ? colorClasses[item.color as keyof typeof colorClasses] : 'bg-white text-black hover:translate-x-[1px] hover:translate-y-[1px]'
-                }`}
-              >
-                <div className="w-6 h-6 flex items-center justify-center">
-                  <item.icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 text-left">
-                  <div>{item.label}</div>
-                  <div className="text-[9px] opacity-70">{item.description}</div>
-                </div>
-                {activeTab === item.id && <ChevronRight className="w-4 h-4" />}
-              </button>
-            )
-          })}
+        <nav className="p-3 space-y-0.5">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id)
+                setSidebarOpen(false)
+              }}
+              className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg transition-all ${
+                activeTab === item.id
+                  ? 'bg-[#1A1A2E] text-white'
+                  : 'text-[#1A1A2E] hover:bg-gray-100'
+              }`}
+            >
+              <item.icon className="w-4 h-4" />
+              {item.label}
+            </button>
+          ))}
 
-          <div className="pt-4 mt-4 border-t-2 border-black space-y-2">
+          <div className="pt-2 mt-2 border-t border-[#E9ECEF] space-y-2">
             {/* Attendance Button */}
             <button
               onClick={() => handleAttendance(todayAttendance && !todayAttendance.check_out ? 'check_out' : 'check_in')}
               disabled={!!todayAttendance?.check_out}
-              className={`w-full py-2.5 rounded-none font-bold text-sm transition-all flex items-center justify-center gap-2 border-2 border-black shadow-[3px_3px_0px_0px_black] ${
+              className={`w-full py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
                 !todayAttendance
-                  ? 'bg-[#FFDE00] text-black hover:translate-x-[1px] hover:translate-y-[1px]'
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
                   : todayAttendance.check_out
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-[#FF6B9D] text-white hover:translate-x-[1px] hover:translate-y-[1px]'
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-yellow-500 hover:bg-yellow-600 text-white'
               }`}
             >
               {!todayAttendance ? (
                 <>
                   <LogIn className="w-4 h-4" />
-                  CHECK IN
+                  Check In
                 </>
               ) : todayAttendance.check_out ? (
                 <>
                   <CheckCircle className="w-4 h-4" />
-                  COMPLETED
+                  Completed
                 </>
               ) : (
                 <>
                   <LogOutIcon className="w-4 h-4" />
-                  CHECK OUT
+                  Check Out
                 </>
               )}
             </button>
 
-            {/* Logout Button */}
+            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="w-full text-left px-3 py-2 rounded-none font-bold text-sm flex items-center gap-3 border-2 border-black bg-black text-white hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-[#E94560] hover:bg-red-50 transition-all"
             >
               <LogOut className="w-4 h-4" />
-              LOGOUT
+              Keluar
             </button>
           </div>
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t-2 border-black">
-          <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
-            <div className="flex items-center gap-2">
-              <Battery className="w-3 h-3" />
-              <span>SYSTEM ONLINE</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Signal className="w-3 h-3" />
-              <span>SECURE</span>
-            </div>
-          </div>
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#E9ECEF] text-center">
+          <p className="text-[10px] text-gray-400">Watch Service v2.0</p>
         </div>
       </div>
 
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden bg-[#FFDE00] border-2 border-black shadow-[3px_3px_0px_0px_black] p-2"
+        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-[#E9ECEF]"
       >
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Main Content */}
-      <div className="lg:ml-80">
+      {/* ==================== MAIN CONTENT ==================== */}
+      <div className="lg:ml-64">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b-2 border-black z-20">
-          <div className="px-6 py-4 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-[#E9ECEF] z-20">
+          <div className="px-6 py-3.5 flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-black tracking-tighter">{menuItems.find(m => m.id === activeTab)?.label}</h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <div className="w-1.5 h-1.5 bg-[#3B82F6] rounded-full" />
-                <p className="text-xs font-mono text-gray-500">
-                  {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
+              <h2 className="text-xl font-bold text-[#1A1A2E]">{menuItems.find(m => m.id === activeTab)?.label}</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button onClick={() => fetchAllData(true)} className={`p-2 hover:bg-gray-100 rounded-lg transition-all ${refreshing ? 'animate-spin' : ''}`}>
+                <RefreshCw className="w-4 h-4 text-gray-400" />
+              </button>
+              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-all">
+                <Bell className="w-4 h-4 text-gray-400" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#E94560] rounded-full" />
+              </button>
+              <div className="bg-[#E94560] px-3 py-1 rounded-full text-white text-xs font-medium">
+                TEKNISI
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchAllData(true)}
-                className={`p-2 border-2 border-black hover:bg-gray-100 transition-all ${refreshing ? 'animate-spin' : ''}`}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              <button className="relative p-2 border-2 border-black hover:bg-gray-100 transition-all">
-                <Bell className="w-4 h-4" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#FF6B9D] border border-black rounded-full" />
-              </button>
-            </div>
           </div>
-        </div>
+        </header>
 
-        {/* Content */}
+        {/* ==================== CONTENT ==================== */}
         <main className="p-6">
           <AnimatePresence mode="wait">
             {activeTab === 'queue' && (
@@ -426,41 +396,44 @@ export default function TeknisiDashboard() {
                 className="space-y-6"
               >
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_black]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="stat-card">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Selesai Hari Ini</span>
+                    </div>
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-black uppercase text-gray-500">SELESAI HARI INI</p>
-                        <p className="text-3xl font-black">{stats.completedToday}</p>
-                      </div>
-                      <CheckCircle className="w-8 h-8 text-[#3B82F6]" />
+                      <p className="text-2xl font-bold text-[#1A1A2E]">{stats.completedToday}</p>
+                      <CheckCircle className="w-6 h-6 text-[#2ECC71]" />
                     </div>
                   </div>
-                  <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_black]">
+
+                  <div className="stat-card">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Sedang Dikerjakan</span>
+                    </div>
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-black uppercase text-gray-500">SEDANG DIKERJAKAN</p>
-                        <p className="text-3xl font-black">{stats.inProgress}</p>
-                      </div>
-                      <Wrench className="w-8 h-8 text-[#FFDE00]" />
+                      <p className="text-2xl font-bold text-[#1A1A2E]">{stats.inProgress}</p>
+                      <Wrench className="w-6 h-6 text-[#F1C40F]" />
                     </div>
                   </div>
-                  <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_black]">
+
+                  <div className="stat-card">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Antrean</span>
+                    </div>
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-black uppercase text-gray-500">ANTREAN</p>
-                        <p className="text-3xl font-black">{stats.pendingQueue}</p>
-                      </div>
-                      <Clock className="w-8 h-8 text-[#FF6B9D]" />
+                      <p className="text-2xl font-bold text-[#1A1A2E]">{stats.pendingQueue}</p>
+                      <Clock className="w-6 h-6 text-[#E94560]" />
                     </div>
                   </div>
-                  <div className="border-2 border-black bg-white p-4 shadow-[4px_4px_0px_0px_black]">
+
+                  <div className="stat-card">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Pendapatan Bulan Ini</span>
+                    </div>
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-black uppercase text-gray-500">PENDAPATAN BULAN INI</p>
-                        <p className="text-xl font-black text-[#FF6B9D]">{formatRupiah(stats.totalEarnings)}</p>
-                      </div>
-                      <DollarSign className="w-8 h-8 text-[#FF6B9D]" />
+                      <p className="text-xl font-bold text-[#E94560]">{formatRupiah(stats.totalEarnings)}</p>
+                      <DollarSign className="w-6 h-6 text-[#E94560]" />
                     </div>
                   </div>
                 </div>
@@ -472,28 +445,26 @@ export default function TeknisiDashboard() {
                 />
 
                 {/* Recent Activity */}
-                <div className="border-2 border-black bg-white p-5 shadow-[4px_4px_0px_0px_black]">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-[#FF6B9D] flex items-center justify-center border border-black">
-                        <Activity className="w-3 h-3 text-white" />
-                      </div>
-                      <h3 className="font-black">AKTIVITAS TERBARU</h3>
+                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+                      <Activity className="w-3 h-3 text-white" />
                     </div>
+                    <h3 className="font-semibold text-[#1A1A2E]">Aktivitas Terbaru</h3>
                   </div>
                   <div className="space-y-2">
                     {recentActivities.map((activity, i) => (
-                      <div key={activity.id} className="flex items-center gap-3 p-2 border-b border-black last:border-0">
-                        <div className="w-2 h-2 bg-[#3B82F6] rounded-full" />
+                      <div key={activity.id} className="flex items-center gap-3 p-2 border-b border-[#E9ECEF] last:border-0">
+                        <div className="w-2 h-2 bg-[#E94560] rounded-full" />
                         <div className="flex-1">
-                          <p className="text-sm font-mono">{activity.message}</p>
-                          <p className="text-[10px] text-gray-400">{activity.time}</p>
+                          <p className="text-sm text-gray-700">{activity.message}</p>
+                          <p className="text-xs text-gray-400">{activity.time}</p>
                         </div>
                       </div>
                     ))}
                     {recentActivities.length === 0 && (
                       <div className="text-center py-6 text-gray-400">
-                        <p className="text-sm font-mono">Belum ada aktivitas</p>
+                        <p className="text-sm">Belum ada aktivitas</p>
                       </div>
                     )}
                   </div>
@@ -510,39 +481,39 @@ export default function TeknisiDashboard() {
                 className="grid md:grid-cols-2 gap-6"
               >
                 {/* Performance Stats */}
-                <div className="border-2 border-black bg-white p-5 shadow-[6px_6px_0px_0px_black]">
-                  <div className="flex items-center gap-2 mb-5 pb-2 border-b-2 border-black">
-                    <div className="w-8 h-8 bg-[#FF6B9D] flex items-center justify-center border border-black">
+                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-[#E9ECEF]">
+                    <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-4 h-4 text-white" />
                     </div>
-                    <h3 className="text-lg font-black">METRIK PERFORMASI</h3>
+                    <h3 className="text-lg font-semibold text-[#1A1A2E]">Metrik Performa</h3>
                   </div>
 
                   <div className="space-y-5">
                     <div>
-                      <div className="flex justify-between text-sm font-bold mb-1">
-                        <span className="uppercase">Completion Rate</span>
-                        <span className="text-[#3B82F6]">94%</span>
+                      <div className="flex justify-between text-sm font-medium mb-1">
+                        <span className="text-gray-600">Completion Rate</span>
+                        <span className="text-[#2ECC71]">94%</span>
                       </div>
-                      <div className="h-3 border border-black bg-white">
-                        <div className="w-[94%] h-full bg-[#3B82F6]" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between text-sm font-bold mb-1">
-                        <span className="uppercase">Rata-rata Waktu Service</span>
-                        <span className="text-[#FFDE00]">{stats.averageTime} hari</span>
-                      </div>
-                      <div className="h-3 border border-black bg-white">
-                        <div className="w-[75%] h-full bg-[#FFDE00]" />
+                      <div className="h-2 bg-[#E9ECEF] rounded-full overflow-hidden">
+                        <div className="w-[94%] h-full bg-[#2ECC71] rounded-full" />
                       </div>
                     </div>
 
                     <div>
-                      <div className="flex justify-between text-sm font-bold mb-1">
-                        <span className="uppercase">Rating Customer</span>
-                        <span className="text-[#FF6B9D]">{stats.rating} / 5.0</span>
+                      <div className="flex justify-between text-sm font-medium mb-1">
+                        <span className="text-gray-600">Rata-rata Waktu Service</span>
+                        <span className="text-[#F1C40F]">{stats.averageTime} hari</span>
+                      </div>
+                      <div className="h-2 bg-[#E9ECEF] rounded-full overflow-hidden">
+                        <div className="w-[75%] h-full bg-[#F1C40F] rounded-full" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-sm font-medium mb-1">
+                        <span className="text-gray-600">Rating Customer</span>
+                        <span className="text-[#E94560]">{stats.rating} / 5.0</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -550,9 +521,9 @@ export default function TeknisiDashboard() {
                             key={star}
                             className={`w-5 h-5 ${
                               star <= Math.floor(stats.rating)
-                                ? 'fill-[#FFDE00] text-[#FFDE00]'
+                                ? 'fill-[#F1C40F] text-[#F1C40F]'
                                 : star - 0.5 <= stats.rating
-                                ? 'fill-[#FFDE00]/50 text-[#FFDE00]'
+                                ? 'fill-[#F1C40F]/50 text-[#F1C40F]'
                                 : 'text-gray-300'
                             }`}
                           />
@@ -560,19 +531,19 @@ export default function TeknisiDashboard() {
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t-2 border-black">
+                    <div className="pt-4 border-t border-[#E9ECEF]">
                       <div className="flex justify-between items-center">
                         <div className="text-center">
-                          <p className="text-2xl font-black">{stats.completedThisMonth}</p>
-                          <p className="text-[10px] font-mono uppercase">Service Bulan Ini</p>
+                          <p className="text-2xl font-bold text-[#1A1A2E]">{stats.completedThisMonth}</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Service Bulan Ini</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-2xl font-black text-[#FF6B9D]">{formatRupiah(stats.totalEarnings)}</p>
-                          <p className="text-[10px] font-mono uppercase">Pendapatan</p>
+                          <p className="text-2xl font-bold text-[#E94560]">{formatRupiah(stats.totalEarnings)}</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Pendapatan</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-2xl font-black">100%</p>
-                          <p className="text-[10px] font-mono uppercase">Kehadiran</p>
+                          <p className="text-2xl font-bold text-[#2ECC71]">100%</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Kehadiran</p>
                         </div>
                       </div>
                     </div>
@@ -580,34 +551,34 @@ export default function TeknisiDashboard() {
                 </div>
 
                 {/* Badges & Achievements */}
-                <div className="border-2 border-black bg-white p-5 shadow-[6px_6px_0px_0px_black]">
-                  <div className="flex items-center gap-2 mb-5 pb-2 border-b-2 border-black">
-                    <div className="w-8 h-8 bg-[#FFDE00] flex items-center justify-center border border-black">
-                      <Award className="w-4 h-4 text-black" />
+                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-[#E9ECEF]">
+                    <div className="w-8 h-8 bg-[#F1C40F] rounded-lg flex items-center justify-center">
+                      <Award className="w-4 h-4 text-[#1A1A2E]" />
                     </div>
-                    <h3 className="text-lg font-black">PENCAPAIAN</h3>
+                    <h3 className="text-lg font-semibold text-[#1A1A2E]">Pencapaian</h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 border-2 border-black bg-[#FF6B9D]/10">
-                      <Zap className="w-10 h-10 text-[#FFDE00] mx-auto mb-2" />
-                      <p className="font-black text-sm">SPEEDSTER</p>
-                      <p className="text-[10px] font-mono">Selesaikan 10 service</p>
+                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
+                      <Zap className="w-8 h-8 text-[#F1C40F] mx-auto mb-2" />
+                      <p className="font-semibold text-sm">Speedster</p>
+                      <p className="text-[10px] text-gray-400">Selesaikan 10 service</p>
                     </div>
-                    <div className="text-center p-3 border-2 border-black bg-[#3B82F6]/10">
-                      <Shield className="w-10 h-10 text-[#3B82F6] mx-auto mb-2" />
-                      <p className="font-black text-sm">QUALITY EXPERT</p>
-                      <p className="text-[10px] font-mono">95% approval rate</p>
+                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
+                      <Shield className="w-8 h-8 text-[#3498DB] mx-auto mb-2" />
+                      <p className="font-semibold text-sm">Quality Expert</p>
+                      <p className="text-[10px] text-gray-400">95% approval rate</p>
                     </div>
-                    <div className="text-center p-3 border-2 border-black bg-[#FFDE00]/10">
-                      <Users className="w-10 h-10 text-[#FFDE00] mx-auto mb-2" />
-                      <p className="font-black text-sm">TEAM PLAYER</p>
-                      <p className="text-[10px] font-mono">Bantu teknisi lain</p>
+                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
+                      <Users className="w-8 h-8 text-[#2ECC71] mx-auto mb-2" />
+                      <p className="font-semibold text-sm">Team Player</p>
+                      <p className="text-[10px] text-gray-400">Bantu teknisi lain</p>
                     </div>
-                    <div className="text-center p-3 border-2 border-black bg-[#FF6B9D]/10">
-                      <Star className="w-10 h-10 text-[#FF6B9D] mx-auto mb-2 fill-[#FF6B9D]/30" />
-                      <p className="font-black text-sm">TOP PERFORMER</p>
-                      <p className="text-[10px] font-mono">Rating 5 bintang</p>
+                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
+                      <Star className="w-8 h-8 text-[#E94560] mx-auto mb-2 fill-[#E94560]/30" />
+                      <p className="font-semibold text-sm">Top Performer</p>
+                      <p className="text-[10px] text-gray-400">Rating 5 bintang</p>
                     </div>
                   </div>
                 </div>
@@ -621,16 +592,16 @@ export default function TeknisiDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <div className="mb-6 flex justify-between items-center">
+                <div className="mb-5 flex justify-between items-center">
                   <div>
-                    <h3 className="text-xl font-black">MANAJEMEN LAYANAN</h3>
-                    <p className="text-xs font-mono text-gray-500">Input transaksi layanan customer</p>
+                    <h3 className="text-xl font-bold text-[#1A1A2E]">Manajemen Transaksi</h3>
+                    <p className="text-sm text-gray-500">Input transaksi layanan customer</p>
                   </div>
                   <button
                     onClick={() => setShowLayananForm(true)}
-                    className="bg-[#FF6B9D] text-white font-bold px-4 py-2 border-2 border-black shadow-[3px_3px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-2"
+                    className="bg-[#E94560] text-white font-medium px-4 py-2 rounded-lg hover:bg-[#c73d54] transition-all flex items-center gap-2 text-sm"
                   >
-                    + TAMBAH LAYANAN
+                    + Tambah Transaksi
                   </button>
                 </div>
                 <LayananList isAdmin={false} key={refreshLayanan} />
@@ -642,24 +613,24 @@ export default function TeknisiDashboard() {
 
       {/* Progress Update Modal */}
       {selectedService && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-4 border-b-2 border-black sticky top-0 bg-white">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-[#E9ECEF]">
+            <div className="px-5 py-4 border-b border-[#E9ECEF] flex justify-between items-center sticky top-0 bg-white">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#3B82F6] flex items-center justify-center border border-black">
+                <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
                   <Wrench className="w-4 h-4 text-white" />
                 </div>
-                <h3 className="text-xl font-black">UPDATE PROGRES</h3>
+                <h3 className="text-lg font-semibold text-[#1A1A2E]">Update Service</h3>
               </div>
               <button
                 onClick={() => setSelectedService(null)}
-                className="p-1 border-2 border-black hover:bg-gray-100"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-all"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
-            <div className="p-5">
-              <p className="text-sm font-mono mb-4">Service: <span className="font-bold">{selectedService.invoice_number}</span></p>
+            <div className="flex-1 overflow-y-auto p-5">
+              <p className="text-sm text-gray-500 mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
               <ProgressUpdate
                 service={selectedService}
                 onUpdate={() => {
@@ -683,16 +654,15 @@ export default function TeknisiDashboard() {
 
       {/* Layanan Form Modal */}
       {showLayananForm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <LayananForm
-            onSuccess={handleLayananSuccess}
-            onClose={() => setShowLayananForm(false)}
-          />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-[#E9ECEF]">
+            <LayananForm
+              onSuccess={handleLayananSuccess}
+              onClose={() => setShowLayananForm(false)}
+            />
+          </div>
         </div>
       )}
     </div>
   )
 }
-
-// Import missing icon
-import { Activity } from 'lucide-react'
