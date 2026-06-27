@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   LogOut, User, ClipboardCheck, Clock,
-  Menu, X, Watch, Bell, RefreshCw
+  Menu, X, Watch, Bell, RefreshCw, Search, Package
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QCSidebar from '@/components/qc/QCSidebar'
@@ -24,6 +24,10 @@ export default function QCDashboard() {
   const [loading, setLoading] = useState(true)
   const [selectedService, setSelectedService] = useState<any>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [sparepartSearch, setSparepartSearch] = useState('')
+  const [sparepartResults, setSparepartResults] = useState<any[]>([])
+  const [sparepartSearching, setSparepartSearching] = useState(false)
+  const [showSparepartResults, setShowSparepartResults] = useState(false)
 
   const supabase = createClient()
   const { user, logout } = useAuthStore()
@@ -32,6 +36,61 @@ export default function QCDashboard() {
   useEffect(() => {
     fetchServices()
     fetchTeknisiList()
+  }, [])
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (sidebarOpen && !target.closest('.sidebar-container')) {
+        setSidebarOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [sidebarOpen])
+
+  const searchSparepart = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSparepartResults([])
+      setShowSparepartResults(false)
+      return
+    }
+    
+    setSparepartSearching(true)
+    try {
+      const { data } = await supabase
+        .from('inventory')
+        .select('*')
+        .or(`item_name.ilike.%${query}%,sku.ilike.%${query}%`)
+        .limit(10)
+
+      setSparepartResults(data || [])
+      setShowSparepartResults(true)
+    } catch (error) {
+      console.error('Search error:', error)
+    } finally {
+      setSparepartSearching(false)
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchSparepart(sparepartSearch)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [sparepartSearch, searchSparepart])
+
+  // Close sparepart search when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.sparepart-search-container')) {
+        setShowSparepartResults(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchTeknisiList = async () => {
@@ -143,6 +202,14 @@ export default function QCDashboard() {
         <Menu className="w-5 h-5" />
       </button>
 
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
       <div className="lg:ml-64">
         {/* Header */}
@@ -155,6 +222,42 @@ export default function QCDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <div className="relative hidden sm:block sparepart-search-container">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={sparepartSearch}
+                  onChange={(e) => setSparepartSearch(e.target.value)}
+                  onFocus={() => sparepartResults.length > 0 && setShowSparepartResults(true)}
+                  placeholder="Cari sparepart..."
+                  className="pl-9 pr-3 py-1.5 text-sm border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] w-48"
+                />
+                {showSparepartResults && (
+                  <div className="absolute top-full mt-1 right-0 w-64 bg-white border border-[#E9ECEF] rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                    {sparepartSearching ? (
+                      <div className="p-3 text-center text-sm text-gray-400">Mencari...</div>
+                    ) : sparepartResults.length === 0 ? (
+                      <div className="p-3 text-center text-sm text-gray-400">Tidak tersedia</div>
+                    ) : (
+                      sparepartResults.map((item) => (
+                        <div key={item.id} className="p-3 border-b border-[#E9ECEF] last:border-0 hover:bg-gray-50">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-sm font-medium text-[#1A1A2E]">{item.item_name}</p>
+                              <p className="text-xs text-gray-400">SKU: {item.sku}</p>
+                              <p className="text-xs text-gray-500">Kategori: {item.category || 'Uncategorized'}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-bold text-green-600">Toko: {item.store_stock}</p>
+                              <p className="text-xs font-bold text-blue-600">Gudang: {item.warehouse_stock}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
               <button onClick={fetchServices} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
                 <RefreshCw className="w-4 h-4 text-gray-400" />
               </button>

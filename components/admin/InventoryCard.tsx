@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Package, Warehouse, Edit2, Trash2, Image as ImageIcon } from 'lucide-react'
+import { Package, Warehouse, Edit2, Trash2, Image as ImageIcon, DollarSign } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface InventoryCardProps {
@@ -71,9 +71,16 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
             <h4 className="font-semibold text-[#1A1A2E]">{item.item_name}</h4>
             <p className="text-xs text-gray-400">SKU: {item.sku}</p>
           </div>
-          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-            {item.category || 'Uncategorized'}
-          </span>
+          <div className="flex flex-col gap-1 items-end">
+            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+              {item.category || 'Uncategorized'}
+            </span>
+            {item.price > 0 && (
+              <span className="text-xs font-bold text-[#E94560]">
+                Rp {Number(item.price).toLocaleString('id-ID')}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Stock */}

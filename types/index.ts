@@ -15,6 +15,7 @@ export interface Profile {
   role: UserRole
   teknisi_name?: string
   phone?: string
+  gender?: string
   avatar_url?: string
   created_at: string
   updated_at: string
@@ -28,10 +29,11 @@ export type ServiceStatus =
   | 'pending'
   | 'assigned'
   | 'in_progress'
-  | 'req_sparepart_admin'  // ← TAMBAHKAN
-  | 'po_pending'           // ← TAMBAHKAN
-  | 'sparepart_ready'      // ← TAMBAHKAN
+  | 'req_sparepart_admin'
+  | 'po_pending'
+  | 'sparepart_ready'
   | 'qc_pending'
+  | 'revision_required'
   | 'completed'
   | 'cancelled'
 
@@ -61,11 +63,13 @@ export interface ServiceOrder {
   watch_movement?: WatchMovement
   watch_condition?: WatchCondition
   watch_accessories?: string[]
+  category?: string
 
   // Service Information
   issue_description: string
   request?: string
   notes?: string
+  down_payment?: number
 
   // Status
   status: ServiceStatus
@@ -181,6 +185,7 @@ export interface Inventory {
   unit: string
   min_stock: number
   category?: string
+  price?: number
   photo_url?: string
   compatible_brands?: string[]
   compatible_models?: string[]
@@ -386,10 +391,11 @@ export const serviceStatusLabels: Record<ServiceStatus, string> = {
   pending: 'Menunggu',
   assigned: 'Ditugaskan',
   in_progress: 'Dalam Pengerjaan',
-  req_sparepart_admin: 'Request PO',      // ← TAMBAHKAN
-  po_pending: 'PO Pending',               // ← TAMBAHKAN
-  sparepart_ready: 'Sparepart Ready',     // ← TAMBAHKAN
+  req_sparepart_admin: 'Request PO',
+  po_pending: 'PO Pending',
+  sparepart_ready: 'Sparepart Ready',
   qc_pending: 'Quality Check',
+  revision_required: 'Perlu Revisi',
   completed: 'Selesai',
   cancelled: 'Dibatalkan'
 }
@@ -470,10 +476,11 @@ export const getStatusColor = (status: ServiceStatus): string => {
     pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     assigned: 'bg-blue-100 text-blue-700 border-blue-200',
     in_progress: 'bg-purple-100 text-purple-700 border-purple-200',
-    req_sparepart_admin: 'bg-orange-100 text-orange-700 border-orange-200',  // ← TAMBAHKAN
-    po_pending: 'bg-purple-100 text-purple-700 border-purple-200',            // ← TAMBAHKAN
-    sparepart_ready: 'bg-green-100 text-green-700 border-green-200',           // ← TAMBAHKAN
+    req_sparepart_admin: 'bg-orange-100 text-orange-700 border-orange-200',
+    po_pending: 'bg-purple-100 text-purple-700 border-purple-200',
+    sparepart_ready: 'bg-green-100 text-green-700 border-green-200',
     qc_pending: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    revision_required: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     completed: 'bg-green-100 text-green-700 border-green-200',
     cancelled: 'bg-red-100 text-red-700 border-red-200'
   }

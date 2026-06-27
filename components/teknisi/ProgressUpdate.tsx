@@ -47,7 +47,7 @@ export default function ProgressUpdate({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { user } = useAuthStore()
-  const { uploadFile, uploading, progress } = useUpload()
+  const { uploadFiles, uploading, progress } = useUpload()
 
   const calculateTotal = (itemsList: ServiceItem[]) => {
     return itemsList.reduce((sum, item) => sum + (item.price * item.quantity), 0)
@@ -133,13 +133,7 @@ export default function ProgressUpdate({
 
     try {
       // Upload photos
-      const photoUrls = []
-      for (const photo of photos) {
-        const photoUrl = await uploadFile(photo, { type: 'service' })
-        if (photoUrl) {
-          photoUrls.push(photoUrl)
-        }
-      }
+      const photoUrls = photos.length > 0 ? [...await uploadFiles(photos, { type: 'service' })] : []
 
       // Save service documentation
       for (const photoUrl of photoUrls) {

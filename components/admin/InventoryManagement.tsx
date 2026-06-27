@@ -32,11 +32,13 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
     item_name: '',
     sku: '',
     category: '',
-    store_stock: 0,
-    warehouse_stock: 0,
+    store_stock: '',
+    warehouse_stock: '',
     unit: 'pcs',
-    min_stock: 0
+    min_stock: '',
+    price: ''
   })
+  const [activeCategory, setActiveCategory] = useState<string>('all')
 
   useEffect(() => {
     fetchInventory()
@@ -97,14 +99,51 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
       item_name: '',
       sku: '',
       category: '',
-      store_stock: 0,
-      warehouse_stock: 0,
+      store_stock: '',
+      warehouse_stock: '',
       unit: 'pcs',
-      min_stock: 0
+      min_stock: '',
+      price: ''
     })
     setEditingId(null)
     setShowForm(false)
     removePhoto()
+  }
+
+  const editItem = (item: any) => {
+    setFormData({
+      item_name: item.item_name,
+      sku: item.sku,
+      category: item.category || '',
+      store_stock: String(item.store_stock ?? 0),
+      warehouse_stock: String(item.warehouse_stock ?? 0),
+      unit: item.unit || 'pcs',
+      min_stock: String(item.min_stock ?? 0),
+      price: String(item.price ?? 0)
+    })
+    setEditingId(item.id)
+    setShowForm(true)
+    if (item.photo_url) {
+      setPhotoPreview(item.photo_url)
+    }
+  }
+
+  const deleteItem = async (id: string) => {
+    if (!confirm('Yakin ingin menghapus item ini?')) return
+
+    const { error } = await supabase
+      .from('inventory')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      toast.error('Gagal menghapus item')
+      return
+    }
+
+    toast.success('Item berhasil dihapus!')
+    fetchInventory()
+    onUpdate?.()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,9 +165,15 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
 
     try {
       const dataToInsert = {
-        ...formData,
-        photo_url: photoUrl || null,
-        category: formData.category || 'Uncategorized'
+        item_name: formData.item_name,
+        sku: formData.sku,
+        category: formData.category || 'Uncategorized',
+        store_stock: parseInt(formData.store_stock) || 0,
+        warehouse_stock: parseInt(formData.warehouse_stock) || 0,
+        unit: formData.unit || 'pcs',
+        min_stock: parseInt(formData.min_stock) || 0,
+        price: parseInt(formData.price) || 0,
+        photo_url: photoUrl || null
       }
 
       if (editingId) {
@@ -150,45 +195,11 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
 
       resetForm()
       fetchInventory()
-      if (onUpdate) onUpdate()
+      onUpdate?.()
     } catch (error: any) {
-      toast.error(error.message)
+      toast.error(error.message || 'Terjadi kesalahan')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const deleteItem = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus item ini?')) return
-
-    const { error } = await supabase
-      .from('inventory')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      toast.error('Gagal menghapus item')
-    } else {
-      toast.success('Item berhasil dihapus')
-      fetchInventory()
-      if (onUpdate) onUpdate()
-    }
-  }
-
-  const editItem = (item: any) => {
-    setFormData({
-      item_name: item.item_name,
-      sku: item.sku,
-      category: item.category || '',
-      store_stock: item.store_stock,
-      warehouse_stock: item.warehouse_stock,
-      unit: item.unit || 'pcs',
-      min_stock: item.min_stock || 0
-    })
-    setEditingId(item.id)
-    setShowForm(true)
-    if (item.photo_url) {
-      setPhotoPreview(item.photo_url)
     }
   }
 
@@ -310,6 +321,61 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
                       <option value="Uncategorized">Uncategorized</option>
                     </select>
                   </div>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      id="new-category-input"
+                      placeholder="Tambah kategori baru..."
+                      className="flex-1 px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] text-sm"
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          const input = e.currentTarget
+                          const name = input.value.trim()
+                          if (!name) return
+                          setLoading(true)
+                          try {
+                            const { error } = await supabase
+                              .from('categories')
+                              .insert([{ name }])
+                            if (error) throw error
+                            toast.success('Kategori berhasil ditambahkan')
+                            input.value = ''
+                            await fetchCategories()
+                          } catch (err: any) {
+                            toast.error(err.message)
+                          } finally {
+                            setLoading(false)
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const input = document.getElementById('new-category-input') as HTMLInputElement | null
+                        const name = input?.value.trim()
+                        if (!name) return
+                        setLoading(true)
+                        try {
+                          const { error } = await supabase
+                            .from('categories')
+                            .insert([{ name }])
+                          if (error) throw error
+                          toast.success('Kategori berhasil ditambahkan')
+                          if (input) input.value = ''
+                          await fetchCategories()
+                        } catch (err: any) {
+                          toast.error(err.message)
+                        } finally {
+                          setLoading(false)
+                        }
+                      }}
+                      className="px-3 py-2 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -318,7 +384,10 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
                     <input
                       type="number"
                       value={formData.store_stock}
-                      onChange={(e) => setFormData({ ...formData, store_stock: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '')
+                        setFormData({ ...formData, store_stock: raw })
+                      }}
                       className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
                       min={0}
                     />
@@ -326,37 +395,62 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
                   <div>
                     <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Stock Gudang</label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={formData.warehouse_stock}
-                      onChange={(e) => setFormData({ ...formData, warehouse_stock: parseInt(e.target.value) || 0 })}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '')
+                        setFormData({ ...formData, warehouse_stock: raw })
+                      }}
                       className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
-                      min={0}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Satuan</label>
-                    <input
-                      type="text"
-                      value={formData.unit}
-                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                      className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
-                      placeholder="pcs, box, dll"
-                    />
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Harga (Rp)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.price}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '')
+                          setFormData({ ...formData, price: raw })
+                        }}
+                        className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
+                        placeholder="0"
+                      />
+                    </div>
+
+                   <div>
+                     <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Satuan</label>
+                     <input
+                       type="text"
+                       value={formData.unit}
+                       onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                       className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
+                       placeholder="pcs, box, dll"
+                     />
+                   </div>
+                 </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Min Stock</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.min_stock}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '')
+                          setFormData({ ...formData, min_stock: raw })
+                        }}
+                        className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
+                      />
+                    </div>
+                    <div></div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Min Stock</label>
-                    <input
-                      type="number"
-                      value={formData.min_stock}
-                      onChange={(e) => setFormData({ ...formData, min_stock: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
-                      min={0}
-                    />
-                  </div>
-                </div>
 
                 {/* Submit */}
                 <button
@@ -390,59 +484,95 @@ export default function InventoryManagement({ onUpdate }: InventoryManagementPro
           <p className="text-sm">Klik "Tambah Item" untuk menambahkan</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {inventory.map((item) => (
-            <div key={item.id} className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm hover:shadow-md transition-all overflow-hidden">
-              <div className="relative h-40 bg-gray-100">
-                {item.photo_url ? (
-                  <img src={item.photo_url} alt={item.item_name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-12 h-12 text-gray-300" />
+        <>
+          {/* Category Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+            <button
+              onClick={() => setActiveCategory('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                activeCategory === 'all'
+                  ? 'bg-[#1A1A2E] text-white'
+                  : 'bg-white text-gray-600 border border-[#E9ECEF] hover:bg-gray-50'
+              }`}
+            >
+              Semua
+            </button>
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                  activeCategory === cat
+                    ? 'bg-[#1A1A2E] text-white'
+                    : 'bg-white text-gray-600 border border-[#E9ECEF] hover:bg-gray-50'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {inventory
+              .filter(item => activeCategory === 'all' || item.category === activeCategory)
+              .map((item) => (
+              <div key={item.id} className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm hover:shadow-md transition-all overflow-hidden">
+                <div className="relative h-40 bg-gray-100">
+                  {item.photo_url ? (
+                    <img src={item.photo_url} alt={item.item_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="w-12 h-12 text-gray-300" />
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button
+                      onClick={() => editItem(item)}
+                      className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-gray-50"
+                    >
+                      <Edit2 className="w-3 h-3 text-blue-600" />
+                    </button>
+                    <button
+                      onClick={() => deleteItem(item.id)}
+                      className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-gray-50"
+                    >
+                      <Trash2 className="w-3 h-3 text-red-600" />
+                    </button>
                   </div>
-                )}
-                <div className="absolute top-2 right-2 flex gap-1">
-                  <button
-                    onClick={() => editItem(item)}
-                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-gray-50"
-                  >
-                    <Edit2 className="w-3 h-3 text-blue-600" />
-                  </button>
-                  <button
-                    onClick={() => deleteItem(item.id)}
-                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-gray-50"
-                  >
-                    <Trash2 className="w-3 h-3 text-red-600" />
-                  </button>
+                </div>
+                <div className="p-3">
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className="font-semibold text-sm text-[#1A1A2E]">{item.item_name}</h4>
+                    <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full">{item.category || 'Uncategorized'}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">SKU: {item.sku}</p>
+                  {item.price > 0 && (
+                    <p className="text-xs font-bold text-[#E94560] mb-2">
+                      Rp {Number(item.price).toLocaleString('id-ID')}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-green-50 rounded p-1.5 text-center border border-green-100">
+                      <Package className="w-3 h-3 text-green-600 mx-auto" />
+                      <span className="font-semibold text-green-700">{item.store_stock}</span>
+                      <span className="text-gray-500 ml-0.5">{item.unit}</span>
+                    </div>
+                    <div className="bg-blue-50 rounded p-1.5 text-center border border-blue-100">
+                      <Warehouse className="w-3 h-3 text-blue-600 mx-auto" />
+                      <span className="font-semibold text-blue-700">{item.warehouse_stock}</span>
+                      <span className="text-gray-500 ml-0.5">{item.unit}</span>
+                    </div>
+                  </div>
+                  {item.store_stock <= item.min_stock && (
+                    <div className="mt-2 text-[10px] text-red-500 bg-red-50 p-1 rounded text-center">
+                      ⚠️ Stock menipis!
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="p-3">
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="font-semibold text-sm text-[#1A1A2E]">{item.item_name}</h4>
-                  <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full">{item.category || 'Uncategorized'}</span>
-                </div>
-                <p className="text-xs text-gray-400 mb-2">SKU: {item.sku}</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-green-50 rounded p-1.5 text-center border border-green-100">
-                    <Package className="w-3 h-3 text-green-600 mx-auto" />
-                    <span className="font-semibold text-green-700">{item.store_stock}</span>
-                    <span className="text-gray-500 ml-0.5">{item.unit}</span>
-                  </div>
-                  <div className="bg-blue-50 rounded p-1.5 text-center border border-blue-100">
-                    <Warehouse className="w-3 h-3 text-blue-600 mx-auto" />
-                    <span className="font-semibold text-blue-700">{item.warehouse_stock}</span>
-                    <span className="text-gray-500 ml-0.5">{item.unit}</span>
-                  </div>
-                </div>
-                {item.store_stock <= item.min_stock && (
-                  <div className="mt-2 text-[10px] text-red-500 bg-red-50 p-1 rounded text-center">
-                    ⚠️ Stock menipis!
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

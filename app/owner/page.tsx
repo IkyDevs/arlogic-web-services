@@ -82,6 +82,18 @@ export default function OwnerDashboard() {
     return () => clearInterval(interval)
   }, [dateRange, customStartDate, customEndDate])
 
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (sidebarOpen && !target.closest('.sidebar-container')) {
+        setSidebarOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [sidebarOpen])
+
   const getDateRangeValues = () => {
     const now = new Date()
     switch (dateRange) {
@@ -245,7 +257,7 @@ export default function OwnerDashboard() {
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
       {/* ==================== SIDEBAR ==================== */}
-      <div className={`fixed inset-y-0 left-0 w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-y-auto`}>
+      <div className={`sidebar-container fixed inset-y-0 left-0 w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-y-auto`}>
         <div className="p-4 border-b border-[#E9ECEF]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

@@ -8,7 +8,7 @@ import {
   User, Watch, Calendar, Send, CheckCircle,
   AlertCircle, ArrowRight, Settings, Battery,
   Cpu, Sparkles, Camera, X, Image as ImageIcon,
-  Hash, Phone, Loader2, RotateCw, Smartphone, Circle
+  Hash, Phone, Loader2, RotateCw, Smartphone, Circle, DollarSign
 } from 'lucide-react'
 import { useUpload } from '@/hooks/useUpload'
 import dynamic from 'next/dynamic'
@@ -35,20 +35,24 @@ const STEP_LABELS = ['Customer', 'Watch', 'Photos', 'Issue']
 
 export default function ServiceInput() {
   const supabase = createClient()
-  const { uploadFile, uploading, progress } = useUpload()
+  const { uploadFile, uploadFiles, uploading, progress } = useUpload()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
     cs_name: '',
     cs_phone: '',
+    category: '',
     serial_number: '',
     watch_brand: '',
     watch_model: '',
     watch_movement: '',
     problem: '',
     request: '',
-    notes: ''
+    notes: '',
+    down_payment: '',
+    payment_method: 'cash',
+    qris_photo: null as File | null
   })
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
@@ -119,6 +123,8 @@ export default function ServiceInput() {
       const tokenExpiresAt = new Date()
       tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 30)
 
+      const dpValue = formData.down_payment ? parseInt(formData.down_payment) : 0
+      
       const { data: orderData, error } = await supabase
         .from('service_orders')
         .insert([{
@@ -134,6 +140,9 @@ export default function ServiceInput() {
           watch_brand: formData.watch_brand,
           watch_model: formData.watch_model || null,
           watch_movement: formData.watch_movement,
+          category: formData.category || null,
+          down_payment: dpValue,
+          payment_method: formData.payment_method || 'cash',
           issue_description: formData.problem,
           request: formData.request || null,
           notes: formData.notes || null,
@@ -146,9 +155,52 @@ export default function ServiceInput() {
 
       const serviceId = orderData.id
 
+      // Upload QRIS photo if payment method is QRIS
+      if (formData.payment_method === 'qris' && formData.qris_photo) {
+        const qrisUrl = await uploadFile(formData.qris_photo, { type: 'service' })
+        if (qrisUrl) {
+          await supabase.from('service_documentation').insert({
+            service_order_id: serviceId,
+            photo_url: qrisUrl,
+            stage: 'payment_proof',
+            uploaded_by: (await supabase.auth.getUser()).data.user?.id,
+          })
+        }
+      }
+
       if (photos.length > 0) {
-        for (const photo of photos) {
-          const url = await uploadFile(photo, { type: 'service' })
+        const now = new Date().toLocaleString('id-ID', { 
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        })
+
+        const formattedCaption = 
+`Kategori : ${formData.category || '—'}
+CS :  ${formData.cs_name}
+WA : ${formData.cs_phone}
+Seri : ${formData.serial_number || '—'}
+Kendala : ${formData.problem}
+Request : ${formData.request || '—'}
+Keterangan : ${formData.notes || '—'}
+dp : ${dpValue ? `Rp ${dpValue.toLocaleString('id-ID')}` : '—'}
+Pembayaran : ${formData.payment_method === 'qris' ? 'QRIS' : 'Cash'}
+Teknisi : —
+In : ${now}
+Start : —
+Done : —
+Pengerjaan :
+Barang :
+Jasa :
+Total : —
+Keterangan : —
+`
+
+        const urls = await uploadFiles(photos, {
+          type: 'service',
+          caption: formattedCaption,
+        })
+
+        for (const url of urls) {
           if (url) {
             await supabase.from('service_documentation').insert({
               service_order_id: serviceId,
@@ -174,9 +226,10 @@ export default function ServiceInput() {
   const resetForm = () => {
     photoPreviews.forEach(url => URL.revokeObjectURL(url))
     setFormData({
-      cs_name: '', cs_phone: '', serial_number: '',
+      cs_name: '', cs_phone: '', category: '', serial_number: '',
       watch_brand: '', watch_model: '', watch_movement: '',
-      problem: '', request: '', notes: ''
+      problem: '', request: '', notes: '', down_payment: '',
+      payment_method: 'cash', qris_photo: null
     })
     setPhotos([])
     setPhotoPreviews([])
@@ -197,31 +250,6 @@ export default function ServiceInput() {
           <p className="text-sm text-gray-400">Create service order for timepiece</p>
         </div>
       </div>
-
-      {/* Progress Steps */}
-      {step <= 4 && (
-        <div className="flex gap-1 mb-8">
-          {STEP_LABELS.map((label, i) => (
-            <div
-              key={i}
-              className={`flex-1 flex items-center gap-2 py-2.5 px-3 rounded-lg transition-all ${
-                step > i + 1
-                  ? 'bg-gray-100 text-gray-400'
-                  : step === i + 1
-                    ? 'bg-[#1A1A2E] text-white shadow-sm'
-                    : 'bg-gray-50 text-gray-400 border border-[#E9ECEF]'
-              }`}
-            >
-              <span className={`text-xs font-medium ${step === i + 1 ? 'text-white' : 'text-gray-400'}`}>
-                {i + 1}
-              </span>
-              <span className={`text-xs font-medium ${step === i + 1 ? 'text-white' : 'text-gray-500'}`}>
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
 
       <AnimatePresence mode="wait">
 
@@ -364,6 +392,19 @@ export default function ServiceInput() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Category / Kategori
+                </label>
+                <input
+                  type="text"
+                  value={formData.category}
+                  onChange={e => setFormData(p => ({ ...p, category: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  placeholder="e.g. Ganti Battery, Service Ringkas..."
+                />
               </div>
             </div>
 
@@ -529,6 +570,95 @@ export default function ServiceInput() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Down Payment (DP)
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.down_payment}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '')
+                      setFormData(p => ({ ...p, down_payment: raw }))
+                    }}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  Metode Pembayaran
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(p => ({ ...p, payment_method: 'cash' }))}
+                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      formData.payment_method === 'cash'
+                        ? 'bg-[#1A1A2E] text-white'
+                        : 'bg-white border border-[#E9ECEF] text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(p => ({ ...p, payment_method: 'qris' }))}
+                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      formData.payment_method === 'qris'
+                        ? 'bg-[#1A1A2E] text-white'
+                        : 'bg-white border border-[#E9ECEF] text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    QRIS
+                  </button>
+                </div>
+              </div>
+
+              {formData.payment_method === 'qris' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    Foto Bukti QRIS <span className="text-[#E94560]">*</span>
+                  </label>
+                  <div
+                    onClick={() => document.getElementById('qris-photo-input')?.click()}
+                    className="border-2 border-dashed border-[#E9ECEF] rounded-lg p-4 text-center cursor-pointer hover:border-[#1A1A2E] transition-all"
+                  >
+                    {formData.qris_photo ? (
+                      <div className="flex items-center gap-3">
+                        <ImageIcon className="w-8 h-8 text-green-500" />
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-[#1A1A2E]">{formData.qris_photo.name}</p>
+                          <p className="text-xs text-gray-400">Klik untuk ganti</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <Camera className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">Klik untuk upload bukti QRIS</p>
+                      </div>
+                    )}
+                    <input
+                      id="qris-photo-input"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setFormData(p => ({ ...p, qris_photo: file }))
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Summary */}
               <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
@@ -541,6 +671,12 @@ export default function ServiceInput() {
                   <span className="font-medium text-[#1A1A2E]">{[formData.watch_brand, formData.watch_model].filter(Boolean).join(' ') || '—'}</span>
                   <span className="text-gray-500">Movement:</span>
                   <span className="font-medium text-[#1A1A2E] uppercase">{formData.watch_movement || '—'}</span>
+                  <span className="text-gray-500">Category:</span>
+                  <span className="font-medium text-[#1A1A2E]">{formData.category || '—'}</span>
+                  <span className="text-gray-500">Down Payment:</span>
+                  <span className="font-medium text-[#1A1A2E]">{formData.down_payment ? `Rp ${Number(formData.down_payment).toLocaleString('id-ID')}` : '—'}</span>
+                  <span className="text-gray-500">Pembayaran:</span>
+                  <span className="font-medium text-[#1A1A2E]">{formData.payment_method === 'qris' ? 'QRIS' : 'Cash'}</span>
                   <span className="text-gray-500">Photos:</span>
                   <span className="font-medium text-[#1A1A2E]">{photos.length} photos</span>
                 </div>

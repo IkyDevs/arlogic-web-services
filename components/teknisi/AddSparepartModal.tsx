@@ -92,6 +92,7 @@ export default function AddSparepartModal({
       const { data: inventoryData } = await supabase
         .from('inventory')
         .select('*')
+        .not('store_stock', 'is', null)
         .order('item_name')
 
       const { data: poData } = await supabase
@@ -100,7 +101,7 @@ export default function AddSparepartModal({
         .eq('status', 'sparepart_ready')
         .eq('assigned_teknisi_id', user?.id)
 
-      let combinedData = inventoryData || []
+      let combinedData = (inventoryData || []).filter(item => item.store_stock >= 0)
 
       poData?.forEach(po => {
         const exists = combinedData.some(item =>
@@ -130,12 +131,13 @@ export default function AddSparepartModal({
 
   const filteredInventory = useMemo(() => {
     if (!searchQuery.trim()) {
-      return allInventory.slice(0, 20)
+      return allInventory.filter(item => item.store_stock >= 0 || item.is_po).slice(0, 20)
     }
     const query = searchQuery.toLowerCase().trim()
     return allInventory.filter(item =>
-      item.item_name.toLowerCase().includes(query) ||
-      item.sku.toLowerCase().includes(query)
+      (item.item_name.toLowerCase().includes(query) ||
+       item.sku.toLowerCase().includes(query)) &&
+      (item.store_stock >= 0 || item.is_po)
     )
   }, [allInventory, searchQuery])
 

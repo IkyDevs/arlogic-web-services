@@ -81,7 +81,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
       .from('service_orders')
       .select('*')
       .eq('assigned_teknisi_id', teknisiId)
-      .in('status', ['assigned', 'in_progress', 'req_sparepart_admin', 'po_pending', 'sparepart_ready'])
+      .in('status', ['assigned', 'in_progress', 'req_sparepart_admin', 'po_pending', 'sparepart_ready', 'revision_required'])
       .order('created_at', { ascending: false })
 
     if (assigned && assigned.length > 0) {
@@ -127,7 +127,6 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
 
       toast.success('Proyek berhasil diambil!')
       fetchQueues()
-      onTakeProject(service)
       setShowDetailModal(false)
     }
   }
@@ -186,6 +185,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
       po_pending: { label: 'PO PENDING', color: 'bg-purple-100 text-purple-700 border-purple-200' },
       sparepart_ready: { label: 'SPAREPART READY', color: 'bg-green-100 text-green-700 border-green-200' },
       qc_pending: { label: 'SIAP QC', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+      revision_required: { label: 'PERLU REVISI', color: 'bg-red-100 text-red-700 border-red-200' },
       pending: { label: 'MENUNGGU', color: 'bg-gray-100 text-gray-700 border-gray-200' },
       completed: { label: 'SELESAI', color: 'bg-green-100 text-green-700 border-green-200' }
     }
@@ -332,14 +332,14 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                           TIMELINE
                         </button>
 
-                        {/* UPDATE SERVICE - Untuk assigned dan in_progress */}
-                        {(service.status === 'assigned' || service.status === 'in_progress') && (
+                        {/* UPDATE SERVICE - Untuk assigned, in_progress, dan revision_required */}
+                        {(service.status === 'assigned' || service.status === 'in_progress' || service.status === 'revision_required') && (
                           <button
                             onClick={() => openProgressUpdate(service)}
                             className="px-3 py-1.5 text-sm bg-[#1A1A2E] text-white font-medium rounded-lg hover:bg-[#0F3460] transition-all flex items-center gap-1"
                           >
                             <Wrench className="w-4 h-4" />
-                            UPDATE SERVICE
+                            {service.status === 'revision_required' ? 'REVISI & KIRIM' : 'UPDATE SERVICE'}
                           </button>
                         )}
 

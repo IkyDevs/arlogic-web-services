@@ -25,7 +25,7 @@ export default function QCSidebar({
   onLogout
 }: QCSidebarProps) {
   return (
-    <div className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+    <div className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
       <div className="p-4 border-b border-[#E9ECEF]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('admin', 'teknisi', 'supervisor', 'owner', 'customer')),
   teknisi_name TEXT,
   phone TEXT,
+  gender TEXT CHECK (gender IN ('male', 'female', 'other')) DEFAULT 'other',
   avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -56,6 +57,8 @@ CREATE TABLE IF NOT EXISTS service_orders (
   watch_condition TEXT CHECK (watch_condition IN ('new', 'excellent', 'good', 'fair', 'poor')),
   watch_accessories TEXT[],
   watch_serial_number TEXT,
+  category TEXT,
+  down_payment DECIMAL(10,2) DEFAULT 0,
 
   -- Service Information
   issue_description TEXT NOT NULL,
@@ -63,7 +66,7 @@ CREATE TABLE IF NOT EXISTS service_orders (
   notes TEXT,
 
   -- Status Workflow
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'qc_pending', 'completed', 'cancelled')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'req_sparepart_admin', 'po_pending', 'sparepart_ready', 'qc_pending', 'revision_required', 'completed', 'cancelled')),
 
   -- Assignment
   assigned_teknisi_id UUID REFERENCES profiles(id),
@@ -129,6 +132,8 @@ CREATE TABLE IF NOT EXISTS attendances (
   check_in TIMESTAMPTZ DEFAULT NOW(),
   check_out TIMESTAMPTZ,
   status TEXT DEFAULT 'checked_in' CHECK (status IN ('checked_in', 'checked_out')),
+  work_duration TEXT,
+  total_minutes INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -141,6 +146,8 @@ CREATE TABLE IF NOT EXISTS inventory (
   warehouse_stock INTEGER DEFAULT 0,
   unit TEXT NOT NULL,
   min_stock INTEGER DEFAULT 0,
+  category TEXT,
+  price DECIMAL(10,2),
   compatible_brands TEXT[],
   compatible_models TEXT[],
   created_at TIMESTAMPTZ DEFAULT NOW(),

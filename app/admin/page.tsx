@@ -406,19 +406,31 @@ export default function AdminDashboard() {
     { id: "export", label: "LAPORAN", icon: Download },
   ];
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (showNotifications && !target.closest(".notification-container")) {
-        setShowNotifications(false);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, [showNotifications]);
+   // Close dropdown when clicking outside
+   useEffect(() => {
+     const handleClickOutside = (event: MouseEvent) => {
+       const target = event.target as HTMLElement;
+       if (showNotifications && !target.closest(".notification-container")) {
+         setShowNotifications(false);
+       }
+     };
+     document.addEventListener("click", handleClickOutside);
+     return () => document.removeEventListener("click", handleClickOutside);
+   }, [showNotifications]);
 
-  if (loading) {
+   // Close sidebar when clicking outside
+   useEffect(() => {
+     const handleClickOutside = (event: MouseEvent) => {
+       const target = event.target as HTMLElement;
+       if (sidebarOpen && !target.closest(".sidebar-container")) {
+         setSidebarOpen(false);
+       }
+     };
+     document.addEventListener("click", handleClickOutside);
+     return () => document.removeEventListener("click", handleClickOutside);
+   }, [sidebarOpen]);
+
+   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
         <div className="text-center">
@@ -433,7 +445,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#FAFAFA]">
       {/* ==================== SIDEBAR ==================== */}
       <div
-        className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+        className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
       >
         <div className="p-4 border-b border-[#E9ECEF]">
           <div className="flex items-center justify-between">
@@ -559,6 +571,14 @@ export default function AdminDashboard() {
       >
         <Menu className="w-5 h-5" />
       </button>
+
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="lg:ml-64">

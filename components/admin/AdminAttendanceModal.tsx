@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useUpload } from '@/hooks/useUpload'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
-import { Camera, MapPin, X, CheckCircle, Loader, AlertCircle, LogOut, LogIn } from 'lucide-react'
+import { Camera, MapPin, X, CheckCircle, Loader, AlertCircle, LogOut, LogIn, Clock } from 'lucide-react'
 
 interface AdminAttendanceModalProps {
   isOpen: boolean
@@ -29,6 +29,10 @@ export default function AdminAttendanceModal({
   const [location, setLocation] = useState<{ lat: number; lng: number; address: string } | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [permissionDenied, setPermissionDenied] = useState(false)
+  const [elapsedTime, setElapsedTime] = useState('00:00:00')
+  const [expectedHours, setExpectedHours] = useState({ start: '', end: '', total: 9 })
+  const [overtimeHours, setOvertimeHours] = useState(0)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -37,19 +41,64 @@ export default function AdminAttendanceModal({
   const { uploadFile, uploading, progress } = useUpload()
 
   const isCheckIn = type === 'check_in'
-  const title = isCheckIn ? 'Admin Check In' : 'Admin Check Out'
+  const title = isCheckIn ? 'Absen Masuk' : 'Absen Pulang'
   const icon = isCheckIn ? <LogIn className="w-6 h-6" /> : <LogOut className="w-6 h-6" />
 
+  const getWorkHoursByDayAndGender = (dayOfWeek: number, gender: string) => {
+    const friday = 5
+    if (dayOfWeek === friday) {
+      if (gender === 'female') {
+        return { start: '11:00', end: '19:00', total: 8 }
+      } else if (gender === 'male') {
+        return { start: '13:00', end: '21:00', total: 8 }
+      }
+    }
+    return { start: '11:00', end: '20:00', total: 9 }
+  }
+
+  const calculateTime = () => {
+    if (!existingAttendance?.check_in) return
+    const now = new Date()
+    const start = new Date(existingAttendance.check_in)
+    const diff = now.getTime() - start.getTime()
+    const hours = Math.floor(diff / 3600000)
+    const minutes = Math.floor((diff % 3600000) / 60000)
+    const seconds = Math.floor((diff % 60000) / 1000)
+    setElapsedTime(
+      `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    )
+  }
+
+  const calculateOvertime = (workMinutes: number) => {
+    const expectedMinutes = expectedHours.total * 60
+    if (workMinutes > expectedMinutes) {
+      const overtime = workMinutes - expectedMinutes
+      setOvertimeHours(overtime / 60)
+    } else {
+      setOvertimeHours(0)
+    }
+  }
+
   useEffect(() => {
-    if (isOpen && step === 'camera') {
-      setCameraError(null)
-      setPermissionDenied(false)
-      startCamera()
+    if (isOpen && user) {
+      const today = new Date()
+      const dayOfWeek = today.getDay()
+      const gender = (user as any).gender || 'other'
+      setExpectedHours(getWorkHoursByDayAndGender(dayOfWeek, gender))
+      
+      if (!isCheckIn && existingAttendance?.check_in) {
+        calculateTime()
+        timerRef.current = setInterval(calculateTime, 1000)
+      }
     }
     return () => {
-      stopCamera()
+      if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [isOpen, step])
+  }, [isOpen, type, user, existingAttendance])
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  }
 
   const startCamera = async () => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -102,6 +151,17 @@ export default function AdminAttendanceModal({
       videoRef.current.srcObject = null
     }
   }
+
+  useEffect(() => {
+    if (isOpen && step === 'camera') {
+      setCameraError(null)
+      setPermissionDenied(false)
+      startCamera()
+    }
+    return () => {
+      stopCamera()
+    }
+  }, [isOpen, step])
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -216,7 +276,42 @@ export default function AdminAttendanceModal({
       return
     }
 
-    const photoUrl = await uploadFile(photoFile, { type: 'attendance' })
+    const now = new Date()
+    const inTime = isCheckIn ? formatTime(now) : existingAttendance?.check_in ? formatTime(new Date(existingAttendance.check_in)) : '-'
+    const outTime = !isCheckIn ? formatTime(now) : '-'
+
+    let workDuration = '-'
+    let totalMinutes = 0
+    let lembur = 'tidak ada'
+
+    if (!isCheckIn && existingAttendance?.check_in) {
+      const checkIn = new Date(existingAttendance.check_in)
+      const checkOut = new Date()
+      const diffMs = checkOut.getTime() - checkIn.getTime()
+      totalMinutes = Math.floor(diffMs / 60000)
+      const hours = Math.floor(totalMinutes / 60)
+      const minutes = totalMinutes % 60
+      workDuration = `${hours}h ${minutes}m`
+
+      const expectedMinutes = expectedHours.total * 60
+      if (totalMinutes > expectedMinutes) {
+        const overtime = totalMinutes - expectedMinutes
+        const otHours = Math.floor(overtime / 60)
+        const otMinutes = overtime % 60
+        lembur = `${otHours}h ${otMinutes}m`
+      }
+    }
+
+    const caption = `${user?.full_name}
+masuk jam : ${inTime}
+keluar jam : ${outTime}
+total jam : ${workDuration}
+lembur : ${lembur}`
+
+    const photoUrl = await uploadFile(photoFile, { 
+      type: 'attendance',
+      caption: caption
+    })
 
     if (!photoUrl) {
       toast.error('Failed to upload photo')
@@ -238,14 +333,13 @@ export default function AdminAttendanceModal({
         if (dbError) throw dbError
         toast.success('Admin check in successful!')
       } else {
-        // Calculate work duration
         const checkIn = new Date(existingAttendance.check_in)
         const checkOut = new Date()
         const diffMs = checkOut.getTime() - checkIn.getTime()
         const diffMinutes = Math.floor(diffMs / 60000)
         const hours = Math.floor(diffMinutes / 60)
         const minutes = diffMinutes % 60
-        const workDuration = `${hours}h ${minutes}m`
+        workDuration = `${hours}h ${minutes}m`
 
         const { error: dbError } = await supabase
           .from('attendances')
@@ -267,7 +361,9 @@ export default function AdminAttendanceModal({
         action: isCheckIn ? 'ADMIN_CHECK_IN' : 'ADMIN_CHECK_OUT',
         details: {
           location: location.address,
-          time: new Date().toISOString()
+          time: new Date().toISOString(),
+          work_duration: workDuration,
+          overtime: lembur
         }
       })
 
@@ -275,6 +371,7 @@ export default function AdminAttendanceModal({
 
       setTimeout(() => {
         if (photoPreview) URL.revokeObjectURL(photoPreview)
+        if (timerRef.current) clearInterval(timerRef.current)
         onSuccess()
         onClose()
       }, 2000)
@@ -298,7 +395,15 @@ export default function AdminAttendanceModal({
             <div className={`p-2 rounded-full ${isCheckIn ? 'bg-green-100' : 'bg-orange-100'}`}>
               {icon}
             </div>
-            <h3 className="text-lg font-semibold">{title}</h3>
+            <div>
+              <h3 className="text-lg font-semibold">{title}</h3>
+              {!isCheckIn && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Clock className="w-3 h-3" />
+                  <span>Jam: {expectedHours.start} - {expectedHours.end}</span>
+                </div>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
             <X className="w-5 h-5" />
@@ -369,7 +474,22 @@ export default function AdminAttendanceModal({
                   </div>
                 </div>
               </div>
-
+              
+              {!isCheckIn && existingAttendance?.check_in && (
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-blue-600" />
+                      <span className="font-medium text-blue-800">Time Elapsed</span>
+                    </div>
+                    <span className="font-mono text-lg font-bold text-blue-600">{elapsedTime}</span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Jam Kerja: {expectedHours.start} - {expectedHours.end} ({expectedHours.total} jam)
+                  </p>
+                </div>
+              )}
+              
               {uploading && (
                 <div className="mb-4">
                   <div className="flex justify-between text-sm mb-1">

@@ -73,7 +73,7 @@ export default function QCReviewModal({
     setProcessing(true)
 
     try {
-      const newStatus = status === 'approved' ? 'completed' : 'cancelled'
+      const newStatus = status === 'approved' ? 'completed' : 'revision_required'
 
       const { error: updateError } = await supabase
         .from('service_orders')
@@ -94,22 +94,22 @@ export default function QCReviewModal({
 
       const message = status === 'approved'
         ? `Service telah disetujui oleh QC (${reviewerName})`
-        : `Service ditolak oleh QC (${reviewerName}). Alasan: ${reviewNotes}`
+        : `Service memerlukan revisi. Alasan: ${reviewNotes}`
 
       await supabase.from('service_timeline').insert({
         service_order_id: service.id,
         status: newStatus,
         message: message,
-        details: { action: 'qc_review', reviewer: reviewerName }
+        details: { action: 'qc_review', reviewer: reviewerName, revision: true }
       })
 
       await supabase.from('notifications').insert({
         user_id: service.assigned_teknisi_id,
-        title: status === 'approved' ? '✅ Service Disetujui QC' : '❌ Service Ditolak QC',
+        title: status === 'approved' ? '✅ Service Disetujui QC' : '🔄 Service Perlu Revisi',
         message: status === 'approved'
           ? `Service ${service.invoice_number} telah disetujui oleh QC`
-          : `Service ${service.invoice_number} ditolak oleh QC. Alasan: ${reviewNotes}`,
-        type: status === 'approved' ? 'success' : 'error',
+          : `Service ${service.invoice_number} ditolak QC. Alasan: ${reviewNotes}. Silakan perbaiki dan kirim kembali.`,
+        type: status === 'approved' ? 'success' : 'warning',
         link: '/teknisi',
         is_read: false
       })

@@ -113,7 +113,21 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     try {
       // Upload photo if exists
       if (selectedPhoto) {
-        photoUrl = await uploadFile(selectedPhoto, { type: 'service' })
+        const now = new Date().toLocaleString('id-ID', { 
+          day: 'numeric', month: 'long', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        })
+
+        const caption = `foto hasil jepretan teknisi
+
+${now}
+Teknisi : ${user?.full_name || '—'}
+Deskripsi : ${message}`
+
+        photoUrl = await uploadFile(selectedPhoto, { 
+          type: 'service', 
+          caption 
+        })
         if (!photoUrl) {
           toast.error('Failed to upload photo')
           return
@@ -411,6 +425,20 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
               )}
               Post Update
             </button>
+            {customerPhone && (
+              <button
+                type="button"
+                onClick={() => {
+                  setContactMessage(`Update service: ${newMessage || 'Progress update'}`)
+                  setShowContactModal(true)
+                }}
+                className="px-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                title="Kirim ke Customer"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Kirim
+              </button>
+            )}
           </div>
         </div>
 
