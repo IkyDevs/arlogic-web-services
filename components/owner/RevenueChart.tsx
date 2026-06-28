@@ -77,17 +77,17 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
     if (active && payload && payload.length) {
       const item = payload[0]?.payload
       return (
-        <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-lg p-4">
-          <p className="font-semibold text-sm text-[#1A1A2E] mb-2">{item?.fullMonth || label}</p>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-4">
+          <p className="font-semibold text-sm text-slate-900 mb-2">{item?.fullMonth || label}</p>
           {payload.map((p: any, index: number) => {
             const isRevenue = p.name === 'Revenue' || p.name === 'revenue'
             const isExpenses = p.name === 'Expenses' || p.name === 'expenses'
             const isProfit = p.name === 'Profit' || p.name === 'profit'
 
-            let color = '#1A1A2E'
-            if (isRevenue) color = '#E94560'
-            else if (isExpenses) color = '#E74C3C'
-            else if (isProfit) color = '#2ECC71'
+            let color = '#0f172a'
+            if (isRevenue) color = '#0d9488'
+            else if (isExpenses) color = '#ef4444'
+            else if (isProfit) color = '#10b981'
 
             return (
               <p key={index} className="text-sm" style={{ color }}>
@@ -119,16 +119,16 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
   }
 
   return (
-    <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-4 sm:p-6">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
             <Activity className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-[#1A1A2E] text-sm sm:text-base">Revenue Analytics</h3>
-            <p className="text-xs text-gray-400 hidden sm:block">Track your business financial performance</p>
+            <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Revenue Analytics</h3>
+            <p className="text-xs text-slate-400 hidden sm:block">Track your business financial performance</p>
           </div>
         </div>
 
@@ -137,8 +137,8 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
             onClick={() => setChartType('revenue')}
             className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
               chartType === 'revenue'
-                ? 'bg-[#1A1A2E] text-white'
-                : 'bg-white text-[#1A1A2E] border border-[#E9ECEF] hover:bg-gray-50'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-slate-900 border border-slate-200 hover:bg-slate-50'
             }`}
           >
             Revenue
@@ -147,8 +147,8 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
             onClick={() => setChartType('profit')}
             className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
               chartType === 'profit'
-                ? 'bg-[#1A1A2E] text-white'
-                : 'bg-white text-[#1A1A2E] border border-[#E9ECEF] hover:bg-gray-50'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-slate-900 border border-slate-200 hover:bg-slate-50'
             }`}
           >
             Profit
@@ -157,8 +157,8 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
             onClick={() => setChartType('comparison')}
             className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
               chartType === 'comparison'
-                ? 'bg-[#1A1A2E] text-white'
-                : 'bg-white text-[#1A1A2E] border border-[#E9ECEF] hover:bg-gray-50'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white text-slate-900 border border-slate-200 hover:bg-slate-50'
             }`}
           >
             YoY
@@ -171,19 +171,19 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
         <ResponsiveContainer width="100%" height="100%">
           {chartType === 'revenue' && (
             <ComposedChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E9ECEF" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
                 dataKey="month"
                 stroke="#6C757D"
                 fontSize={isMobile ? 10 : 12}
                 tick={{ fill: '#6C757D' }}
-                axisLine={{ stroke: '#E9ECEF' }}
+                axisLine={{ stroke: '#e2e8f0' }}
               />
               <YAxis
                 stroke="#6C757D"
                 fontSize={isMobile ? 10 : 12}
                 tick={{ fill: '#6C757D' }}
-                axisLine={{ stroke: '#E9ECEF' }}
+                axisLine={{ stroke: '#e2e8f0' }}
                 tickFormatter={(value) => isMobile ? `${(value/1000000)}M` : `Rp ${(value/1000000).toFixed(0)}M`}
               />
               <Tooltip content={<CustomTooltip />} />
@@ -191,12 +191,12 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
                 wrapperStyle={{ fontSize: isMobile ? 10 : 12, paddingTop: 10 }}
                 iconType="circle"
               />
-              <Bar dataKey="revenue" fill="#E94560" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="revenue" fill="#0d9488" radius={[4, 4, 0, 0]} />
               <Area
                 type="monotone"
                 dataKey="expenses"
                 fill="#FF6B8A"
-                stroke="#E94560"
+                stroke="#0d9488"
                 fillOpacity={0.2}
               />
             </ComposedChart>
@@ -204,20 +204,20 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
 
           {chartType === 'profit' && (
             <ComposedChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E9ECEF" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
                 dataKey="month"
                 stroke="#6C757D"
                 fontSize={isMobile ? 10 : 12}
                 tick={{ fill: '#6C757D' }}
-                axisLine={{ stroke: '#E9ECEF' }}
+                axisLine={{ stroke: '#e2e8f0' }}
               />
               <YAxis
                 yAxisId="left"
                 stroke="#6C757D"
                 fontSize={isMobile ? 10 : 12}
                 tick={{ fill: '#6C757D' }}
-                axisLine={{ stroke: '#E9ECEF' }}
+                axisLine={{ stroke: '#e2e8f0' }}
                 tickFormatter={(value) => isMobile ? `${(value/1000000)}M` : `Rp ${(value/1000000).toFixed(0)}M`}
               />
               <YAxis
@@ -226,7 +226,7 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
                 stroke="#3B82F6"
                 fontSize={isMobile ? 10 : 12}
                 tick={{ fill: '#3B82F6' }}
-                axisLine={{ stroke: '#E9ECEF' }}
+                axisLine={{ stroke: '#e2e8f0' }}
                 domain={[0, 100]}
                 tickFormatter={(value) => `${value}%`}
               />
@@ -249,19 +249,19 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
 
           {chartType === 'comparison' && (
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E9ECEF" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis
                 dataKey="month"
                 stroke="#6C757D"
                 fontSize={isMobile ? 10 : 12}
                 tick={{ fill: '#6C757D' }}
-                axisLine={{ stroke: '#E9ECEF' }}
+                axisLine={{ stroke: '#e2e8f0' }}
               />
               <YAxis
                 stroke="#6C757D"
                 fontSize={isMobile ? 10 : 12}
                 tick={{ fill: '#6C757D' }}
-                axisLine={{ stroke: '#E9ECEF' }}
+                axisLine={{ stroke: '#e2e8f0' }}
                 tickFormatter={(value) => isMobile ? `${(value/1000000)}M` : `Rp ${(value/1000000).toFixed(0)}M`}
               />
               <Tooltip content={<CustomTooltip />} />
@@ -272,9 +272,9 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
               <Line
                 type="monotone"
                 dataKey={new Date().getFullYear()}
-                stroke="#E94560"
+                stroke="#0d9488"
                 strokeWidth={2.5}
-                dot={{ r: 4, fill: '#E94560' }}
+                dot={{ r: 4, fill: '#0d9488' }}
               />
               <Line
                 type="monotone"
@@ -289,21 +289,21 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mt-6 pt-4 border-t border-[#E9ECEF]">
-        <div className="text-center p-2 sm:p-3 bg-[#FAFAFA] rounded-lg">
-          <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Total Revenue</p>
-          <p className="text-sm sm:text-base md:text-xl font-bold text-[#E94560] truncate">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mt-6 pt-4 border-t border-slate-200">
+        <div className="text-center p-2 sm:p-3 bg-slate-50 rounded-lg">
+          <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Total Revenue</p>
+          <p className="text-sm sm:text-base md:text-xl font-bold text-blue-600 truncate">
             {formatRupiah(totalRevenue)}
           </p>
         </div>
-        <div className="text-center p-2 sm:p-3 bg-[#FAFAFA] rounded-lg">
-          <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Total Profit</p>
+        <div className="text-center p-2 sm:p-3 bg-slate-50 rounded-lg">
+          <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Total Profit</p>
           <p className="text-sm sm:text-base md:text-xl font-bold text-[#2ECC71] truncate">
             {formatRupiah(totalProfit)}
           </p>
         </div>
-        <div className="text-center p-2 sm:p-3 bg-[#FAFAFA] rounded-lg col-span-2 md:col-span-1">
-          <p className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Avg. Margin</p>
+        <div className="text-center p-2 sm:p-3 bg-slate-50 rounded-lg col-span-2 md:col-span-1">
+          <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Avg. Margin</p>
           <p className="text-sm sm:text-base md:text-xl font-bold text-[#3B82F6]">
             {avgMargin.toFixed(1)}%
           </p>

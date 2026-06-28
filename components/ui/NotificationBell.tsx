@@ -30,14 +30,14 @@ const typeIcon = (type: string) => {
 };
 
 const typeBg = (type: string, isRead: boolean) => {
-  if (isRead) return 'bg-gray-50';
+  if (isRead) return 'bg-slate-50';
   switch (type) {
     case 'service_status': return 'bg-blue-50';
-    case 'qc_approved': return 'bg-green-50';
+    case 'qc_approved': return 'bg-emerald-50';
     case 'qc_rejected': return 'bg-red-50';
-    case 'feedback': return 'bg-yellow-50';
-    case 'new_service': return 'bg-[#FF6B9D]/10';
-    default: return 'bg-gray-50';
+    case 'feedback': return 'bg-amber-50';
+    case 'new_service': return 'bg-blue-50';
+    default: return 'bg-slate-50';
   }
 };
 
@@ -119,12 +119,12 @@ export default function NotificationBell() {
     if (!open) fetchNotifications();
   };
 
-  return (
+return (
     <div className="relative" ref={panelRef}>
       {/* Bell Button */}
       <button
         onClick={handleBellClick}
-        className="relative p-2 border-2 border-black bg-white shadow-[3px_3px_0_0_#000] hover:shadow-none hover:translate-x-[3px] hover:translate-y-[3px] transition-all"
+        className="relative p-2 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 hover:shadow-sm transition-all duration-200"
         aria-label="Notifications"
       >
         <Bell className="w-4 h-4" />
@@ -132,7 +132,7 @@ export default function NotificationBell() {
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-[#FF6B9D] border-2 border-black text-white text-[10px] font-black flex items-center justify-center px-0.5"
+            className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-blue-600 text-white text-[10px] font-medium flex items-center justify-center px-0.5 rounded-full"
           >
             {unread > 99 ? '99+' : unread}
           </motion.span>
@@ -147,15 +147,15 @@ export default function NotificationBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white border-2 border-black shadow-[8px_8px_0_0_#000] z-50 max-h-[480px] flex flex-col"
+            className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-sm z-50 max-h-[480px] flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b-2 border-black bg-[#FFDE00]">
+            <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-blue-50">
               <div className="flex items-center gap-2">
-                <Bell size={16} className="font-black" />
-                <span className="font-black font-mono text-sm">NOTIFICATIONS</span>
+                <Bell size={16} className="text-blue-600" />
+                <span className="font-semibold text-sm">NOTIFICATIONS</span>
                 {unread > 0 && (
-                  <span className="bg-[#FF6B9D] text-white text-[10px] font-black px-1.5 py-0.5 border border-black">
+                  <span className="bg-blue-600 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full">
                     {unread} new
                   </span>
                 )}
@@ -164,7 +164,7 @@ export default function NotificationBell() {
                 {unread > 0 && (
                   <button
                     onClick={markAllRead}
-                    className="p-1 border border-black bg-white hover:bg-gray-100 transition-colors"
+                    className="p-1 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-colors"
                     title="Mark all as read"
                   >
                     <CheckCheck size={14} />
@@ -172,7 +172,7 @@ export default function NotificationBell() {
                 )}
                 <button
                   onClick={() => setOpen(false)}
-                  className="p-1 border border-black bg-white hover:bg-gray-100 transition-colors"
+                  className="p-1 border border-slate-200 bg-white hover:bg-slate-50 rounded transition-colors"
                 >
                   <X size={14} />
                 </button>
@@ -182,11 +182,11 @@ export default function NotificationBell() {
             {/* List */}
             <div className="flex-1 overflow-y-auto">
               {loading ? (
-                <div className="p-6 text-center font-mono text-sm">Loading...</div>
+                <div className="p-6 text-center text-sm text-slate-500">Loading...</div>
               ) : notifications.length === 0 ? (
                 <div className="p-8 text-center">
                   <Bell className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                  <p className="font-mono text-sm text-gray-500">No notifications yet</p>
+                  <p className="text-sm text-slate-500">No notifications yet</p>
                 </div>
               ) : (
                 notifications.map((notif, i) => (
@@ -196,23 +196,23 @@ export default function NotificationBell() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.02 }}
                     onClick={() => !notif.is_read && markAsRead(notif.id)}
-                    className={`p-3 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors ${typeBg(notif.type, notif.is_read)}`}
+                    className={`p-3 border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors ${typeBg(notif.type, notif.is_read)}`}
                   >
                     <div className="flex items-start gap-2.5">
-                      <div className={`w-7 h-7 border border-black flex items-center justify-center flex-shrink-0 mt-0.5 ${notif.is_read ? 'bg-gray-200' : 'bg-[#FF6B9D] text-white'}`}>
+                      <div className={`w-7 h-7 border border-slate-200 flex items-center justify-center flex-shrink-0 mt-0.5 ${notif.is_read ? 'bg-slate-100' : 'bg-blue-600 text-white'}`}>
                         {typeIcon(notif.type)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={`font-mono text-sm font-bold truncate ${notif.is_read ? 'text-gray-600' : 'text-black'}`}>
+                          <p className={`text-sm font-medium truncate ${notif.is_read ? 'text-slate-600' : 'text-slate-900'}`}>
                             {notif.title}
                           </p>
                           {!notif.is_read && (
-                            <div className="w-2 h-2 bg-[#FF6B9D] border border-black flex-shrink-0" />
+                            <div className="w-2 h-2 bg-blue-600 flex-shrink-0 rounded-full" />
                           )}
                         </div>
-                        <p className="font-mono text-xs text-gray-600 mt-0.5 line-clamp-2">{notif.message}</p>
-                        <p className="font-mono text-[10px] text-gray-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{notif.message}</p>
+                        <p className="text-[10px] text-slate-400 mt-1">
                           {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: id })}
                         </p>
                       </div>
@@ -224,8 +224,8 @@ export default function NotificationBell() {
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="p-2 border-t-2 border-black bg-gray-50">
-                <p className="text-center text-[10px] font-mono text-gray-500">
+              <div className="p-2 border-t border-slate-200 bg-slate-50">
+                <p className="text-center text-[10px] text-slate-500">
                   Showing last {notifications.length} notifications
                 </p>
               </div>

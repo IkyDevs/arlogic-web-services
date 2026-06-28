@@ -110,15 +110,15 @@ export default function SparepartReadyModal({
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-[#E9ECEF] p-6"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 p-6"
       >
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-lg font-bold text-[#1A1A2E]">Sparepart Ready</h3>
-            <p className="text-xs text-gray-400">{service.invoice_number}</p>
+            <h3 className="text-lg font-bold text-slate-900">Sparepart Ready</h3>
+            <p className="text-xs text-slate-400">{service.invoice_number}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-400" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
+            <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
 
@@ -131,7 +131,7 @@ export default function SparepartReadyModal({
 
           {/* Foto */}
           <div>
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Foto Sparepart (Opsional)</label>
+            <label className="block text-sm font-medium text-slate-900 mb-1">Foto Sparepart (Opsional)</label>
             {photoPreview ? (
               <div className="relative">
                 <img src={photoPreview} alt="Preview" className="w-full h-32 object-cover rounded-lg border" />
@@ -143,7 +143,7 @@ export default function SparepartReadyModal({
                 </button>
               </div>
             ) : (
-              <div className="border-2 border-dashed border-[#E9ECEF] rounded-lg p-4 text-center cursor-pointer hover:border-green-500 transition-all">
+              <div className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-green-500 transition-all">
                 <input
                   type="file"
                   accept="image/*"
@@ -152,8 +152,8 @@ export default function SparepartReadyModal({
                   id="sparepart-photo"
                 />
                 <label htmlFor="sparepart-photo" className="cursor-pointer">
-                  <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">Klik untuk upload foto</p>
+                  <Camera className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">Klik untuk upload foto</p>
                 </label>
               </div>
             )}
@@ -161,12 +161,12 @@ export default function SparepartReadyModal({
 
           {/* Catatan */}
           <div>
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Catatan (Opsional)</label>
+            <label className="block text-sm font-medium text-slate-900 mb-1">Catatan (Opsional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-green-500 transition-all resize-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-green-500 transition-all resize-none"
               placeholder="Contoh: Sparepart sudah datang, siap diambil"
             />
           </div>

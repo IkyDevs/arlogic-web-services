@@ -110,7 +110,7 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-sm text-[#E94560] hover:underline flex items-center gap-1"
+        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
       >
         <Edit2 className="w-3 h-3" />
         Kelola Kategori
@@ -122,11 +122,11 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-[#E9ECEF] z-50 p-4"
+            className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border border-slate-200 z-50 p-4"
           >
             <div className="flex justify-between items-center mb-3">
               <h4 className="font-semibold text-sm">Kelola Kategori</h4>
-              <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-gray-100 rounded">
+              <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-slate-100 rounded">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -138,12 +138,12 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="Nama kategori baru..."
-                className="flex-1 px-3 py-1.5 text-sm border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
+                className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
               />
               <button
                 onClick={addCategory}
                 disabled={loading}
-                className="px-3 py-1.5 bg-[#E94560] text-white text-sm rounded-lg hover:bg-[#c73d54] disabled:opacity-50"
+                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -152,14 +152,14 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
             {/* List Categories */}
             <div className="max-h-48 overflow-y-auto space-y-1">
               {categories.map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
+                <div key={cat.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
                   {editingId === cat.id ? (
                     <div className="flex-1 flex items-center gap-2">
                       <input
                         type="text"
                         value={editingName}
                         onChange={(e) => setEditingName(e.target.value)}
-                        className="flex-1 px-2 py-1 text-sm border border-[#E9ECEF] rounded"
+                        className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded"
                       />
                       <button
                         onClick={() => updateCategory(cat.id)}
@@ -170,7 +170,7 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                        className="p-1 text-slate-400 hover:bg-slate-100 rounded"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -184,14 +184,14 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
                             setEditingId(cat.id)
                             setEditingName(cat.name)
                           }}
-                          className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                          className="p-1 text-slate-400 hover:text-blue-600 rounded"
                         >
                           <Edit2 className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => deleteCategory(cat.id)}
                           disabled={loading}
-                          className="p-1 text-gray-400 hover:text-red-600 rounded"
+                          className="p-1 text-slate-400 hover:text-red-600 rounded"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>

@@ -137,7 +137,7 @@ export default function ServiceDetailModal({
       completed: 'bg-green-100 text-green-700',
       cancelled: 'bg-red-100 text-red-700'
     }
-    return colors[status] || 'bg-gray-100 text-gray-700'
+    return colors[status] || 'bg-slate-100 text-slate-700'
   }
 
   return (
@@ -152,15 +152,15 @@ export default function ServiceDetailModal({
             className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="px-6 py-4 border-b border-[#E9ECEF] flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-10">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-xl flex items-center justify-center shadow-sm">
+                <div className="w-10 h-10 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl flex items-center justify-center shadow-sm">
                   <Watch className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-[#1A1A2E]">Detail Service</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Detail Service</h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-gray-400">{service.invoice_number}</span>
+                    <span className="text-xs font-mono text-slate-400">{service.invoice_number}</span>
                     <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${getStatusColor(service.status)}`}>
                       {service.status}
                     </span>
@@ -169,7 +169,7 @@ export default function ServiceDetailModal({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-xl transition-all text-gray-400 hover:text-gray-600"
+                className="p-2 hover:bg-slate-100 rounded-xl transition-all text-slate-400 hover:text-slate-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -181,10 +181,10 @@ export default function ServiceDetailModal({
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Camera className="w-4 h-4 text-[#E94560]" />
-                    <h4 className="text-sm font-medium text-[#1A1A2E]">Dokumentasi Service</h4>
+                    <Camera className="w-4 h-4 text-blue-600" />
+                    <h4 className="text-sm font-medium text-slate-900">Dokumentasi Service</h4>
                     {photos.length > 0 && (
-                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
                         {photos.length} foto
                       </span>
                     )}
@@ -192,7 +192,7 @@ export default function ServiceDetailModal({
                   {photos.length > 0 && (
                     <button
                       onClick={() => setShowFullscreen(true)}
-                      className="text-xs text-[#E94560] hover:underline font-medium"
+                      className="text-xs text-blue-600 hover:underline font-medium"
                     >
                       Lihat semua
                     </button>
@@ -200,17 +200,17 @@ export default function ServiceDetailModal({
                 </div>
 
                 {loadingPhotos ? (
-                  <div className="bg-[#F8F9FA] rounded-xl border border-[#E9ECEF] p-8 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-3 border-[#E94560] border-t-transparent mx-auto" />
-                    <p className="text-xs text-gray-400 mt-2">Memuat foto...</p>
+                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border border-blue-600 border-t-transparent mx-auto" />
+                    <p className="text-xs text-slate-400 mt-2">Memuat foto...</p>
                   </div>
                 ) : photos.length === 0 ? (
-                  <div className="bg-[#F8F9FA] rounded-xl border border-[#E9ECEF] p-8 text-center border-dashed">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <ImageIcon className="w-6 h-6 text-gray-300" />
+                  <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center border-dashed">
+                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <ImageIcon className="w-6 h-6 text-slate-300" />
                     </div>
-                    <p className="text-sm text-gray-400">Belum ada foto dokumentasi</p>
-                    <p className="text-xs text-gray-300">Foto akan muncul setelah teknisi upload</p>
+                    <p className="text-sm text-slate-400">Belum ada foto dokumentasi</p>
+                    <p className="text-xs text-slate-300">Foto akan muncul setelah teknisi upload</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -220,7 +220,7 @@ export default function ServiceDetailModal({
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.05 }}
-                        className="group relative aspect-square rounded-xl overflow-hidden border border-[#E9ECEF] bg-[#F8F9FA] cursor-pointer hover:shadow-md transition-all"
+                        className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50 cursor-pointer hover:shadow-md transition-all"
                         onClick={() => {
                           setCurrentPhotoIndex(index)
                           setShowFullscreen(true)
@@ -240,12 +240,12 @@ export default function ServiceDetailModal({
                     ))}
                     {photos.length > 6 && (
                       <div
-                        className="aspect-square rounded-xl border-2 border-dashed border-[#E9ECEF] flex items-center justify-center bg-[#F8F9FA] cursor-pointer hover:bg-gray-50 transition-all"
+                        className="aspect-square rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-[#F8F9FA] cursor-pointer hover:bg-slate-50 transition-all"
                         onClick={() => setShowFullscreen(true)}
                       >
                         <div className="text-center">
-                          <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-1" />
-                          <span className="text-sm font-medium text-gray-500">+{photos.length - 6} lagi</span>
+                          <ImageIcon className="w-8 h-8 text-slate-300 mx-auto mb-1" />
+                          <span className="text-sm font-medium text-slate-500">+{photos.length - 6} lagi</span>
                         </div>
                       </div>
                     )}
@@ -256,18 +256,18 @@ export default function ServiceDetailModal({
               {/* Info Grid */}
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Customer Info */}
-                <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[#E9ECEF]">
+                <div className="bg-[#F8F9FA] rounded-xl p-4 border border-slate-200">
                   <div className="flex items-center gap-2 mb-3">
-                    <User className="w-4 h-4 text-[#1A1A2E]" />
-                    <h4 className="text-xs font-semibold text-[#1A1A2E] uppercase tracking-wider">Customer</h4>
+                    <User className="w-4 h-4 text-slate-900" />
+                    <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Customer</h4>
                   </div>
                   <div className="space-y-1.5">
-                    <p className="text-sm font-medium text-[#1A1A2E]">{service.customer_name}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-sm font-medium text-slate-900">{service.customer_name}</p>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
                       <Phone className="w-3 h-3" />
                       {service.customer_phone}
                     </p>
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {formatDate(service.created_at)}
                     </p>
@@ -275,30 +275,30 @@ export default function ServiceDetailModal({
                 </div>
 
                 {/* Watch Info */}
-                <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[#E9ECEF]">
+                <div className="bg-[#F8F9FA] rounded-xl p-4 border border-slate-200">
                   <div className="flex items-center gap-2 mb-3">
-                    <Watch className="w-4 h-4 text-[#1A1A2E]" />
-                    <h4 className="text-xs font-semibold text-[#1A1A2E] uppercase tracking-wider">Jam Tangan</h4>
+                    <Watch className="w-4 h-4 text-slate-900" />
+                    <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Jam Tangan</h4>
                   </div>
                   <div className="space-y-1.5">
-                    <p className="text-sm font-medium text-[#1A1A2E]">
+                    <p className="text-sm font-medium text-slate-900">
                       {service.watch_brand || service.device_brand || '-'}
                       {service.watch_model && ` ${service.watch_model}`}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {service.watch_movement && (
-                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-[#E9ECEF]">
+                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-slate-200">
                           {service.watch_movement}
                         </span>
                       )}
                       {service.watch_condition && (
-                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-[#E9ECEF]">
+                        <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-slate-200">
                           {service.watch_condition}
                         </span>
                       )}
                     </div>
                     {service.serial_number && (
-                      <p className="text-xs text-gray-400 flex items-center gap-1">
+                      <p className="text-xs text-slate-400 flex items-center gap-1">
                         <Hash className="w-3 h-3" />
                         {service.serial_number}
                       </p>
@@ -308,31 +308,31 @@ export default function ServiceDetailModal({
               </div>
 
               {/* Issue Description */}
-              <div className="bg-[#F8F9FA] rounded-xl p-4 border border-[#E9ECEF]">
+              <div className="bg-[#F8F9FA] rounded-xl p-4 border border-slate-200">
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="w-4 h-4 text-[#E94560]" />
-                  <h4 className="text-xs font-semibold text-[#1A1A2E] uppercase tracking-wider">Deskripsi Kerusakan</h4>
+                  <AlertCircle className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Deskripsi Kerusakan</h4>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed">{service.issue_description}</p>
+                <p className="text-sm text-slate-700 leading-relaxed">{service.issue_description}</p>
                 {service.request && (
                   <>
-                    <div className="h-px bg-[#E9ECEF] my-3" />
-                    <p className="text-xs font-medium text-gray-500">Request Customer</p>
-                    <p className="text-sm text-gray-700">{service.request}</p>
+                    <div className="h-px bg-slate-200 my-3" />
+                    <p className="text-xs font-medium text-slate-500">Request Customer</p>
+                    <p className="text-sm text-slate-700">{service.request}</p>
                   </>
                 )}
                 {service.notes && (
                   <>
-                    <div className="h-px bg-[#E9ECEF] my-3" />
-                    <p className="text-xs font-medium text-gray-500">Catatan Tambahan</p>
-                    <p className="text-sm text-gray-700">{service.notes}</p>
+                    <div className="h-px bg-slate-200 my-3" />
+                    <p className="text-xs font-medium text-slate-500">Catatan Tambahan</p>
+                    <p className="text-sm text-slate-700">{service.notes}</p>
                   </>
                 )}
               </div>
 
               {/* Estimated Cost */}
               {service.estimated_cost && (
-                <div className="bg-gradient-to-r from-[#1A1A2E] to-[#0F3460] rounded-xl p-4 text-white">
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-4 text-white">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-yellow-400" />
@@ -345,17 +345,17 @@ export default function ServiceDetailModal({
             </div>
 
             {/* Actions */}
-            <div className="px-6 py-4 border-t border-[#E9ECEF] flex gap-3 bg-white/95 backdrop-blur-sm">
+            <div className="px-6 py-4 border-t border-slate-200 flex gap-3 bg-white/95 backdrop-blur-sm">
               <button
                 onClick={onSkip}
-                className="flex-1 bg-white text-[#1A1A2E] font-medium px-4 py-2.5 rounded-xl border border-[#E9ECEF] hover:bg-gray-50 transition-all"
+                className="flex-1 bg-white text-slate-900 font-medium px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all"
               >
                 Skip
               </button>
               <button
                 onClick={handleTake}
                 disabled={loading}
-                className="flex-1 bg-[#1A1A2E] text-white font-medium px-4 py-2.5 rounded-xl hover:bg-[#0F3460] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                className="flex-1 bg-slate-900 text-white font-medium px-4 py-2.5 rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
               >
                 <CheckCircle className="w-4 h-4" />
                 Ambil Service Ini

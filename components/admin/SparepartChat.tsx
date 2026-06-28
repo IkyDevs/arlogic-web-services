@@ -258,47 +258,47 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-2xl max-h-[85vh] flex flex-col"
+        className="bg-white border border-slate-200 shadow-sm w-full max-w-2xl max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="p-4 border-b-2 border-black flex justify-between items-center">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center">
           <div>
             <div className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-[#FF6B9D]" />
+              <Package className="w-5 h-5 text-pink-600" />
               <h3 className="text-lg font-black">DETAIL REQUEST SPAREPART</h3>
             </div>
-            <p className="text-xs font-mono text-gray-500">ID: {request.id?.slice(0, 8)}...</p>
+            <p className="text-xs font-mono text-slate-500">ID: {request.id?.slice(0, 8)}...</p>
           </div>
-          <button onClick={onClose} className="p-1 border-2 border-black hover:bg-gray-100">
+          <button onClick={onClose} className="p-1 border border-slate-200 hover:bg-slate-100">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Request Details */}
-        <div className="p-4 bg-[#F5F5F5] border-b-2 border-black">
+        <div className="p-4 bg-slate-50 border-b border-slate-200">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><span className="text-gray-500">Sparepart:</span> <span className="font-bold">{request.sparepart_name}</span></div>
-            <div><span className="text-gray-500">SKU:</span> <span className="font-mono">{request.sparepart_sku || '-'}</span></div>
-            <div><span className="text-gray-500">Jumlah:</span> <span className="font-bold text-[#FF6B9D]">x{request.quantity}</span></div>
+            <div><span className="text-slate-500">Sparepart:</span> <span className="font-bold">{request.sparepart_name}</span></div>
+            <div><span className="text-slate-500">SKU:</span> <span className="font-mono">{request.sparepart_sku || '-'}</span></div>
+            <div><span className="text-slate-500">Jumlah:</span> <span className="font-bold text-pink-600">x{request.quantity}</span></div>
             <div>
-              <span className="text-gray-500">Sumber:</span>
+              <span className="text-slate-500">Sumber:</span>
               <span className={`ml-1 px-2 py-0.5 text-xs font-bold border ${
                 request.source_type === 'store' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'
               }`}>
                 {request.source_type === 'store' ? 'STOK TOKO' : 'STOK GUDANG'}
               </span>
             </div>
-            <div className="col-span-2"><span className="text-gray-500">Teknisi:</span> {request.teknisi?.full_name || request.teknisi_name}</div>
-            <div className="col-span-2"><span className="text-gray-500">Service:</span> {request.service?.invoice_number} - {request.service?.customer_name}</div>
-            <div className="col-span-2"><span className="text-gray-500">Device:</span> {request.service?.watch_brand || request.service?.device_brand}</div>
+            <div className="col-span-2"><span className="text-slate-500">Teknisi:</span> {request.teknisi?.full_name || request.teknisi_name}</div>
+            <div className="col-span-2"><span className="text-slate-500">Service:</span> {request.service?.invoice_number} - {request.service?.customer_name}</div>
+            <div className="col-span-2"><span className="text-slate-500">Device:</span> {request.service?.watch_brand || request.service?.device_brand}</div>
             {request.admin_notes && (
-              <div className="col-span-2"><span className="text-gray-500">Catatan Teknisi:</span> {request.admin_notes}</div>
+              <div className="col-span-2"><span className="text-slate-500">Catatan Teknisi:</span> {request.admin_notes}</div>
             )}
           </div>
         </div>
 
         {/* Stock Check Section */}
-        <div className="p-4 border-b-2 border-black bg-white">
+        <div className="p-4 border-b border-slate-200 bg-white">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Box className="w-4 h-4 text-[#3B82F6]" />
@@ -314,36 +314,36 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
           </div>
 
           {showStockCheck && (
-            <div className="bg-gray-50 p-3 border border-black">
+            <div className="bg-slate-50 p-3 border border-slate-200">
               {checkingStock ? (
                 <div className="text-center py-4">
-                  <div className="inline-block w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <div className="inline-block w-5 h-5 border border-slate-200 border-t-transparent rounded-full animate-spin" />
                   <p className="text-xs mt-1">Mengecek stock...</p>
                 </div>
               ) : stockData ? (
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Item:</span>
+                    <span className="text-slate-600">Item:</span>
                     <span className="font-bold">{stockData.item_name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">SKU:</span>
+                    <span className="text-slate-600">SKU:</span>
                     <span className="font-mono">{stockData.sku}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Stock Toko:</span>
+                    <span className="text-slate-600">Stock Toko:</span>
                     <span className={`font-bold ${stockData.store_stock >= request.quantity ? 'text-green-600' : 'text-red-600'}`}>
                       {stockData.store_stock} {stockData.unit}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Stock Gudang:</span>
+                    <span className="text-slate-600">Stock Gudang:</span>
                     <span className={`font-bold ${stockData.warehouse_stock >= request.quantity ? 'text-green-600' : 'text-red-600'}`}>
                       {stockData.warehouse_stock} {stockData.unit}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Min Stock:</span>
+                    <span className="text-slate-600">Min Stock:</span>
                     <span>{stockData.min_stock} {stockData.unit}</span>
                   </div>
                   {request.source_type === 'store' && stockData.store_stock < request.quantity && (
@@ -360,7 +360,7 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
                   )}
                 </div>
               ) : (
-                <div className="text-center py-4 text-gray-500">
+                <div className="text-center py-4 text-slate-500">
                   <AlertCircle className="w-8 h-8 mx-auto mb-1 opacity-30" />
                   <p className="text-sm">Stock tidak ditemukan</p>
                   <p className="text-xs">Silakan cek inventory atau input SKU yang benar</p>
@@ -373,7 +373,7 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
           {messages.length === 0 && (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-slate-400">
               <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-30" />
               <p className="text-sm">Belum ada pesan</p>
               <p className="text-xs">Ketik pesan untuk konfirmasi ke teknisi</p>
@@ -384,10 +384,10 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
               key={msg.id}
               className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] ${msg.sender_id === user?.id ? 'bg-[#FFDE00]' : 'bg-gray-100'} border-2 border-black p-2`}>
+              <div className={`max-w-[80%] ${msg.sender_id === user?.id ? 'bg-teal-600' : 'bg-slate-100'} border border-slate-200 p-2`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-bold">{msg.sender_name}</span>
-                  <span className="text-[10px] text-gray-500">
+                  <span className="text-[10px] text-slate-500">
                     {new Date(msg.created_at).toLocaleTimeString()}
                   </span>
                 </div>
@@ -399,27 +399,27 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
         </div>
 
         {/* Input Area */}
-        <div className="p-3 border-t-2 border-black flex gap-2 bg-white">
+        <div className="p-3 border-t border-slate-200 flex gap-2 bg-white">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Tulis pesan ke teknisi..."
-            className="flex-1 px-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+            className="flex-1 px-3 py-2 border border-slate-200 font-mono focus:outline-none   transition-all"
           />
-          <button
-            onClick={sendMessage}
-            disabled={loading}
-            className="px-3 bg-[#3B82F6] text-white font-bold border-2 border-black shadow-[2px_2px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all disabled:opacity-50"
-          >
+<button
+               onClick={sendMessage}
+               disabled={loading}
+               className="px-3 bg-teal-600 text-white font-bold border border-slate-200 shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+             >
             <Send className="w-4 h-4" />
           </button>
         </div>
 
         {/* Admin Response & Action Buttons */}
         {request.status === 'pending' && (
-          <div className="p-4 border-t-2 border-black bg-[#F5F5F5]">
+          <div className="p-4 border-t border-slate-200 bg-slate-50">
             <div className="mb-3">
               <label className="block text-xs font-black uppercase mb-1">
                 RESPON ADMIN (WAJIB UNTUK PENOLAKAN)
@@ -428,7 +428,7 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
                 value={adminResponse}
                 onChange={(e) => setAdminResponse(e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all resize-none"
+                className="w-full px-3 py-2 border border-slate-200 font-mono focus:outline-none   transition-all resize-none"
                 placeholder="Berikan alasan atau instruksi untuk teknisi..."
               />
             </div>
@@ -436,7 +436,7 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
               <button
                 onClick={rejectRequest}
                 disabled={approving}
-                className="flex-1 bg-red-500 text-white font-bold py-2 border-2 border-black hover:translate-x-[1px] hover:translate-y-[1px] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 bg-red-500 text-white font-bold py-2 border border-slate-200   transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {approving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -448,7 +448,7 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
               <button
                 onClick={approveRequest}
                 disabled={approving}
-                className="flex-1 bg-green-500 text-white font-bold py-2 border-2 border-black shadow-[3px_3px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 bg-green-500 text-white font-bold py-2 border border-slate-200 shadow-sm   transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {approving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -458,7 +458,7 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
                 SETUJU & APPROVE
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
+            <p className="text-xs text-slate-500 mt-2 text-center">
               *Jika disetujui, stock akan otomatis berkurang dan teknisi akan diberi tahu
             </p>
           </div>
@@ -466,25 +466,25 @@ export default function SparepartChat({ isOpen, onClose, request, onUpdate }: Sp
 
         {/* Approved Status */}
         {request.status === 'approved' && (
-          <div className="p-4 border-t-2 border-black bg-green-50">
+          <div className="p-4 border-t border-slate-200 bg-green-50">
             <div className="flex items-center gap-2 text-green-700">
               <CheckCircle className="w-5 h-5" />
               <span className="font-bold">REQUEST TELAH DISETUJUI</span>
             </div>
             <p className="text-sm text-green-600 mt-1">{request.admin_response || 'Silakan ambil sparepart di gudang'}</p>
-            <p className="text-xs text-gray-500 mt-1">Direspon pada: {new Date(request.responded_at).toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-1">Direspon pada: {new Date(request.responded_at).toLocaleString()}</p>
           </div>
         )}
 
         {/* Rejected Status */}
         {request.status === 'rejected' && (
-          <div className="p-4 border-t-2 border-black bg-red-50">
+          <div className="p-4 border-t border-slate-200 bg-red-50">
             <div className="flex items-center gap-2 text-red-700">
               <XCircle className="w-5 h-5" />
               <span className="font-bold">REQUEST DITOLAK</span>
             </div>
             <p className="text-sm text-red-600 mt-1">Alasan: {request.admin_response || '-'}</p>
-            <p className="text-xs text-gray-500 mt-1">Direspon pada: {new Date(request.responded_at).toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-1">Direspon pada: {new Date(request.responded_at).toLocaleString()}</p>
           </div>
         )}
       </motion.div>

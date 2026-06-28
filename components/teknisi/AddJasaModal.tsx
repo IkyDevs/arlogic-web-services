@@ -319,13 +319,13 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center border border-[#E9ECEF]"
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center border border-slate-200"
         >
           <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-white" />
           </div>
-          <h3 className="text-xl font-bold text-[#1A1A2E] mb-2">JASA DITAMBAHKAN!</h3>
-          <p className="text-gray-500 mb-4">{selectedJasaList.length} jasa berhasil ditambahkan.</p>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">JASA DITAMBAHKAN!</h3>
+          <p className="text-slate-500 mb-4">{selectedJasaList.length} jasa berhasil ditambahkan.</p>
         </motion.div>
       </div>
     )
@@ -337,44 +337,44 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-[#E9ECEF]"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-slate-200"
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-[#E9ECEF] p-4 flex justify-between items-center">
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#E94560] rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Wrench className="w-4 h-4 text-white" />
             </div>
-            <h3 className="text-lg font-semibold text-[#1A1A2E]">TAMBAH JASA</h3>
-            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+            <h3 className="text-lg font-semibold text-slate-900">TAMBAH JASA</h3>
+            <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full">
               {selectedJasaList.length} terpilih
             </span>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
-            <X className="w-5 h-5 text-gray-400" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-all">
+            <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Search */}
           <div className="relative" ref={dropdownRef}>
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-1">
+            <label className="block text-sm font-medium text-slate-900 mb-1">
               Cari Jasa
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setShowDropdown(true)}
                 placeholder="Ketik nama jasa..."
-                className="w-full pl-9 pr-3 py-2.5 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] focus:ring-2 focus:ring-[#E94560]/10 transition-all"
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all"
                 autoComplete="off"
               />
               {loadingJasa && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="w-4 h-4 border-2 border-[#E94560] border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </div>
@@ -382,7 +382,7 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
             {/* Dropdown */}
             {showDropdown && searchQuery && filteredJasa.length > 0 && !loadingJasa && (
               <div className="absolute z-50 w-full mt-1">
-                <div className="bg-white border border-[#E9ECEF] rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                <div className="bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
                   {filteredJasa.map((item) => {
                     const isSelected = isJasaAlreadySelected(item.id)
                     return (
@@ -395,14 +395,14 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
                             toast.error(`"${item.name}" sudah di daftar`)
                           }
                         }}
-                        className={`px-3 py-2.5 cursor-pointer transition-all border-b border-[#E9ECEF] last:border-0 ${
-                          isSelected ? 'bg-gray-100 opacity-60' : 'hover:bg-gray-50'
+                        className={`px-3 py-2.5 cursor-pointer transition-all border-b border-slate-200 last:border-0 ${
+                          isSelected ? 'bg-slate-100 opacity-60' : 'hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-medium text-sm">{item.name}</p>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-slate-400">
                               Default: Rp {item.default_price?.toLocaleString() || 0}
                             </p>
                           </div>
@@ -422,14 +422,14 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
             {/* Create New */}
             {showDropdown && searchQuery && filteredJasa.length === 0 && !loadingJasa && !hasExactMatch && (
               <div className="absolute z-50 w-full mt-1">
-                <div className="bg-white border border-[#E9ECEF] rounded-lg shadow-lg p-4">
+                <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-4">
                   <div className="text-center">
-                    <p className="text-sm text-gray-500 mb-2">Jasa "{searchQuery}" tidak ditemukan</p>
+                    <p className="text-sm text-slate-500 mb-2">Jasa "{searchQuery}" tidak ditemukan</p>
                     <button
                       type="button"
                       onClick={createNewJasa}
                       disabled={isCreating}
-                      className="w-full py-2 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                      className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {isCreating ? (
                         <Loader className="w-4 h-4 animate-spin" />
@@ -438,7 +438,7 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
                       )}
                       Buat & Tambahkan "{searchQuery}"
                     </button>
-                    <p className="text-xs text-gray-400 mt-2">Harga default: Rp 0 (akan diisi)</p>
+                    <p className="text-xs text-slate-400 mt-2">Harga default: Rp 0 (akan diisi)</p>
                   </div>
                 </div>
               </div>
@@ -447,23 +447,23 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
 
           {/* Selected Jasa List */}
           {selectedJasaList.length > 0 && (
-            <div className="border border-[#E9ECEF] rounded-lg overflow-hidden">
-              <div className="bg-[#F8F9FA] px-3 py-2 border-b border-[#E9ECEF]">
-                <p className="text-xs font-medium text-gray-500">DAFTAR JASA ({selectedJasaList.length})</p>
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="bg-slate-50 px-3 py-2 border-b border-slate-200">
+                <p className="text-xs font-medium text-slate-500">DAFTAR JASA ({selectedJasaList.length})</p>
               </div>
-              <div className="divide-y divide-[#E9ECEF] max-h-48 overflow-y-auto">
+              <div className="divide-y divide-slate-200 max-h-48 overflow-y-auto">
                 {selectedJasaList.map((jasa, index) => (
-                  <div key={index} className="p-3 hover:bg-gray-50 transition-all">
+                  <div key={index} className="p-3 hover:bg-slate-50 transition-all">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{jasa.name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-400">Rp</span>
+                          <span className="text-xs text-slate-400">Rp</span>
                           <input
                             type="text"
                             value={formatPrice(jasa.price)}
                             onChange={(e) => handlePriceChange(index, e.target.value)}
-                            className="w-28 px-2 py-0.5 text-sm border border-[#E9ECEF] rounded focus:outline-none focus:border-[#E94560] focus:ring-1 focus:ring-[#E94560]"
+                            className="w-28 px-2 py-0.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                             placeholder="0"
                           />
                         </div>
@@ -479,9 +479,9 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
                   </div>
                 ))}
               </div>
-              <div className="bg-[#F8F9FA] px-3 py-2 border-t border-[#E9ECEF] flex justify-between items-center">
+              <div className="bg-slate-50 px-3 py-2 border-t border-slate-200 flex justify-between items-center">
                 <span className="text-sm font-medium">Total</span>
-                <span className="text-lg font-bold text-[#E94560]">
+                <span className="text-lg font-bold text-blue-600">
                   Rp {formatPrice(getTotalPrice())}
                 </span>
               </div>
@@ -489,19 +489,19 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
           )}
 
           {/* Service Info */}
-          <div className="bg-[#F8F9FA] rounded-lg p-3 border border-[#E9ECEF]">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Informasi Service</p>
+          <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Informasi Service</p>
             <div className="text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-gray-500">Customer:</span>
+                <span className="text-slate-500">Customer:</span>
                 <span className="font-medium truncate">{service.customer_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Invoice:</span>
+                <span className="text-slate-500">Invoice:</span>
                 <span className="font-mono text-xs">{service.invoice_number}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Device:</span>
+                <span className="text-slate-500">Device:</span>
                 <span className="truncate">{service.watch_brand || service.device_brand}</span>
               </div>
             </div>
@@ -511,7 +511,7 @@ export default function AddJasaModal({ isOpen, onClose, service, onSuccess }: Ad
           <button
             type="submit"
             disabled={loading || selectedJasaList.length === 0}
-            className="w-full bg-[#1A1A2E] text-white font-medium py-2.5 rounded-lg hover:bg-[#0F3460] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+            className="w-full bg-slate-900 text-white font-medium py-2.5 rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
           >
             {loading ? (
               <>

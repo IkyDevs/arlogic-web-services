@@ -14,6 +14,7 @@ import QCSidebar from '@/components/qc/QCSidebar'
 import QCStats from '@/components/qc/QCStats'
 import QCServiceList from '@/components/qc/QCServiceList'
 import QCReviewModal from '@/components/qc/QCReviewModal'
+import ThemeToggle from '@/components/ThemeToggle'
 
 export default function QCDashboard() {
   const [activeTab, setActiveTab] = useState('all')
@@ -164,17 +165,17 @@ export default function QCDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-[#E94560] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-gray-500 font-medium">Loading...</p>
+          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-500 font-medium">Loading...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-slate-50">
       {/* Sidebar */}
       <QCSidebar
         isOpen={sidebarOpen}
@@ -197,7 +198,7 @@ export default function QCDashboard() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-[#E9ECEF]"
+        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-slate-200"
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -213,39 +214,40 @@ export default function QCDashboard() {
       {/* Main Content */}
       <div className="lg:ml-64">
         {/* Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-[#E9ECEF] z-20">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
           <div className="px-6 py-3.5 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-[#1A1A2E]">QC Dashboard</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <h2 className="text-xl font-bold text-slate-900">QC Dashboard</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
                 {activeTab === 'all' ? 'Semua service' : `Teknisi: ${activeTab}`}
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <div className="relative hidden sm:block sparepart-search-container">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   value={sparepartSearch}
                   onChange={(e) => setSparepartSearch(e.target.value)}
                   onFocus={() => sparepartResults.length > 0 && setShowSparepartResults(true)}
                   placeholder="Cari sparepart..."
-                  className="pl-9 pr-3 py-1.5 text-sm border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] w-48"
+                  className="pl-9 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 w-48"
                 />
                 {showSparepartResults && (
-                  <div className="absolute top-full mt-1 right-0 w-64 bg-white border border-[#E9ECEF] rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                  <div className="absolute top-full mt-1 right-0 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
                     {sparepartSearching ? (
-                      <div className="p-3 text-center text-sm text-gray-400">Mencari...</div>
+                      <div className="p-3 text-center text-sm text-slate-400">Mencari...</div>
                     ) : sparepartResults.length === 0 ? (
-                      <div className="p-3 text-center text-sm text-gray-400">Tidak tersedia</div>
+                      <div className="p-3 text-center text-sm text-slate-400">Tidak tersedia</div>
                     ) : (
                       sparepartResults.map((item) => (
-                        <div key={item.id} className="p-3 border-b border-[#E9ECEF] last:border-0 hover:bg-gray-50">
+                        <div key={item.id} className="p-3 border-b border-slate-200 last:border-0 hover:bg-slate-50">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="text-sm font-medium text-[#1A1A2E]">{item.item_name}</p>
-                              <p className="text-xs text-gray-400">SKU: {item.sku}</p>
-                              <p className="text-xs text-gray-500">Kategori: {item.category || 'Uncategorized'}</p>
+                              <p className="text-sm font-medium text-slate-900">{item.item_name}</p>
+                              <p className="text-xs text-slate-400">SKU: {item.sku}</p>
+                              <p className="text-xs text-slate-500">Kategori: {item.category || 'Uncategorized'}</p>
                             </div>
                             <div className="text-right">
                               <p className="text-xs font-bold text-green-600">Toko: {item.store_stock}</p>
@@ -258,10 +260,10 @@ export default function QCDashboard() {
                   </div>
                 )}
               </div>
-              <button onClick={fetchServices} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
-                <RefreshCw className="w-4 h-4 text-gray-400" />
+              <button onClick={fetchServices} className="p-2 hover:bg-slate-100 rounded-lg transition-all">
+                <RefreshCw className="w-4 h-4 text-slate-400" />
               </button>
-              <div className="bg-[#E94560] px-3 py-1 rounded-full text-white text-xs font-medium">
+              <div className="bg-blue-600 px-3 py-1 rounded-full text-white text-xs font-medium">
                 QC
               </div>
             </div>
@@ -293,3 +295,4 @@ export default function QCDashboard() {
     </div>
   )
 }
+

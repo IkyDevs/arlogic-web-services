@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -18,13 +18,14 @@ import QueueList from '@/components/teknisi/QueueList'
 import ProgressUpdate from '@/components/teknisi/ProgressUpdate'
 import LayananForm from '@/components/layanan/LayananForm'
 import LayananList from '@/components/layanan/LayananList'
+import ThemeToggle from '@/components/ThemeToggle'
 import toast from 'react-hot-toast'
 
 // Dynamic imports
 import dynamic from 'next/dynamic'
 
 const ServiceTimeline = dynamic(() => import('@/components/teknisi/ServiceTimeline'), {
-  loading: () => <div className="text-center py-8 text-gray-500">Loading...</div>
+  loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>
 })
 
 export default function TeknisiDashboard() {
@@ -271,9 +272,9 @@ export default function TeknisiDashboard() {
   }
 
   const getAttendanceStatus = () => {
-    if (!todayAttendance) return { text: 'Belum Absen', color: 'text-red-500', bg: 'bg-red-50', icon: 'âŒ' }
-    if (!todayAttendance.check_out) return { text: 'Checked In', color: 'text-yellow-600', bg: 'bg-yellow-50', icon: 'âœ…' }
-    return { text: 'Selesai', color: 'text-green-600', bg: 'bg-green-50', icon: 'âœ“' }
+    if (!todayAttendance) return { text: 'Belum Absen', color: 'text-red-500', bg: 'bg-red-50', icon: '❌' }
+    if (!todayAttendance.check_out) return { text: 'Checked In', color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '✅' }
+    return { text: 'Selesai', color: 'text-green-600', bg: 'bg-green-50', icon: '✓' }
   }
 
   const formatRupiah = (nominal: number) => {
@@ -290,42 +291,42 @@ export default function TeknisiDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-[#E94560] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-gray-500 font-medium">Loading dashboard...</p>
+          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-500 font-medium">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-slate-50">
       {/* ==================== SIDEBAR ==================== */}
-      <div className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="p-4 border-b border-[#E9ECEF]">
+      <div className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="p-4 border-b border-slate-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-[#1A1A2E] to-[#0F3460] rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg flex items-center justify-center">
                 <Wrench className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-[#1A1A2E]">Watch<span className="text-[#E94560]">Service</span></h1>
-                <p className="text-[10px] text-gray-400">Teknisi Panel</p>
+                <h1 className="text-lg font-bold text-slate-900">Watch<span className="text-blue-600">Service</span></h1>
+                <p className="text-[10px] text-slate-400">Teknisi Panel</p>
               </div>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-slate-100 rounded-lg">
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 p-2.5 bg-[#FAFAFA] rounded-lg">
-            <div className="w-9 h-9 bg-[#1A1A2E] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+          <div className="mt-4 flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg">
+            <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white font-semibold text-sm">
               {user?.full_name?.charAt(0) || 'T'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm truncate">{user?.full_name}</p>
-              <p className="text-xs text-gray-400 truncate">{user?.teknisi_name || user?.full_name}</p>
+              <p className="text-xs text-slate-400 truncate">{user?.teknisi_name || user?.full_name}</p>
             </div>
           </div>
 
@@ -336,7 +337,7 @@ export default function TeknisiDashboard() {
                 <span>{attendanceStatus.icon}</span>
                 <span className={attendanceStatus.color}>{attendanceStatus.text}</span>
               </div>
-              <span className="text-[10px] text-gray-400">Teknisi</span>
+              <span className="text-[10px] text-slate-400">Teknisi</span>
             </div>
           </div>
         </div>
@@ -351,8 +352,8 @@ export default function TeknisiDashboard() {
               }}
               className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg transition-all ${
                 activeTab === item.id
-                  ? 'bg-[#1A1A2E] text-white'
-                  : 'text-[#1A1A2E] hover:bg-gray-100'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-900 hover:bg-slate-100'
               }`}
             >
               <item.icon className="w-4 h-4" />
@@ -360,7 +361,7 @@ export default function TeknisiDashboard() {
             </button>
           ))}
 
-          <div className="pt-2 mt-2 border-t border-[#E9ECEF] space-y-2">
+          <div className="pt-2 mt-2 border-t border-slate-200 space-y-2">
             {/* Attendance Button */}
             <button
               onClick={() => handleAttendance(todayAttendance && !todayAttendance.check_out ? 'check_out' : 'check_in')}
@@ -369,7 +370,7 @@ export default function TeknisiDashboard() {
                 !todayAttendance
                   ? 'bg-green-500 hover:bg-green-600 text-white'
                   : todayAttendance.check_out
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     : 'bg-yellow-500 hover:bg-yellow-600 text-white'
               }`}
             >
@@ -394,7 +395,7 @@ export default function TeknisiDashboard() {
             {/* Logout */}
             <button
               onClick={handleLogout}
-              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-[#E94560] hover:bg-red-50 transition-all"
+              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-blue-600 hover:bg-red-50 transition-all"
             >
               <LogOut className="w-4 h-4" />
               Keluar
@@ -402,15 +403,15 @@ export default function TeknisiDashboard() {
           </div>
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#E9ECEF] text-center">
-          <p className="text-[10px] text-gray-400">Watch Service v2.0</p>
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 text-center">
+          <p className="text-[10px] text-slate-400">Watch Service v2.0</p>
         </div>
       </div>
 
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-[#E9ECEF]"
+        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-slate-200"
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -426,43 +427,44 @@ export default function TeknisiDashboard() {
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="lg:ml-64">
         {/* Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-[#E9ECEF] z-20">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
           <div className="px-6 py-3.5 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-[#1A1A2E]">{menuItems.find(m => m.id === activeTab)?.label}</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <h2 className="text-xl font-bold text-slate-900">{menuItems.find(m => m.id === activeTab)?.label}</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
                 {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <div className="relative hidden sm:block sparepart-search-container">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   value={sparepartSearch}
                   onChange={(e) => setSparepartSearch(e.target.value)}
                   onFocus={() => sparepartResults.length > 0 && setShowSparepartResults(true)}
                   placeholder="Cari sparepart..."
-                  className="pl-9 pr-3 py-1.5 text-sm border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] w-48"
+                  className="pl-9 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 w-48"
                 />
                 {showSparepartResults && (
-                  <div className="absolute top-full mt-1 right-0 w-64 bg-white border border-[#E9ECEF] rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                  <div className="absolute top-full mt-1 right-0 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
                     {sparepartSearching ? (
-                      <div className="p-3 text-center text-sm text-gray-400">Mencari...</div>
+                      <div className="p-3 text-center text-sm text-slate-400">Mencari...</div>
                     ) : sparepartResults.length === 0 ? (
-                      <div className="p-3 text-center text-sm text-gray-400">Tidak tersedia</div>
+                      <div className="p-3 text-center text-sm text-slate-400">Tidak tersedia</div>
                     ) : (
                       sparepartResults.map((item) => (
-                        <div key={item.id} className="p-3 border-b border-[#E9ECEF] last:border-0 hover:bg-gray-50">
+                        <div key={item.id} className="p-3 border-b border-slate-200 last:border-0 hover:bg-slate-50">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="text-sm font-medium text-[#1A1A2E]">{item.item_name}</p>
-                              <p className="text-xs text-gray-400">SKU: {item.sku}</p>
-                              <p className="text-xs text-gray-500">Kategori: {item.category || 'Uncategorized'}</p>
+                              <p className="text-sm font-medium text-slate-900">{item.item_name}</p>
+                              <p className="text-xs text-slate-400">SKU: {item.sku}</p>
+                              <p className="text-xs text-slate-500">Kategori: {item.category || 'Uncategorized'}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs font-bold text-green-600">Toko: {item.store_stock}</p>
+                              <p className="text-xs font-bold text-emerald-600">Toko: {item.store_stock}</p>
                               <p className="text-xs font-bold text-blue-600">Gudang: {item.warehouse_stock}</p>
                             </div>
                           </div>
@@ -472,14 +474,14 @@ export default function TeknisiDashboard() {
                   </div>
                 )}
               </div>
-              <button onClick={() => fetchAllData(true)} className={`p-2 hover:bg-gray-100 rounded-lg transition-all ${refreshing ? 'animate-spin' : ''}`}>
-                <RefreshCw className="w-4 h-4 text-gray-400" />
+              <button onClick={() => fetchAllData(true)} className={`p-2 hover:bg-slate-100 rounded-lg transition-all ${refreshing ? 'animate-spin' : ''}`}>
+                <RefreshCw className="w-4 h-4 text-slate-400" />
               </button>
-              <button onClick={() => toast("Notifikasi belum tersedia", { icon: "🔔" })} className="relative p-2 hover:bg-gray-100 rounded-lg transition-all">
-                <Bell className="w-4 h-4 text-gray-400" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#E94560] rounded-full" />
+              <button onClick={() => toast('Notifikasi belum tersedia', { icon: '??' })} className="relative p-2 hover:bg-slate-100 rounded-lg transition-all">
+                <Bell className="w-4 h-4 text-slate-400" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-600 rounded-full" />
               </button>
-              <div className="bg-[#E94560] px-3 py-1 rounded-full text-white text-xs font-medium">
+              <div className="bg-blue-600 px-3 py-1 rounded-full text-white text-xs font-medium">
                 TEKNISI
               </div>
             </div>
@@ -502,41 +504,41 @@ export default function TeknisiDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="stat-card">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Selesai Hari Ini</span>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Selesai Hari Ini</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-[#1A1A2E]">{stats.completedToday}</p>
-                      <CheckCircle className="w-6 h-6 text-[#2ECC71]" />
+                      <p className="text-2xl font-bold text-slate-900">{stats.completedToday}</p>
+                      <CheckCircle className="w-6 h-6 text-emerald-600" />
                     </div>
                   </div>
 
                   <div className="stat-card">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Sedang Dikerjakan</span>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Sedang Dikerjakan</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-[#1A1A2E]">{stats.inProgress}</p>
-                      <Wrench className="w-6 h-6 text-[#F1C40F]" />
+                      <p className="text-2xl font-bold text-slate-900">{stats.inProgress}</p>
+                      <Wrench className="w-6 h-6 text-amber-500" />
                     </div>
                   </div>
 
                   <div className="stat-card">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Antrean</span>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Antrean</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-[#1A1A2E]">{stats.pendingQueue}</p>
-                      <Clock className="w-6 h-6 text-[#E94560]" />
+                      <p className="text-2xl font-bold text-slate-900">{stats.pendingQueue}</p>
+                      <Clock className="w-6 h-6 text-blue-600" />
                     </div>
                   </div>
 
                   <div className="stat-card">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Pendapatan Bulan Ini</span>
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Pendapatan Bulan Ini</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-xl font-bold text-[#E94560]">{formatRupiah(stats.totalEarnings)}</p>
-                      <DollarSign className="w-6 h-6 text-[#E94560]" />
+                      <p className="text-xl font-bold text-blue-600">{formatRupiah(stats.totalEarnings)}</p>
+                      <DollarSign className="w-6 h-6 text-blue-600" />
                     </div>
                   </div>
                 </div>
@@ -548,25 +550,25 @@ export default function TeknisiDashboard() {
                 />
 
                 {/* Recent Activity */}
-                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-5">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="w-6 h-6 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+                    <div className="w-6 h-6 bg-slate-900 rounded-lg flex items-center justify-center">
                       <Activity className="w-3 h-3 text-white" />
                     </div>
-                    <h3 className="font-semibold text-[#1A1A2E]">Aktivitas Terbaru</h3>
+                    <h3 className="font-semibold text-slate-900">Aktivitas Terbaru</h3>
                   </div>
                   <div className="space-y-2">
                     {recentActivities.map((activity, i) => (
-                      <div key={activity.id} className="flex items-center gap-3 p-2 border-b border-[#E9ECEF] last:border-0">
-                        <div className="w-2 h-2 bg-[#E94560] rounded-full" />
+                      <div key={activity.id} className="flex items-center gap-3 p-2 border-b border-slate-200 last:border-0">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full" />
                         <div className="flex-1">
-                          <p className="text-sm text-gray-700">{activity.message}</p>
-                          <p className="text-xs text-gray-400">{activity.time}</p>
+                          <p className="text-sm text-slate-700">{activity.message}</p>
+                          <p className="text-xs text-slate-400">{activity.time}</p>
                         </div>
                       </div>
                     ))}
                     {recentActivities.length === 0 && (
-                      <div className="text-center py-6 text-gray-400">
+                      <div className="text-center py-6 text-slate-400">
                         <p className="text-sm">Belum ada aktivitas</p>
                       </div>
                     )}
@@ -584,39 +586,39 @@ export default function TeknisiDashboard() {
                 className="grid md:grid-cols-2 gap-6"
               >
                 {/* Performance Stats */}
-                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-[#E9ECEF]">
-                    <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-slate-200">
+                    <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-4 h-4 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[#1A1A2E]">Metrik Performa</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">Metrik Performa</h3>
                   </div>
 
                   <div className="space-y-5">
                     <div>
                       <div className="flex justify-between text-sm font-medium mb-1">
-                        <span className="text-gray-600">Completion Rate</span>
+                        <span className="text-slate-600">Completion Rate</span>
                         <span className="text-[#2ECC71]">94%</span>
                       </div>
-                      <div className="h-2 bg-[#E9ECEF] rounded-full overflow-hidden">
-                        <div className="w-[94%] h-full bg-[#2ECC71] rounded-full" />
+                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="w-[94%] h-full bg-emerald-600 rounded-full" />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-sm font-medium mb-1">
-                        <span className="text-gray-600">Rata-rata Waktu Service</span>
-                        <span className="text-[#F1C40F]">{stats.averageTime} hari</span>
+                        <span className="text-slate-600">Rata-rata Waktu Service</span>
+                        <span className="text-emerald-600">{stats.averageTime} hari</span>
                       </div>
-                      <div className="h-2 bg-[#E9ECEF] rounded-full overflow-hidden">
-                        <div className="w-[75%] h-full bg-[#F1C40F] rounded-full" />
+                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="w-[75%] h-full bg-amber-500 rounded-full" />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-sm font-medium mb-1">
-                        <span className="text-gray-600">Rating Customer</span>
-                        <span className="text-[#E94560]">{stats.rating} / 5.0</span>
+                        <span className="text-slate-600">Rating Customer</span>
+                        <span className="text-blue-600">{stats.rating} / 5.0</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -627,26 +629,26 @@ export default function TeknisiDashboard() {
                                 ? 'fill-[#F1C40F] text-[#F1C40F]'
                                 : star - 0.5 <= stats.rating
                                 ? 'fill-[#F1C40F]/50 text-[#F1C40F]'
-                                : 'text-gray-300'
+                                : 'text-slate-300'
                             }`}
                           />
                         ))}
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-[#E9ECEF]">
+                    <div className="pt-4 border-t border-slate-200">
                       <div className="flex justify-between items-center">
                         <div className="text-center">
-                          <p className="text-2xl font-bold text-[#1A1A2E]">{stats.completedThisMonth}</p>
-                          <p className="text-[10px] text-gray-400 uppercase">Service Bulan Ini</p>
+                          <p className="text-2xl font-bold text-slate-900">{stats.completedThisMonth}</p>
+                          <p className="text-[10px] text-slate-400 uppercase">Service Bulan Ini</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-2xl font-bold text-[#E94560]">{formatRupiah(stats.totalEarnings)}</p>
-                          <p className="text-[10px] text-gray-400 uppercase">Pendapatan</p>
+                          <p className="text-2xl font-bold text-blue-600">{formatRupiah(stats.totalEarnings)}</p>
+                          <p className="text-[10px] text-slate-400 uppercase">Pendapatan</p>
                         </div>
                         <div className="text-center">
                           <p className="text-2xl font-bold text-[#2ECC71]">100%</p>
-                          <p className="text-[10px] text-gray-400 uppercase">Kehadiran</p>
+                          <p className="text-[10px] text-slate-400 uppercase">Kehadiran</p>
                         </div>
                       </div>
                     </div>
@@ -654,34 +656,34 @@ export default function TeknisiDashboard() {
                 </div>
 
                 {/* Badges & Achievements */}
-                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-[#E9ECEF]">
-                    <div className="w-8 h-8 bg-[#F1C40F] rounded-lg flex items-center justify-center">
-                      <Award className="w-4 h-4 text-[#1A1A2E]" />
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-slate-200">
+                    <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
+                      <Award className="w-4 h-4 text-slate-900" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[#1A1A2E]">Pencapaian</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">Pencapaian</h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
+                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
                       <Zap className="w-8 h-8 text-[#F1C40F] mx-auto mb-2" />
                       <p className="font-semibold text-sm">Speedster</p>
-                      <p className="text-[10px] text-gray-400">Selesaikan 10 service</p>
+                      <p className="text-[10px] text-slate-400">Selesaikan 10 service</p>
                     </div>
-                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
+                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
                       <Shield className="w-8 h-8 text-[#3498DB] mx-auto mb-2" />
                       <p className="font-semibold text-sm">Quality Expert</p>
-                      <p className="text-[10px] text-gray-400">95% approval rate</p>
+                      <p className="text-[10px] text-slate-400">95% approval rate</p>
                     </div>
-                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
+                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
                       <Users className="w-8 h-8 text-[#2ECC71] mx-auto mb-2" />
                       <p className="font-semibold text-sm">Team Player</p>
-                      <p className="text-[10px] text-gray-400">Bantu teknisi lain</p>
+                      <p className="text-[10px] text-slate-400">Bantu teknisi lain</p>
                     </div>
-                    <div className="text-center p-3 bg-[#F8F9FA] rounded-lg border border-[#E9ECEF]">
-                      <Star className="w-8 h-8 text-[#E94560] mx-auto mb-2 fill-[#E94560]/30" />
+                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <Star className="w-8 h-8 text-blue-600 mx-auto mb-2 fill-blue-600/30" />
                       <p className="font-semibold text-sm">Top Performer</p>
-                      <p className="text-[10px] text-gray-400">Rating 5 bintang</p>
+                      <p className="text-[10px] text-slate-400">Rating 5 bintang</p>
                     </div>
                   </div>
                 </div>
@@ -697,12 +699,12 @@ export default function TeknisiDashboard() {
               >
                 <div className="mb-5 flex justify-between items-center">
                   <div>
-                    <h3 className="text-xl font-bold text-[#1A1A2E]">Manajemen Transaksi</h3>
-                    <p className="text-sm text-gray-500">Input transaksi layanan customer</p>
+                    <h3 className="text-xl font-bold text-slate-900">Manajemen Transaksi</h3>
+                    <p className="text-sm text-slate-500">Input transaksi layanan customer</p>
                   </div>
                   <button
                     onClick={() => setShowLayananForm(true)}
-                    className="bg-[#E94560] text-white font-medium px-4 py-2 rounded-lg hover:bg-[#c73d54] transition-all flex items-center gap-2 text-sm"
+                    className="bg-blue-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 text-sm"
                   >
                     + Tambah Transaksi
                   </button>
@@ -717,23 +719,23 @@ export default function TeknisiDashboard() {
       {/* Progress Update Modal */}
       {selectedService && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-[#E9ECEF]">
-            <div className="px-5 py-4 border-b border-[#E9ECEF] flex justify-between items-center sticky top-0 bg-white">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                   <Wrench className="w-4 h-4 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold text-[#1A1A2E]">Update Service</h3>
+                <h3 className="text-lg font-semibold text-slate-900">Update Service</h3>
               </div>
               <button
                 onClick={() => setSelectedService(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-all"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5">
-              <p className="text-sm text-gray-500 mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
+              <p className="text-sm text-slate-500 mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
               <ProgressUpdate
                 service={selectedService}
                 onUpdate={() => {
@@ -758,7 +760,7 @@ export default function TeknisiDashboard() {
       {/* Layanan Form Modal */}
       {showLayananForm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-[#E9ECEF]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200">
             <LayananForm
               onSuccess={handleLayananSuccess}
               onClose={() => setShowLayananForm(false)}

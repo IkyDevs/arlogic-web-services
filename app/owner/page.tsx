@@ -16,22 +16,23 @@ import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay } from 'date
 import toast from 'react-hot-toast'
 import dynamic from 'next/dynamic'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import ThemeToggle from '@/components/ThemeToggle'
 
 // Dynamic imports
 const RevenueChart = dynamic(() => import('@/components/owner/RevenueChart'), {
-  loading: () => <div className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm">Loading chart...</div>
+  loading: () => <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">Loading chart...</div>
 })
 const PerformanceChart = dynamic(() => import('@/components/owner/PerformanceChart'), {
-  loading: () => <div className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm">Loading chart...</div>
+  loading: () => <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">Loading chart...</div>
 })
 const ExportButton = dynamic(() => import('@/components/owner/ExportButton'), {
-  loading: () => <button className="px-3 py-1.5 bg-[#1A1A2E] text-white rounded-lg text-xs sm:text-sm font-medium">Export</button>
+  loading: () => <button className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs sm:text-sm font-medium">Export</button>
 })
 const WatchDatabase = dynamic(() => import('@/components/owner/WatchDatabase'), {
-  loading: () => <div className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm">Loading...</div>
+  loading: () => <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">Loading...</div>
 })
 const FeedbackList = dynamic(() => import('@/components/owner/FeedbackList'), {
-  loading: () => <div className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm">Loading...</div>
+  loading: () => <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">Loading...</div>
 })
 
 type DateRange = 'today' | 'week' | 'month' | 'custom'
@@ -245,43 +246,44 @@ export default function OwnerDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-[#E94560] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-gray-500 font-medium">Loading dashboard...</p>
+          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-500 font-medium">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
+    <div className="min-h-screen bg-slate-50">
       {/* ==================== SIDEBAR ==================== */}
-      <div className={`sidebar-container fixed inset-y-0 left-0 w-64 bg-white border-r border-[#E9ECEF] z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-y-auto`}>
-        <div className="p-4 border-b border-[#E9ECEF]">
+      <div className={`sidebar-container fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-y-auto`}>
+        <div className="p-4 border-b border-slate-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-[#1A1A2E] rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Watch className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-[#1A1A2E]">Watch<span className="text-[#E94560]">Service</span></h1>
-                <p className="text-[10px] text-gray-400">Owner Panel</p>
+                <h1 className="text-lg font-bold text-slate-900">Watch<span className="text-blue-600">Service</span></h1>
+                <p className="text-[10px] text-slate-500">Owner Panel</p>
               </div>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg">
+              <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-slate-100 rounded-lg">
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 p-2.5 bg-[#FAFAFA] rounded-lg">
-            <div className="w-9 h-9 bg-[#1A1A2E] rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+          <div className="mt-4 flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg">
+            <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
               {user?.full_name?.charAt(0) || 'O'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-sm truncate">{user?.full_name}</p>
-              <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
             </div>
+            <ThemeToggle />
           </div>
         </div>
 
@@ -295,8 +297,8 @@ export default function OwnerDashboard() {
               }}
               className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg transition-all ${
                 activeTab === item.id
-                  ? 'bg-[#1A1A2E] text-white'
-                  : 'text-[#1A1A2E] hover:bg-gray-100'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-900 hover:bg-slate-100'
               }`}
             >
               <item.icon className="w-4 h-4 flex-shrink-0" />
@@ -304,10 +306,10 @@ export default function OwnerDashboard() {
             </button>
           ))}
 
-          <div className="pt-4 mt-4 border-t border-[#E9ECEF]">
+          <div className="pt-4 mt-4 border-t border-slate-200">
             <button
               onClick={handleLogout}
-              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-[#E94560] hover:bg-red-50 transition-all"
+              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-blue-600 hover:bg-red-50 transition-all"
             >
               <LogOut className="w-4 h-4 flex-shrink-0" />
               <span>Logout</span>
@@ -315,8 +317,8 @@ export default function OwnerDashboard() {
           </div>
         </nav>
 
-        <div className="p-4 border-t border-[#E9ECEF] text-center">
-          <p className="text-[10px] text-gray-400">Watch Service v2.0</p>
+        <div className="p-4 border-t border-slate-200 text-center">
+          <p className="text-[10px] text-slate-400">Watch Service v2.0</p>
         </div>
       </div>
 
@@ -331,29 +333,29 @@ export default function OwnerDashboard() {
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="lg:ml-64">
         {/* Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-[#E9ECEF] z-20">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
           <div className="px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0"
+                className="lg:hidden p-2 hover:bg-slate-100 rounded-lg transition-all flex-shrink-0"
               >
                 <Menu className="w-5 h-5" />
               </button>
               <div className="min-w-0">
-                <h2 className="text-lg sm:text-xl font-bold text-[#1A1A2E] truncate">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
                   {menuItems.find(m => m.id === activeTab)?.label}
                 </h2>
-                <p className="text-xs text-gray-400 hidden sm:block">{formatDate(new Date())}</p>
+                <p className="text-xs text-slate-400 hidden sm:block">{formatDate(new Date())}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
               {/* Notification */}
-              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition-all flex-shrink-0">
-                <Bell className="w-4 h-4 text-gray-400" />
+              <button className="relative p-2 hover:bg-slate-100 rounded-lg transition-all flex-shrink-0">
+                <Bell className="w-4 h-4 text-slate-400" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#E94560] text-white text-[9px] font-bold flex items-center justify-center rounded-full">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -363,29 +365,29 @@ export default function OwnerDashboard() {
               <button
                 onClick={() => fetchDashboardData(true)}
                 disabled={refreshing}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-all disabled:opacity-50 flex-shrink-0"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-50 flex-shrink-0"
               >
-                <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
 
               {/* Date Range - Responsive */}
               <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-xs sm:text-sm font-medium"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-xs sm:text-sm font-medium"
                 >
-                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
                   <span className="hidden xs:inline">
                     {dateRange === 'today' ? 'Today' :
                      dateRange === 'week' ? 'Week' :
                      dateRange === 'month' ? 'Month' :
                      'Custom'}
                   </span>
-                  <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                  <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
                 </button>
 
                 {showDatePicker && (
-                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-xl border border-[#E9ECEF] shadow-lg z-50 p-2 sm:p-3">
+                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-xl border border-slate-200 shadow-lg z-50 p-2 sm:p-3">
                     {['today', 'week', 'month', 'custom'].map((range) => (
                       <button
                         key={range}
@@ -395,8 +397,8 @@ export default function OwnerDashboard() {
                         }}
                         className={`w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm transition-all ${
                           dateRange === range
-                            ? 'bg-[#1A1A2E] text-white'
-                            : 'hover:bg-gray-50 text-[#1A1A2E]'
+                            ? 'bg-slate-900 text-white'
+                            : 'hover:bg-slate-50 text-slate-900'
                         }`}
                       >
                         {range === 'today' ? 'Today' :
@@ -407,23 +409,23 @@ export default function OwnerDashboard() {
                     ))}
 
                     {dateRange === 'custom' && (
-                      <div className="mt-3 pt-3 border-t border-[#E9ECEF] space-y-2">
+                      <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
                         <div>
-                          <label className="text-xs text-gray-400">Start</label>
+                          <label className="text-xs text-slate-400">Start</label>
                           <input
                             type="date"
                             value={format(customStartDate, 'yyyy-MM-dd')}
                             onChange={(e) => setCustomStartDate(new Date(e.target.value))}
-                            className="w-full px-2 py-1.5 border border-[#E9ECEF] rounded-lg text-sm"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-400">End</label>
+                          <label className="text-xs text-slate-400">End</label>
                           <input
                             type="date"
                             value={format(customEndDate, 'yyyy-MM-dd')}
                             onChange={(e) => setCustomEndDate(new Date(e.target.value))}
-                            className="w-full px-2 py-1.5 border border-[#E9ECEF] rounded-lg text-sm"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm"
                           />
                         </div>
                         <button
@@ -431,7 +433,7 @@ export default function OwnerDashboard() {
                             fetchDashboardData()
                             setShowDatePicker(false)
                           }}
-                          className="w-full bg-[#1A1A2E] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#2D2D44] transition-all"
+                          className="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-all"
                         >
                           Apply
                         </button>
@@ -458,13 +460,13 @@ export default function OwnerDashboard() {
                 className="space-y-4 sm:space-y-6"
               >
                 {/* Welcome Banner */}
-                <div className="bg-white rounded-xl border border-[#E9ECEF] p-4 sm:p-5 shadow-sm">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-lg sm:text-xl font-bold text-[#1A1A2E]">Welcome back, {user?.full_name?.split(' ')[0]}! 👋</h3>
-                      <p className="text-sm text-gray-500 mt-0.5">Here's your business performance overview.</p>
+                      <h3 className="text-lg sm:text-xl font-bold text-slate-900">Welcome back, {user?.full_name?.split(' ')[0]}! 👋</h3>
+                       <p className="text-sm text-slate-500 mt-0.5">Ringkasan performa bisnis Anda hari ini.</p>
                     </div>
-                    <div className="bg-[#FAFAFA] px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium border border-[#E9ECEF] flex-shrink-0">
+                    <div className="bg-slate-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 flex-shrink-0">
                       <span className="mr-2">📅</span> {format(new Date(), 'MMMM yyyy')}
                     </div>
                   </div>
@@ -472,66 +474,66 @@ export default function OwnerDashboard() {
 
                 {/* Stats Grid - Responsive 2-3-5 columns */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
-                    <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Revenue</span>
-                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-[#E94560] truncate">{formatRupiah(dashboardData?.revenue || 0)}</p>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                    <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Revenue</span>
+                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-blue-600 truncate">{formatRupiah(dashboardData?.revenue || 0)}</p>
                     <div className="flex items-center gap-1 mt-0.5">
                       <TrendingUp className="w-3 h-3 text-green-500" />
                       <span className="text-[10px] sm:text-xs text-green-500 font-medium">{dashboardData?.monthlyComparison.growth.toFixed(1)}%</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
-                    <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Profit</span>
-                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-[#1A1A2E] truncate">{formatRupiah(dashboardData?.profit || 0)}</p>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                    <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Profit</span>
+                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900 truncate">{formatRupiah(dashboardData?.profit || 0)}</p>
                     <div className="flex items-center gap-1 mt-0.5">
                       <TrendingUp className="w-3 h-3 text-green-500" />
                       <span className="text-[10px] sm:text-xs text-green-500 font-medium">+12.5%</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
-                    <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Services</span>
-                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-[#1A1A2E]">{dashboardData?.completedServices || 0}/{dashboardData?.totalServices || 0}</p>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                    <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Services</span>
+                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900">{dashboardData?.completedServices || 0}/{dashboardData?.totalServices || 0}</p>
                     <div className="flex items-center gap-1 mt-0.5">
                       <CheckCircle className="w-3 h-3 text-green-500" />
                       <span className="text-[10px] sm:text-xs text-green-500 font-medium">{dashboardData?.totalServices ? Math.round((dashboardData.completedServices / dashboardData.totalServices) * 100) : 0}%</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
-                    <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Active Teknisi</span>
-                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-[#1A1A2E]">{dashboardData?.activeTechnicians || 0}</p>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                    <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Active Teknisi</span>
+                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900">{dashboardData?.activeTechnicians || 0}</p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <Users className="w-3 h-3 text-[#3B82F6]" />
-                      <span className="text-[10px] sm:text-xs text-gray-400">Working</span>
+                      <Users className="w-3 h-3 text-blue-600" />
+                      <span className="text-[10px] sm:text-xs text-slate-400">Working</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] p-3 sm:p-4 shadow-sm hover:shadow-md transition-all col-span-2 md:col-span-1">
-                    <span className="text-[10px] sm:text-xs font-medium text-gray-400 uppercase tracking-wider">Avg. Duration</span>
-                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-[#1A1A2E]">{(dashboardData?.averageCompletionTime || 0).toFixed(1)} days</p>
+                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all col-span-2 md:col-span-1">
+                    <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Avg. Duration</span>
+                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900">{(dashboardData?.averageCompletionTime || 0).toFixed(1)} days</p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3 text-[#F1C40F]" />
-                      <span className="text-[10px] sm:text-xs text-gray-400">Per service</span>
+                      <Clock className="w-3 h-3 text-amber-500" />
+                      <span className="text-[10px] sm:text-xs text-slate-400">Per service</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Charts Row */}
                 <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm overflow-hidden">
-                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#E9ECEF]">
-                      <h3 className="font-semibold text-[#1A1A2E] text-sm sm:text-base">Revenue Trend</h3>
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200">
+                      <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Revenue Trend</h3>
                     </div>
                     <div className="p-3 sm:p-5">
                       <RevenueChart data={dashboardData} dateRange={getDateRangeValues()} comparePeriod={comparePeriod} />
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm overflow-hidden">
-                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#E9ECEF]">
-                      <h3 className="font-semibold text-[#1A1A2E] text-sm sm:text-base">Technician Performance</h3>
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200">
+                      <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Technician Performance</h3>
                     </div>
                     <div className="p-3 sm:p-5">
                       <PerformanceChart data={dashboardData?.technicianPerformance || []} totalServices={dashboardData?.totalServices || 0} />
@@ -541,50 +543,50 @@ export default function OwnerDashboard() {
 
                 {/* Financial Summary & Quick Actions */}
                 <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-4 sm:p-5">
-                    <h3 className="font-semibold text-[#1A1A2E] mb-3 sm:mb-4 text-sm sm:text-base">Financial Summary</h3>
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                    <h3 className="font-semibold text-slate-900 mb-3 sm:mb-4 text-sm sm:text-base">Financial Summary</h3>
                     <div className="space-y-2 sm:space-y-3">
-                      <div className="flex justify-between items-center py-2 border-b border-[#E9ECEF]">
-                        <span className="text-xs sm:text-sm text-gray-500">Revenue</span>
-                        <span className="font-bold text-[#1A1A2E] text-xs sm:text-sm">{formatRupiah(dashboardData?.revenue || 0)}</span>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                        <span className="text-xs sm:text-sm text-slate-500">Revenue</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">{formatRupiah(dashboardData?.revenue || 0)}</span>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-[#E9ECEF]">
-                        <span className="text-xs sm:text-sm text-gray-500">Expenses (est.)</span>
-                        <span className="font-bold text-[#E94560] text-xs sm:text-sm">{formatRupiah(dashboardData?.expenses || 0)}</span>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                        <span className="text-xs sm:text-sm text-slate-500">Expenses (est.)</span>
+                        <span className="font-bold text-blue-600 text-xs sm:text-sm">{formatRupiah(dashboardData?.expenses || 0)}</span>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-[#E9ECEF]">
-                        <span className="text-xs sm:text-sm text-gray-500">Gross Profit</span>
-                        <span className="font-bold text-[#2ECC71] text-xs sm:text-sm">{formatRupiah(dashboardData?.profit || 0)}</span>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                        <span className="text-xs sm:text-sm text-slate-500">Gross Profit</span>
+                        <span className="font-bold text-emerald-600 text-xs sm:text-sm">{formatRupiah(dashboardData?.profit || 0)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2">
-                        <span className="text-xs sm:text-sm text-gray-500">Profit Margin</span>
-                        <span className="font-bold text-[#1A1A2E] text-xs sm:text-sm">
+                        <span className="text-xs sm:text-sm text-slate-500">Profit Margin</span>
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm">
                           {dashboardData?.revenue ? ((dashboardData.profit / dashboardData.revenue) * 100).toFixed(1) : 0}%
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-4 sm:p-5">
-                    <h3 className="font-semibold text-[#1A1A2E] mb-3 sm:mb-4 text-sm sm:text-base">Quick Actions</h3>
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                    <h3 className="font-semibold text-slate-900 mb-3 sm:mb-4 text-sm sm:text-base">Quick Actions</h3>
                     <div className="space-y-2 sm:space-y-3">
                       <button
                         onClick={() => setActiveTab('revenue')}
-                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-xs sm:text-sm font-medium"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-xs sm:text-sm font-medium"
                       >
                         <span>Revenue Analytics</span>
                         <ChevronRight className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setActiveTab('performance')}
-                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-xs sm:text-sm font-medium"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-xs sm:text-sm font-medium"
                       >
                         <span>Team Performance</span>
                         <ChevronRight className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setActiveTab('feedback')}
-                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-xs sm:text-sm font-medium"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-xs sm:text-sm font-medium"
                       >
                         <span>Customer Feedback</span>
                         <ChevronRight className="w-4 h-4" />
@@ -602,7 +604,7 @@ export default function OwnerDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-4 sm:p-5">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
                   <RevenueChart data={dashboardData} dateRange={getDateRangeValues()} comparePeriod={comparePeriod} />
                 </div>
               </motion.div>
@@ -615,7 +617,7 @@ export default function OwnerDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm p-4 sm:p-5">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
                   <PerformanceChart data={dashboardData?.technicianPerformance || []} totalServices={dashboardData?.totalServices || 0} />
                 </div>
               </motion.div>

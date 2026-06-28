@@ -11,20 +11,21 @@ interface NeoButtonProps {
   disabled?: boolean
   className?: string
   type?: 'button' | 'submit' | 'reset'
+  fullWidth?: boolean
 }
 
 const variants = {
-  primary: 'bg-black text-white border-black',
-  secondary: 'bg-white text-black border-black',
-  danger: 'bg-red-600 text-white border-black',
-  success: 'bg-lime-400 text-black border-black',
-  warning: 'bg-yellow-400 text-black border-black',
+  primary: 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800',
+  secondary: 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400',
+  danger: 'bg-red-600 text-white border-red-600 hover:bg-red-700',
+  success: 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700',
+  warning: 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600',
 }
 
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-5 py-2.5 text-base',
-  lg: 'px-8 py-4 text-lg',
+  sm: 'px-3 py-1.5 text-sm rounded-lg',
+  md: 'px-4 py-2.5 text-sm rounded-lg',
+  lg: 'px-6 py-3 text-base rounded-xl',
 }
 
 export default function NeoButton({
@@ -35,7 +36,8 @@ export default function NeoButton({
   loading = false,
   disabled = false,
   className = '',
-  type = 'button'
+  type = 'button',
+  fullWidth = false
 }: NeoButtonProps) {
   return (
     <button
@@ -43,20 +45,28 @@ export default function NeoButton({
       onClick={onClick}
       disabled={disabled || loading}
       className={`
-        relative font-bold text-center transition-all duration-100 cursor-pointer
-        border-3 border-black shadow-[4px_4px_0px_0px_black]
-        hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_black]
-        active:translate-x-[4px] active:translate-y-[4px] active:shadow-[0px_0px_0px_0px_black]
-        disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0
-        ${variants[variant]} ${sizes[size]} ${className}
+        inline-flex items-center justify-center gap-2
+        font-medium text-center
+        transition-all duration-150
+        border
+        ${variants[variant]}
+        ${sizes[size]}
+        ${fullWidth ? 'w-full' : ''}
+        disabled:opacity-50 disabled:cursor-not-allowed
+        ${className}
       `}
     >
       {loading ? (
-        <div className="flex items-center justify-center gap-2">
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          Processing...
-        </div>
-      ) : children}
+        <>
+          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Memproses...</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   )
 }

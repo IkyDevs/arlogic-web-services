@@ -110,7 +110,7 @@ export default function FeedbackList() {
         <Star
           key={star}
           size={size}
-          className={star <= rating ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-gray-200'}
+          className={star <= rating ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-slate-200'}
         />
       ))}
     </div>
@@ -119,7 +119,7 @@ export default function FeedbackList() {
   const ratingColor = (r: number) => {
     if (r >= 4) return 'bg-[#2ECC71]/10 text-[#2ECC71] border-[#2ECC71]/30'
     if (r === 3) return 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30'
-    return 'bg-[#E94560]/10 text-[#E94560] border-[#E94560]/30'
+    return 'bg-blue-600/10 text-blue-600 border-blue-600/30'
   }
 
   const ratingLabel = (r: number) => {
@@ -130,22 +130,22 @@ export default function FeedbackList() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm">
-        <div className="inline-block w-8 h-8 border-3 border-[#E94560] border-t-transparent rounded-full animate-spin" />
-        <p className="mt-3 text-gray-400 font-medium">Loading feedback...</p>
+      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
+        <div className="inline-block w-8 h-8 border border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="mt-3 text-slate-400 font-medium">Loading feedback...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm">
-        <AlertCircle className="w-12 h-12 mx-auto mb-3 text-[#E94560]" />
-        <p className="text-gray-600 font-medium">Unable to load feedback</p>
-        <p className="text-sm text-gray-400 mt-1">{error}</p>
+      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
+        <AlertCircle className="w-12 h-12 mx-auto mb-3 text-blue-600" />
+        <p className="text-slate-600 font-medium">Unable to load feedback</p>
+        <p className="text-sm text-slate-400 mt-1">{error}</p>
         <button
           onClick={fetchFeedbacks}
-          className="mt-4 px-4 py-2 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+          className="mt-4 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
         >
           Try Again
         </button>
@@ -158,16 +158,16 @@ export default function FeedbackList() {
       {/* ==================== HEADER ==================== */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+          <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
             <Star className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[#1A1A2E]">Customer Feedback</h2>
-            <p className="text-xs text-gray-400">{stats.total} total reviews</p>
+            <h2 className="text-xl font-bold text-slate-900">Customer Feedback</h2>
+            <p className="text-xs text-slate-400">{stats.total} total reviews</p>
           </div>
         </div>
         {stats.total > 0 && (
-          <div className="flex items-center gap-2 text-sm text-gray-500">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
             <TrendingUp className="w-4 h-4 text-[#2ECC71]" />
             <span>Average: {stats.avg}/5</span>
           </div>
@@ -178,20 +178,20 @@ export default function FeedbackList() {
       {stats.total > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Average Rating */}
-          <div className="bg-white rounded-xl border border-[#E9ECEF] p-5 shadow-sm">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <div className="flex items-end gap-4 mb-2">
-              <span className="text-4xl sm:text-5xl font-bold text-[#1A1A2E]">{stats.avg}</span>
+              <span className="text-4xl sm:text-5xl font-bold text-slate-900">{stats.avg}</span>
               <div>
                 <StarDisplay rating={Math.round(stats.avg)} size={20} />
-                <p className="text-sm text-gray-500 mt-1">{stats.total} reviews</p>
+                <p className="text-sm text-slate-500 mt-1">{stats.total} reviews</p>
               </div>
             </div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider">Average Rating</p>
+            <p className="text-xs text-slate-400 uppercase tracking-wider">Average Rating</p>
           </div>
 
           {/* Rating Distribution */}
-          <div className="bg-white rounded-xl border border-[#E9ECEF] p-5 shadow-sm">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Rating Distribution</p>
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Rating Distribution</p>
             <div className="space-y-1.5">
               {[5, 4, 3, 2, 1].map(star => {
                 const count = stats.distribution[star - 1]
@@ -200,15 +200,15 @@ export default function FeedbackList() {
                   <div key={star} className="flex items-center gap-2">
                     <div className="flex items-center gap-0.5 w-10">
                       <Star size={10} className="text-[#F59E0B] fill-[#F59E0B]" />
-                      <span className="text-xs font-medium text-gray-500">{star}</span>
+                      <span className="text-xs font-medium text-slate-500">{star}</span>
                     </div>
-                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-[#E94560] rounded-full transition-all duration-500"
+                        className="h-full bg-blue-600 rounded-full transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="text-xs font-medium text-gray-400 w-6 text-right">{count}</span>
+                    <span className="text-xs font-medium text-slate-400 w-6 text-right">{count}</span>
                   </div>
                 )
               })}
@@ -220,29 +220,29 @@ export default function FeedbackList() {
       {/* ==================== SEARCH & FILTER ==================== */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search customer or comment..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
           />
         </div>
 
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium text-[#1A1A2E]"
+          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900"
         >
           <Filter className="w-4 h-4" />
           Filters
-          {filterRating && <span className="w-2 h-2 bg-[#E94560] rounded-full" />}
+          {filterRating && <span className="w-2 h-2 bg-blue-600 rounded-full" />}
         </button>
 
         {filterRating && (
           <button
             onClick={() => setFilterRating(null)}
-            className="flex items-center gap-1 px-3 py-2.5 bg-[#E94560]/10 text-[#E94560] rounded-lg hover:bg-[#E94560]/20 transition-all text-sm font-medium"
+            className="flex items-center gap-1 px-3 py-2.5 bg-blue-600/10 text-blue-600 rounded-lg hover:bg-blue-600/20 transition-all text-sm font-medium"
           >
             <X className="w-3 h-3" />
             Clear filter
@@ -256,9 +256,9 @@ export default function FeedbackList() {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="bg-white rounded-xl border border-[#E9ECEF] p-4 shadow-sm"
+          className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"
         >
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">Filter by Rating</p>
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Filter by Rating</p>
           <div className="flex gap-2 flex-wrap">
             {[5, 4, 3, 2, 1].map(r => (
               <button
@@ -266,8 +266,8 @@ export default function FeedbackList() {
                 onClick={() => setFilterRating(filterRating === r ? null : r)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   filterRating === r
-                    ? 'bg-[#1A1A2E] text-white'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 <Star size={12} className={filterRating === r ? 'text-white' : 'text-[#F59E0B] fill-[#F59E0B]'} />
@@ -280,10 +280,10 @@ export default function FeedbackList() {
 
       {/* ==================== FEEDBACK LIST ==================== */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#E9ECEF] p-12 text-center shadow-sm">
-          <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-400 font-medium">No feedback yet</p>
-          <p className="text-sm text-gray-400 mt-1">Customer ratings will appear here</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-sm">
+          <MessageSquare className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+          <p className="text-slate-400 font-medium">No feedback yet</p>
+          <p className="text-sm text-slate-400 mt-1">Customer ratings will appear here</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -293,18 +293,18 @@ export default function FeedbackList() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.02 }}
-              className="bg-white rounded-xl border border-[#E9ECEF] p-4 sm:p-5 shadow-sm hover:shadow-md transition-all"
+              className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all"
             >
               <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                 {/* Avatar */}
-                <div className="w-10 h-10 bg-[#1A1A2E] rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center flex-shrink-0">
                   <User className="w-5 h-5 text-white" />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   {/* Header */}
                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="font-semibold text-[#1A1A2E] text-sm">{fb.customer_name}</span>
+                    <span className="font-semibold text-slate-900 text-sm">{fb.customer_name}</span>
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ratingColor(fb.rating)}`}>
                       {fb.rating}.0 ★ {ratingLabel(fb.rating)}
                     </span>
@@ -315,17 +315,17 @@ export default function FeedbackList() {
 
                   {/* Comment */}
                   {fb.comment && (
-                    <p className="text-sm text-gray-600 mt-2 italic">"{fb.comment}"</p>
+                    <p className="text-sm text-slate-600 mt-2 italic">"{fb.comment}"</p>
                   )}
 
                   {/* Meta info */}
                   <div className="flex flex-wrap items-center gap-3 mt-2">
                     {(fb as any).service_orders?.invoice_number && (
-                      <span className="text-xs font-mono text-gray-400 bg-[#FAFAFA] px-2 py-0.5 rounded border border-[#E9ECEF]">
+                      <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                         {(fb as any).service_orders.invoice_number}
                       </span>
                     )}
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <span className="text-xs text-slate-400 flex items-center gap-1">
                       <Calendar size={12} />
                       {format(new Date(fb.created_at), 'dd MMM yyyy', { locale: id })}
                     </span>
@@ -334,7 +334,7 @@ export default function FeedbackList() {
 
                 {/* Rating badge for mobile */}
                 <div className="sm:hidden flex items-center gap-2">
-                  <span className="text-sm font-bold text-[#1A1A2E]">{fb.rating}</span>
+                  <span className="text-sm font-bold text-slate-900">{fb.rating}</span>
                   <Star size={14} className="text-[#F59E0B] fill-[#F59E0B]" />
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function FeedbackList() {
 
       {/* ==================== FOOTER ==================== */}
       {filtered.length > 0 && (
-        <div className="text-center text-xs text-gray-400 pt-2">
+        <div className="text-center text-xs text-slate-400 pt-2">
           Showing {filtered.length} of {feedbacks.length} reviews
         </div>
       )}

@@ -123,7 +123,7 @@ export default function FeedbackPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-[#FF6B9D] mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-blue-600 mx-auto" />
           <p className="mt-4 font-mono font-bold">Loading...</p>
         </div>
       </div>
@@ -133,13 +133,13 @@ export default function FeedbackPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="border-2 border-black shadow-[8px_8px_0_0_#000] p-8 max-w-sm w-full text-center">
-          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-[#FF6B9D]" />
+        <div className="border border-slate-200 shadow-sm p-8 max-w-sm w-full text-center">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-blue-600" />
           <h2 className="text-xl font-black font-mono mb-2">Oops!</h2>
-          <p className="font-mono text-sm text-gray-600 mb-5">{error}</p>
+          <p className="font-mono text-sm text-slate-600 mb-5">{error}</p>
           <button
             onClick={() => router.back()}
-            className="flex items-center justify-center gap-2 w-full py-2.5 border-2 border-black bg-white font-mono font-bold text-sm hover:bg-gray-100 transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-2.5 border border-slate-200 bg-white font-mono font-bold text-sm hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft size={16} />
             Go Back
@@ -152,17 +152,17 @@ export default function FeedbackPage() {
   if (alreadySubmitted) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="border-2 border-black shadow-[8px_8px_0_0_#000] p-8 max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-[#FFDE00] border-2 border-black flex items-center justify-center mx-auto mb-4">
+        <div className="border border-slate-200 shadow-sm p-8 max-w-sm w-full text-center">
+          <div className="w-16 h-16 bg-amber-500 border border-slate-200 flex items-center justify-center mx-auto mb-4">
             <Check className="w-8 h-8" />
           </div>
           <h2 className="text-2xl font-black font-mono mb-2">Already Submitted</h2>
-          <p className="font-mono text-sm text-gray-600 mb-5">
+          <p className="font-mono text-sm text-slate-600 mb-5">
             You've already submitted feedback for this service. Thank you!
           </p>
           <button
             onClick={() => router.push(`/tracking/${invoiceId}?token=${token}`)}
-            className="w-full py-2.5 bg-[#3B82F6] text-white border-2 border-black shadow-[4px_4px_0_0_#000] font-mono font-bold text-sm"
+            className="w-full py-2.5 bg-blue-600 text-white border border-slate-200 font-mono font-bold text-sm transition-all"
           >
             Back to Tracking
           </button>
@@ -177,24 +177,24 @@ export default function FeedbackPage() {
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="border-2 border-black shadow-[8px_8px_0_0_#000] p-8 max-w-sm w-full text-center"
+          className="border border-slate-200 shadow-sm p-8 max-w-sm w-full text-center"
         >
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring' }}
-            className="w-20 h-20 bg-[#FF6B9D] border-2 border-black flex items-center justify-center mx-auto mb-5"
+            className="w-20 h-20 bg-blue-600 border border-slate-200 flex items-center justify-center mx-auto mb-5"
           >
             <Check className="w-10 h-10 text-white" />
           </motion.div>
           <h2 className="text-3xl font-black font-mono mb-2">THANK YOU!</h2>
-          <p className="font-mono text-gray-600 mb-1">Your feedback has been submitted.</p>
+          <p className="font-mono text-slate-600 mb-1">Your feedback has been submitted.</p>
           <div className="flex items-center justify-center gap-1 my-4">
             {[1, 2, 3, 4, 5].map(star => (
               <Star
                 key={star}
                 size={28}
-                className={star <= rating ? 'text-[#FFDE00] fill-[#FFDE00]' : 'text-gray-300'}
+                className={star <= rating ? 'text-amber-500 fill-amber-500' : 'text-slate-300'}
               />
             ))}
           </div>
@@ -203,7 +203,7 @@ export default function FeedbackPage() {
           </p>
           <button
             onClick={() => router.push(`/tracking/${invoiceId}?token=${token}`)}
-            className="w-full py-2.5 bg-[#3B82F6] text-white border-2 border-black shadow-[4px_4px_0_0_#000] font-mono font-bold text-sm hover:shadow-[2px_2px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+            className="w-full py-2.5 bg-blue-600 text-white border border-slate-200 font-mono font-bold text-sm transition-all"
           >
             Back to Tracking
           </button>
@@ -217,23 +217,23 @@ export default function FeedbackPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="border-2 border-black shadow-[8px_8px_0_0_#000] p-6 sm:p-8 max-w-md w-full"
+        className="border border-slate-200 shadow-sm p-6 sm:p-8 max-w-md w-full"
       >
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-14 h-14 bg-[#FF6B9D] border-2 border-black flex items-center justify-center mx-auto mb-3">
+          <div className="w-14 h-14 bg-blue-600 border border-slate-200 flex items-center justify-center mx-auto mb-3">
             <Watch className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-black font-mono">RATE YOUR SERVICE</h1>
-          <p className="font-mono text-sm text-gray-600 mt-1">How was your experience?</p>
+          <p className="font-mono text-sm text-slate-600 mt-1">How was your experience?</p>
         </div>
 
         {/* Service Info */}
-        <div className="bg-[#FFDE00] border-2 border-black p-3 mb-6">
+        <div className="bg-amber-500 border border-slate-200 p-3 mb-6">
           <p className="font-black font-mono text-sm">{service?.invoice_number}</p>
           <p className="font-mono text-xs">{service?.customer_name}</p>
           {service?.watch_brand && (
-            <p className="font-mono text-xs text-gray-700">{service.watch_brand} {service?.watch_model}</p>
+            <p className="font-mono text-xs text-slate-700">{service.watch_brand} {service?.watch_model}</p>
           )}
         </div>
 
@@ -255,8 +255,8 @@ export default function FeedbackPage() {
                   size={40}
                   className={`transition-colors ${
                     star <= (hoverRating || rating)
-                      ? 'text-[#FFDE00] fill-[#FFDE00]'
-                      : 'text-gray-300'
+                      ? 'text-amber-500 fill-amber-500'
+                      : 'text-slate-300'
                   }`}
                 />
               </motion.button>
@@ -284,16 +284,16 @@ export default function FeedbackPage() {
             onChange={e => setComment(e.target.value)}
             placeholder="Tell us about your experience..."
             rows={4}
-            className="w-full px-3 py-2.5 border-2 border-black font-mono text-sm resize-none focus:outline-none shadow-[3px_3px_0_0_#000] focus:shadow-none focus:translate-x-[3px] focus:translate-y-[3px] transition-all"
+            className="w-full px-3 py-2.5 border border-slate-200 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-600/20 transition-all"
           />
-          <p className="text-xs font-mono text-gray-400 text-right mt-1">{comment.length}/500</p>
+          <p className="text-xs font-mono text-slate-400 text-right mt-1">{comment.length}/500</p>
         </div>
 
         {/* Submit */}
         <button
           onClick={handleSubmit}
           disabled={submitting || rating === 0}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF6B9D] text-white border-2 border-black shadow-[4px_4px_0_0_#000] hover:shadow-[2px_2px_0_0_#000] hover:translate-x-[2px] hover:translate-y-[2px] font-mono font-black text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-x-0 disabled:hover:translate-y-0"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white border border-slate-200 font-mono font-bold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? (
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
@@ -305,7 +305,7 @@ export default function FeedbackPage() {
           )}
         </button>
 
-        <p className="text-center text-[10px] font-mono text-gray-400 mt-4">
+        <p className="text-center text-[10px] font-mono text-slate-400 mt-4">
           Your feedback helps us improve our service quality
         </p>
       </motion.div>

@@ -183,15 +183,15 @@ export default function ExportReports() {
   };
 
   const reportOptions = [
-    { type: 'attendance' as ReportType, label: 'ATTENDANCE REPORT', icon: Users, color: 'bg-[#FF6B9D]', desc: 'Staff check-in/out history' },
-    { type: 'inventory' as ReportType, label: 'INVENTORY REPORT', icon: Package, color: 'bg-[#FFDE00]', textColor: 'text-black', desc: 'Current stock levels' },
-    { type: 'services' as ReportType, label: 'SERVICES REPORT', icon: ClipboardList, color: 'bg-[#3B82F6]', desc: 'Service orders history' },
+    { type: 'attendance' as ReportType, label: 'ATTENDANCE REPORT', icon: Users, color: 'bg-blue-600', desc: 'Staff check-in/out history' },
+    { type: 'inventory' as ReportType, label: 'INVENTORY REPORT', icon: Package, color: 'bg-amber-500', textColor: 'text-black', desc: 'Current stock levels' },
+    { type: 'services' as ReportType, label: 'SERVICES REPORT', icon: ClipboardList, color: 'bg-blue-600', desc: 'Service orders history' },
   ];
 
   return (
     <div className="max-w-2xl">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-[#FFDE00] border-2 border-black flex items-center justify-center shadow-[4px_4px_0_0_#000]">
+        <div className="w-10 h-10 bg-amber-500 border border-slate-200 flex items-center justify-center shadow-sm">
           <Download className="w-5 h-5" />
         </div>
         <div>
@@ -208,17 +208,17 @@ export default function ExportReports() {
             <button
               key={opt.type}
               onClick={() => setReportType(opt.type)}
-              className={`p-4 border-2 border-black text-left transition-all ${
+              className={`p-4 border border-slate-200 text-left transition-all ${
                 reportType === opt.type
-                  ? 'shadow-[4px_4px_0_0_#000] translate-x-0 translate-y-0'
-                  : 'hover:shadow-[4px_4px_0_0_#000] hover:translate-x-[-2px] hover:translate-y-[-2px]'
+                  ? 'shadow-sm translate-x-0 translate-y-0'
+                  : 'hover:shadow-sm  '
               } ${reportType === opt.type ? opt.color : 'bg-white'}`}
             >
               <opt.icon className={`w-5 h-5 mb-2 ${reportType === opt.type && opt.type !== 'inventory' ? 'text-white' : ''}`} />
               <p className={`font-black text-xs ${reportType === opt.type && opt.type !== 'inventory' ? 'text-white' : ''}`}>
                 {opt.label}
               </p>
-              <p className={`text-[10px] font-mono mt-0.5 ${reportType === opt.type && opt.type !== 'inventory' ? 'text-white/80' : 'text-gray-500'}`}>
+              <p className={`text-[10px] font-mono mt-0.5 ${reportType === opt.type && opt.type !== 'inventory' ? 'text-white/80' : 'text-slate-500'}`}>
                 {opt.desc}
               </p>
             </button>
@@ -235,8 +235,8 @@ export default function ExportReports() {
               <button
                 key={r}
                 onClick={() => setDateRange(r)}
-                className={`px-3 py-1.5 border-2 border-black font-mono font-bold text-xs transition-all ${
-                  dateRange === r ? 'bg-black text-white shadow-[3px_3px_0_0_#888]' : 'bg-white hover:bg-gray-100'
+                className={`px-3 py-1.5 border border-slate-200 font-mono font-bold text-xs transition-all ${
+                  dateRange === r ? 'bg-black text-white shadow-sm' : 'bg-white hover:bg-slate-100'
                 }`}
               >
                 {r === 'today' ? 'Today' : r === 'week' ? 'This Week' : r === 'month' ? 'This Month' : 'Custom'}
@@ -252,7 +252,7 @@ export default function ExportReports() {
                   type="date"
                   value={customStart}
                   onChange={e => setCustomStart(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-black font-mono text-sm focus:outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 font-mono text-sm focus:outline-none"
                 />
               </div>
               <div>
@@ -261,7 +261,7 @@ export default function ExportReports() {
                   type="date"
                   value={customEnd}
                   onChange={e => setCustomEnd(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-black font-mono text-sm focus:outline-none"
+                  className="w-full px-3 py-2 border border-slate-200 font-mono text-sm focus:outline-none"
                 />
               </div>
             </div>
@@ -273,7 +273,7 @@ export default function ExportReports() {
       <button
         onClick={handleExport}
         disabled={exporting}
-        className="w-full flex items-center justify-center gap-3 py-4 bg-[#FF6B9D] text-white border-2 border-black shadow-[6px_6px_0_0_#000] hover:shadow-[3px_3px_0_0_#000] hover:translate-x-[3px] hover:translate-y-[3px] font-mono font-black text-sm transition-all disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-3 py-4 bg-teal-600 text-white border border-slate-200 shadow-sm hover:shadow-md transition-all disabled:opacity-50"
       >
         {exporting ? (
           <>
@@ -288,7 +288,7 @@ export default function ExportReports() {
         )}
       </button>
 
-      <p className="text-center text-[10px] font-mono text-gray-400 mt-3">
+      <p className="text-center text-[10px] font-mono text-slate-400 mt-3">
         File will be downloaded automatically as .xlsx
       </p>
     </div>

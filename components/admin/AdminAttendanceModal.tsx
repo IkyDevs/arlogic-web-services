@@ -384,62 +384,63 @@ lembur : ${lembur}`
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-[#E9ECEF]"
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 max-h-[85vh] sm:max-h-[80vh] flex flex-col"
       >
-        <div className="flex justify-between items-center p-4 border-b border-[#E9ECEF]">
-          <div className="flex items-center gap-2">
-            <div className={`p-2 rounded-full ${isCheckIn ? 'bg-green-100' : 'bg-orange-100'}`}>
+        <div className="flex justify-between items-center p-4 border-b border-slate-200 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-full ${isCheckIn ? 'bg-teal-50' : 'bg-amber-50'}`}>
               {icon}
             </div>
             <div>
-              <h3 className="text-lg font-semibold">{title}</h3>
+              <h3 className="text-base font-semibold text-slate-900">{title}</h3>
               {!isCheckIn && (
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="flex items-center gap-1.5 text-xs text-slate-500">
                   <Clock className="w-3 h-3" />
                   <span>Jam: {expectedHours.start} - {expectedHours.end}</span>
                 </div>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
+            <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
-        <div className="p-5">
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1">
           {step === 'camera' && (
             <>
               {cameraError ? (
-                <div className="text-center py-8">
-                  <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                  <p className="text-red-600 mb-4">{cameraError}</p>
+                <div className="text-center py-6">
+                  <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+                  <p className="text-red-600 text-sm mb-3">{cameraError}</p>
                   {permissionDenied && (
-                    <div className="text-sm text-gray-600 mb-4">
-                      <p>To enable camera access:</p>
-                      <ol className="list-decimal list-inside text-left mt-2">
-                        <li>Click the camera icon in your browser's address bar</li>
-                        <li>Select "Allow" for camera permission</li>
-                        <li>Refresh the page</li>
+                    <div className="text-xs text-slate-600 mb-4 text-left bg-slate-50 p-3 rounded-lg">
+                      <p className="font-medium mb-2">Aktifkan kamera:</p>
+                      <ol className="list-decimal list-inside space-y-1 text-slate-600">
+                        <li>Klik ikon kamera di address bar</li>
+                        <li>Pilih &quot;Allow&quot; untuk akses kamera</li>
+                        <li>Refresh halaman</li>
                       </ol>
                     </div>
                   )}
-                  <button onClick={startCamera} className="btn-primary mt-4">
-                    Try Again
+                  <button onClick={startCamera} className="btn-primary text-sm">
+                    Coba Lagi
                   </button>
                 </div>
               ) : (
                 <>
-                  <div className="relative mb-4 bg-black rounded-lg overflow-hidden">
+                  <div className="relative mb-3 bg-black rounded-xl overflow-hidden">
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
                       muted
-                      className="w-full h-auto min-h-[300px] object-cover"
+                      className="w-full h-auto min-h-[180px] sm:min-h-[240px] object-cover"
                     />
                     <canvas ref={canvasRef} className="hidden" />
                   </div>
@@ -448,7 +449,7 @@ lembur : ${lembur}`
                     className="w-full btn-primary flex items-center justify-center gap-2"
                   >
                     <Camera className="w-5 h-5" />
-                    Take Photo
+                    Ambil Foto
                   </button>
                 </>
               )}
@@ -457,74 +458,75 @@ lembur : ${lembur}`
 
           {step === 'location' && (
             <>
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-[#E9ECEF]">
+              <div className="mb-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
                 {photoPreview && (
-                  <img src={photoPreview} alt="Captured" className="w-full rounded-lg mb-4" />
+                  <img src={photoPreview} alt="Hasil foto" className="w-full rounded-lg mb-2.5 max-h-32 object-cover" />
                 )}
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-[#E94560] mt-1 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-medium">Your Location:</p>
-                    <p className="text-sm text-gray-600 break-words">{location?.address || 'Getting location...'}</p>
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-slate-900">Lokasi:</p>
+                    <p className="text-xs text-slate-600 break-words">{location?.address || 'Mendapatkan lokasi...'}</p>
                     {location && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
                       </p>
                     )}
                   </div>
                 </div>
               </div>
-              
+
               {!isCheckIn && existingAttendance?.check_in && (
-                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center justify-between">
+                <div className="mb-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-blue-600" />
-                      <span className="font-medium text-blue-800">Time Elapsed</span>
+                      <Clock className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <span className="font-medium text-blue-800 text-sm">Waktu Kerja</span>
                     </div>
-                    <span className="font-mono text-lg font-bold text-blue-600">{elapsedTime}</span>
+                    <span className="font-mono text-base font-bold text-blue-600">{elapsedTime}</span>
                   </div>
                   <p className="text-xs text-blue-600 mt-1">
-                    Jam Kerja: {expectedHours.start} - {expectedHours.end} ({expectedHours.total} jam)
+                    Jam: {expectedHours.start} - {expectedHours.end} ({expectedHours.total} jam)
                   </p>
                 </div>
               )}
-              
+
               {uploading && (
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Compressing & uploading...</span>
+                <div className="mb-3">
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>Mengupload...</span>
                     <span>{progress}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-slate-200 rounded-full h-1.5">
                     <div
-                      className="bg-[#E94560] h-2 rounded-full transition-all duration-300"
+                      className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-2.5">
                 <button
                   onClick={retakePhoto}
                   disabled={uploading}
-                  className="flex-1 btn-secondary"
+                  className="flex-1 bg-white text-slate-900 border border-slate-200 py-2 rounded-lg hover:bg-slate-50 text-sm font-medium"
                 >
-                  Retake
+                  Ulangi
                 </button>
                 <button
                   onClick={submitAttendance}
                   disabled={uploading || !location}
-                  className="flex-1 btn-primary disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 bg-slate-900 text-white font-medium py-2 rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 text-sm"
                 >
                   {uploading ? (
                     <>
                       <Loader className="w-4 h-4 animate-spin" />
-                      Processing...
+                      <span className="hidden sm:inline">Memproses...</span>
+                      <span className="sm:hidden">...</span>
                     </>
                   ) : (
-                    isCheckIn ? 'Confirm Check In' : 'Confirm Check Out'
+                    isCheckIn ? 'Absen Masuk' : 'Absen Pulang'
                   )}
                 </button>
               </div>
@@ -532,15 +534,26 @@ lembur : ${lembur}`
           )}
 
           {step === 'success' && (
-            <div className="text-center py-8">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h4 className="text-lg font-semibold mb-2">
-                {isCheckIn ? 'Check In Successful!' : 'Check Out Successful!'}
+            <div className="text-center py-6">
+              <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+              <h4 className="text-base font-semibold text-slate-900 mb-1">
+                {isCheckIn ? 'Absen Masuk Berhasil!' : 'Absen Pulang Berhasil!'}
               </h4>
-              <p className="text-gray-500">
+              {!isCheckIn && (
+                <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-slate-600 mb-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Total: {elapsedTime.replace(/00:00:00/, 'Menghitung...')}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Jam Kerja: {expectedHours.start} - {expectedHours.end}
+                  </p>
+                </div>
+              )}
+              <p className="text-xs text-slate-500 mt-2">
                 {isCheckIn
-                  ? 'You have successfully checked in.'
-                  : `You have successfully checked out.`}
+                  ? 'Anda sudah absen masuk.'
+                  : 'Anda sudah absen pulang.'}
               </p>
             </div>
           )}

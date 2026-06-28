@@ -220,11 +220,11 @@ export default function RoleManagement() {
 
   const getRoleColor = (role: string) => {
     switch(role) {
-      case 'admin': return 'bg-[#E94560]/10 text-[#E94560] border-[#E94560]/20'
-      case 'owner': return 'bg-[#F1C40F]/10 text-[#F1C40F] border-[#F1C40F]/20'
-      case 'supervisor': return 'bg-[#2ECC71]/10 text-[#2ECC71] border-[#2ECC71]/20'
-      case 'teknisi': return 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20'
-      default: return 'bg-gray-100 text-gray-600 border-gray-200'
+      case 'admin': return 'bg-blue-600/10 text-blue-600 border-blue-600/20'
+case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+       case 'supervisor': return 'bg-emerald-600/10 text-emerald-600 border-emerald-600/20'
+       case 'teknisi': return 'bg-blue-600/10 text-blue-600 border-blue-600/20'
+      default: return 'bg-slate-100 text-slate-600 border-slate-200'
     }
   }
 
@@ -248,8 +248,8 @@ export default function RoleManagement() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-[#E94560] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-gray-500 font-medium">Loading users...</p>
+          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-500 font-medium">Loading users...</p>
         </div>
       </div>
     )
@@ -260,12 +260,12 @@ export default function RoleManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-[#1A1A2E]">User Management</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Manage user roles and permissions</p>
+          <h2 className="text-2xl font-bold text-slate-900">User Management</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Manage user roles and permissions</p>
         </div>
         <button
           onClick={() => setShowAddUser(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium"
         >
           <UserPlus className="w-4 h-4" />
           Add User
@@ -278,42 +278,42 @@ export default function RoleManagement() {
           {roles.map((role) => (
             <div
               key={role}
-              className="bg-white rounded-lg border border-[#E9ECEF] p-3 text-center shadow-sm hover:shadow-md transition-all"
+              className="bg-white rounded-lg border border-slate-200 p-3 text-center shadow-sm hover:shadow-md transition-all"
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 {getRoleIcon(role)}
-                <span className="text-xs font-medium text-gray-500 capitalize">{role}</span>
+                <span className="text-xs font-medium text-slate-500 capitalize">{role}</span>
               </div>
-              <p className="text-xl font-bold text-[#1A1A2E]">{roleStats[role] || 0}</p>
+              <p className="text-xl font-bold text-slate-900">{roleStats[role] || 0}</p>
             </div>
           ))}
         </div>
       )}
 
       {/* Search Bar */}
-      <div className="bg-white rounded-xl border border-[#E9ECEF] p-4 shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+            className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
             placeholder="Search by name, email, or role..."
           />
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-[#FAFAFA]">
+            <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-left">
                   <button
                     onClick={() => handleSort('full_name')}
-                    className="flex items-center gap-1 text-xs font-medium text-gray-400 uppercase tracking-wider hover:text-[#1A1A2E] transition-colors"
+                    className="flex items-center gap-1 text-xs font-medium text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors"
                   >
                     Name
                     {sortField === 'full_name' && (
@@ -324,7 +324,7 @@ export default function RoleManagement() {
                 <th className="px-4 py-3 text-left">
                   <button
                     onClick={() => handleSort('email')}
-                    className="flex items-center gap-1 text-xs font-medium text-gray-400 uppercase tracking-wider hover:text-[#1A1A2E] transition-colors"
+                    className="flex items-center gap-1 text-xs font-medium text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors"
                   >
                     Email
                     {sortField === 'email' && (
@@ -335,7 +335,7 @@ export default function RoleManagement() {
                 <th className="px-4 py-3 text-left">
                   <button
                     onClick={() => handleSort('role')}
-                    className="flex items-center gap-1 text-xs font-medium text-gray-400 uppercase tracking-wider hover:text-[#1A1A2E] transition-colors"
+                    className="flex items-center gap-1 text-xs font-medium text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors"
                   >
                     Role
                     {sortField === 'role' && (
@@ -343,11 +343,11 @@ export default function RoleManagement() {
                     )}
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">User ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E9ECEF]">
+            <tbody className="divide-y divide-slate-200">
               <AnimatePresence>
                 {filteredUsers.map((user, index) => (
                   <motion.tr
@@ -356,19 +356,19 @@ export default function RoleManagement() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ delay: index * 0.01 }}
-                    className="hover:bg-[#FAFAFA] transition-colors"
+                    className="hover:bg-slate-50 transition-colors"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-[#1A1A2E] rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                        <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center text-white font-semibold text-xs">
                           {user.full_name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="font-medium text-[#1A1A2E]">{user.full_name}</span>
+                        <span className="font-medium text-slate-900">{user.full_name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-slate-600">
                       <div className="flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-gray-400" />
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
                         {user.email}
                       </div>
                     </td>
@@ -377,7 +377,7 @@ export default function RoleManagement() {
                         <select
                           value={selectedRole}
                           onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                          className="px-3 py-1.5 border border-[#E9ECEF] rounded-lg text-sm focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 bg-white"
+                          className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 bg-white"
                           autoFocus
                         >
                           {roles.map((role) => (
@@ -393,18 +393,18 @@ export default function RoleManagement() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <code className="text-xs font-mono text-gray-400 bg-[#FAFAFA] px-2 py-0.5 rounded border border-[#E9ECEF] truncate max-w-[80px]">
+                        <code className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
                           {user.id.slice(0, 8)}...
                         </code>
                         <button
                           onClick={() => copyUserId(user.id)}
-                          className="p-0.5 hover:bg-gray-100 rounded transition-colors"
+                          className="p-0.5 hover:bg-slate-100 rounded transition-colors"
                           title="Copy User ID"
                         >
                           {copiedId === user.id ? (
                             <Check className="w-3.5 h-3.5 text-green-600" />
                           ) : (
-                            <Copy className="w-3.5 h-3.5 text-gray-400" />
+                            <Copy className="w-3.5 h-3.5 text-slate-400" />
                           )}
                         </button>
                       </div>
@@ -412,16 +412,15 @@ export default function RoleManagement() {
                     <td className="px-4 py-3">
                       {editingUser === user.id ? (
                         <div className="flex gap-1.5">
-                          <button
-                            onClick={() => updateUserRole(user.id, selectedRole)}
-                            className="p-1.5 text-[#2ECC71] hover:bg-green-50 rounded-lg transition-colors"
-                            title="Save"
-                          >
+<button
+                             onClick={() => updateUserRole(user.id, selectedRole)}
+                             className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                           >
                             <Save className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setEditingUser(null)}
-                            className="p-1.5 text-[#E94560] hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-blue-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Cancel"
                           >
                             <X className="w-4 h-4" />
@@ -429,19 +428,18 @@ export default function RoleManagement() {
                         </div>
                       ) : (
                         <div className="flex gap-1.5">
-                          <button
-                            onClick={() => {
-                              setEditingUser(user.id)
-                              setSelectedRole(user.role)
-                            }}
-                            className="p-1.5 text-[#3B82F6] hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Edit Role"
-                          >
+<button
+                             onClick={() => {
+                               setEditingUser(user.id)
+                               setSelectedRole(user.role)
+                             }}
+                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setDeletingUser(user)}
-                            className="p-1.5 text-[#E94560] hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-blue-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete User"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -458,9 +456,9 @@ export default function RoleManagement() {
 
         {filteredUsers.length === 0 && (
           <div className="text-center py-12">
-            <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-400 font-medium">No users found</p>
-            <p className="text-sm text-gray-400 mt-1">Try adjusting your search</p>
+            <Users className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+            <p className="text-slate-400 font-medium">No users found</p>
+            <p className="text-sm text-slate-400 mt-1">Try adjusting your search</p>
           </div>
         )}
       </div>
@@ -471,58 +469,58 @@ export default function RoleManagement() {
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 border border-[#E9ECEF] shadow-xl"
+            className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 border border-slate-200 shadow-xl"
           >
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-9 h-9 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
                 <UserPlus className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-[#1A1A2E]">Add New User</h3>
-                <p className="text-xs text-gray-400">Create a new user account</p>
+                <h3 className="text-lg font-bold text-slate-900">Add New User</h3>
+                <p className="text-xs text-slate-400">Create a new user account</p>
               </div>
             </div>
 
             <form onSubmit={addNewUser} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Full Name</label>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Full Name</label>
                 <input
                   type="text"
                   placeholder="John Doe"
                   value={newUser.full_name}
                   onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Email Address</label>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Email Address</label>
                 <input
                   type="email"
                   placeholder="user@example.com"
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Password</label>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Password</label>
                 <input
                   type="password"
                   placeholder="Min 6 characters"
                   value={newUser.password}
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">Role</label>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Role</label>
                 <select
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value as UserRole })}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                 >
                   {roles.map((role) => (
                     <option key={role} value={role} className="capitalize">{role}</option>
@@ -532,14 +530,14 @@ export default function RoleManagement() {
               <div className="flex gap-3 pt-3">
                 <button
                   type="submit"
-                  className="flex-1 bg-[#E94560] text-white font-medium py-2.5 rounded-lg hover:bg-[#c73d54] transition-all text-sm"
+                  className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition-all text-sm"
                 >
                   Add User
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowAddUser(false)}
-                  className="flex-1 bg-white text-[#1A1A2E] font-medium py-2.5 rounded-lg border border-[#E9ECEF] hover:bg-gray-50 transition-all text-sm"
+                  className="flex-1 bg-white text-slate-900 font-medium py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all text-sm"
                 >
                   Cancel
                 </button>
@@ -555,29 +553,29 @@ export default function RoleManagement() {
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-xl w-full max-w-md p-6 border border-[#E9ECEF] shadow-xl"
+            className="bg-white rounded-xl w-full max-w-md p-6 border border-slate-200 shadow-xl"
           >
             <div className="text-center">
-              <div className="w-14 h-14 bg-[#E94560]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-7 h-7 text-[#E94560]" />
+              <div className="w-14 h-14 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-7 h-7 text-blue-600" />
               </div>
-              <h3 className="text-lg font-bold text-[#1A1A2E] mb-2">Delete User</h3>
-              <p className="text-gray-500 mb-1">
-                Are you sure you want to delete <span className="font-semibold text-[#1A1A2E]">{deletingUser.full_name}</span>?
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Delete User</h3>
+              <p className="text-slate-500 mb-1">
+                Are you sure you want to delete <span className="font-semibold text-slate-900">{deletingUser.full_name}</span>?
               </p>
-              <p className="text-sm text-[#E94560] font-medium">This action cannot be undone.</p>
+              <p className="text-sm text-blue-600 font-medium">This action cannot be undone.</p>
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setDeletingUser(null)}
                   disabled={deleting}
-                  className="flex-1 bg-white text-[#1A1A2E] font-medium py-2.5 rounded-lg border border-[#E9ECEF] hover:bg-gray-50 transition-all text-sm disabled:opacity-50"
+                  className="flex-1 bg-white text-slate-900 font-medium py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all text-sm disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteUser}
                   disabled={deleting}
-                  className="flex-1 bg-[#E94560] text-white font-medium py-2.5 rounded-lg hover:bg-[#c73d54] transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {deleting ? (
                     <>

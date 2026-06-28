@@ -37,13 +37,13 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4 }}
-      className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm hover:shadow-md transition-all overflow-hidden"
+      className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Image */}
       <div
-        className="relative h-32 bg-gray-100 cursor-pointer"
+        className="relative h-32 bg-slate-100 cursor-pointer"
         onClick={() => setShowImage(true)}
       >
         {item.photo_url ? (
@@ -54,7 +54,7 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="w-8 h-8 text-gray-300" />
+            <ImageIcon className="w-8 h-8 text-slate-300" />
           </div>
         )}
         {isHovered && (
@@ -68,15 +68,15 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h4 className="font-semibold text-[#1A1A2E]">{item.item_name}</h4>
-            <p className="text-xs text-gray-400">SKU: {item.sku}</p>
+            <h4 className="font-semibold text-slate-900">{item.item_name}</h4>
+            <p className="text-xs text-slate-400">SKU: {item.sku}</p>
           </div>
           <div className="flex flex-col gap-1 items-end">
-            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full">
               {item.category || 'Uncategorized'}
             </span>
             {item.price > 0 && (
-              <span className="text-xs font-bold text-[#E94560]">
+              <span className="text-xs font-bold text-blue-600">
                 Rp {Number(item.price).toLocaleString('id-ID')}
               </span>
             )}
@@ -87,19 +87,19 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div className="bg-green-50 rounded-lg p-2 text-center border border-green-100">
             <Package className="w-4 h-4 text-green-600 mx-auto" />
-            <p className="text-xs text-gray-500">Toko</p>
+            <p className="text-xs text-slate-500">Toko</p>
             <p className="text-sm font-bold text-green-700">{item.store_stock} {item.unit}</p>
           </div>
           <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-100">
             <Warehouse className="w-4 h-4 text-blue-600 mx-auto" />
-            <p className="text-xs text-gray-500">Gudang</p>
+            <p className="text-xs text-slate-500">Gudang</p>
             <p className="text-sm font-bold text-blue-700">{item.warehouse_stock} {item.unit}</p>
           </div>
         </div>
 
         {/* Actions */}
         {isHovered && (
-          <div className="flex gap-2 mt-3 pt-3 border-t border-[#E9ECEF]">
+          <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
             <button className="flex-1 text-xs text-blue-600 hover:bg-blue-50 py-1 rounded flex items-center justify-center gap-1">
               <Edit2 className="w-3 h-3" />
               Edit
@@ -129,7 +129,7 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
             />
             <button
               onClick={() => setShowImage(false)}
-              className="mt-4 w-full bg-white text-black py-2 rounded-lg hover:bg-gray-100"
+              className="mt-4 w-full bg-white text-black py-2 rounded-lg hover:bg-slate-100"
             >
               Tutup
             </button>

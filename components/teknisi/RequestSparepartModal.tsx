@@ -123,13 +123,13 @@ export default function RequestSparepartModal({
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center border border-[#E9ECEF]"
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center border border-slate-200"
         >
           <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <Clock className="w-8 h-8 text-white" />
           </div>
-          <h3 className="text-xl font-bold text-[#1A1A2E] mb-2">REQUEST TERKIRIM!</h3>
-          <p className="text-gray-500 mb-4">Admin akan segera memproses permintaan sparepart.</p>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">REQUEST TERKIRIM!</h3>
+          <p className="text-slate-500 mb-4">Admin akan segera memproses permintaan sparepart.</p>
           <p className="text-sm text-yellow-600">Status: Request PO</p>
         </motion.div>
       </div>
@@ -142,17 +142,17 @@ export default function RequestSparepartModal({
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-[#E9ECEF]"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200"
       >
-        <div className="sticky top-0 z-10 bg-white border-b border-[#E9ECEF] p-4 flex justify-between items-center">
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-200 p-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
               <Package className="w-4 h-4 text-white" />
             </div>
-            <h3 className="text-lg font-semibold text-[#1A1A2E]">REQUEST SPAREPART (PO)</h3>
+            <h3 className="text-lg font-semibold text-slate-900">REQUEST SPAREPART (PO)</h3>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
-            <X className="w-5 h-5 text-gray-400" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-all">
+            <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
 
@@ -165,39 +165,39 @@ export default function RequestSparepartModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-1">
+            <label className="block text-sm font-medium text-slate-900 mb-1">
               Nama Sparepart <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.sparepart_name}
               onChange={(e) => setFormData({ ...formData, sparepart_name: e.target.value })}
-              className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] transition-all"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 transition-all"
               placeholder="Contoh: Mesin A, Kaca Arloji..."
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-1">
+            <label className="block text-sm font-medium text-slate-900 mb-1">
               SKU (Opsional)
             </label>
             <input
               type="text"
               value={formData.sparepart_sku}
               onChange={(e) => setFormData({ ...formData, sparepart_sku: e.target.value })}
-              className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] transition-all"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 transition-all"
               placeholder="Kode SKU jika ada"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Jumlah</label>
+            <label className="block text-sm font-medium text-slate-900 mb-1">Jumlah</label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={decreaseQuantity}
-                className="w-9 h-9 border border-[#E9ECEF] rounded-lg font-bold hover:bg-gray-50 transition-all"
+                className="w-9 h-9 border border-slate-200 rounded-lg font-bold hover:bg-slate-50 transition-all"
               >
                 -
               </button>
@@ -206,12 +206,12 @@ export default function RequestSparepartModal({
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
                 min={1}
-                className="w-20 text-center px-2 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560]"
+                className="w-20 text-center px-2 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
               />
               <button
                 type="button"
                 onClick={increaseQuantity}
-                className="w-9 h-9 border border-[#E9ECEF] rounded-lg font-bold hover:bg-gray-50 transition-all"
+                className="w-9 h-9 border border-slate-200 rounded-lg font-bold hover:bg-slate-50 transition-all"
               >
                 +
               </button>
@@ -219,29 +219,29 @@ export default function RequestSparepartModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#1A1A2E] mb-1">Catatan (Opsional)</label>
+            <label className="block text-sm font-medium text-slate-900 mb-1">Catatan (Opsional)</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={2}
-              className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] transition-all resize-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 transition-all resize-none"
               placeholder="Tambahan informasi untuk admin..."
             />
           </div>
 
-          <div className="bg-[#F8F9FA] rounded-lg p-3 border border-[#E9ECEF]">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Informasi Service</p>
+          <div className="bg-[#F8F9FA] rounded-lg p-3 border border-slate-200">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Informasi Service</p>
             <div className="text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-gray-500">Customer:</span>
+                <span className="text-slate-500">Customer:</span>
                 <span className="font-medium">{service.customer_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Invoice:</span>
+                <span className="text-slate-500">Invoice:</span>
                 <span className="font-mono">{service.invoice_number}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Device:</span>
+                <span className="text-slate-500">Device:</span>
                 <span>{service.watch_brand || service.device_brand}</span>
               </div>
             </div>

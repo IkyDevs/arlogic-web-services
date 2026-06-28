@@ -224,22 +224,22 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white rounded-xl border border-[#E9ECEF] shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+      className="bg-white rounded-xl border border-slate-200 shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
     >
       {/* Header */}
-      <div className="sticky top-0 bg-white z-10 flex justify-between items-center px-6 py-4 border-b border-[#E9ECEF]">
+      <div className="sticky top-0 bg-white z-10 flex justify-between items-center px-6 py-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+          <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
             <FileText className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-[#1A1A2E]">New Transaction</h2>
-            <p className="text-xs text-gray-400">Input customer transaction</p>
+            <h2 className="text-lg font-bold text-slate-900">New Transaction</h2>
+            <p className="text-xs text-slate-400">Input customer transaction</p>
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-gray-400" />
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+            <X className="w-4 h-4 text-slate-400" />
           </button>
         )}
       </div>
@@ -247,50 +247,50 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
       {/* Form Body */}
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         {/* Customer Information */}
-        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
             <User className="w-4 h-4" />
             Customer Data
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Customer Name <span className="text-[#E94560]">*</span>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                Customer Name <span className="text-blue-600">*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   value={formData.customer_name}
                   onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   placeholder="Customer name"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                WhatsApp <span className="text-[#E94560]">*</span>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                WhatsApp <span className="text-blue-600">*</span>
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="tel"
                   value={formData.customer_whatsapp}
                   onChange={(e) => setFormData({ ...formData, customer_whatsapp: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   placeholder="081234567890"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                 Date
               </label>
-              <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-[#E9ECEF] rounded-lg text-sm text-gray-600">
-                <Calendar className="w-4 h-4 text-gray-400" />
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
+                <Calendar className="w-4 h-4 text-slate-400" />
                 {new Date().toLocaleDateString('id-ID')}
               </div>
             </div>
@@ -298,20 +298,20 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
         </div>
 
         {/* Service Details */}
-        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
             <Wrench className="w-4 h-4" />
             Service Details
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Service Type <span className="text-[#E94560]">*</span>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                Service Type <span className="text-blue-600">*</span>
               </label>
               <select
                 value={formData.jenis_layanan}
                 onChange={(e) => setFormData({ ...formData, jenis_layanan: e.target.value as JenisLayanan })}
-                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
               >
                 {jenisLayananOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -319,13 +319,13 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Handled By <span className="text-[#E94560]">*</span>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                Handled By <span className="text-blue-600">*</span>
               </label>
               <select
                 value={formData.handled_by}
                 onChange={(e) => setFormData({ ...formData, handled_by: e.target.value })}
-                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                 required
               >
                 <option value="">Select handler</option>
@@ -335,16 +335,16 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                 SKU / Description
               </label>
               <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
                   value={formData.detail_sku}
                   onChange={(e) => setFormData({ ...formData, detail_sku: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   placeholder="Item description / SKU..."
                 />
               </div>
@@ -353,20 +353,20 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
         </div>
 
         {/* Transaction Details */}
-        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
             <DollarSign className="w-4 h-4" />
             Transaction
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Payment Method <span className="text-[#E94560]">*</span>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                Payment Method <span className="text-blue-600">*</span>
               </label>
               <select
                 value={formData.metode_pembayaran}
                 onChange={(e) => setFormData({ ...formData, metode_pembayaran: e.target.value as MetodePembayaran })}
-                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
               >
                 {metodePembayaranOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -374,29 +374,29 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Amount <span className="text-[#E94560]">*</span>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                Amount <span className="text-blue-600">*</span>
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="number"
                   value={formData.nominal}
                   onChange={(e) => setFormData({ ...formData, nominal: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   placeholder="0"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                Lead Source <span className="text-[#E94560]">*</span>
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                Lead Source <span className="text-blue-600">*</span>
               </label>
               <select
                 value={formData.lead_source}
                 onChange={(e) => setFormData({ ...formData, lead_source: e.target.value as LeadSource })}
-                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
               >
                 {leadSourceOptions.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -404,14 +404,14 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                 Notes
               </label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
-                className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all resize-none text-sm"
                 placeholder="Additional notes..."
               />
             </div>
@@ -420,25 +420,25 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
 
         {/* Custom Lead Source (conditional) */}
         {showCustomLeadSource && (
-          <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
               Custom Lead Source
             </label>
             <input
               type="text"
               value={formData.lead_source_custom}
               onChange={(e) => setFormData({ ...formData, lead_source_custom: e.target.value })}
-              className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
               placeholder="Type custom lead source..."
             />
           </div>
         )}
 
         {/* Photo Upload - WAJIB */}
-        <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Camera className="w-4 h-4" />
-            Transaction Photo <span className="text-[#E94560]">*Required</span>
+            Transaction Photo <span className="text-blue-600">*Required</span>
           </p>
 
           {photoPreview ? (
@@ -446,12 +446,12 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
               <img
                 src={photoPreview}
                 alt="Preview"
-                className="w-full max-h-64 object-cover rounded-lg border border-[#E9ECEF]"
+                className="w-full max-h-64 object-cover rounded-lg border border-slate-200"
               />
               <button
                 type="button"
                 onClick={removePhoto}
-                className="absolute top-2 right-2 bg-[#E94560] text-white p-1.5 rounded-lg hover:bg-[#c73d54] transition-colors"
+                className="absolute top-2 right-2 bg-blue-600 text-white p-1.5 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -459,11 +459,11 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
           ) : (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-[#E9ECEF] rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+              className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center cursor-pointer hover:bg-slate-50 transition-colors"
             >
-              <Camera className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm font-medium text-gray-500">Click to upload photo</p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG (max 10MB, auto compressed)</p>
+              <Camera className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+              <p className="text-sm font-medium text-slate-500">Click to upload photo</p>
+              <p className="text-xs text-slate-400 mt-1">JPG, PNG (max 10MB, auto compressed)</p>
             </div>
           )}
 
@@ -479,21 +479,21 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
           {(uploadingPhoto || (uploading && progress > 0)) && (
             <div className="mt-3">
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-gray-500">Compressing & uploading...</span>
-                <span className="font-medium text-[#1A1A2E]">{progress}%</span>
+                <span className="text-slate-500">Compressing & uploading...</span>
+                <span className="font-medium text-slate-900">{progress}%</span>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-[#E94560] h-1.5 transition-all duration-300"
+                  className="bg-blue-600 h-1.5 transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">Image will be compressed 70-80%</p>
+              <p className="text-xs text-slate-400 mt-1">Image will be compressed 70-80%</p>
             </div>
           )}
 
           {!photoPreview && !initialData?.photo_url && (
-            <p className="text-xs text-[#E94560] flex items-center gap-1 mt-2">
+            <p className="text-xs text-blue-600 flex items-center gap-1 mt-2">
               <AlertCircle className="w-3 h-3" />
               Photo is required
             </p>
@@ -501,11 +501,11 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
         </div>
 
         {/* Submit Button */}
-        <div className="flex gap-3 pt-4 border-t border-[#E9ECEF]">
+        <div className="flex gap-3 pt-4 border-t border-slate-200">
           <button
             type="submit"
             disabled={loading || uploadingPhoto || (!photoPreview && !initialData?.photo_url)}
-            className="flex-1 bg-[#E94560] text-white font-medium py-3 rounded-lg hover:bg-[#c73d54] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+            className="flex-1 bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
             {loading || uploadingPhoto ? (
               <>
@@ -523,7 +523,7 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
             <button
               type="button"
               onClick={onClose}
-              className="px-6 bg-white text-[#1A1A2E] font-medium py-3 rounded-lg border border-[#E9ECEF] hover:bg-gray-50 transition-all text-sm"
+              className="px-6 bg-white text-slate-900 font-medium py-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all text-sm"
             >
               Cancel
             </button>

@@ -224,7 +224,7 @@ Deskripsi : ${message}`
       case 'issue_found': return <AlertCircle className="w-4 h-4 text-red-500" />
       case 'testing': return <CheckCircle className="w-4 h-4 text-blue-500" />
       case 'diagnosis': return <Wrench className="w-4 h-4 text-orange-500" />
-      default: return <Clock className="w-4 h-4 text-gray-500" />
+      default: return <Clock className="w-4 h-4 text-slate-500" />
     }
   }
 
@@ -237,7 +237,7 @@ Deskripsi : ${message}`
       issue_found: { label: 'Issue Found', color: 'bg-red-100 text-red-700' },
       consultation: { label: 'Consultation', color: 'bg-yellow-100 text-yellow-700' },
       completed: { label: 'Completed', color: 'bg-emerald-100 text-emerald-700' },
-      progress: { label: 'In Progress', color: 'bg-gray-100 text-gray-700' }
+      progress: { label: 'In Progress', color: 'bg-slate-100 text-slate-700' }
     }
 
     const badge = badges[status] || badges.progress
@@ -282,27 +282,27 @@ Deskripsi : ${message}`
             >
               {/* Timeline line */}
               {index < timeline.length - 1 && (
-                <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-gray-200" />
+                <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-slate-200" />
               )}
 
               {/* Timeline dot */}
               <div className="absolute left-0 top-1 w-4 h-4 bg-white border-2 border-blue-500 rounded-full" />
 
               {/* Content */}
-              <div className="bg-gray-50 rounded-xl p-3 ml-2">
+              <div className="bg-slate-50 rounded-xl p-3 ml-2">
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     {getStatusIcon(update.status)}
-                    <span className="text-xs font-medium text-gray-500">
+                    <span className="text-xs font-medium text-slate-500">
                       {new Date(update.created_at).toLocaleString()}
                     </span>
                     {getStatusBadge(update.status)}
                   </div>
                   {update.details?.updated_by && (
-                    <span className="text-xs text-gray-400">by {update.details.updated_by}</span>
+                    <span className="text-xs text-slate-400">by {update.details.updated_by}</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-700">{update.message}</p>
+                <p className="text-sm text-slate-700">{update.message}</p>
 
                 {/* Photo if exists */}
                 {update.photo_url && (
@@ -321,7 +321,7 @@ Deskripsi : ${message}`
         </AnimatePresence>
 
         {timeline.length === 0 && (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8 text-slate-400">
             <Clock className="w-12 h-12 mx-auto mb-2 opacity-30" />
             <p className="text-sm">No updates yet</p>
             <p className="text-xs">Add your first update to keep customer informed</p>
@@ -333,7 +333,7 @@ Deskripsi : ${message}`
       <GlassCard className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <MessageSquare className="w-4 h-4 text-blue-500" />
-          <h4 className="font-semibold text-gray-800">Add Service Update</h4>
+          <h4 className="font-semibold text-slate-800">Add Service Update</h4>
           <button
             onClick={() => setShowTemplates(!showTemplates)}
             className="ml-auto text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
@@ -357,9 +357,9 @@ Deskripsi : ${message}`
                   <button
                     key={i}
                     onClick={() => useTemplate(template)}
-                    className="flex items-center gap-2 p-2 text-left text-sm bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-2 p-2 text-left text-sm bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
                   >
-                    <template.icon className="w-3 h-3 text-gray-500" />
+                    <template.icon className="w-3 h-3 text-slate-500" />
                     <span className="text-xs">{template.label}</span>
                   </button>
                 ))}
@@ -392,14 +392,14 @@ Deskripsi : ${message}`
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Update customer about service progress..."
             rows={2}
-            className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none text-sm"
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none text-sm"
           />
 
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-1 text-sm"
+              className="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors flex items-center gap-1 text-sm"
               disabled={uploading}
             >
               <Camera className="w-4 h-4" />
@@ -442,7 +442,7 @@ Deskripsi : ${message}`
           </div>
         </div>
 
-        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+        <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
           <Camera className="w-3 h-3" />
           Updates with photos will be visible to customer for service tracking
         </p>
@@ -462,20 +462,20 @@ Deskripsi : ${message}`
                 <h3 className="text-lg font-bold">Contact Customer</h3>
               </div>
               <button onClick={() => setShowContactModal(false)} className="p-1">
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   To: {customerName}
                 </label>
-                <p className="text-sm text-gray-500">{customerPhone}</p>
+                <p className="text-sm text-slate-500">{customerPhone}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Message (Optional)
                 </label>
                 <textarea

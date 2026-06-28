@@ -38,7 +38,7 @@ export default function AnimatedInput({
       >
         <div className="relative">
           {icon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               {icon}
             </div>
           )}
@@ -54,8 +54,8 @@ export default function AnimatedInput({
               w-full px-4 py-3 bg-white/50 border rounded-xl
               transition-all duration-200 outline-none
               ${icon ? 'pl-10' : 'pl-4'}
-              ${error ? 'border-red-500' : isFocused ? 'border-blue-500' : 'border-gray-200'}
-              hover:border-gray-300 focus:bg-white
+              ${error ? 'border-red-500' : isFocused ? 'border-blue-500' : 'border-slate-200'}
+              hover:border-slate-300 focus:bg-white
             `}
           />
           <AnimatePresence>
@@ -64,7 +64,7 @@ export default function AnimatedInput({
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute -top-2.5 left-3 px-1 bg-white text-xs font-medium text-gray-500"
+                className="absolute -top-2.5 left-3 px-1 bg-white text-xs font-medium text-slate-500"
               >
                 {label}
               </motion.div>

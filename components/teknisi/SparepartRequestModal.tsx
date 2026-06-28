@@ -174,21 +174,21 @@ export default function SparepartRequestModal({
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-md p-8 text-center"
+          className="bg-white border border-slate-200 shadow-sm w-full max-w-md p-8 text-center"
         >
-          <div className="w-16 h-16 bg-green-500 flex items-center justify-center border-2 border-black mx-auto mb-4">
+          <div className="w-16 h-16 bg-green-500 flex items-center justify-center border border-slate-200 mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-white" />
           </div>
           <h3 className="text-xl font-black mb-2">REQUEST TERKIRIM!</h3>
-          <p className="text-gray-600 mb-4">Permintaan sparepart sudah dikirim ke admin.</p>
-          <p className="text-sm text-gray-500">Status service akan berubah setelah admin merespon.</p>
+          <p className="text-slate-600 mb-4">Permintaan sparepart sudah dikirim ke admin.</p>
+          <p className="text-sm text-slate-500">Status service akan berubah setelah admin merespon.</p>
           <button
             onClick={() => {
               onSuccess()
               onClose()
               setSuccess(false)
             }}
-            className="mt-4 bg-[#3B82F6] text-white font-bold py-2 px-4 border-2 border-black shadow-[3px_3px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+            className="mt-4 bg-teal-600 text-white font-bold py-2 px-4 border border-slate-200 shadow-sm hover:shadow-md transition-all"
           >
             TUTUP
           </button>
@@ -203,16 +203,16 @@ export default function SparepartRequestModal({
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white border-2 border-black shadow-[8px_8px_0px_0px_black] w-full max-w-md max-h-[90vh] overflow-y-auto"
+        className="bg-white border border-slate-200 shadow-sm w-full max-w-md max-h-[90vh] overflow-y-auto"
       >
-        <div className="p-4 border-b-2 border-black flex justify-between items-center sticky top-0 bg-white">
+        <div className="p-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#3B82F6] flex items-center justify-center border border-black">
+            <div className="w-8 h-8 bg-teal-600 flex items-center justify-center border border-slate-200">
               <Package className="w-4 h-4 text-white" />
             </div>
             <h3 className="text-xl font-black">REQUEST SPAREPART</h3>
           </div>
-          <button onClick={onClose} className="p-1 border-2 border-black hover:bg-gray-100">
+          <button onClick={onClose} className="p-1 border border-slate-200 hover:bg-slate-100">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -226,7 +226,7 @@ export default function SparepartRequestModal({
               type="text"
               value={formData.sparepart_name}
               onChange={(e) => setFormData({ ...formData, sparepart_name: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+              className="w-full px-3 py-2 border border-slate-200 font-mono focus:outline-none   transition-all"
               placeholder="Contoh: Kaca Arloji, Mesin, Battery..."
               required
             />
@@ -240,10 +240,10 @@ export default function SparepartRequestModal({
               type="text"
               value={formData.sparepart_sku}
               onChange={(e) => setFormData({ ...formData, sparepart_sku: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all"
+              className="w-full px-3 py-2 border border-slate-200 font-mono focus:outline-none   transition-all"
               placeholder="Kode SKU jika ada"
             />
-            <p className="text-xs text-gray-400 mt-1">*Memasukkan SKU akan mempermudah admin mencari stock</p>
+            <p className="text-xs text-slate-400 mt-1">*Memasukkan SKU akan mempermudah admin mencari stock</p>
           </div>
 
           <div>
@@ -252,7 +252,7 @@ export default function SparepartRequestModal({
               <button
                 type="button"
                 onClick={decreaseQuantity}
-                className="w-8 h-8 border-2 border-black font-bold hover:bg-gray-100 transition-all"
+                className="w-8 h-8 border border-slate-200 font-bold hover:bg-slate-100 transition-all"
               >
                 -
               </button>
@@ -261,12 +261,12 @@ export default function SparepartRequestModal({
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
                 min={1}
-                className="w-20 text-center px-2 py-2 border-2 border-black font-mono focus:outline-none"
+                className="w-20 text-center px-2 py-2 border border-slate-200 font-mono focus:outline-none"
               />
               <button
                 type="button"
                 onClick={increaseQuantity}
-                className="w-8 h-8 border-2 border-black font-bold hover:bg-gray-100 transition-all"
+                className="w-8 h-8 border border-slate-200 font-bold hover:bg-slate-100 transition-all"
               >
                 +
               </button>
@@ -281,8 +281,8 @@ export default function SparepartRequestModal({
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, source_type: 'store' })}
-                className={`py-2 border-2 border-black font-bold flex items-center justify-center gap-2 transition-all ${
-                  formData.source_type === 'store' ? 'bg-[#FFDE00] text-black' : 'bg-white text-black'
+                className={`py-2 border border-slate-200 font-bold flex items-center justify-center gap-2 transition-all ${
+                  formData.source_type === 'store' ? 'bg-amber-500 text-black' : 'bg-white text-slate-900'
                 }`}
               >
                 <Package className="w-4 h-4" />
@@ -291,8 +291,8 @@ export default function SparepartRequestModal({
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, source_type: 'warehouse' })}
-                className={`py-2 border-2 border-black font-bold flex items-center justify-center gap-2 transition-all ${
-                  formData.source_type === 'warehouse' ? 'bg-[#FF6B9D] text-white' : 'bg-white text-black'
+                className={`py-2 border border-slate-200 font-bold flex items-center justify-center gap-2 transition-all ${
+                  formData.source_type === 'warehouse' ? 'bg-pink-600 text-white' : 'bg-white text-slate-900'
                 }`}
               >
                 <Warehouse className="w-4 h-4" />
@@ -325,28 +325,28 @@ export default function SparepartRequestModal({
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={2}
-              className="w-full px-3 py-2 border-2 border-black font-mono focus:outline-none focus:translate-x-[1px] focus:translate-y-[1px] transition-all resize-none"
+              className="w-full px-3 py-2 border border-slate-200 font-mono focus:outline-none   transition-all resize-none"
               placeholder="Tambahan informasi untuk admin..."
             />
           </div>
 
-          <div className="border-t-2 border-black pt-4 bg-[#F5F5F5] p-3 -mx-5 px-5">
+          <div className="border-t border-slate-200 pt-4 bg-slate-50 p-3 -mx-5 px-5">
             <p className="text-xs font-black uppercase mb-2">INFORMASI SERVICE</p>
             <div className="text-sm space-y-1">
               <div className="flex justify-between">
-                <span className="text-gray-500">Customer:</span>
+                <span className="text-slate-500">Customer:</span>
                 <span className="font-bold">{service.customer_name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Invoice:</span>
+                <span className="text-slate-500">Invoice:</span>
                 <span className="font-mono">{service.invoice_number}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Device:</span>
+                <span className="text-slate-500">Device:</span>
                 <span>{service.watch_brand || service.device_brand} {service.watch_model || service.device_model}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Problem:</span>
+                <span className="text-slate-500">Problem:</span>
                 <span className="truncate max-w-[200px]">{service.issue_description?.substring(0, 50)}...</span>
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function SparepartRequestModal({
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#3B82F6] text-white font-bold py-3 border-2 border-black shadow-[3px_3px_0px_0px_black] hover:translate-x-[1px] hover:translate-y-[1px] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-teal-600 text-white font-bold py-3 border border-slate-200 shadow-sm hover:shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -370,7 +370,7 @@ export default function SparepartRequestModal({
             )}
           </button>
 
-          <p className="text-xs text-gray-400 text-center">
+          <p className="text-xs text-slate-400 text-center">
             *Request akan dikirim ke admin. Kamu akan mendapat notifikasi setelah admin merespon.
           </p>
         </form>

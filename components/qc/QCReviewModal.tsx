@@ -150,7 +150,7 @@ export default function QCReviewModal({
       completed: { label: 'Completed', color: 'bg-green-100 text-green-700' },
       cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700' }
     }
-    return badges[status] || { label: status, color: 'bg-gray-100 text-gray-700' }
+    return badges[status] || { label: status, color: 'bg-slate-100 text-slate-700' }
   }
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -161,8 +161,8 @@ export default function QCReviewModal({
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#E94560] border-t-transparent mx-auto" />
-          <p className="mt-3 text-gray-500">Loading details...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto" />
+          <p className="mt-3 text-slate-500">Loading details...</p>
         </div>
       </div>
     )
@@ -176,18 +176,18 @@ export default function QCReviewModal({
         className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-[#E9ECEF] flex justify-between items-center sticky top-0 bg-white z-10">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
           <div>
-            <h3 className="text-lg font-bold text-[#1A1A2E]">Review Service</h3>
+            <h3 className="text-lg font-bold text-slate-900">Review Service</h3>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-gray-400">{service.invoice_number}</span>
-              <span className="text-xs text-gray-400">•</span>
-              <span className="text-xs text-gray-400">{service.teknisi_name}</span>
+              <span className="text-xs text-slate-400">{service.invoice_number}</span>
+              <span className="text-xs text-slate-400">•</span>
+              <span className="text-xs text-slate-400">{service.teknisi_name}</span>
               <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">QC Pending</span>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all">
-            <X className="w-5 h-5 text-gray-400" />
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-all">
+            <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
 
@@ -196,51 +196,51 @@ export default function QCReviewModal({
 
           {/* Customer & Watch Info */}
           <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
               <div className="flex items-center gap-2 mb-3">
-                <User className="w-4 h-4 text-[#E94560]" />
+                <User className="w-4 h-4 text-blue-600" />
                 <h4 className="text-sm font-semibold">Customer</h4>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Nama</span>
+                  <span className="text-slate-500">Nama</span>
                   <span className="font-medium">{service.customer_name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">WhatsApp</span>
+                  <span className="text-slate-500">WhatsApp</span>
                   <span className="font-medium">{service.customer_phone || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Serial</span>
+                  <span className="text-slate-500">Serial</span>
                   <span className="font-mono text-sm">{service.serial_number || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Tanggal</span>
+                  <span className="text-slate-500">Tanggal</span>
                   <span className="font-medium">{formatDate(service.created_at)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
               <div className="flex items-center gap-2 mb-3">
-                <Watch className="w-4 h-4 text-[#E94560]" />
+                <Watch className="w-4 h-4 text-blue-600" />
                 <h4 className="text-sm font-semibold">Watch</h4>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Brand</span>
+                  <span className="text-slate-500">Brand</span>
                   <span className="font-medium">{service.watch_brand || service.device_brand || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Model</span>
+                  <span className="text-slate-500">Model</span>
                   <span className="font-medium">{service.watch_model || service.device_model || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Movement</span>
+                  <span className="text-slate-500">Movement</span>
                   <span className="font-medium capitalize">{service.watch_movement || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Condition</span>
+                  <span className="text-slate-500">Condition</span>
                   <span className="font-medium capitalize">{service.watch_condition || '-'}</span>
                 </div>
               </div>
@@ -248,52 +248,52 @@ export default function QCReviewModal({
           </div>
 
           {/* Teknisi Info */}
-          <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+          <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
             <div className="flex items-center gap-2 mb-3">
-              <Wrench className="w-4 h-4 text-[#E94560]" />
+              <Wrench className="w-4 h-4 text-blue-600" />
               <h4 className="text-sm font-semibold">Teknisi</h4>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div>
-                <p className="text-gray-500">Teknisi</p>
+                <p className="text-slate-500">Teknisi</p>
                 <p className="font-medium">{service.teknisi_name || '-'}</p>
               </div>
               <div>
-                <p className="text-gray-500">Start</p>
+                <p className="text-slate-500">Start</p>
                 <p className="font-medium">{service.start_date ? formatDate(service.start_date) : '-'}</p>
               </div>
               <div>
-                <p className="text-gray-500">Done</p>
+                <p className="text-slate-500">Done</p>
                 <p className="font-medium">{service.done_date ? formatDate(service.done_date) : '-'}</p>
               </div>
               <div>
-                <p className="text-gray-500">Duration</p>
+                <p className="text-slate-500">Duration</p>
                 <p className="font-medium">{service.work_duration || '-'}</p>
               </div>
             </div>
           </div>
 
           {/* Service Details */}
-          <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+          <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
             <div className="flex items-center gap-2 mb-3">
-              <FileText className="w-4 h-4 text-[#E94560]" />
+              <FileText className="w-4 h-4 text-blue-600" />
               <h4 className="text-sm font-semibold">Service Details</h4>
             </div>
             <div className="space-y-3 text-sm">
               <div>
-                <p className="text-gray-500 mb-1">Issue</p>
-                <p className="text-gray-800 bg-white p-2 rounded border border-[#E9ECEF]">{service.issue_description}</p>
+                <p className="text-slate-500 mb-1">Issue</p>
+                <p className="text-slate-800 bg-white p-2 rounded border border-slate-200">{service.issue_description}</p>
               </div>
               {service.request && (
                 <div>
-                  <p className="text-gray-500 mb-1">Customer Request</p>
-                  <p className="text-gray-800 bg-white p-2 rounded border border-[#E9ECEF]">{service.request}</p>
+                  <p className="text-slate-500 mb-1">Customer Request</p>
+                  <p className="text-slate-800 bg-white p-2 rounded border border-slate-200">{service.request}</p>
                 </div>
               )}
               {service.completion_notes && (
                 <div>
-                  <p className="text-gray-500 mb-1">Completion Notes</p>
-                  <p className="text-gray-800 bg-white p-2 rounded border border-[#E9ECEF]">{service.completion_notes}</p>
+                  <p className="text-slate-500 mb-1">Completion Notes</p>
+                  <p className="text-slate-800 bg-white p-2 rounded border border-slate-200">{service.completion_notes}</p>
                 </div>
               )}
             </div>
@@ -301,13 +301,13 @@ export default function QCReviewModal({
 
           {/* Service Items */}
           {serviceItems.length > 0 && (
-            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
               <button
                 onClick={() => toggleSection('items')}
                 className="w-full flex items-center justify-between mb-3"
               >
                 <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-[#E94560]" />
+                  <Package className="w-4 h-4 text-blue-600" />
                   <h4 className="text-sm font-semibold">Items ({serviceItems.length})</h4>
                 </div>
                 {expandedSections.items ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -316,7 +316,7 @@ export default function QCReviewModal({
               {expandedSections.items && (
                 <div className="space-y-2">
                   {serviceItems.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-[#E9ECEF]">
+                    <div key={index} className="flex justify-between items-center p-2 bg-white rounded border border-slate-200">
                       <div className="flex items-center gap-3">
                         <span className={`px-2 py-0.5 text-xs font-medium rounded ${
                           item.item_type === 'jasa' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'
@@ -324,12 +324,12 @@ export default function QCReviewModal({
                           {item.item_type === 'jasa' ? 'JASA' : 'SPAREPART'}
                         </span>
                         <span className="font-medium">{item.name}</span>
-                        <span className="text-sm text-gray-500">x{item.quantity}</span>
+                        <span className="text-sm text-slate-500">x{item.quantity}</span>
                       </div>
                       <span className="font-semibold">{formatRupiah(item.price * item.quantity)}</span>
                     </div>
                   ))}
-                  <div className="flex justify-between items-center p-3 bg-gradient-to-r from-[#1A1A2E] to-[#0F3460] text-white rounded-lg font-bold">
+                  <div className="flex justify-between items-center p-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-lg font-bold">
                     <span>Total</span>
                     <span className="text-xl">{formatRupiah(service.final_cost || 0)}</span>
                   </div>
@@ -340,13 +340,13 @@ export default function QCReviewModal({
 
           {/* Timeline */}
           {timeline.length > 0 && (
-            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
               <button
                 onClick={() => toggleSection('timeline')}
                 className="w-full flex items-center justify-between mb-3"
               >
                 <div className="flex items-center gap-2">
-                  <ClockIcon className="w-4 h-4 text-[#E94560]" />
+                  <ClockIcon className="w-4 h-4 text-blue-600" />
                   <h4 className="text-sm font-semibold">Timeline</h4>
                 </div>
                 {expandedSections.timeline ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -357,23 +357,23 @@ export default function QCReviewModal({
                   {timeline.map((item, index) => (
                     <div key={item.id} className="relative pl-6 pb-3 last:pb-0">
                       {index < timeline.length - 1 && (
-                        <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-gray-200" />
+                        <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-slate-200" />
                       )}
-                      <div className="absolute left-0 top-1 w-3 h-3 rounded-full bg-[#E94560]" />
-                      <div className="bg-white p-3 rounded-lg border border-[#E9ECEF] ml-2">
+                      <div className="absolute left-0 top-1 w-3 h-3 rounded-full bg-blue-600" />
+                      <div className="bg-white p-3 rounded-lg border border-slate-200 ml-2">
                         <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-                          <span className="text-xs text-gray-500">{formatDate(item.created_at)}</span>
+                          <span className="text-xs text-slate-500">{formatDate(item.created_at)}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadge(item.status).color}`}>
                             {getStatusBadge(item.status).label}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-800">{item.message}</p>
+                        <p className="text-sm text-slate-800">{item.message}</p>
                         {item.photo_url && (
                           <div className="mt-2">
                             <img
                               src={item.photo_url}
                               alt="Timeline"
-                              className="max-h-32 rounded border border-[#E9ECEF] object-cover cursor-pointer"
+                              className="max-h-32 rounded border border-slate-200 object-cover cursor-pointer"
                               onClick={() => window.open(item.photo_url, '_blank')}
                             />
                           </div>
@@ -388,13 +388,13 @@ export default function QCReviewModal({
 
           {/* Photos */}
           {documentations.length > 0 && (
-            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
               <button
                 onClick={() => toggleSection('photos')}
                 className="w-full flex items-center justify-between mb-3"
               >
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-[#E94560]" />
+                  <ImageIcon className="w-4 h-4 text-blue-600" />
                   <h4 className="text-sm font-semibold">Photos ({documentations.length})</h4>
                 </div>
                 {expandedSections.photos ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -407,7 +407,7 @@ export default function QCReviewModal({
                       <img
                         src={doc.photo_url}
                         alt={`Photo ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg border border-[#E9ECEF] hover:shadow-md transition-all"
+                        className="w-full h-24 object-cover rounded-lg border border-slate-200 hover:shadow-md transition-all"
                         onClick={() => window.open(doc.photo_url, '_blank')}
                       />
                       <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
@@ -421,9 +421,9 @@ export default function QCReviewModal({
           )}
 
           {/* Review Notes */}
-          <div className="bg-[#F8F9FA] rounded-lg p-4 border border-[#E9ECEF]">
+          <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
             <div className="flex items-center gap-2 mb-3">
-              <MessageSquare className="w-4 h-4 text-[#E94560]" />
+              <MessageSquare className="w-4 h-4 text-blue-600" />
               <h4 className="text-sm font-semibold">
                 Review Notes <span className="text-red-500 text-xs">*</span>
               </h4>
@@ -432,15 +432,15 @@ export default function QCReviewModal({
               value={reviewNotes}
               onChange={(e) => setReviewNotes(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] focus:ring-2 focus:ring-[#E94560]/10 transition-all resize-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all resize-none"
               placeholder="Masukkan catatan review (wajib untuk penolakan)..."
             />
-            <p className="text-xs text-gray-400 mt-1">Catatan akan dikirim ke teknisi</p>
+            <p className="text-xs text-slate-400 mt-1">Catatan akan dikirim ke teknisi</p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="px-6 py-4 border-t border-[#E9ECEF] flex gap-3 bg-white">
+        <div className="px-6 py-4 border-t border-slate-200 flex gap-3 bg-white">
           <button
             onClick={() => handleReview('rejected')}
             disabled={processing}
@@ -456,7 +456,7 @@ export default function QCReviewModal({
           <button
             onClick={() => handleReview('approved')}
             disabled={processing}
-            className="flex-1 bg-[#1A1A2E] text-white font-medium px-4 py-2.5 rounded-lg hover:bg-[#0F3460] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="flex-1 bg-slate-900 text-white font-medium px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {processing ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

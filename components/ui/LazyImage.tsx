@@ -35,7 +35,7 @@ export default function LazyImage({ src, alt, className = '', placeholderClassNa
   }, [])
 
   return (
-    <div className={`relative overflow-hidden bg-gray-100 ${className}`}>
+    <div className={`relative overflow-hidden bg-slate-100 ${className}`}>
       <AnimatePresence>
         {!isLoaded && (
           <motion.div
@@ -60,8 +60,8 @@ export default function LazyImage({ src, alt, className = '', placeholderClassNa
         />
       )}
       {!isLoaded && isInView && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
+          <div className="w-8 h-8 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
         </div>
       )}
     </div>

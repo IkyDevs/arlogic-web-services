@@ -147,9 +147,9 @@ export default function WatchDatabase() {
     switch (m) {
       case 'automatic': return 'bg-[#3B82F6] text-white'
       case 'quartz': return 'bg-[#F59E0B] text-black'
-      case 'mechanical': return 'bg-[#E94560] text-white'
-      case 'smartwatch': return 'bg-[#1A1A2E] text-white'
-      default: return 'bg-gray-100 text-gray-500'
+      case 'mechanical': return 'bg-blue-600 text-white'
+      case 'smartwatch': return 'bg-slate-900 text-white'
+      default: return 'bg-slate-100 text-slate-500'
     }
   }
 
@@ -165,9 +165,9 @@ export default function WatchDatabase() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm">
-        <div className="inline-block w-8 h-8 border-3 border-[#E94560] border-t-transparent rounded-full animate-spin" />
-        <p className="mt-3 text-gray-400 font-medium">Loading watch database...</p>
+      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
+        <div className="inline-block w-8 h-8 border border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="mt-3 text-slate-400 font-medium">Loading watch database...</p>
       </div>
     )
   }
@@ -177,17 +177,17 @@ export default function WatchDatabase() {
       {/* ==================== HEADER ==================== */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+          <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
             <Database className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[#1A1A2E]">Watch Database</h2>
-            <p className="text-xs text-gray-400">{watches.length} watches registered</p>
+            <h2 className="text-xl font-bold text-slate-900">Watch Database</h2>
+            <p className="text-xs text-slate-400">{watches.length} watches registered</p>
           </div>
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
           Add Watch
@@ -196,67 +196,67 @@ export default function WatchDatabase() {
 
       {/* ==================== SEARCH ==================== */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
           placeholder="Search brand, model, movement, reference..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+          className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
         />
       </div>
 
       {/* ==================== TABLE ==================== */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#E9ECEF] p-12 text-center shadow-sm">
-          <Watch className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-400 font-medium">No watches found</p>
-          <p className="text-sm text-gray-400 mt-1">
+        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-sm">
+          <Watch className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+          <p className="text-slate-400 font-medium">No watches found</p>
+          <p className="text-sm text-slate-400 mt-1">
             {search ? 'Try adjusting your search' : 'Add your first watch to the database'}
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
-              <thead className="bg-[#FAFAFA]">
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Brand</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Model</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Movement</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Year</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Ref #</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Brand</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Model</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Movement</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Year</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Ref #</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E9ECEF]">
+              <tbody className="divide-y divide-slate-200">
                 {filtered.map((w, i) => (
                   <motion.tr
                     key={w.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.02 }}
-                    className="hover:bg-[#FAFAFA] transition-all"
+                    className="hover:bg-slate-50 transition-all"
                   >
-                    <td className="px-4 py-3 font-semibold text-[#1A1A2E] text-sm">{w.brand}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{w.model}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-900 text-sm">{w.brand}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">{w.model}</td>
                     <td className="px-4 py-3">
                       {w.movement ? (
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${movementColor(w.movement)}`}>
                           {movementLabel(w.movement)}
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-slate-500">
                       {w.year_from ? (
                         <span>{w.year_from}{w.year_to ? ` – ${w.year_to}` : ' – now'}</span>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-400">
+                    <td className="px-4 py-3 text-sm font-mono text-slate-400">
                       {w.reference_number || '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -271,7 +271,7 @@ export default function WatchDatabase() {
                         <button
                           onClick={() => handleDelete(w.id)}
                           disabled={deletingId === w.id}
-                          className="p-1.5 text-[#E94560] hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                          className="p-1.5 text-blue-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
                           title="Delete"
                         >
                           {deletingId === w.id ? (
@@ -292,7 +292,7 @@ export default function WatchDatabase() {
 
       {/* ==================== FOOTER ==================== */}
       {filtered.length > 0 && (
-        <div className="text-center text-xs text-gray-400 pt-2">
+        <div className="text-center text-xs text-slate-400 pt-2">
           Showing {filtered.length} of {watches.length} watches
         </div>
       )}
@@ -305,62 +305,62 @@ export default function WatchDatabase() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl border border-[#E9ECEF] shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[#E9ECEF] sticky top-0 bg-white">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                     {editing ? <Pencil className="w-4 h-4 text-white" /> : <Plus className="w-4 h-4 text-white" />}
                   </div>
-                  <h3 className="text-lg font-bold text-[#1A1A2E]">
+                  <h3 className="text-lg font-bold text-slate-900">
                     {editing ? 'Edit Watch' : 'Add Watch'}
                   </h3>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg transition-all"
+                  className="p-1 hover:bg-slate-100 rounded-lg transition-all"
                 >
-                  <X className="w-5 h-5 text-gray-400" />
+                  <X className="w-5 h-5 text-slate-400" />
                 </button>
               </div>
 
               {/* Modal Body */}
               <div className="px-6 py-5 space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Brand <span className="text-[#E94560]">*</span>
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                    Brand <span className="text-blue-600">*</span>
                   </label>
                   <input
                     type="text"
                     value={form.brand}
                     onChange={e => setForm(prev => ({ ...prev, brand: e.target.value }))}
                     placeholder="e.g. ROLEX"
-                    className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Model <span className="text-[#E94560]">*</span>
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                    Model <span className="text-blue-600">*</span>
                   </label>
                   <input
                     type="text"
                     value={form.model}
                     onChange={e => setForm(prev => ({ ...prev, model: e.target.value }))}
                     placeholder="e.g. Submariner"
-                    className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                     Movement
                   </label>
                   <select
                     value={form.movement}
                     onChange={e => setForm(prev => ({ ...prev, movement: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   >
                     <option value="">Select movement</option>
                     {MOVEMENTS.map(m => (
@@ -373,7 +373,7 @@ export default function WatchDatabase() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                       Year From
                     </label>
                     <input
@@ -381,11 +381,11 @@ export default function WatchDatabase() {
                       value={form.year_from}
                       onChange={e => setForm(prev => ({ ...prev, year_from: e.target.value }))}
                       placeholder="1963"
-                      className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                    <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                       Year To
                     </label>
                     <input
@@ -393,13 +393,13 @@ export default function WatchDatabase() {
                       value={form.year_to}
                       onChange={e => setForm(prev => ({ ...prev, year_to: e.target.value }))}
                       placeholder="2020"
-                      className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                     Reference Number
                   </label>
                   <input
@@ -407,23 +407,23 @@ export default function WatchDatabase() {
                     value={form.reference_number}
                     onChange={e => setForm(prev => ({ ...prev, reference_number: e.target.value }))}
                     placeholder="e.g. 126610LN"
-                    className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   />
                 </div>
               </div>
 
               {/* Modal Footer */}
-              <div className="flex gap-3 px-6 py-4 border-t border-[#E9ECEF] bg-[#FAFAFA]">
+              <div className="flex gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
                 <button
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-white text-[#1A1A2E] font-medium rounded-lg border border-[#E9ECEF] hover:bg-gray-50 transition-all text-sm"
+                  className="flex-1 px-4 py-2.5 bg-white text-slate-900 font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-all text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex-1 px-4 py-2.5 bg-[#E94560] text-white font-medium rounded-lg hover:bg-[#c73d54] transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <>

@@ -83,33 +83,33 @@ export default function POSection({ onUpdate }: POSectionProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-[#E9ECEF] bg-yellow-50 flex justify-between items-center">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-slate-200 bg-yellow-50 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <Box className="w-5 h-5 text-yellow-600" />
-          <h3 className="font-semibold text-[#1A1A2E]">REQUEST SPAREPART (PO)</h3>
+          <h3 className="font-semibold text-slate-900">REQUEST SPAREPART (PO)</h3>
           {poServices.filter(s => s.status !== 'sparepart_ready').length > 0 && (
             <span className="bg-yellow-500 text-white text-xs px-2 py-0.5 rounded-full">
               {poServices.filter(s => s.status !== 'sparepart_ready').length} pending
             </span>
           )}
         </div>
-        <button onClick={fetchPOData} className="text-xs text-gray-500 hover:text-gray-700">
+        <button onClick={fetchPOData} className="text-xs text-slate-500 hover:text-slate-700">
           <RefreshCw className="w-3 h-3" />
         </button>
       </div>
 
       {loading ? (
         <div className="p-8 text-center">
-          <div className="inline-block w-5 h-5 border-2 border-[#E94560] border-t-transparent rounded-full animate-spin" />
+          <div className="inline-block w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : poServices.length === 0 ? (
-        <div className="p-6 text-center text-gray-400">
+        <div className="p-6 text-center text-slate-400">
           <Box className="w-12 h-12 mx-auto mb-2 opacity-30" />
           <p>Tidak ada request PO</p>
         </div>
       ) : (
-        <div className="divide-y divide-[#E9ECEF]">
+        <div className="divide-y divide-slate-200">
           {poServices.map((service) => {
             const isReady = service.status === 'sparepart_ready'
             const isRequest = service.status === 'req_sparepart_admin'
@@ -131,8 +131,8 @@ export default function POSection({ onUpdate }: POSectionProps) {
                          'PO Approved'}
                       </span>
                     </div>
-                    <p className="font-bold text-[#1A1A2E]">{service.po_sparepart}</p>
-                    <div className="flex flex-wrap gap-3 text-sm text-gray-500 mt-1">
+                    <p className="font-bold text-slate-900">{service.po_sparepart}</p>
+                    <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-1">
                       <span>Teknisi: {service.teknisi_name}</span>
                       <span>•</span>
                       <span>Customer: {service.customer_name}</span>
@@ -168,7 +168,7 @@ export default function POSection({ onUpdate }: POSectionProps) {
                         </button>
                         <button
                           onClick={() => sendReminderToAdmin(service)}
-                          className="px-3 py-1.5 bg-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-300 transition-all"
+                          className="px-3 py-1.5 bg-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-300 transition-all"
                           title="Kirim peringatan ke admin"
                         >
                           <Bell className="w-4 h-4" />

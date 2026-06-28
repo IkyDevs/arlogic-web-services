@@ -14,7 +14,7 @@ import { useUpload } from '@/hooks/useUpload'
 import dynamic from 'next/dynamic'
 
 const QRCodeGenerator = dynamic(() => import('@/components/admin/QRCodeGenerator'), {
-  loading: () => <div className="text-center py-4 text-sm text-gray-400">Loading QR...</div>
+  loading: () => <div className="text-center py-4 text-sm text-slate-400">Loading QR...</div>
 })
 
 // Updated watch movements
@@ -242,12 +242,12 @@ Keterangan : —
     <div className="max-w-3xl mx-auto py-4">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+        <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
           <Watch className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A2E]">New Watch Service</h2>
-          <p className="text-sm text-gray-400">Create service order for timepiece</p>
+          <h2 className="text-xl font-bold text-slate-900">New Watch Service</h2>
+          <p className="text-sm text-slate-400">Create service order for timepiece</p>
         </div>
       </div>
 
@@ -260,56 +260,56 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
           >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
-              <User className="w-4 h-4 text-[#1A1A2E]" />
-              <h3 className="font-semibold text-[#1A1A2E]">Customer Information</h3>
-              <span className="ml-auto text-xs text-gray-400 font-medium">1/4</span>
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
+              <User className="w-4 h-4 text-slate-900" />
+              <h3 className="font-semibold text-slate-900">Customer Information</h3>
+              <span className="ml-auto text-xs text-slate-400 font-medium">1/4</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                  Full Name <span className="text-[#E94560]">*</span>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                  Full Name <span className="text-blue-600">*</span>
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={formData.cs_name}
                     onChange={e => setFormData(p => ({ ...p, cs_name: e.target.value }))}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                     placeholder="John Doe"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                  WhatsApp / Phone <span className="text-[#E94560]">*</span>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                  WhatsApp / Phone <span className="text-blue-600">*</span>
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="tel"
                     value={formData.cs_phone}
                     onChange={e => setFormData(p => ({ ...p, cs_phone: e.target.value }))}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                     placeholder="+62 812 3456 7890"
                   />
                 </div>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Serial Number
                 </label>
                 <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={formData.serial_number}
                     onChange={e => setFormData(p => ({ ...p, serial_number: e.target.value }))}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                     placeholder="Optional"
                   />
                 </div>
@@ -319,7 +319,7 @@ Keterangan : —
             <div className="flex justify-end mt-6">
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
@@ -334,25 +334,25 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
           >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
-              <Watch className="w-4 h-4 text-[#1A1A2E]" />
-              <h3 className="font-semibold text-[#1A1A2E]">Watch Details</h3>
-              <span className="ml-auto text-xs text-gray-400 font-medium">2/4</span>
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
+              <Watch className="w-4 h-4 text-slate-900" />
+              <h3 className="font-semibold text-slate-900">Watch Details</h3>
+              <span className="ml-auto text-xs text-slate-400 font-medium">2/4</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                  Brand <span className="text-[#E94560]">*</span>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                  Brand <span className="text-blue-600">*</span>
                 </label>
                 <input
                   type="text"
                   list="watchBrandsList"
                   value={formData.watch_brand}
                   onChange={e => setFormData(p => ({ ...p, watch_brand: e.target.value.toUpperCase() }))}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm uppercase"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm uppercase"
                   placeholder="ROLEX, OMEGA, CASIO..."
                 />
                 <datalist id="watchBrandsList">
@@ -360,20 +360,20 @@ Keterangan : —
                 </datalist>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Model
                 </label>
                 <input
                   type="text"
                   value={formData.watch_model}
                   onChange={e => setFormData(p => ({ ...p, watch_model: e.target.value.toUpperCase() }))}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm uppercase"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm uppercase"
                   placeholder="SUBMARINER, SPEEDMASTER..."
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                  Movement <span className="text-[#E94560]">*</span>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                  Movement <span className="text-blue-600">*</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {watchMovements.map(m => (
@@ -383,8 +383,8 @@ Keterangan : —
                       onClick={() => setFormData(p => ({ ...p, watch_movement: m.value }))}
                       className={`py-3 text-xs font-medium rounded-lg border transition-all flex flex-col items-center gap-1.5 ${
                         formData.watch_movement === m.value
-                          ? 'border-[#1A1A2E] bg-[#1A1A2E] text-white'
-                          : 'border-[#E9ECEF] bg-white text-gray-600 hover:border-gray-300'
+                          ? 'border-slate-900 bg-slate-900 text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                       }`}
                     >
                       <m.icon className="w-5 h-5" />
@@ -395,14 +395,14 @@ Keterangan : —
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Category / Kategori
                 </label>
                 <input
                   type="text"
                   value={formData.category}
                   onChange={e => setFormData(p => ({ ...p, category: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                   placeholder="e.g. Ganti Battery, Service Ringkas..."
                 />
               </div>
@@ -411,13 +411,13 @@ Keterangan : —
             <div className="flex justify-between mt-6">
               <button
                 onClick={prevStep}
-                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+                className="px-5 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
               >
                 ← Back
               </button>
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
@@ -432,15 +432,15 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
           >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
-              <Camera className="w-4 h-4 text-[#1A1A2E]" />
-              <h3 className="font-semibold text-[#1A1A2E]">Initial Condition Photos</h3>
-              <span className="ml-auto text-xs text-gray-400 font-medium">3/4</span>
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
+              <Camera className="w-4 h-4 text-slate-900" />
+              <h3 className="font-semibold text-slate-900">Initial Condition Photos</h3>
+              <span className="ml-auto text-xs text-slate-400 font-medium">3/4</span>
             </div>
 
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-slate-500 mb-4">
               Photos of the watch before service. Teknisi will use this as reference.
             </p>
 
@@ -448,13 +448,13 @@ Keterangan : —
             {photoPreviews.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 {photoPreviews.map((src, i) => (
-                  <div key={i} className="relative group border border-[#E9ECEF] rounded-lg overflow-hidden">
+                  <div key={i} className="relative group border border-slate-200 rounded-lg overflow-hidden">
                     <img src={src} alt={`Foto ${i + 1}`} className="w-full h-28 object-cover" />
                     <button
                       onClick={() => removePhoto(i)}
                       className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X className="w-3 h-3 text-gray-600" />
+                      <X className="w-3 h-3 text-slate-600" />
                     </button>
                   </div>
                 ))}
@@ -465,14 +465,14 @@ Keterangan : —
             <div className="flex gap-3">
               <button
                 onClick={() => cameraInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
               >
                 <Camera className="w-4 h-4" />
                 Take Photo
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium text-[#1A1A2E]"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900"
               >
                 <ImageIcon className="w-4 h-4" />
                 Upload from Gallery
@@ -496,20 +496,20 @@ Keterangan : —
               />
             </div>
 
-            <p className="text-xs text-gray-400 mt-3">
+            <p className="text-xs text-slate-400 mt-3">
               {photos.length > 0 ? `${photos.length} photos selected` : 'Optional — can be skipped'}
             </p>
 
             <div className="flex justify-between mt-6">
               <button
                 onClick={prevStep}
-                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+                className="px-5 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
               >
                 ← Back
               </button>
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
               >
                 {photos.length === 0 ? 'Skip →' : 'Continue →'}
               </button>
@@ -524,58 +524,58 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-[#E9ECEF] p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
           >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#E9ECEF]">
-              <AlertCircle className="w-4 h-4 text-[#1A1A2E]" />
-              <h3 className="font-semibold text-[#1A1A2E]">Service Issue</h3>
-              <span className="ml-auto text-xs text-gray-400 font-medium">4/4</span>
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
+              <AlertCircle className="w-4 h-4 text-slate-900" />
+              <h3 className="font-semibold text-slate-900">Service Issue</h3>
+              <span className="ml-auto text-xs text-slate-400 font-medium">4/4</span>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                  Problem / Kendala <span className="text-[#E94560]">*</span>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                  Problem / Kendala <span className="text-blue-600">*</span>
                 </label>
                 <textarea
                   value={formData.problem}
                   onChange={e => setFormData(p => ({ ...p, problem: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all resize-none text-sm"
                   placeholder="Describe the watch issue in detail..."
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Customer Request
                 </label>
                 <textarea
                   value={formData.request}
                   onChange={e => setFormData(p => ({ ...p, request: e.target.value }))}
                   rows={2}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all resize-none text-sm"
                   placeholder="Special requests from customer..."
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Additional Notes
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={e => setFormData(p => ({ ...p, notes: e.target.value }))}
                   rows={2}
-                  className="w-full px-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all resize-none text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all resize-none text-sm"
                   placeholder="Any additional notes..."
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Down Payment (DP)
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     inputMode="numeric"
@@ -584,14 +584,14 @@ Keterangan : —
                       const raw = e.target.value.replace(/[^0-9]/g, '')
                       setFormData(p => ({ ...p, down_payment: raw }))
                     }}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#1A1A2E] focus:ring-2 focus:ring-[#1A1A2E]/10 transition-all text-sm"
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                     placeholder="0"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Metode Pembayaran
                 </label>
                 <div className="flex gap-2">
@@ -600,8 +600,8 @@ Keterangan : —
                     onClick={() => setFormData(p => ({ ...p, payment_method: 'cash' }))}
                     className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       formData.payment_method === 'cash'
-                        ? 'bg-[#1A1A2E] text-white'
-                        : 'bg-white border border-[#E9ECEF] text-gray-600 hover:bg-gray-50'
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     Cash
@@ -611,8 +611,8 @@ Keterangan : —
                     onClick={() => setFormData(p => ({ ...p, payment_method: 'qris' }))}
                     className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       formData.payment_method === 'qris'
-                        ? 'bg-[#1A1A2E] text-white'
-                        : 'bg-white border border-[#E9ECEF] text-gray-600 hover:bg-gray-50'
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     QRIS
@@ -622,25 +622,25 @@ Keterangan : —
 
               {formData.payment_method === 'qris' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
-                    Foto Bukti QRIS <span className="text-[#E94560]">*</span>
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                    Foto Bukti QRIS <span className="text-blue-600">*</span>
                   </label>
                   <div
                     onClick={() => document.getElementById('qris-photo-input')?.click()}
-                    className="border-2 border-dashed border-[#E9ECEF] rounded-lg p-4 text-center cursor-pointer hover:border-[#1A1A2E] transition-all"
+                    className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-slate-900 transition-all"
                   >
                     {formData.qris_photo ? (
                       <div className="flex items-center gap-3">
                         <ImageIcon className="w-8 h-8 text-green-500" />
                         <div className="text-left">
-                          <p className="text-sm font-medium text-[#1A1A2E]">{formData.qris_photo.name}</p>
-                          <p className="text-xs text-gray-400">Klik untuk ganti</p>
+                          <p className="text-sm font-medium text-slate-900">{formData.qris_photo.name}</p>
+                          <p className="text-xs text-slate-400">Klik untuk ganti</p>
                         </div>
                       </div>
                     ) : (
                       <div>
-                        <Camera className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">Klik untuk upload bukti QRIS</p>
+                        <Camera className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-sm text-slate-500">Klik untuk upload bukti QRIS</p>
                       </div>
                     )}
                     <input
@@ -660,25 +660,25 @@ Keterangan : —
               )}
 
               {/* Summary */}
-              <div className="bg-[#FAFAFA] rounded-lg p-4 border border-[#E9ECEF]">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> Summary
                 </p>
                 <div className="grid grid-cols-2 gap-1 text-sm">
-                  <span className="text-gray-500">Customer:</span>
-                  <span className="font-medium text-[#1A1A2E]">{formData.cs_name || '—'}</span>
-                  <span className="text-gray-500">Watch:</span>
-                  <span className="font-medium text-[#1A1A2E]">{[formData.watch_brand, formData.watch_model].filter(Boolean).join(' ') || '—'}</span>
-                  <span className="text-gray-500">Movement:</span>
-                  <span className="font-medium text-[#1A1A2E] uppercase">{formData.watch_movement || '—'}</span>
-                  <span className="text-gray-500">Category:</span>
-                  <span className="font-medium text-[#1A1A2E]">{formData.category || '—'}</span>
-                  <span className="text-gray-500">Down Payment:</span>
-                  <span className="font-medium text-[#1A1A2E]">{formData.down_payment ? `Rp ${Number(formData.down_payment).toLocaleString('id-ID')}` : '—'}</span>
-                  <span className="text-gray-500">Pembayaran:</span>
-                  <span className="font-medium text-[#1A1A2E]">{formData.payment_method === 'qris' ? 'QRIS' : 'Cash'}</span>
-                  <span className="text-gray-500">Photos:</span>
-                  <span className="font-medium text-[#1A1A2E]">{photos.length} photos</span>
+                  <span className="text-slate-500">Customer:</span>
+                  <span className="font-medium text-slate-900">{formData.cs_name || '—'}</span>
+                  <span className="text-slate-500">Watch:</span>
+                  <span className="font-medium text-slate-900">{[formData.watch_brand, formData.watch_model].filter(Boolean).join(' ') || '—'}</span>
+                  <span className="text-slate-500">Movement:</span>
+                  <span className="font-medium text-slate-900 uppercase">{formData.watch_movement || '—'}</span>
+                  <span className="text-slate-500">Category:</span>
+                  <span className="font-medium text-slate-900">{formData.category || '—'}</span>
+                  <span className="text-slate-500">Down Payment:</span>
+                  <span className="font-medium text-slate-900">{formData.down_payment ? `Rp ${Number(formData.down_payment).toLocaleString('id-ID')}` : '—'}</span>
+                  <span className="text-slate-500">Pembayaran:</span>
+                  <span className="font-medium text-slate-900">{formData.payment_method === 'qris' ? 'QRIS' : 'Cash'}</span>
+                  <span className="text-slate-500">Photos:</span>
+                  <span className="font-medium text-slate-900">{photos.length} photos</span>
                 </div>
               </div>
             </div>
@@ -686,14 +686,14 @@ Keterangan : —
             <div className="flex justify-between mt-6">
               <button
                 onClick={prevStep}
-                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+                className="px-5 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
               >
                 ← Back
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={loading || uploading}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-sm font-medium disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium disabled:opacity-50"
               >
                 {loading || uploading ? (
                   <>
@@ -717,27 +717,27 @@ Keterangan : —
             key="s5"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl border border-[#E9ECEF] p-8 text-center shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm"
           >
-            <div className="w-16 h-16 bg-[#2ECC71] rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-white" />
             </div>
 
-            <h3 className="text-2xl font-bold text-[#1A1A2E] mb-1">Order Created!</h3>
-            <p className="text-sm text-gray-500 mb-6">
+            <h3 className="text-2xl font-bold text-slate-900 mb-1">Order Created!</h3>
+            <p className="text-sm text-slate-500 mb-6">
               Watch service order has been created
               {photos.length > 0 && ` with ${photos.length} initial condition photos`}.
             </p>
 
-            <div className="bg-[#FAFAFA] rounded-lg p-4 mb-6 text-left border border-[#E9ECEF]">
+            <div className="bg-slate-50 rounded-lg p-4 mb-6 text-left border border-slate-200">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Invoice</p>
-                  <p className="text-lg font-mono font-bold text-[#1A1A2E]">{lastInvoice.invoice}</p>
+                  <p className="text-xs text-slate-400 uppercase tracking-wider">Invoice</p>
+                  <p className="text-lg font-mono font-bold text-slate-900">{lastInvoice.invoice}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">Token</p>
-                  <p className="text-lg font-mono font-bold text-[#E94560]">{lastInvoice.token}</p>
+                  <p className="text-xs text-slate-400 uppercase tracking-wider">Token</p>
+                  <p className="text-lg font-mono font-bold text-blue-600">{lastInvoice.token}</p>
                 </div>
               </div>
             </div>
@@ -754,7 +754,7 @@ Keterangan : —
             <div className="flex gap-3 justify-center flex-wrap">
               <button
                 onClick={resetForm}
-                className="px-5 py-2.5 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-sm font-medium"
+                className="px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
               >
                 New Order
               </button>
@@ -763,7 +763,7 @@ Keterangan : —
                   navigator.clipboard.writeText(lastInvoice.token)
                   toast.success('Token copied!')
                 }}
-                className="px-5 py-2.5 bg-white text-[#1A1A2E] border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
+                className="px-5 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
               >
                 Copy Token
               </button>
@@ -771,7 +771,7 @@ Keterangan : —
                 onClick={() => {
                   window.open(`/tracking/${lastInvoice.token}`, '_blank')
                 }}
-                className="px-5 py-2.5 bg-[#E94560] text-white rounded-lg hover:bg-[#c73d54] transition-all text-sm font-medium"
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium"
               >
                 Open Tracking
               </button>
@@ -783,12 +783,12 @@ Keterangan : —
 
       {/* Upload progress */}
       {uploading && (
-        <div className="fixed bottom-4 right-4 bg-white rounded-lg border border-[#E9ECEF] shadow-lg p-4 w-64 z-50">
-          <p className="text-xs font-medium text-[#1A1A2E] mb-2">Uploading photos...</p>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-[#E94560] transition-all duration-200" style={{ width: `${progress}%` }} />
+        <div className="fixed bottom-4 right-4 bg-white rounded-lg border border-slate-200 shadow-lg p-4 w-64 z-50">
+          <p className="text-xs font-medium text-slate-900 mb-2">Uploading photos...</p>
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-600 transition-all duration-200" style={{ width: `${progress}%` }} />
           </div>
-          <p className="text-xs text-gray-400 mt-1.5">{progress}% complete</p>
+          <p className="text-xs text-slate-400 mt-1.5">{progress}% complete</p>
         </div>
       )}
     </div>

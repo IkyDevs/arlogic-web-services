@@ -186,10 +186,10 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
       sparepart_ready: { label: 'SPAREPART READY', color: 'bg-green-100 text-green-700 border-green-200' },
       qc_pending: { label: 'SIAP QC', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
       revision_required: { label: 'PERLU REVISI', color: 'bg-red-100 text-red-700 border-red-200' },
-      pending: { label: 'MENUNGGU', color: 'bg-gray-100 text-gray-700 border-gray-200' },
+      pending: { label: 'MENUNGGU', color: 'bg-slate-100 text-slate-700 border-slate-200' },
       completed: { label: 'SELESAI', color: 'bg-green-100 text-green-700 border-green-200' }
     }
-    return badges[status] || { label: status.toUpperCase(), color: 'bg-gray-100 text-gray-700' }
+    return badges[status] || { label: status.toUpperCase(), color: 'bg-slate-100 text-slate-700' }
   }
 
   const viewServiceDetails = (service: ExtendedServiceOrder) => {
@@ -229,8 +229,8 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
 
   if (loading) {
     return (
-      <div className="border-2 border-black p-8 text-center">
-        <div className="inline-block w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
+      <div className="border border-slate-200 p-8 text-center">
+        <div className="inline-block w-6 h-6 border border-slate-200 border-t-transparent rounded-full animate-spin" />
         <p className="mt-2 font-mono">LOADING...</p>
       </div>
     )
@@ -241,17 +241,17 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
       {/* My Current Projects Section */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-[#FF6B9D] flex items-center justify-center border-2 border-black">
+          <div className="w-8 h-8 bg-[#2563eb] flex items-center justify-center border border-slate-200">
             <Wrench className="w-4 h-4 text-white" />
           </div>
           <h3 className="text-xl font-black">PROYEK SAYA ({myServices.length})</h3>
         </div>
 
         {myServices.length === 0 ? (
-          <div className="border-2 border-black p-8 text-center bg-gray-50">
-            <Package className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+          <div className="border border-slate-200 p-8 text-center bg-slate-50">
+            <Package className="w-12 h-12 mx-auto mb-2 text-slate-400" />
             <p className="font-mono">Belum ada proyek yang diambil</p>
-            <p className="text-xs text-gray-500">Ambil proyek dari daftar di bawah</p>
+            <p className="text-xs text-slate-500">Ambil proyek dari daftar di bawah</p>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -265,13 +265,13 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm hover:shadow-md transition-all overflow-hidden"
+                  className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
                 >
                   <div className="p-4">
                     <div className="flex flex-wrap justify-between items-start gap-3">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="px-2 py-0.5 bg-[#1A1A2E] text-white text-xs font-mono rounded">
+                          <span className="px-2 py-0.5 bg-slate-900 text-white text-xs font-mono rounded">
                             {service.invoice_number}
                           </span>
                           <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}>
@@ -293,7 +293,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                             </span>
                           )}
                           {service.last_update && (
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-slate-400">
                               Update: {new Date(service.last_update.created_at).toLocaleDateString()}
                             </span>
                           )}
@@ -301,21 +301,21 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
 
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
                           <div className="flex items-center gap-1 text-sm">
-                            <User className="w-4 h-4 text-gray-400" />
+                            <User className="w-4 h-4 text-slate-400" />
                             <span className="font-medium">{service.customer_name}</span>
                           </div>
                           <div className="flex items-center gap-1 text-sm">
-                            <Watch className="w-4 h-4 text-gray-400" />
+                            <Watch className="w-4 h-4 text-slate-400" />
                             <span>{service.watch_brand || service.device_brand} {service.watch_model || service.device_model}</span>
                           </div>
                         </div>
 
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                        <p className="text-sm text-slate-600 line-clamp-2 mb-2">
                           {service.issue_description}
                         </p>
 
                         {service.last_update && (
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
+                          <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
                             <Clock className="w-3 h-3" />
                             <span>Terakhir: {lastUpdateMessage}</span>
                           </div>
@@ -326,7 +326,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                         {/* Timeline - Selalu muncul */}
                         <button
                           onClick={() => openTimeline(service)}
-                          className="px-3 py-1.5 text-sm bg-white text-[#1A1A2E] font-medium border border-[#E9ECEF] rounded-lg hover:bg-gray-50 transition-all flex items-center gap-1"
+                          className="px-3 py-1.5 text-sm bg-white text-slate-900 font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1"
                         >
                           <Clock className="w-4 h-4" />
                           TIMELINE
@@ -336,7 +336,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                         {(service.status === 'assigned' || service.status === 'in_progress' || service.status === 'revision_required') && (
                           <button
                             onClick={() => openProgressUpdate(service)}
-                            className="px-3 py-1.5 text-sm bg-[#1A1A2E] text-white font-medium rounded-lg hover:bg-[#0F3460] transition-all flex items-center gap-1"
+                            className="px-3 py-1.5 text-sm bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-all flex items-center gap-1"
                           >
                             <Wrench className="w-4 h-4" />
                             {service.status === 'revision_required' ? 'REVISI & KIRIM' : 'UPDATE SERVICE'}
@@ -386,17 +386,17 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
       {/* Available Queue Section - NEW SERVICES */}
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-[#FFDE00] flex items-center justify-center border-2 border-black">
+          <div className="w-8 h-8 bg-[#f59e0b] flex items-center justify-center border border-slate-200">
             <Package className="w-4 h-4 text-black" />
           </div>
           <h3 className="text-xl font-black">SERVICE BARU ({pendingServices.length})</h3>
         </div>
 
         {pendingServices.length === 0 ? (
-          <div className="border-2 border-black p-8 text-center bg-gray-50">
+          <div className="border border-slate-200 p-8 text-center bg-slate-50">
             <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
             <p className="font-mono">Tidak ada service baru</p>
-            <p className="text-xs text-gray-500">Semua service sudah diambil</p>
+            <p className="text-xs text-slate-500">Semua service sudah diambil</p>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -406,14 +406,14 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white rounded-xl border border-[#E9ECEF] shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-[#E94560]"
+                className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-blue-600"
                 onClick={() => viewServiceDetails(service)}
               >
                 <div className="p-4">
                   <div className="flex flex-wrap justify-between items-start gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-[#1A1A2E] text-white text-xs font-mono rounded">
+                        <span className="px-2 py-0.5 bg-slate-900 text-white text-xs font-mono rounded">
                           {service.invoice_number}
                         </span>
                         <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
@@ -423,15 +423,15 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
 
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <div className="flex items-center gap-1 text-sm">
-                          <User className="w-4 h-4 text-gray-400" />
+                          <User className="w-4 h-4 text-slate-400" />
                           <span className="font-medium">{service.customer_name}</span>
                         </div>
                         <div className="flex items-center gap-1 text-sm">
-                          <Watch className="w-4 h-4 text-gray-400" />
+                          <Watch className="w-4 h-4 text-slate-400" />
                           <span>{service.watch_brand || service.device_brand}</span>
                         </div>
                         <div className="flex items-center gap-1 text-sm">
-                          <AlertCircle className="w-4 h-4 text-gray-400" />
+                          <AlertCircle className="w-4 h-4 text-slate-400" />
                           <span className="line-clamp-1">{service.issue_description?.substring(0, 50)}...</span>
                         </div>
                       </div>
@@ -440,7 +440,7 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
                     <div className="flex gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); viewServiceDetails(service); }}
-                        className="px-3 py-1.5 text-sm bg-[#1A1A2E] text-white font-medium rounded-lg hover:bg-[#0F3460] transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 text-sm bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-all flex items-center gap-1"
                       >
                         <Eye className="w-4 h-4" />
                         DETAIL
@@ -468,16 +468,16 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
           {showTimelineModal && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
-                <div className="px-5 py-4 border-b border-[#E9ECEF] flex justify-between items-center sticky top-0 bg-white">
+                <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
                   <div>
-                    <h3 className="text-lg font-semibold text-[#1A1A2E]">TIMELINE SERVICE</h3>
-                    <p className="text-xs text-gray-400">{selectedService.invoice_number}</p>
+                    <h3 className="text-lg font-semibold text-slate-900">TIMELINE SERVICE</h3>
+                    <p className="text-xs text-slate-400">{selectedService.invoice_number}</p>
                   </div>
                   <button
                     onClick={() => setShowTimelineModal(false)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-all"
-                  >
-                    <X className="w-5 h-5 text-gray-400" />
+className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                   >
+                     <X className="w-5 h-5 text-slate-400" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-5">
@@ -495,22 +495,22 @@ export default function QueueList({ teknisiId, onTakeProject }: QueueListProps) 
           {showProgressModal && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                <div className="px-5 py-4 border-b border-[#E9ECEF] flex justify-between items-center sticky top-0 bg-white">
+                <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-[#1A1A2E] rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                       <Wrench className="w-4 h-4 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[#1A1A2E]">UPDATE SERVICE</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">UPDATE SERVICE</h3>
                   </div>
                   <button
                     onClick={() => setShowProgressModal(false)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-all"
-                  >
-                    <X className="w-5 h-5 text-gray-400" />
+className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                   >
+                     <X className="w-5 h-5 text-slate-400" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-5">
-                  <p className="text-sm text-gray-500 mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
+                  <p className="text-sm text-slate-500 mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
                   <ProgressUpdate
                     service={selectedService}
                     onUpdate={() => fetchQueues()}

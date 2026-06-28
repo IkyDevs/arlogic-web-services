@@ -7,16 +7,27 @@ interface NeoCardProps {
   className?: string
   onClick?: () => void
   hover?: boolean
+  padding?: 'none' | 'sm' | 'md' | 'lg'
 }
 
-export default function NeoCard({ children, className = '', onClick, hover = true }: NeoCardProps) {
+export default function NeoCard({ children, className = '', onClick, hover = true, padding = 'md' }: NeoCardProps) {
+  const paddingClasses = {
+    none: '',
+    sm: 'p-4',
+    md: 'p-5',
+    lg: 'p-6'
+  }
+
   return (
     <div
       onClick={onClick}
       className={`
-        bg-white border-3 border-black shadow-[6px_6px_0px_0px_black]
-        p-5
-        ${hover ? 'transition-all duration-100 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_black] cursor-pointer' : ''}
+        bg-white rounded-xl
+        border border-slate-200
+        ${paddingClasses[padding]}
+        transition-all duration-200
+        ${hover ? 'hover:shadow-md' : ''}
+        ${onClick ? 'cursor-pointer' : ''}
         ${className}
       `}
     >

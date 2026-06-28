@@ -10,6 +10,7 @@ interface ModernCardProps {
   hover?: boolean
   animate?: boolean
   delay?: number
+  padding?: 'none' | 'sm' | 'md' | 'lg'
 }
 
 export default function ModernCard({
@@ -18,14 +19,22 @@ export default function ModernCard({
   onClick,
   hover = true,
   animate = true,
-  delay = 0
+  delay = 0,
+  padding = 'md'
 }: ModernCardProps) {
+  const paddingClasses = {
+    none: '',
+    sm: 'p-4',
+    md: 'p-5',
+    lg: 'p-6'
+  }
+
   const Component = animate ? motion.div : 'div'
 
   const props = animate ? {
-    initial: { opacity: 0, y: 20 },
+    initial: { opacity: 0, y: 12 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.4, delay }
+    transition: { duration: 0.35, delay, ease: [0.25, 0.46, 0.45, 0.94] as const }
   } : {}
 
   return (
@@ -33,10 +42,12 @@ export default function ModernCard({
       {...props}
       onClick={onClick}
       className={`
-        bg-white rounded-2xl p-5
-        border border-[#E6E2DB]
+        bg-white rounded-xl
+        border border-slate-200
+        ${paddingClasses[padding]}
         transition-all duration-200
-        ${hover ? 'hover:shadow-[0_8px_24px_rgba(45,62,47,0.08)] hover:-translate-y-1 cursor-pointer' : ''}
+        ${hover ? 'hover:shadow-md hover:border-slate-300' : ''}
+        ${onClick ? 'cursor-pointer' : ''}
         ${className}
       `}
     >

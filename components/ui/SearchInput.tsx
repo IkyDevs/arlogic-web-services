@@ -35,7 +35,7 @@ export default function SearchInput({
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
           value={value}
@@ -45,7 +45,7 @@ export default function SearchInput({
           }}
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full pl-9 pr-8 py-2.5 border border-[#E9ECEF] rounded-lg focus:outline-none focus:border-[#E94560] focus:ring-2 focus:ring-[#E94560]/10 transition-all"
+          className="w-full pl-9 pr-8 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all duration-200"
         />
         {value && (
           <button
@@ -53,9 +53,9 @@ export default function SearchInput({
               onChange('')
               setIsOpen(false)
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-all"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-all"
           >
-            <X className="w-3 h-3 text-gray-400" />
+            <X className="w-3 h-3 text-slate-400" />
           </button>
         )}
       </div>
@@ -66,13 +66,13 @@ export default function SearchInput({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute z-20 w-full mt-1 bg-white border border-[#E9ECEF] rounded-lg shadow-lg max-h-48 overflow-y-auto"
+            className="absolute z-20 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-sm max-h-48 overflow-y-auto"
           >
             {items.map((item, index) => (
               <div
                 key={index}
                 onClick={() => handleSelect(item)}
-                className="cursor-pointer hover:bg-gray-50 transition-all last:border-0"
+                className="cursor-pointer hover:bg-slate-50 transition-all last:border-0"
               >
                 {renderItem ? renderItem(item) : (
                   <div className="px-3 py-2 text-sm">{item}</div>
@@ -85,7 +85,7 @@ export default function SearchInput({
 
       {loading && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          <div className="w-4 h-4 border-2 border-[#E94560] border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
     </div>

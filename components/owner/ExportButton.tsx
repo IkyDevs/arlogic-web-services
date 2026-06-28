@@ -261,8 +261,8 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
               font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
               padding: 30px;
               margin: 0;
-              background: #FAFAFA;
-              color: #1A1A2E;
+              background: #f8fafc;
+              color: #1e293b;
             }
             .report-container {
               max-width: 1000px;
@@ -276,15 +276,15 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
               text-align: center;
               margin-bottom: 30px;
               padding-bottom: 20px;
-              border-bottom: 2px solid #E9ECEF;
+              border-bottom: 2px solid #e2e8f0;
             }
             h1 {
               font-size: 28px;
               font-weight: 700;
               margin-bottom: 8px;
-              color: #1A1A2E;
+              color: #1e293b;
             }
-            h1 span { color: #E94560; }
+            h1 span { color: #2563eb; }
             .subtitle {
               font-size: 14px;
               color: #6C757D;
@@ -293,7 +293,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
             .badge {
               display: inline-block;
               padding: 4px 12px;
-              background: #E94560;
+              background: #2563eb;
               color: white;
               border-radius: 6px;
               font-size: 12px;
@@ -302,7 +302,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
             .section {
               margin-bottom: 24px;
               background: white;
-              border: 1px solid #E9ECEF;
+              border: 1px solid #e2e8f0;
               border-radius: 10px;
               padding: 20px 24px;
               page-break-inside: avoid;
@@ -311,7 +311,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
               font-size: 16px;
               font-weight: 700;
               margin-bottom: 16px;
-              color: #1A1A2E;
+              color: #1e293b;
               display: flex;
               align-items: center;
               gap: 8px;
@@ -330,23 +330,23 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
               text-transform: uppercase;
               letter-spacing: 0.5px;
               color: #6C757D;
-              border-bottom: 2px solid #E9ECEF;
+              border-bottom: 2px solid #e2e8f0;
             }
             td {
               padding: 10px 12px;
               border-bottom: 1px solid #F1F3F5;
               font-size: 14px;
             }
-            .metric-label { font-weight: 500; color: #1A1A2E; }
+            .metric-label { font-weight: 500; color: #1e293b; }
             .metric-value { font-weight: 600; }
-            .metric-value.revenue { color: #E94560; }
+            .metric-value.revenue { color: #2563eb; }
             .metric-value.profit { color: #2ECC71; }
             .metric-value.expense { color: #E74C3C; }
             .footer {
               text-align: center;
               margin-top: 30px;
               padding-top: 20px;
-              border-top: 2px solid #E9ECEF;
+              border-top: 2px solid #e2e8f0;
               font-size: 12px;
               color: #ADB5BD;
             }
@@ -459,7 +459,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
       <button
         onClick={() => setShowMenu(!showMenu)}
         disabled={exporting}
-        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-[#1A1A2E] text-white rounded-lg hover:bg-[#2D2D44] transition-all text-xs sm:text-sm font-medium disabled:opacity-50"
+        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-xs sm:text-sm font-medium disabled:opacity-50"
       >
         {exporting ? (
           <>
@@ -476,33 +476,33 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
       </button>
 
       {showMenu && !exporting && (
-        <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-xl border border-[#E9ECEF] shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-xl border border-slate-200 shadow-lg z-50 overflow-hidden">
           <div className="py-1">
             <button
               onClick={exportToExcel}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm text-[#1A1A2E]"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm text-slate-900"
             >
-              <FileSpreadsheet className="w-4 h-4 text-[#1A1A2E]" />
+              <FileSpreadsheet className="w-4 h-4 text-slate-900" />
               <span>Excel (.xlsx)</span>
             </button>
             <button
               onClick={exportToPDF}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm text-[#1A1A2E]"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm text-slate-900"
             >
-              <FileText className="w-4 h-4 text-[#E94560]" />
+              <FileText className="w-4 h-4 text-blue-600" />
               <span>PDF (.pdf)</span>
             </button>
             <button
               onClick={printReport}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm text-[#1A1A2E]"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm text-slate-900"
             >
-              <Printer className="w-4 h-4 text-[#1A1A2E]" />
+              <Printer className="w-4 h-4 text-slate-900" />
               <span>Print</span>
             </button>
-            <div className="border-t border-[#E9ECEF] my-1" />
+            <div className="border-t border-slate-200 my-1" />
             <button
               onClick={() => setShowMenu(false)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-sm text-gray-400"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-sm text-slate-400"
             >
               <X className="w-4 h-4" />
               <span>Cancel</span>
