@@ -332,28 +332,30 @@ Admin: ${user?.full_name || 'Admin'}`
   return (
     <>
       <div>
-      <div className="mb-5 flex justify-between items-center">
+      <div className="mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Manajemen Inventori</h3>
           <p className="text-sm text-slate-500">Kelola stock sparepart</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm()
-            setShowForm(true)
-          }}
-          className="bg-blue-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Tambah Item
-        </button>
-        <button
-          onClick={() => openTransferForm()}
-          className="bg-amber-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-amber-700 transition-all flex items-center gap-2 text-sm"
-        >
-          <Package className="w-4 h-4" />
-          Transfer Stock
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={() => {
+              resetForm()
+              setShowForm(true)
+            }}
+            className="bg-emerald-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Item
+          </button>
+          <button
+            onClick={() => openTransferForm()}
+            className="bg-amber-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-amber-700 transition-all flex items-center justify-center gap-2 text-sm"
+          >
+            <Package className="w-4 h-4" />
+            Transfer Stock
+          </button>
+        </div>
       </div>
 
       {/* Form Modal */}
@@ -397,7 +399,7 @@ Admin: ${user?.full_name || 'Admin'}`
                   ) : (
                     <div
                       onClick={() => document.getElementById('photo-upload')?.click()}
-                      className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center cursor-pointer hover:border-blue-600 transition-all"
+                      className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center cursor-pointer hover:border-emerald-600 transition-all"
                     >
                       <Camera className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                       <p className="text-sm text-slate-500">Klik untuk upload foto</p>
@@ -422,7 +424,7 @@ Admin: ${user?.full_name || 'Admin'}`
                     type="text"
                     value={formData.item_name}
                     onChange={(e) => setFormData({ ...formData, item_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                     required
                   />
                 </div>
@@ -435,7 +437,7 @@ Admin: ${user?.full_name || 'Admin'}`
                     type="text"
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                     required
                   />
                 </div>
@@ -446,7 +448,7 @@ Admin: ${user?.full_name || 'Admin'}`
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 bg-white"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 bg-white"
                     >
                       <option value="">Pilih Kategori</option>
                       {categories.map(cat => (
@@ -460,7 +462,7 @@ Admin: ${user?.full_name || 'Admin'}`
                       type="text"
                       id="new-category-input"
                       placeholder="Tambah kategori baru..."
-                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 text-sm"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 text-sm"
                       onKeyDown={async (e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault()
@@ -505,7 +507,7 @@ Admin: ${user?.full_name || 'Admin'}`
                           setLoading(false)
                         }
                       }}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm"
+                      className="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -522,7 +524,7 @@ Admin: ${user?.full_name || 'Admin'}`
                         const raw = e.target.value.replace(/[^0-9]/g, '')
                         setFormData({ ...formData, store_stock: raw })
                       }}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                       min={0}
                     />
                   </div>
@@ -536,7 +538,7 @@ Admin: ${user?.full_name || 'Admin'}`
                         const raw = e.target.value.replace(/[^0-9]/g, '')
                         setFormData({ ...formData, warehouse_stock: raw })
                       }}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                     />
                   </div>
                 </div>
@@ -552,7 +554,7 @@ Admin: ${user?.full_name || 'Admin'}`
                           const raw = e.target.value.replace(/[^0-9]/g, '')
                           setFormData({ ...formData, price: raw })
                         }}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                         placeholder="0"
                       />
                     </div>
@@ -563,7 +565,7 @@ Admin: ${user?.full_name || 'Admin'}`
                        type="text"
                        value={formData.unit}
                        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                       className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                       className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                        placeholder="pcs, box, dll"
                      />
                    </div>
@@ -580,7 +582,7 @@ Admin: ${user?.full_name || 'Admin'}`
                           const raw = e.target.value.replace(/[^0-9]/g, '')
                           setFormData({ ...formData, min_stock: raw })
                         }}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                       />
                     </div>
                     <div></div>
@@ -671,7 +673,7 @@ Admin: ${user?.full_name || 'Admin'}`
                        onClick={() => editItem(item)}
                        className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-slate-50"
                      >
-                       <Edit2 className="w-3 h-3 text-blue-600" />
+                       <Edit2 className="w-3 h-3 text-emerald-600" />
                      </button>
                      <button
                        onClick={() => deleteItem(item.id)}
@@ -688,7 +690,7 @@ Admin: ${user?.full_name || 'Admin'}`
                   </div>
                   <p className="text-xs text-slate-400 mb-2">SKU: {item.sku}</p>
                   {item.price > 0 && (
-                    <p className="text-xs font-bold text-blue-600 mb-2">
+                    <p className="text-xs font-bold text-emerald-600 mb-2">
                       Rp {Number(item.price).toLocaleString('id-ID')}
                     </p>
                   )}
@@ -698,9 +700,9 @@ Admin: ${user?.full_name || 'Admin'}`
                       <span className="font-semibold text-green-700">{item.store_stock}</span>
                       <span className="text-slate-500 ml-0.5">{item.unit}</span>
                     </div>
-                    <div className="bg-blue-50 rounded p-1.5 text-center border border-blue-100">
-                      <Warehouse className="w-3 h-3 text-blue-600 mx-auto" />
-                      <span className="font-semibold text-blue-700">{item.warehouse_stock}</span>
+                    <div className="bg-emerald-50 rounded p-1.5 text-center border border-emerald-100">
+                      <Warehouse className="w-3 h-3 text-emerald-600 mx-auto" />
+                      <span className="font-semibold text-emerald-700">{item.warehouse_stock}</span>
                       <span className="text-slate-500 ml-0.5">{item.unit}</span>
                     </div>
                   </div>
@@ -739,7 +741,7 @@ Admin: ${user?.full_name || 'Admin'}`
                  <select
                    value={transferItemId}
                    onChange={(e) => setTransferItemId(e.target.value)}
-                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                  >
                    <option value="">Pilih item</option>
                    {inventory.map(item => (
@@ -757,7 +759,7 @@ Admin: ${user?.full_name || 'Admin'}`
                        setTransferFrom(val)
                        if (val === transferTo) setTransferTo(val === 'warehouse' ? 'store' : 'warehouse')
                      }}
-                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                    >
                      <option value="warehouse">Gudang</option>
                      <option value="store">Toko</option>
@@ -772,7 +774,7 @@ Admin: ${user?.full_name || 'Admin'}`
                        setTransferTo(val)
                        if (val === transferFrom) setTransferFrom(val === 'warehouse' ? 'store' : 'warehouse')
                      }}
-                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                    >
                      <option value="warehouse">Gudang</option>
                      <option value="store">Toko</option>
@@ -786,7 +788,7 @@ Admin: ${user?.full_name || 'Admin'}`
                    inputMode="numeric"
                    value={transferQuantity}
                    onChange={(e) => setTransferQuantity(e.target.value.replace(/[^0-9]/g, ''))}
-                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
                    placeholder="0"
                  />
                </div>
@@ -796,7 +798,7 @@ Admin: ${user?.full_name || 'Admin'}`
                    value={transferNotes}
                    onChange={(e) => setTransferNotes(e.target.value)}
                    rows={2}
-                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 text-sm resize-none"
+                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600 text-sm resize-none"
                    placeholder="Opsional..."
                  />
                </div>

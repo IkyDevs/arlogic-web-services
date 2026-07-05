@@ -55,9 +55,29 @@
 - Fix type errors pada kedua attendance modal (`user_metadata`, `photoUrl` nullability)
 - Fix immutable string concatenation pada caption overtime di check-out
 
+#### Attendance Unification
+- Hapus `components/admin/AdminAttendanceModal.tsx`
+- Semua role (admin, teknisi, QC) sekarang pakai `components/teknisi/AttendanceModal.tsx`
+- Owner tidak termasuk absensi
+
+#### Stock Transfer
+- Tambah tabel `stock_transfers` di `db/supabase-schema.sql`
+- Tambah channel `TELEGRAM_CHANNEL_STOCK_TRANSFER` di `.env` dan `lib/telegram.ts`
+- Tambah fitur transfer stock di `components/admin/InventoryManagement.tsx`
+- Upload foto bukti transfer ke Telegram channel stock transfer
+- Update stok warehouse dan toko secara otomatis
+
+#### Admin Dashboard UI Redesign
+- Update `app/globals.css` dengan design tokens fintech dashboard
+- Redesign `app/admin/page.tsx` dengan layout baru:
+  - Sidebar icons-only dengan rounded corners dan active state kuning
+  - Top navbar dengan search, notification, profile avatar
+  - Cards dengan border-radius 24px, shadow, dan hover animation
+  - Color palette baru: #A8D7FF background, #4DB2FF primary, #FF5F87 secondary, #FFD65A accent
+- Update `components/admin/POSection.tsx` sesuai theme baru
+- Update komponen admin lain untuk konsistensi warna
+
 ### Catatan untuk Revisi Selanjutnya
-- Pra service ditunda, fokus ke perbaikan fitur yang ada
 - Multi-group Telegram perlu update `lib/telegram.ts` agar support mapping dinamis
 - Attendance timer & overtime perlu update logic di `components/teknisi/AttendanceModal.tsx`
-- Stock transfer perlu tabel baru dan UI management
 - Responsive design perlu review semua dashboard

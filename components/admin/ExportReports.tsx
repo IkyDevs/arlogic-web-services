@@ -183,9 +183,9 @@ export default function ExportReports() {
   };
 
   const reportOptions = [
-    { type: 'attendance' as ReportType, label: 'ATTENDANCE REPORT', icon: Users, color: 'bg-blue-600', desc: 'Staff check-in/out history' },
+    { type: 'attendance' as ReportType, label: 'ATTENDANCE REPORT', icon: Users, color: 'bg-[#4DB2FF]', desc: 'Staff check-in/out history' },
     { type: 'inventory' as ReportType, label: 'INVENTORY REPORT', icon: Package, color: 'bg-amber-500', textColor: 'text-black', desc: 'Current stock levels' },
-    { type: 'services' as ReportType, label: 'SERVICES REPORT', icon: ClipboardList, color: 'bg-blue-600', desc: 'Service orders history' },
+    { type: 'services' as ReportType, label: 'SERVICES REPORT', icon: ClipboardList, color: 'bg-[#4DB2FF]', desc: 'Service orders history' },
   ];
 
   return (

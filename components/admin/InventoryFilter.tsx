@@ -57,7 +57,7 @@ export default function InventoryFilter({ onFilter }: InventoryFilterProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Cari item..."
-          className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 transition-all"
+          className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#4DB2FF] transition-all"
         />
       </div>
 
@@ -65,7 +65,7 @@ export default function InventoryFilter({ onFilter }: InventoryFilterProps) {
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="flex-1 sm:flex-none px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 bg-white"
+          className="flex-1 sm:flex-none px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#4DB2FF] bg-white"
         >
           <option value="">Semua Kategori</option>
           {categories.map(cat => (

@@ -165,17 +165,17 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
 
   if (!service) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center p-4">
         <div className="max-w-md w-full">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="border border-slate-200 shadow-sm p-8"
+            className="bg-white border border-[#4DB2FF]/20 rounded-[24px] shadow-sm p-8"
           >
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-600 flex items-center justify-center border border-slate-200 mx-auto mb-4">
-                <Watch className="w-8 h-8 text-white" />
-              </div>
+                <div className="w-16 h-16 bg-[#4DB2FF] flex items-center justify-center border border-white/20 mx-auto mb-4">
+                  <Watch className="w-8 h-8 text-white" />
+                </div>
               <h1 className="text-2xl font-black">TRACK SERVICE</h1>
               <p className="text-sm font-mono text-slate-500 mt-2">Masukkan token tracking Anda</p>
             </div>
@@ -200,11 +200,11 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                 </p>
               )}
 
-              <button
-                onClick={trackService}
-                disabled={loading}
-                className="w-full bg-blue-600 text-white font-bold py-3 border border-slate-200 font-mono transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
+                <button
+                  onClick={trackService}
+                  disabled={loading}
+                  className="w-full bg-[#4DB2FF] text-white font-bold py-3 border border-[#4DB2FF]/30 font-mono rounded-xl hover:bg-[#4DB2FF]/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
@@ -216,7 +216,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
               </button>
             </div>
 
-            <div className="mt-6 p-4 bg-slate-50 border border-slate-200">
+            <div className="mt-6 p-4 bg-[#A8D7FF]/40 border border-[#4DB2FF]/20 rounded-[24px]">
               <p className="text-xs font-mono text-center">
                 Token diberikan saat membuat service order.
                 Hubungi kami jika kehilangan token.
@@ -229,19 +229,19 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#A8D7FF] p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto space-y-5">
         {/* Header dengan QR Code */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="border border-slate-200 bg-white shadow-sm overflow-hidden"
+          className="bg-white border border-[#4DB2FF]/20 rounded-[24px] shadow-sm overflow-hidden"
         >
-          <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+          <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#4DB2FF]/20">
             {/* Logo & Title */}
             <div className="p-5 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
-                <div className="w-10 h-10 bg-blue-600 flex items-center justify-center border border-slate-200">
+                <div className="w-10 h-10 bg-[#4DB2FF] flex items-center justify-center border border-white/20">
                   <Watch className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-xl font-black">WATCH SERVICE</span>
@@ -276,7 +276,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="border border-slate-200 bg-white shadow-sm p-5"
+          className="bg-white border border-[#4DB2FF]/20 rounded-[24px] shadow-sm p-5"
         >
           <div className="flex flex-col md:flex-row items-center justify-between gap-5">
             <div className="text-center md:text-left">
@@ -287,7 +287,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
               <p className="text-sm text-slate-500 mt-1">Scan dengan camera HP untuk akses cepat</p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="border border-slate-200 p-2 bg-white">
+              <div className="border border-[#4DB2FF]/20 p-2 bg-white rounded-[24px]">
                 <QRCodeSVG
                   value={trackingUrl}
                   size={80}
@@ -299,12 +299,12 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
               <div>
                 <p className="text-xs font-mono text-slate-500">Token</p>
                 <div className="flex items-center gap-2">
-                  <code className="px-2 py-1 bg-slate-100 border border-slate-200 font-mono text-sm">
+                  <code className="px-2 py-1 bg-[#A8D7FF]/40 border border-[#4DB2FF]/20 font-mono text-sm">
                     {service.token}
                   </code>
                   <button
                     onClick={copyToken}
-                    className="p-1 border border-slate-200 hover:bg-slate-100 transition-all"
+                    className="p-1 border border-[#4DB2FF]/20 hover:bg-[#A8D7FF]/30 transition-all"
                   >
                     {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -319,7 +319,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="border border-slate-200 bg-white shadow-sm p-5"
+          className="bg-white border border-[#4DB2FF]/20 rounded-[24px] shadow-sm p-5"
         >
           <h2 className="text-lg font-black mb-5 flex items-center gap-2">
             <Clock className="w-5 h-5" />
@@ -334,26 +334,26 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                 <div key={step.status} className="relative mb-6 last:mb-0">
                   <div className="flex items-start gap-4">
                     <div className="relative">
-                      <div
-                        className={`
-                          w-10 h-10 flex items-center justify-center z-10 relative border border-slate-200
-                          ${isCompleted ? `bg-gradient-to-br ${step.color} text-white` : 'bg-slate-200 text-slate-500'}
-                        `}
-                      >
+                       <div
+                         className={`
+                           w-10 h-10 flex items-center justify-center z-10 relative border border-[#4DB2FF]/20
+                           ${isCompleted ? `bg-gradient-to-br ${step.color} text-white` : 'bg-[#A8D7FF] text-slate-500'}
+                         `}
+                       >
                         {isCompleted ? (
                           <CheckCircle className="w-5 h-5" />
                         ) : (
                           <step.icon className="w-5 h-5" />
                         )}
                       </div>
-                      {index < statusSteps.length - 1 && (
-                        <div className={`
-                          absolute top-10 left-5 w-0.5 h-12
-                          ${isCompleted ? 'bg-slate-900' : 'bg-slate-300'}
-                        `} />
-                      )}
+                       {index < statusSteps.length - 1 && (
+                         <div className={`
+                           absolute top-10 left-5 w-0.5 h-12
+                           ${isCompleted ? 'bg-[#4DB2FF]' : 'bg-[#A8D7FF]'}
+                         `} />
+                       )}
                     </div>
-                    <div className={`flex-1 ${isCurrent ? 'bg-amber-50 p-3 -mt-2 border border-amber-200' : ''}`}>
+                     <div className={`flex-1 ${isCurrent ? 'bg-[#A8D7FF]/40 p-3 -mt-2 border border-[#4DB2FF]/20' : ''}`}>
                       <h3 className={`font-black ${isCompleted ? 'text-slate-900' : 'text-slate-500'}`}>
                         {step.label}
                       </h3>
@@ -384,124 +384,124 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
           </div>
         </motion.div>
 
-        {/* Service Details */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="space-y-4"
-        >
-          {/* Customer & Device Info */}
-          <div className="border border-slate-200 bg-white shadow-sm">
-            <button
-              onClick={() => toggleSection('device')}
-              className="w-full flex items-center justify-between p-4 border-b border-slate-200 hover:bg-slate-50"
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 flex items-center justify-center border border-slate-200">
-                  <Smartphone className="w-4 h-4 text-white" />
+          {/* Service Details */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-4"
+          >
+            {/* Customer & Device Info */}
+            <div className="bg-white border border-[#4DB2FF]/20 rounded-[24px] shadow-sm">
+              <button
+                onClick={() => toggleSection('device')}
+                className="w-full flex items-center justify-between p-4 border-b border-[#4DB2FF]/20 hover:bg-[#A8D7FF]/30"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-[#4DB2FF] flex items-center justify-center border border-white/20">
+                    <Smartphone className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="font-black">INFORMASI SERVICE</h3>
                 </div>
-                <h3 className="font-black">INFORMASI SERVICE</h3>
-              </div>
-              {expandedSections.device ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-            </button>
+                {expandedSections.device ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+              </button>
 
-            {expandedSections.device && (
-              <div className="p-5 space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200">
-                    <User className="w-5 h-5 text-blue-600" />
-                    <div>
-                      <p className="text-xs text-slate-500">Customer</p>
-                      <p className="font-bold">{service.customer_name}</p>
-                      <p className="text-sm font-mono">{service.customer_phone}</p>
+              {expandedSections.device && (
+                <div className="p-5 space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3 p-3 bg-[#A8D7FF]/30 border border-[#4DB2FF]/20">
+                      <User className="w-5 h-5 text-[#4DB2FF]" />
+                      <div>
+                        <p className="text-xs text-slate-500">Customer</p>
+                        <p className="font-bold">{service.customer_name}</p>
+                        <p className="text-sm font-mono">{service.customer_phone}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-[#A8D7FF]/30 border border-[#4DB2FF]/20">
+                      {isWatch ? <Watch className="w-5 h-5 text-[#4DB2FF]" /> : <Smartphone className="w-5 h-5 text-[#4DB2FF]" />}
+                      <div>
+                        <p className="text-xs text-slate-500">Device</p>
+                        <p className="font-bold">
+                          {isWatch ? service.watch_brand || service.device_brand : service.device_brand}
+                          {service.device_model && ` ${service.device_model}`}
+                        </p>
+                        <p className="text-xs capitalize">{service.device_type}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200">
-                    {isWatch ? <Watch className="w-5 h-5 text-blue-600" /> : <Smartphone className="w-5 h-5 text-blue-600" />}
-                    <div>
-                      <p className="text-xs text-slate-500">Device</p>
-                      <p className="font-bold">
-                        {isWatch ? service.watch_brand || service.device_brand : service.device_brand}
-                        {service.device_model && ` ${service.device_model}`}
-                      </p>
-                      <p className="text-xs capitalize">{service.device_type}</p>
+
+                  {/* Watch-specific details */}
+                  {isWatch && (service.watch_movement || service.watch_condition) && (
+                    <div className="p-3 bg-[#FFD65A]/10 border border-[#FFD65A]/30">
+                      <p className="text-xs font-black mb-2">DETAIL JAM TANGAN</p>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        {service.watch_brand && (
+                          <div><span className="text-slate-500">Brand:</span> <span className="font-bold">{service.watch_brand}</span></div>
+                        )}
+                        {service.watch_model && (
+                          <div><span className="text-slate-500">Model:</span> <span className="font-bold">{service.watch_model}</span></div>
+                        )}
+                        {service.watch_movement && (
+                          <div className="flex items-center gap-1">
+                            {getMovementIcon(service.watch_movement)}
+                            <span className="text-slate-500">Movement:</span>
+                            <span className="font-bold capitalize">{service.watch_movement}</span>
+                          </div>
+                        )}
+                        {service.watch_condition && (
+                          <div><span className="text-slate-500">Condition:</span> <span className="font-bold capitalize">{service.watch_condition}</span></div>
+                        )}
+                        {service.watch_year && (
+                          <div><span className="text-slate-500">Year:</span> <span className="font-bold">{service.watch_year}</span></div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                {/* Watch-specific details */}
-                {isWatch && (service.watch_movement || service.watch_condition) && (
-                  <div className="p-3 bg-amber-50 border border-amber-200">
-                    <p className="text-xs font-black mb-2">DETAIL JAM TANGAN</p>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      {service.watch_brand && (
-                        <div><span className="text-slate-500">Brand:</span> <span className="font-bold">{service.watch_brand}</span></div>
-                      )}
-                      {service.watch_model && (
-                        <div><span className="text-slate-500">Model:</span> <span className="font-bold">{service.watch_model}</span></div>
-                      )}
-                      {service.watch_movement && (
-                        <div className="flex items-center gap-1">
-                          {getMovementIcon(service.watch_movement)}
-                          <span className="text-slate-500">Movement:</span>
-                          <span className="font-bold capitalize">{service.watch_movement}</span>
-                        </div>
-                      )}
-                      {service.watch_condition && (
-                        <div><span className="text-slate-500">Condition:</span> <span className="font-bold capitalize">{service.watch_condition}</span></div>
-                      )}
-                      {service.watch_year && (
-                        <div><span className="text-slate-500">Year:</span> <span className="font-bold">{service.watch_year}</span></div>
-                      )}
+                  {service.serial_number && (
+                    <div className="flex items-center gap-2 p-3 bg-[#A8D7FF]/30 border border-[#4DB2FF]/20">
+                      <Hash className="w-4 h-4 text-slate-400" />
+                      <span className="text-sm">Serial Number: <span className="font-mono">{service.serial_number}</span></span>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {service.serial_number && (
-                  <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200">
-                    <Hash className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm">Serial Number: <span className="font-mono">{service.serial_number}</span></span>
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-xs font-black mb-1">KERUSAKAN</p>
-                  <div className="p-3 bg-orange-50 border border-orange-200 text-sm">
-                    {service.issue_description}
-                  </div>
-                </div>
-
-                {service.request && (
                   <div>
-                    <p className="text-xs font-black mb-1">REQUEST CUSTOMER</p>
-                    <div className="p-3 bg-blue-50 border border-blue-200 text-sm">
-                      {service.request}
+                    <p className="text-xs font-black mb-1">KERUSAKAN</p>
+                    <div className="p-3 bg-[#FF5F87]/10 border border-[#FF5F87]/30 text-sm">
+                      {service.issue_description}
                     </div>
                   </div>
-                )}
 
-                {service.notes && (
-                  <div>
-                    <p className="text-xs font-black mb-1">CATATAN</p>
-                    <div className="p-3 bg-slate-50 border border-slate-200 text-sm">
-                      {service.notes}
+                  {service.request && (
+                    <div>
+                      <p className="text-xs font-black mb-1">REQUEST CUSTOMER</p>
+                      <div className="p-3 bg-[#4DB2FF]/10 border border-[#4DB2FF]/30 text-sm">
+                        {service.request}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  )}
+
+                  {service.notes && (
+                    <div>
+                      <p className="text-xs font-black mb-1">CATATAN</p>
+                      <div className="p-3 bg-[#A8D7FF]/30 border border-[#4DB2FF]/20 text-sm">
+                        {service.notes}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
           {/* Items & Cost */}
           {items.length > 0 && (
-            <div className="border border-slate-200 bg-white shadow-sm">
+            <div className="bg-white border border-[#4DB2FF]/20 rounded-[24px] shadow-sm">
               <button
                 onClick={() => toggleSection('items')}
-                className="w-full flex items-center justify-between p-4 border-b border-slate-200 hover:bg-slate-50"
+                className="w-full flex items-center justify-between p-4 border-b border-[#4DB2FF]/20 hover:bg-[#A8D7FF]/30"
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-amber-500 flex items-center justify-center border border-slate-200">
+                  <div className="w-8 h-8 bg-[#FFD65A] flex items-center justify-center border border-white/20">
                     <Package className="w-4 h-4 text-white" />
                   </div>
                   <h3 className="font-black">SPAREPART & BIAYA</h3>
@@ -512,11 +512,11 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
               {expandedSections.items && (
                 <div className="p-5 space-y-3">
                   {items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200">
+                    <div key={index} className="flex justify-between items-center p-3 bg-[#A8D7FF]/30 border border-[#4DB2FF]/20">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-0.5 text-xs font-bold border ${
-                            item.item_type === 'jasa' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-purple-100 text-purple-700 border-purple-200'
+                            item.item_type === 'jasa' ? 'bg-[#4DB2FF]/20 text-[#4DB2FF] border-[#4DB2FF]/20' : 'bg-[#FFD65A]/20 text-[#FFD65A] border-[#FFD65A]/20'
                           }`}>
                             {item.item_type === 'jasa' ? 'JASA' : 'SPAREPART'}
                           </span>
@@ -529,7 +529,7 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                       <span className="font-bold">{formatRupiah(item.price * item.quantity)}</span>
                     </div>
                   ))}
-                  <div className="flex justify-between items-center p-3 bg-slate-900 text-white font-bold">
+                  <div className="flex justify-between items-center p-3 bg-[#4DB2FF] text-white font-bold rounded-[24px]">
                     <span>TOTAL</span>
                     <span className="text-xl">{formatRupiah(service.final_cost || service.estimated_cost || 0)}</span>
                   </div>
@@ -540,13 +540,13 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
 
           {/* Timeline Updates */}
           {timeline.length > 0 && (
-            <div className="border border-slate-200 bg-white shadow-sm">
+            <div className="bg-white border border-[#4DB2FF]/20 rounded-[24px] shadow-sm">
               <button
                 onClick={() => toggleSection('timeline')}
-                className="w-full flex items-center justify-between p-4 border-b border-slate-200 hover:bg-slate-50"
+                className="w-full flex items-center justify-between p-4 border-b border-[#4DB2FF]/20 hover:bg-[#A8D7FF]/30"
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-600 flex items-center justify-center border border-slate-200">
+                  <div className="w-8 h-8 bg-[#4DB2FF] flex items-center justify-center border border-white/20">
                     <Clock className="w-4 h-4 text-white" />
                   </div>
                   <h3 className="font-black">TIMELINE UPDATE</h3>
@@ -559,19 +559,19 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
                   {timeline.map((update, index) => (
                     <div key={update.id} className="relative pl-6 pb-4 last:pb-0">
                       {index < timeline.length - 1 && (
-                        <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-slate-300" />
+                        <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-[#A8D7FF]" />
                       )}
-                      <div className="absolute left-0 top-1 w-3 h-3 bg-blue-600 rounded-full border border-slate-200" />
-                      <div className="bg-slate-50 p-3 ml-2 border border-slate-200">
+                      <div className="absolute left-0 top-1 w-3 h-3 bg-[#4DB2FF] rounded-full border border-[#4DB2FF]/20" />
+                      <div className="bg-[#A8D7FF]/30 p-3 ml-2 border border-[#4DB2FF]/20">
                         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                           <span className="text-xs text-slate-500">
                             {formatDate(update.created_at)}
                           </span>
                           <span className={`text-xs font-bold px-2 py-0.5 border ${
-                            update.status === 'completed' ? 'bg-green-100 text-green-700 border-green-200' :
-                            update.status === 'waiting_sparepart' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                            update.status === 'in_progress' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                            'bg-slate-100 text-slate-600 border-slate-200'
+                            update.status === 'completed' ? 'bg-[#3CCF91]/20 text-[#3CCF91] border-[#3CCF91]/20' :
+                            update.status === 'waiting_sparepart' ? 'bg-[#FFD65A]/30 text-yellow-700 border-[#FFD65A]/30' :
+                            update.status === 'in_progress' ? 'bg-[#4DB2FF]/20 text-[#4DB2FF] border-[#4DB2FF]/20' :
+                            'bg-[#A8D7FF]/40 text-slate-600 border-[#4DB2FF]/20'
                           }`}>
                             {update.status === 'completed' ? 'SELESAI' :
                              update.status === 'waiting_sparepart' ? 'MENUNGGU SPAREPART' :

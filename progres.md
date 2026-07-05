@@ -23,11 +23,12 @@
 - [x] Schema cache PostgREST fixes for multiple tables
 - [x] Attendance popup enforcement before 11 AM - implemented for admin, teknisi, QC
 - [x] Attendance timer & overtime calculation - updated templates + overtime checkbox + 8PM threshold
+- [x] Stock transfer tracking (warehouse → store)
+- [x] Admin dashboard UI redesign to fintech style
 - [ ] Technician service queue & "take service" flow alignment
 - [ ] QC/Supervisor dashboard approve/reject flow refinement
-- [ ] Stock transfer tracking (warehouse → store)
 - [ ] Telegram multi-group support configuration
-- [ ] Full responsive design verification (mobile-first)
+- [ ] Full responsive design verification (mobile-first) - admin dashboard fixed
 - [ ] Dark mode consistency across all pages
 - [x] Documentation files completion
 

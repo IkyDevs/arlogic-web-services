@@ -246,9 +246,9 @@ export default function OwnerDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center p-4">
+        <div className="text-center bg-white rounded-[24px] p-8 border border-[#4DB2FF]/20">
+          <div className="w-10 h-10 border border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-3 text-slate-500 font-medium">Loading dashboard...</p>
         </div>
       </div>
@@ -256,17 +256,17 @@ export default function OwnerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#A8D7FF]">
       {/* ==================== SIDEBAR ==================== */}
-      <div className={`sidebar-container fixed inset-y-0 left-0 w-64 bg-white border-r border-slate-200 z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-y-auto`}>
-        <div className="p-4 border-b border-slate-200">
+      <div className={`sidebar-container fixed inset-y-0 left-0 w-64 bg-white border-r border-[#4DB2FF]/20 z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 overflow-y-auto`}>
+        <div className="p-4 border-b border-[#4DB2FF]/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 bg-[#4DB2FF] rounded-xl flex items-center justify-center flex-shrink-0">
                 <Watch className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900">Watch<span className="text-blue-600">Service</span></h1>
+                <h1 className="text-lg font-bold text-slate-900">Watch<span className="text-[#4DB2FF]">Service</span></h1>
                 <p className="text-[10px] text-slate-500">Owner Panel</p>
               </div>
             </div>
@@ -275,8 +275,8 @@ export default function OwnerDashboard() {
             </button>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg">
-            <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+          <div className="mt-4 flex items-center gap-3 p-2.5 bg-[#A8D7FF]/30 rounded-2xl">
+            <div className="w-9 h-9 bg-[#4DB2FF] rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
               {user?.full_name?.charAt(0) || 'O'}
             </div>
             <div className="flex-1 min-w-0">
@@ -295,10 +295,10 @@ export default function OwnerDashboard() {
                 setActiveTab(item.id)
                 if (isMobile) setSidebarOpen(false)
               }}
-              className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg transition-all ${
+              className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
                 activeTab === item.id
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-900 hover:bg-slate-100'
+                  ? 'bg-[#FFD65A] text-slate-900'
+                  : 'text-slate-900 hover:bg-[#A8D7FF]/30'
               }`}
             >
               <item.icon className="w-4 h-4 flex-shrink-0" />
@@ -306,10 +306,10 @@ export default function OwnerDashboard() {
             </button>
           ))}
 
-          <div className="pt-4 mt-4 border-t border-slate-200">
+          <div className="pt-4 mt-4 border-t border-[#4DB2FF]/20">
             <button
               onClick={handleLogout}
-              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-blue-600 hover:bg-red-50 transition-all"
+              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl text-[#FF5F87] hover:bg-[#FF5F87]/10 transition-all"
             >
               <LogOut className="w-4 h-4 flex-shrink-0" />
               <span>Logout</span>
@@ -317,7 +317,7 @@ export default function OwnerDashboard() {
           </div>
         </nav>
 
-        <div className="p-4 border-t border-slate-200 text-center">
+        <div className="p-4 border-t border-[#4DB2FF]/20 text-center">
           <p className="text-[10px] text-slate-400">Watch Service v2.0</p>
         </div>
       </div>
@@ -333,7 +333,7 @@ export default function OwnerDashboard() {
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="lg:ml-64">
         {/* Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-[#4DB2FF]/20 z-20">
           <div className="px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <button
@@ -355,7 +355,7 @@ export default function OwnerDashboard() {
               <button className="relative p-2 hover:bg-slate-100 rounded-lg transition-all flex-shrink-0">
                 <Bell className="w-4 h-4 text-slate-400" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#4DB2FF] text-white text-[9px] font-bold flex items-center justify-center rounded-full">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -374,7 +374,7 @@ export default function OwnerDashboard() {
               <div className="relative flex-shrink-0">
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-xs sm:text-sm font-medium"
+                  className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white border border-[#4DB2FF]/20 rounded-xl hover:bg-[#A8D7FF]/20 transition-all text-xs sm:text-sm font-medium"
                 >
                   <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400" />
                   <span className="hidden xs:inline">
@@ -387,7 +387,7 @@ export default function OwnerDashboard() {
                 </button>
 
                 {showDatePicker && (
-                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-xl border border-slate-200 shadow-lg z-50 p-2 sm:p-3">
+                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-lg z-50 p-2 sm:p-3">
                     {['today', 'week', 'month', 'custom'].map((range) => (
                       <button
                         key={range}
@@ -395,10 +395,10 @@ export default function OwnerDashboard() {
                           setDateRange(range as DateRange)
                           if (range !== 'custom') setShowDatePicker(false)
                         }}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm transition-all ${
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm transition-all ${
                           dateRange === range
-                            ? 'bg-slate-900 text-white'
-                            : 'hover:bg-slate-50 text-slate-900'
+                            ? 'bg-[#4DB2FF] text-white'
+                            : 'hover:bg-[#A8D7FF]/30 text-slate-900'
                         }`}
                       >
                         {range === 'today' ? 'Today' :
@@ -409,14 +409,14 @@ export default function OwnerDashboard() {
                     ))}
 
                     {dateRange === 'custom' && (
-                      <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+                      <div className="mt-3 pt-3 border-t border-[#4DB2FF]/20 space-y-2">
                         <div>
                           <label className="text-xs text-slate-400">Start</label>
                           <input
                             type="date"
                             value={format(customStartDate, 'yyyy-MM-dd')}
                             onChange={(e) => setCustomStartDate(new Date(e.target.value))}
-                            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm"
+                            className="w-full px-2 py-1.5 border border-[#4DB2FF]/20 rounded-xl text-sm"
                           />
                         </div>
                         <div>
@@ -425,7 +425,7 @@ export default function OwnerDashboard() {
                             type="date"
                             value={format(customEndDate, 'yyyy-MM-dd')}
                             onChange={(e) => setCustomEndDate(new Date(e.target.value))}
-                            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm"
+                            className="w-full px-2 py-1.5 border border-[#4DB2FF]/20 rounded-xl text-sm"
                           />
                         </div>
                         <button
@@ -433,7 +433,7 @@ export default function OwnerDashboard() {
                             fetchDashboardData()
                             setShowDatePicker(false)
                           }}
-                          className="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-all"
+                          className="w-full bg-[#4DB2FF] text-white py-2 rounded-xl text-sm font-medium hover:bg-[#4DB2FF]/90 transition-all"
                         >
                           Apply
                         </button>
@@ -460,13 +460,13 @@ export default function OwnerDashboard() {
                 className="space-y-4 sm:space-y-6"
               >
                 {/* Welcome Banner */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm">
+                <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-4 sm:p-5 shadow-sm">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
                       <h3 className="text-lg sm:text-xl font-bold text-slate-900">Welcome back, {user?.full_name?.split(' ')[0]}! 👋</h3>
                        <p className="text-sm text-slate-500 mt-0.5">Ringkasan performa bisnis Anda hari ini.</p>
                     </div>
-                    <div className="bg-slate-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium border border-slate-200 flex-shrink-0">
+                    <div className="bg-[#A8D7FF]/30 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-xs sm:text-sm font-medium border border-[#4DB2FF]/20 flex-shrink-0">
                       <span className="mr-2">📅</span> {format(new Date(), 'MMMM yyyy')}
                     </div>
                   </div>
@@ -474,47 +474,47 @@ export default function OwnerDashboard() {
 
                 {/* Stats Grid - Responsive 2-3-5 columns */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
                     <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Revenue</span>
-                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-blue-600 truncate">{formatRupiah(dashboardData?.revenue || 0)}</p>
+                    <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-[#4DB2FF] truncate">{formatRupiah(dashboardData?.revenue || 0)}</p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <TrendingUp className="w-3 h-3 text-green-500" />
-                      <span className="text-[10px] sm:text-xs text-green-500 font-medium">{dashboardData?.monthlyComparison.growth.toFixed(1)}%</span>
+                      <TrendingUp className="w-3 h-3 text-[#3CCF91]" />
+                      <span className="text-[10px] sm:text-xs text-[#3CCF91] font-medium">{dashboardData?.monthlyComparison.growth.toFixed(1)}%</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
                     <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Profit</span>
                     <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900 truncate">{formatRupiah(dashboardData?.profit || 0)}</p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <TrendingUp className="w-3 h-3 text-green-500" />
-                      <span className="text-[10px] sm:text-xs text-green-500 font-medium">+12.5%</span>
+                      <TrendingUp className="w-3 h-3 text-[#3CCF91]" />
+                      <span className="text-[10px] sm:text-xs text-[#3CCF91] font-medium">+12.5%</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
                     <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Services</span>
                     <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900">{dashboardData?.completedServices || 0}/{dashboardData?.totalServices || 0}</p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <CheckCircle className="w-3 h-3 text-green-500" />
-                      <span className="text-[10px] sm:text-xs text-green-500 font-medium">{dashboardData?.totalServices ? Math.round((dashboardData.completedServices / dashboardData.totalServices) * 100) : 0}%</span>
+                      <CheckCircle className="w-3 h-3 text-[#3CCF91]" />
+                      <span className="text-[10px] sm:text-xs text-[#3CCF91] font-medium">{dashboardData?.totalServices ? Math.round((dashboardData.completedServices / dashboardData.totalServices) * 100) : 0}%</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
                     <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Active Teknisi</span>
                     <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900">{dashboardData?.activeTechnicians || 0}</p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <Users className="w-3 h-3 text-blue-600" />
+                      <Users className="w-3 h-3 text-[#4DB2FF]" />
                       <span className="text-[10px] sm:text-xs text-slate-400">Working</span>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all col-span-2 md:col-span-1">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all col-span-2 md:col-span-1">
                     <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Avg. Duration</span>
                     <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-slate-900">{(dashboardData?.averageCompletionTime || 0).toFixed(1)} days</p>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3 text-amber-500" />
+                      <Clock className="w-3 h-3 text-[#FFD65A]" />
                       <span className="text-[10px] sm:text-xs text-slate-400">Per service</span>
                     </div>
                   </div>
@@ -522,8 +522,8 @@ export default function OwnerDashboard() {
 
                 {/* Charts Row */}
                 <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-sm overflow-hidden">
+                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#4DB2FF]/20">
                       <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Revenue Trend</h3>
                     </div>
                     <div className="p-3 sm:p-5">
@@ -531,8 +531,8 @@ export default function OwnerDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-sm overflow-hidden">
+                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#4DB2FF]/20">
                       <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Technician Performance</h3>
                     </div>
                     <div className="p-3 sm:p-5">
@@ -543,20 +543,20 @@ export default function OwnerDashboard() {
 
                 {/* Financial Summary & Quick Actions */}
                 <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-sm p-4 sm:p-5">
                     <h3 className="font-semibold text-slate-900 mb-3 sm:mb-4 text-sm sm:text-base">Financial Summary</h3>
                     <div className="space-y-2 sm:space-y-3">
-                      <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                      <div className="flex justify-between items-center py-2 border-b border-[#4DB2FF]/20">
                         <span className="text-xs sm:text-sm text-slate-500">Revenue</span>
                         <span className="font-bold text-slate-900 text-xs sm:text-sm">{formatRupiah(dashboardData?.revenue || 0)}</span>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                      <div className="flex justify-between items-center py-2 border-b border-[#4DB2FF]/20">
                         <span className="text-xs sm:text-sm text-slate-500">Expenses (est.)</span>
-                        <span className="font-bold text-blue-600 text-xs sm:text-sm">{formatRupiah(dashboardData?.expenses || 0)}</span>
+                        <span className="font-bold text-[#4DB2FF] text-xs sm:text-sm">{formatRupiah(dashboardData?.expenses || 0)}</span>
                       </div>
-                      <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                      <div className="flex justify-between items-center py-2 border-b border-[#4DB2FF]/20">
                         <span className="text-xs sm:text-sm text-slate-500">Gross Profit</span>
-                        <span className="font-bold text-emerald-600 text-xs sm:text-sm">{formatRupiah(dashboardData?.profit || 0)}</span>
+                        <span className="font-bold text-[#3CCF91] text-xs sm:text-sm">{formatRupiah(dashboardData?.profit || 0)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2">
                         <span className="text-xs sm:text-sm text-slate-500">Profit Margin</span>
@@ -567,26 +567,26 @@ export default function OwnerDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                  <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-sm p-4 sm:p-5">
                     <h3 className="font-semibold text-slate-900 mb-3 sm:mb-4 text-sm sm:text-base">Quick Actions</h3>
                     <div className="space-y-2 sm:space-y-3">
                       <button
                         onClick={() => setActiveTab('revenue')}
-                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-xs sm:text-sm font-medium"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-[#4DB2FF] text-white rounded-xl hover:bg-[#3aa0f5] transition-all text-xs sm:text-sm font-medium"
                       >
                         <span>Revenue Analytics</span>
                         <ChevronRight className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setActiveTab('performance')}
-                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-xs sm:text-sm font-medium"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-[#FFD65A] text-slate-900 rounded-xl hover:bg-[#ffcc00] transition-all text-xs sm:text-sm font-medium"
                       >
                         <span>Team Performance</span>
                         <ChevronRight className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setActiveTab('feedback')}
-                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-xs sm:text-sm font-medium"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#4DB2FF]/20 text-slate-900 rounded-xl hover:bg-[#A8D7FF]/30 transition-all text-xs sm:text-sm font-medium"
                       >
                         <span>Customer Feedback</span>
                         <ChevronRight className="w-4 h-4" />
@@ -604,7 +604,7 @@ export default function OwnerDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-sm p-4 sm:p-5">
                   <RevenueChart data={dashboardData} dateRange={getDateRangeValues()} comparePeriod={comparePeriod} />
                 </div>
               </motion.div>
@@ -617,7 +617,7 @@ export default function OwnerDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5">
+                <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-sm p-4 sm:p-5">
                   <PerformanceChart data={dashboardData?.technicianPerformance || []} totalServices={dashboardData?.totalServices || 0} />
                 </div>
               </motion.div>

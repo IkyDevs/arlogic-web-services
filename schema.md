@@ -99,6 +99,17 @@
 - created_at TIMESTAMPTZ
 - updated_at TIMESTAMPTZ
 
+### public.stock_transfers
+- id UUID PK
+- inventory_id UUID (FK inventory)
+- from_location TEXT (warehouse/store)
+- to_location TEXT (warehouse/store)
+- quantity INT
+- notes TEXT
+- photo_url TEXT
+- created_by UUID (FK profiles)
+- created_at TIMESTAMPTZ
+
 ### public.categories
 - id UUID PK
 - name TEXT UNIQUE

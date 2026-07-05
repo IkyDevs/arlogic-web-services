@@ -37,6 +37,8 @@
 - Search & filter
 - Upload foto barang ke Telegram
 - Stock toko & stok gudang
+- Transfer stock antara gudang dan toko dengan foto bukti
+- Record transfer disimpan di tabel `stock_transfers`
 
 ### 6. QC / Supervisor
 - Dashboard QC (`/qc`)
@@ -51,14 +53,20 @@
 
 ### 8. Telegram Integration
 - Storage foto via Telegram Bot API
-- Channel mapping: attendance, service, layanan, inventory
+- Channel mapping: attendance, service, layanan, inventory, stock_transfer
 - Upload multiple photos (media group)
 - Caption dengan metadata form
 
 ### 9. Theme
 - Light mode & dark mode toggle
-- localStorage persistence
-- System preference detection
+- Fintech dashboard UI design:
+  - Background: #A8D7FF
+  - Cards: white dengan border-radius 24px
+  - Primary: #4DB2FF
+  - Accent: #FFD65A
+  - Secondary: #FF5F87
+- Responsive sidebar icons-only
+- Top navbar dengan search, notification, profile
 
 ### 10. Export & Reporting
 - Export attendance to Excel

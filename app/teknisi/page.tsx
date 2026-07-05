@@ -21,7 +21,6 @@ import LayananList from '@/components/layanan/LayananList'
 import ThemeToggle from '@/components/ThemeToggle'
 import toast from 'react-hot-toast'
 
-// Dynamic imports
 import dynamic from 'next/dynamic'
 
 const ServiceTimeline = dynamic(() => import('@/components/teknisi/ServiceTimeline'), {
@@ -299,65 +298,45 @@ export default function TeknisiDashboard() {
   const attendanceStatus = getAttendanceStatus()
 
   const menuItems = [
-    { id: 'queue', label: 'Antrean & Proyek', icon: ClipboardList, description: 'Lihat dan ambil proyek' },
-    { id: 'stats', label: 'Performa', icon: TrendingUp, description: 'Lihat statistik Anda' },
-    { id: 'layanan', label: 'Transaksi', icon: FileText, description: 'Input transaksi layanan' },
+    { id: 'queue', label: 'Antrean & Proyek', icon: ClipboardList },
+    { id: 'stats', label: 'Performa', icon: TrendingUp },
+    { id: 'layanan', label: 'Transaksi', icon: FileText },
   ]
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-500 font-medium">Loading dashboard...</p>
+          <div className="w-10 h-10 border-2 border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-600 font-medium">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ==================== SIDEBAR ==================== */}
-      <div className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 z-40 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="p-4 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg flex items-center justify-center">
-                <Wrench className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">Watch<span className="text-blue-600">Service</span></h1>
-                <p className="text-[10px] text-slate-400">Teknisi Panel</p>
-              </div>
-            </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5 hover:bg-slate-100 rounded-lg">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+    <div className="min-h-screen bg-[#A8D7FF]">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-          <div className="mt-4 flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg">
-            <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {user?.full_name?.charAt(0) || 'T'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{user?.full_name}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.teknisi_name || user?.full_name}</p>
-            </div>
-          </div>
-
-          {/* Attendance Status */}
-          <div className={`mt-3 p-2 rounded-lg ${attendanceStatus.bg}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs">
-                <span>{attendanceStatus.icon}</span>
-                <span className={attendanceStatus.color}>{attendanceStatus.text}</span>
-              </div>
-              <span className="text-[10px] text-slate-400">Teknisi</span>
-            </div>
-          </div>
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-20 bg-white z-50 flex flex-col items-center py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-auto lg:w-auto transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Logo */}
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#4DB2FF] rounded-2xl flex items-center justify-center mb-6 sm:mb-8">
+          <Wrench className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
 
-        <nav className="p-3 space-y-0.5">
+        {/* Navigation */}
+        <nav className="flex-1 flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -365,146 +344,111 @@ export default function TeknisiDashboard() {
                 setActiveTab(item.id)
                 setSidebarOpen(false)
               }}
-              className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg transition-all ${
+              className={`sidebar-item w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
                 activeTab === item.id
-                  ? 'bg-slate-900 text-white'
-                  : 'text-slate-900 hover:bg-slate-100'
+                  ? 'bg-[#FFD65A] text-black shadow-md'
+                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
               }`}
+              title={item.label}
             >
-              <item.icon className="w-4 h-4" />
-              {item.label}
+              <item.icon className="w-5 h-5" />
             </button>
           ))}
-
-          <div className="pt-2 mt-2 border-t border-slate-200 space-y-2">
-            {/* Attendance Button */}
-            <button
-              onClick={() => handleAttendance(todayAttendance && !todayAttendance.check_out ? 'check_out' : 'check_in')}
-              disabled={!!todayAttendance?.check_out}
-              className={`w-full py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-                !todayAttendance
-                  ? 'bg-green-500 hover:bg-green-600 text-white'
-                  : todayAttendance.check_out
-                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-yellow-500 hover:bg-yellow-600 text-white'
-              }`}
-            >
-              {!todayAttendance ? (
-                <>
-                  <LogIn className="w-4 h-4" />
-                  Check In
-                </>
-              ) : todayAttendance.check_out ? (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  Completed
-                </>
-              ) : (
-                <>
-                  <LogOutIcon className="w-4 h-4" />
-                  Check Out
-                </>
-              )}
-            </button>
-
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-blue-600 hover:bg-red-50 transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-              Keluar
-            </button>
-          </div>
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 text-center">
-          <p className="text-[10px] text-slate-400">Watch Service v2.0</p>
+        {/* Bottom Actions */}
+        <div className="flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3">
+          {/* Attendance */}
+          <button
+            onClick={() => handleAttendance(todayAttendance && !todayAttendance.check_out ? 'check_out' : 'check_in')}
+            disabled={!!todayAttendance?.check_out}
+            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
+              !todayAttendance
+                ? 'bg-[#3CCF91] text-white hover:bg-[#2db87d]'
+                : todayAttendance.check_out
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-[#FFD65A] text-black hover:bg-[#f5c94a]'
+            }`}
+            title={todayAttendance?.check_out ? 'Completed' : 'Attendance'}
+          >
+            {!todayAttendance ? (
+              <LogIn className="w-5 h-5" />
+            ) : todayAttendance.check_out ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <LogOutIcon className="w-5 h-5" />
+            )}
+          </button>
+
+          {/* Theme Toggle */}
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+            <ThemeToggle />
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+            title="Keluar"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
-      </div>
+      </aside>
 
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-slate-200"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* ==================== MAIN CONTENT ==================== */}
-      <div className="lg:ml-64">
-        {/* Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
-          <div className="px-6 py-3.5 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">{menuItems.find(m => m.id === activeTab)?.label}</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden lg:ml-64">
+        {/* Top Navbar */}
+        <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl px-3 py-2.5 sm:px-5 sm:py-3.5 flex items-center justify-between shadow-sm gap-2 sm:gap-4">
+            {/* Spacer for mobile menu button */}
+            <div className="hidden lg:block w-12" />
+
+            {/* Page Title - Center on mobile */}
+            <div className="flex-1 lg:flex-none text-center lg:text-left">
+              <h1 className="text-lg sm:text-lg md:text-xl font-bold text-slate-900">
+                {menuItems.find(m => m.id === activeTab)?.label}
+              </h1>
             </div>
 
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <div className="relative hidden sm:block sparepart-search-container">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={sparepartSearch}
-                  onChange={(e) => setSparepartSearch(e.target.value)}
-                  onFocus={() => sparepartResults.length > 0 && setShowSparepartResults(true)}
-                  placeholder="Cari sparepart..."
-                  className="pl-9 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 w-48"
-                />
-                {showSparepartResults && (
-                  <div className="absolute top-full mt-1 right-0 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-                    {sparepartSearching ? (
-                      <div className="p-3 text-center text-sm text-slate-400">Mencari...</div>
-                    ) : sparepartResults.length === 0 ? (
-                      <div className="p-3 text-center text-sm text-slate-400">Tidak tersedia</div>
-                    ) : (
-                      sparepartResults.map((item) => (
-                        <div key={item.id} className="p-3 border-b border-slate-200 last:border-0 hover:bg-slate-50">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="text-sm font-medium text-slate-900">{item.item_name}</p>
-                              <p className="text-xs text-slate-400">SKU: {item.sku}</p>
-                              <p className="text-xs text-slate-500">Kategori: {item.category || 'Uncategorized'}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs font-bold text-emerald-600">Toko: {item.store_stock}</p>
-                              <p className="text-xs font-bold text-blue-600">Gudang: {item.warehouse_stock}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => fetchAllData(true)} className={`p-2 hover:bg-slate-100 rounded-lg transition-all ${refreshing ? 'animate-spin' : ''}`}>
-                <RefreshCw className="w-4 h-4 text-slate-400" />
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+              {/* Refresh */}
+              <button
+                onClick={() => fetchAllData(true)}
+                className={`p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0 ${refreshing ? 'animate-spin' : ''}`}
+              >
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </button>
-              <button onClick={() => toast('Notifikasi belum tersedia', { icon: '??' })} className="relative p-2 hover:bg-slate-100 rounded-lg transition-all">
-                <Bell className="w-4 h-4 text-slate-400" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-600 rounded-full" />
+
+              {/* Notification */}
+              <button
+                onClick={() => toast('Notifikasi belum tersedia', { icon: '🔔' })}
+                className="relative p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
+              >
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-[#FF5F87] rounded-full flex-shrink-0" />
               </button>
-              <div className="bg-blue-600 px-3 py-1 rounded-full text-white text-xs font-medium">
-                TEKNISI
+
+              {/* Profile */}
+              <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#4DB2FF] rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                  {user?.full_name?.charAt(0) || 'T'}
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         {/* ==================== CONTENT ==================== */}
-        <main className="p-6">
+        <main className="flex-1 p-2 sm:p-3 md:p-4">
           <AnimatePresence mode="wait">
             {activeTab === 'queue' && (
               <motion.div
@@ -513,48 +457,40 @@ export default function TeknisiDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
+                className="space-y-3 sm:space-y-4 md:space-y-5"
               >
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="stat-card">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Selesai Hari Ini</span>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-1 sm:mb-3">
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Selesai Hari Ini</span>
+                      <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-600 flex-shrink-0" />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-slate-900">{stats.completedToday}</p>
-                      <CheckCircle className="w-6 h-6 text-emerald-600" />
-                    </div>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.completedToday}</p>
                   </div>
 
-                  <div className="stat-card">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Sedang Dikerjakan</span>
+                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-1 sm:mb-3">
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Sedang Dikerjakan</span>
+                      <Wrench className="w-4 h-4 sm:w-6 sm:h-6 text-[#FFD65A] flex-shrink-0" />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-slate-900">{stats.inProgress}</p>
-                      <Wrench className="w-6 h-6 text-amber-500" />
-                    </div>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.inProgress}</p>
                   </div>
 
-                  <div className="stat-card">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Antrean</span>
+                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-1 sm:mb-3">
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Antrean</span>
+                      <Clock className="w-4 h-4 sm:w-6 sm:h-6 text-[#4DB2FF] flex-shrink-0" />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-2xl font-bold text-slate-900">{stats.pendingQueue}</p>
-                      <Clock className="w-6 h-6 text-blue-600" />
-                    </div>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.pendingQueue}</p>
                   </div>
 
-                  <div className="stat-card">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Pendapatan Bulan Ini</span>
+                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-1 sm:mb-3">
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Pendapatan Bulan Ini</span>
+                      <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 text-[#4DB2FF] flex-shrink-0" />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xl font-bold text-blue-600">{formatRupiah(stats.totalEarnings)}</p>
-                      <DollarSign className="w-6 h-6 text-blue-600" />
-                    </div>
+                    <p className="text-sm sm:text-xl md:text-2xl font-bold text-[#4DB2FF] truncate">{formatRupiah(stats.totalEarnings)}</p>
                   </div>
                 </div>
 
@@ -565,30 +501,34 @@ export default function TeknisiDashboard() {
                 />
 
                 {/* Recent Activity */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-6 h-6 bg-slate-900 rounded-lg flex items-center justify-center">
-                      <Activity className="w-3 h-3 text-white" />
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm p-3 sm:p-5"
+                >
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-slate-200">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
+                      <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
-                    <h3 className="font-semibold text-slate-900">Aktivitas Terbaru</h3>
+                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">Aktivitas Terbaru</h3>
                   </div>
                   <div className="space-y-2">
                     {recentActivities.map((activity, i) => (
-                      <div key={activity.id} className="flex items-center gap-3 p-2 border-b border-slate-200 last:border-0">
-                        <div className="w-2 h-2 bg-blue-600 rounded-full" />
-                        <div className="flex-1">
-                          <p className="text-sm text-slate-700">{activity.message}</p>
-                          <p className="text-xs text-slate-400">{activity.time}</p>
+                      <div key={activity.id} className="flex items-center gap-3 p-2 border-b border-slate-100 last:border-0">
+                        <div className="w-2 h-2 bg-[#4DB2FF] rounded-full flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs sm:text-sm text-slate-700 truncate">{activity.message}</p>
+                          <p className="text-[10px] sm:text-xs text-slate-400">{activity.time}</p>
                         </div>
                       </div>
                     ))}
                     {recentActivities.length === 0 && (
                       <div className="text-center py-6 text-slate-400">
-                        <p className="text-sm">Belum ada aktivitas</p>
+                        <p className="text-xs sm:text-sm">Belum ada aktivitas</p>
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               </motion.div>
             )}
 
@@ -598,52 +538,53 @@ export default function TeknisiDashboard() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="grid md:grid-cols-2 gap-6"
+                transition={{ duration: 0.3 }}
+                className="grid md:grid-cols-2 gap-3 sm:gap-4 md:gap-6"
               >
                 {/* Performance Stats */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-slate-200">
-                    <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-white" />
+                <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm p-3 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-slate-200">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900">Metrik Performa</h3>
+                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">Metrik Performa</h3>
                   </div>
 
-                  <div className="space-y-5">
+                  <div className="space-y-4 sm:space-y-5">
                     <div>
-                      <div className="flex justify-between text-sm font-medium mb-1">
+                      <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
                         <span className="text-slate-600">Completion Rate</span>
-                        <span className="text-[#2ECC71]">94%</span>
+                        <span className="text-[#3CCF91]">94%</span>
                       </div>
-                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="w-[94%] h-full bg-emerald-600 rounded-full" />
+                      <div className="h-1.5 sm:h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="w-[94%] h-full bg-[#3CCF91] rounded-full" />
                       </div>
                     </div>
 
                     <div>
-                      <div className="flex justify-between text-sm font-medium mb-1">
+                      <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
                         <span className="text-slate-600">Rata-rata Waktu Service</span>
                         <span className="text-emerald-600">{stats.averageTime} hari</span>
                       </div>
-                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="w-[75%] h-full bg-amber-500 rounded-full" />
+                      <div className="h-1.5 sm:h-2 bg-slate-200 rounded-full overflow-hidden">
+                        <div className="w-[75%] h-full bg-[#FFD65A] rounded-full" />
                       </div>
                     </div>
 
                     <div>
-                      <div className="flex justify-between text-sm font-medium mb-1">
+                      <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
                         <span className="text-slate-600">Rating Customer</span>
-                        <span className="text-blue-600">{stats.rating} / 5.0</span>
+                        <span className="text-[#4DB2FF]">{stats.rating} / 5.0</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            className={`w-5 h-5 ${
+                            className={`w-4 h-4 sm:w-5 sm:h-5 ${
                               star <= Math.floor(stats.rating)
-                                ? 'fill-[#F1C40F] text-[#F1C40F]'
+                                ? 'fill-[#FFD65A] text-[#FFD65A]'
                                 : star - 0.5 <= stats.rating
-                                ? 'fill-[#F1C40F]/50 text-[#F1C40F]'
+                                ? 'fill-[#FFD65A]/50 text-[#FFD65A]'
                                 : 'text-slate-300'
                             }`}
                           />
@@ -651,18 +592,18 @@ export default function TeknisiDashboard() {
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-200">
+                    <div className="pt-3 sm:pt-4 border-t border-slate-200">
                       <div className="flex justify-between items-center">
                         <div className="text-center">
-                          <p className="text-2xl font-bold text-slate-900">{stats.completedThisMonth}</p>
+                          <p className="text-lg sm:text-2xl font-bold text-slate-900">{stats.completedThisMonth}</p>
                           <p className="text-[10px] text-slate-400 uppercase">Service Bulan Ini</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-2xl font-bold text-blue-600">{formatRupiah(stats.totalEarnings)}</p>
+                          <p className="text-lg sm:text-2xl font-bold text-[#4DB2FF]">{formatRupiah(stats.totalEarnings)}</p>
                           <p className="text-[10px] text-slate-400 uppercase">Pendapatan</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-2xl font-bold text-[#2ECC71]">100%</p>
+                          <p className="text-lg sm:text-2xl font-bold text-[#3CCF91]">100%</p>
                           <p className="text-[10px] text-slate-400 uppercase">Kehadiran</p>
                         </div>
                       </div>
@@ -671,34 +612,34 @@ export default function TeknisiDashboard() {
                 </div>
 
                 {/* Badges & Achievements */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-slate-200">
-                    <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-                      <Award className="w-4 h-4 text-slate-900" />
+                <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm p-3 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-slate-200">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#FFD65A] rounded-md sm:rounded-lg flex items-center justify-center">
+                      <Award className="w-3 h-3 sm:w-4 sm:h-4 text-slate-900" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900">Pencapaian</h3>
+                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">Pencapaian</h3>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <Zap className="w-8 h-8 text-[#F1C40F] mx-auto mb-2" />
-                      <p className="font-semibold text-sm">Speedster</p>
-                      <p className="text-[10px] text-slate-400">Selesaikan 10 service</p>
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div className="text-center p-2.5 sm:p-3 bg-[#DCEEFF] rounded-lg sm:rounded-xl border border-[#b3d9ff]">
+                      <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-[#FFD65A] mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm">Speedster</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">Selesaikan 10 service</p>
                     </div>
-                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <Shield className="w-8 h-8 text-[#3498DB] mx-auto mb-2" />
-                      <p className="font-semibold text-sm">Quality Expert</p>
-                      <p className="text-[10px] text-slate-400">95% approval rate</p>
+                    <div className="text-center p-2.5 sm:p-3 bg-[#DCEEFF] rounded-lg sm:rounded-xl border border-[#b3d9ff]">
+                      <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-[#4DB2FF] mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm">Quality Expert</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">95% approval rate</p>
                     </div>
-                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <Users className="w-8 h-8 text-[#2ECC71] mx-auto mb-2" />
-                      <p className="font-semibold text-sm">Team Player</p>
-                      <p className="text-[10px] text-slate-400">Bantu teknisi lain</p>
+                    <div className="text-center p-2.5 sm:p-3 bg-[#e6faf2] rounded-lg sm:rounded-xl border border-emerald-100">
+                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-[#3CCF91] mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm">Team Player</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">Bantu teknisi lain</p>
                     </div>
-                    <div className="text-center p-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <Star className="w-8 h-8 text-blue-600 mx-auto mb-2 fill-blue-600/30" />
-                      <p className="font-semibold text-sm">Top Performer</p>
-                      <p className="text-[10px] text-slate-400">Rating 5 bintang</p>
+                    <div className="text-center p-2.5 sm:p-3 bg-[#fff8e6] rounded-lg sm:rounded-xl border border-[#ffe5a3]">
+                      <Star className="w-6 h-6 sm:w-8 sm:h-8 text-[#FFD65A] mx-auto mb-1.5 sm:mb-2 fill-[#FFD65A]/30" />
+                      <p className="font-semibold text-xs sm:text-sm">Top Performer</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">Rating 5 bintang</p>
                     </div>
                   </div>
                 </div>
@@ -712,14 +653,14 @@ export default function TeknisiDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <div className="mb-5 flex justify-between items-center">
+                <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">Manajemen Transaksi</h3>
-                    <p className="text-sm text-slate-500">Input transaksi layanan customer</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Manajemen Transaksi</h3>
+                    <p className="text-xs sm:text-sm text-slate-500">Input transaksi layanan customer</p>
                   </div>
                   <button
                     onClick={() => setShowLayananForm(true)}
-                    className="bg-blue-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 text-sm"
+                    className="bg-[#4DB2FF] text-white font-medium px-4 py-2.5 rounded-full hover:bg-[#3aa0f5] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
                   >
                     + Tambah Transaksi
                   </button>
@@ -733,24 +674,24 @@ export default function TeknisiDashboard() {
 
       {/* Progress Update Modal */}
       {selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
-            <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-                  <Wrench className="w-4 h-4 text-white" />
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
+                  <Wrench className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900">Update Service</h3>
+                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">Update Service</h3>
               </div>
               <button
                 onClick={() => setSelectedService(null)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-all"
               >
-                <X className="w-5 h-5 text-slate-400" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              <p className="text-sm text-slate-500 mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5">
+              <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
               <ProgressUpdate
                 service={selectedService}
                 onUpdate={() => {
@@ -774,8 +715,8 @@ export default function TeknisiDashboard() {
 
       {/* Layanan Form Modal */}
       {showLayananForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200">
             <LayananForm
               onSuccess={handleLayananSuccess}
               onClose={() => setShowLayananForm(false)}
@@ -786,4 +727,3 @@ export default function TeknisiDashboard() {
     </div>
   )
 }
-

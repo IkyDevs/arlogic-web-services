@@ -219,17 +219,25 @@ export default function QCDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-500 font-medium">Loading...</p>
+          <div className="w-10 h-10 border-2 border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-600 font-medium">Loading...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#A8D7FF]">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <QCSidebar
         isOpen={sidebarOpen}
@@ -247,104 +255,107 @@ export default function QCDashboard() {
         services={services}
         user={user}
         onLogout={handleLogout}
+        todayAttendance={todayAttendance}
+        onAttendance={handleAttendance}
       />
 
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-slate-200"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* Main Content */}
-      <div className="lg:ml-64">
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden lg:ml-64">
         {/* Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
-          <div className="px-6 py-3.5 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">QC Dashboard</h2>
+        <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl px-3 py-2.5 sm:px-5 sm:py-3.5 flex items-center justify-between shadow-sm gap-2 sm:gap-4">
+            {/* Spacer for mobile menu button */}
+            <div className="hidden lg:block w-12" />
+
+            {/* Page Title - Center on mobile */}
+            <div className="flex-1 lg:flex-none text-center lg:text-left">
+              <h1 className="text-lg sm:text-lg md:text-xl font-bold text-slate-900">
+                QC Dashboard
+              </h1>
               <p className="text-xs text-slate-500 mt-0.5">
                 {activeTab === 'all' ? 'Semua service' : `Teknisi: ${activeTab}`}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <div className="relative hidden sm:block sparepart-search-container">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={sparepartSearch}
-                  onChange={(e) => setSparepartSearch(e.target.value)}
-                  onFocus={() => sparepartResults.length > 0 && setShowSparepartResults(true)}
-                  placeholder="Cari sparepart..."
-                  className="pl-9 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 w-48"
-                />
-                {showSparepartResults && (
-                  <div className="absolute top-full mt-1 right-0 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-                    {sparepartSearching ? (
-                      <div className="p-3 text-center text-sm text-slate-400">Mencari...</div>
-                    ) : sparepartResults.length === 0 ? (
-                      <div className="p-3 text-center text-sm text-slate-400">Tidak tersedia</div>
-                    ) : (
-                      sparepartResults.map((item) => (
-                        <div key={item.id} className="p-3 border-b border-slate-200 last:border-0 hover:bg-slate-50">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="text-sm font-medium text-slate-900">{item.item_name}</p>
-                              <p className="text-xs text-slate-400">SKU: {item.sku}</p>
-                              <p className="text-xs text-slate-500">Kategori: {item.category || 'Uncategorized'}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs font-bold text-green-600">Toko: {item.store_stock}</p>
-                              <p className="text-xs font-bold text-blue-600">Gudang: {item.warehouse_stock}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-              <button onClick={fetchServices} className="p-2 hover:bg-slate-100 rounded-lg transition-all">
-                <RefreshCw className="w-4 h-4 text-slate-400" />
+
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+              {/* Refresh */}
+              <button
+                onClick={fetchServices}
+                className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
+              >
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </button>
-              <div className="bg-blue-600 px-3 py-1 rounded-full text-white text-xs font-medium">
-                QC
+
+              {/* Notification */}
+              <button
+                onClick={() => toast('Notifikasi belum tersedia', { icon: '🔔' })}
+                className="relative p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
+              >
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-[#FF5F87] rounded-full flex-shrink-0" />
+              </button>
+
+              {/* Profile */}
+              <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#4DB2FF] rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                  {user?.full_name?.charAt(0) || 'Q'}
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         {/* Stats */}
-        <QCStats services={services} filteredServices={filteredServices} teknisiList={teknisiList} />
+        <main className="flex-1 p-2 sm:p-3 md:p-4">
+          <QCStats services={services} filteredServices={filteredServices} teknisiList={teknisiList} />
 
-        {/* Service List */}
-        <div className="px-6 pb-6">
-          <QCServiceList
-            services={filteredServices}
-            onViewDetails={viewServiceDetails}
-          />
-        </div>
+          {/* Service List */}
+          <div className="mt-3 sm:mt-4 md:mt-6">
+            <QCServiceList
+              services={filteredServices}
+              onViewDetails={viewServiceDetails}
+            />
+          </div>
+        </main>
       </div>
 
       {/* Review Modal */}
       {showDetailModal && selectedService && (
-        <QCReviewModal
-          service={selectedService}
-          onClose={() => setShowDetailModal(false)}
-          onComplete={handleReviewComplete}
-          reviewerId={user?.id}
-          reviewerName={user?.full_name}
-        />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
+                  <ClipboardCheck className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                </div>
+                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">QC Review</h3>
+              </div>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-all"
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5">
+              <QCReviewModal
+                service={selectedService}
+                onClose={() => setShowDetailModal(false)}
+                onComplete={handleReviewComplete}
+                reviewerId={user?.id}
+                reviewerName={user?.full_name}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Attendance Modal */}
@@ -358,4 +369,3 @@ export default function QCDashboard() {
     </div>
   )
 }
-

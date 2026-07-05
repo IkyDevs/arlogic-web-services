@@ -110,7 +110,7 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+        className="text-sm text-emerald-600 hover:underline flex items-center gap-1"
       >
         <Edit2 className="w-3 h-3" />
         Kelola Kategori
@@ -138,12 +138,12 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="Nama kategori baru..."
-                className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-600"
               />
               <button
                 onClick={addCategory}
                 disabled={loading}
-                className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -184,7 +184,7 @@ export default function CategoryManager({ onCategoryChange }: CategoryManagerPro
                             setEditingId(cat.id)
                             setEditingName(cat.name)
                           }}
-                          className="p-1 text-slate-400 hover:text-blue-600 rounded"
+                          className="p-1 text-slate-400 hover:text-emerald-600 rounded"
                         >
                           <Edit2 className="w-3 h-3" />
                         </button>

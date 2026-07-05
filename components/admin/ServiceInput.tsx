@@ -239,15 +239,15 @@ Keterangan : —
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-4">
+    <div className="max-w-3xl mx-auto py-3 sm:py-4 px-0 sm:px-4 overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
+      <div className="flex items-center gap-3 mb-4 sm:mb-6 px-4 sm:px-0">
+        <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
           <Watch className="w-5 h-5 text-white" />
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">New Watch Service</h2>
-          <p className="text-sm text-slate-400">Create service order for timepiece</p>
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 truncate">New Watch Service</h2>
+          <p className="text-xs sm:text-sm text-slate-400 truncate">Create service order for timepiece</p>
         </div>
       </div>
 
@@ -260,7 +260,7 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
           >
             <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
               <User className="w-4 h-4 text-slate-900" />
@@ -271,7 +271,7 @@ Keterangan : —
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  Full Name <span className="text-blue-600">*</span>
+                  Full Name <span className="text-emerald-600">*</span>
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -286,7 +286,7 @@ Keterangan : —
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  WhatsApp / Phone <span className="text-blue-600">*</span>
+                  WhatsApp / Phone <span className="text-emerald-600">*</span>
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -334,7 +334,7 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
           >
             <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
               <Watch className="w-4 h-4 text-slate-900" />
@@ -345,7 +345,7 @@ Keterangan : —
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  Brand <span className="text-blue-600">*</span>
+                  Brand <span className="text-emerald-600">*</span>
                 </label>
                 <input
                   type="text"
@@ -373,7 +373,7 @@ Keterangan : —
               </div>
               <div className="md:col-span-2">
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  Movement <span className="text-blue-600">*</span>
+                  Movement <span className="text-emerald-600">*</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {watchMovements.map(m => (
@@ -408,16 +408,16 @@ Keterangan : —
               </div>
             </div>
 
-            <div className="flex justify-between mt-6">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 sm:gap-0 mt-4 sm:mt-6">
               <button
                 onClick={prevStep}
-                className="px-5 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
+                className="w-full sm:w-auto px-5 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
               >
                 ← Back
               </button>
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
@@ -432,7 +432,7 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
           >
             <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
               <Camera className="w-4 h-4 text-slate-900" />
@@ -462,17 +462,17 @@ Keterangan : —
             )}
 
             {/* Upload Buttons */}
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => cameraInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
               >
                 <Camera className="w-4 h-4" />
                 Take Photo
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900"
               >
                 <ImageIcon className="w-4 h-4" />
                 Upload from Gallery
@@ -524,7 +524,7 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm"
+            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
           >
             <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
               <AlertCircle className="w-4 h-4 text-slate-900" />
@@ -535,7 +535,7 @@ Keterangan : —
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  Problem / Kendala <span className="text-blue-600">*</span>
+                  Problem / Kendala <span className="text-emerald-600">*</span>
                 </label>
                 <textarea
                   value={formData.problem}
@@ -594,11 +594,11 @@ Keterangan : —
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Metode Pembayaran
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
                     onClick={() => setFormData(p => ({ ...p, payment_method: 'cash' }))}
-                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       formData.payment_method === 'cash'
                         ? 'bg-slate-900 text-white'
                         : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -609,7 +609,7 @@ Keterangan : —
                   <button
                     type="button"
                     onClick={() => setFormData(p => ({ ...p, payment_method: 'qris' }))}
-                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       formData.payment_method === 'qris'
                         ? 'bg-slate-900 text-white'
                         : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -623,7 +623,7 @@ Keterangan : —
               {formData.payment_method === 'qris' && (
                 <div>
                   <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                    Foto Bukti QRIS <span className="text-blue-600">*</span>
+                    Foto Bukti QRIS <span className="text-emerald-600">*</span>
                   </label>
                   <div
                     onClick={() => document.getElementById('qris-photo-input')?.click()}
@@ -693,7 +693,7 @@ Keterangan : —
               <button
                 onClick={handleSubmit}
                 disabled={loading || uploading}
-                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium disabled:opacity-50"
               >
                 {loading || uploading ? (
                   <>
@@ -737,7 +737,7 @@ Keterangan : —
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wider">Token</p>
-                  <p className="text-lg font-mono font-bold text-blue-600">{lastInvoice.token}</p>
+                  <p className="text-lg font-mono font-bold text-emerald-600">{lastInvoice.token}</p>
                 </div>
               </div>
             </div>
@@ -771,7 +771,7 @@ Keterangan : —
                 onClick={() => {
                   window.open(`/tracking/${lastInvoice.token}`, '_blank')
                 }}
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium"
+                className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium"
               >
                 Open Tracking
               </button>
@@ -786,7 +786,7 @@ Keterangan : —
         <div className="fixed bottom-4 right-4 bg-white rounded-lg border border-slate-200 shadow-lg p-4 w-64 z-50">
           <p className="text-xs font-medium text-slate-900 mb-2">Uploading photos...</p>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-600 transition-all duration-200" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-emerald-600 transition-all duration-200" style={{ width: `${progress}%` }} />
           </div>
           <p className="text-xs text-slate-400 mt-1.5">{progress}% complete</p>
         </div>

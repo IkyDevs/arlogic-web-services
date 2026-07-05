@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Watch, LogOut, X } from 'lucide-react'
+import { Watch, LogOut, X, LogIn, CheckCircle, LogOut as LogOutIcon } from 'lucide-react'
+import ThemeToggle from '@/components/ThemeToggle'
 
 interface QCSidebarProps {
   isOpen: boolean
@@ -12,6 +13,8 @@ interface QCSidebarProps {
   services: any[]
   user: any
   onLogout: () => void
+  todayAttendance?: any
+  onAttendance?: (type: 'check_in' | 'check_out') => void
 }
 
 export default function QCSidebar({
@@ -22,68 +25,83 @@ export default function QCSidebar({
   onTabChange,
   services,
   user,
-  onLogout
+  onLogout,
+  todayAttendance,
+  onAttendance
 }: QCSidebarProps) {
   return (
-    <div className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 z-40 transform transition-transform duration-200 ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-      <div className="p-4 border-b border-slate-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg flex items-center justify-center">
-              <Watch className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">Watch<span className="text-blue-600">Service</span></h1>
-               <p className="text-[10px] text-slate-500">QC Panel</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="lg:hidden p-1.5 hover:bg-slate-100 rounded-lg">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="mt-4 flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg">
-          <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-            {user?.full_name?.charAt(0) || 'Q'}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate">{user?.full_name}</p>
-            <p className="text-xs text-slate-500 truncate">Quality Control</p>
-          </div>
-        </div>
+    <aside
+      className={`fixed top-0 left-0 h-full w-20 bg-white z-50 flex flex-col items-center py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-auto lg:w-auto transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
+      {/* Logo */}
+      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#4DB2FF] rounded-2xl flex items-center justify-center mb-6 sm:mb-8">
+        <Watch className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
       </div>
 
-      <nav className="p-3 space-y-0.5">
+      {/* Navigation */}
+      <nav className="flex-1 flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3 overflow-y-auto">
         {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onTabChange(item.id)}
-            className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg transition-all ${
+            className={`sidebar-item w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
               activeTab === item.id
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-900 hover:bg-slate-100'
+                ? 'bg-[#FFD65A] text-black shadow-md'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
             }`}
+            title={item.label}
           >
-            <item.icon className="w-4 h-4" />
-            {item.label}
-            {item.id !== 'all' && (
-              <span className="ml-auto text-xs bg-slate-200 px-2 py-0.5 rounded-full">
-                {services.filter(s => s.teknisi_name === item.id).length}
-              </span>
-            )}
+            <item.icon className="w-5 h-5" />
           </button>
         ))}
-
-        <div className="pt-4 mt-4 border-t border-slate-200">
-          <button
-            onClick={onLogout}
-            className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-blue-600 hover:bg-red-50 transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            Keluar
-          </button>
-        </div>
       </nav>
-    </div>
+
+      {/* Bottom Actions */}
+      <div className="flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3">
+        {/* Attendance */}
+        {onAttendance && (
+          <button
+            onClick={() => onAttendance(
+              todayAttendance && !todayAttendance.check_out
+                ? 'check_out'
+                : 'check_in'
+            )}
+            disabled={!!todayAttendance?.check_out}
+            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
+              !todayAttendance
+                ? 'bg-[#3CCF91] text-white hover:bg-[#2db87d]'
+                : todayAttendance.check_out
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-[#FFD65A] text-black hover:bg-[#f5c94a]'
+            }`}
+            title={todayAttendance?.check_out ? 'Completed' : 'Attendance'}
+          >
+            {!todayAttendance ? (
+              <LogIn className="w-5 h-5" />
+            ) : todayAttendance.check_out ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <LogOutIcon className="w-5 h-5" />
+            )}
+          </button>
+        )}
+
+        {/* Theme Toggle */}
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+          <ThemeToggle />
+        </div>
+
+        {/* Logout */}
+        <button
+          onClick={onLogout}
+          className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+          title="Keluar"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
+      </div>
+    </aside>
   )
 }

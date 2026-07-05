@@ -36,13 +36,15 @@ import {
   LogIn,
   LogOut as LogOutIcon,
   Camera,
+  Search,
+  ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import LayananForm from "@/components/layanan/LayananForm";
 import LayananList from "@/components/layanan/LayananList";
-import AttendanceModal from '@/components/teknisi/AttendanceModal'
+import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import CategoryManager from "@/components/admin/CategoryManager";
 import InventoryFilter from "@/components/admin/InventoryFilter";
 import InventoryCard from "@/components/admin/InventoryCard";
@@ -94,9 +96,9 @@ export default function AdminDashboard() {
   // Attendance
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [showAttendance, setShowAttendance] = useState(false);
-  const [attendanceType, setAttendanceType] = useState<
-    "check_in" | "check_out"
-  >("check_in");
+  const [attendanceType, setAttendanceType] = useState<"check_in" | "check_out">(
+    "check_in"
+  );
 
   // Inventory
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -155,7 +157,7 @@ export default function AdminDashboard() {
 
     const totalRevenue = (revenue.data || []).reduce(
       (sum: number, item: any) => sum + (item.final_cost || 0),
-      0,
+      0
     );
 
     setStats({
@@ -260,7 +262,7 @@ export default function AdminDashboard() {
     checkTodayAttendance();
     fetchStats();
     toast.success(
-      `Attendance ${attendanceType === "check_in" ? "check in" : "check out"} successful!`,
+      `Attendance ${attendanceType === "check_in" ? "check in" : "check out"} successful!`
     );
   };
 
@@ -270,24 +272,22 @@ export default function AdminDashboard() {
         text: "Not Checked In",
         color: "text-red-500",
         bg: "bg-red-50",
-        icon: '❌',
+        icon: "❌",
       };
     if (!todayAttendance.check_out)
       return {
         text: "Checked In",
         color: "text-yellow-600",
         bg: "bg-yellow-50",
-        icon: '✅',
+        icon: "⏳",
       };
     return {
       text: "Completed",
       color: "text-green-600",
       bg: "bg-green-50",
-      icon: '✓',
+      icon: "✅",
     };
   };
-
-  const attendanceStatus = getAttendanceStatus();
 
   // ==================== NOTIFICATION FUNCTIONS ====================
 
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
 
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
   };
@@ -362,37 +362,55 @@ export default function AdminDashboard() {
 
     if (error) {
       toast.error("Gagal menonaktifkan token");
-    } else {
-      toast.success(
-        "Token berhasil dinonaktifkan! Customer tidak bisa tracking lagi.",
-      );
-      fetchRecentServices();
+      return;
     }
+
+    toast.success("Token berhasil dinonaktifkan");
+    fetchRecentServices();
   };
 
-  const handleInventoryFilter = (filters: {
-    category: string;
-    search: string;
-  }) => {
-    setInventoryFilter(filters);
-    fetchInventory();
-  };
+  const attendanceStatus = getAttendanceStatus();
+
+  // ==================== EFFECTS ====================
 
   useEffect(() => {
     fetchAllData();
   }, []);
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showNotifications && !target.closest(".notification-container")) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showNotifications]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (sidebarOpen && !target.closest(".sidebar-container")) {
+        setSidebarOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [sidebarOpen]);
+
+  // Attendance enforcement
+  useEffect(() => {
     if (todayAttendance === null && !loading) {
-      const now = new Date()
-      const hours = now.getHours()
-      const minutes = now.getMinutes()
-      const currentTime = hours * 60 + minutes
-      const deadline = 11 * 60
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const currentTime = hours * 60 + minutes;
+      const deadline = 11 * 60;
 
       if (currentTime >= deadline) {
-        setAttendanceType("check_in")
-        setShowAttendance(true)
+        setAttendanceType("check_in");
+        setShowAttendance(true);
       }
     }
   }, [todayAttendance, loading]);
@@ -414,102 +432,48 @@ export default function AdminDashboard() {
   };
 
   const menuItems = [
-    { id: "overview", label: "BERANDA", icon: LayoutDashboard },
-    { id: "services", label: "SERVICE BARU", icon: ClipboardList },
-    { id: "layanan", label: "TRANSAKSI", icon: ShoppingCart },
-    { id: "users", label: "PENGGUNA", icon: Users },
-    { id: "inventory", label: "INVENTORI", icon: Package },
-    { id: "export", label: "LAPORAN", icon: Download },
+    { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+    { id: "services", label: "Service", icon: ClipboardList },
+    { id: "layanan", label: "Transaction", icon: ShoppingCart },
+    { id: "users", label: "Users", icon: Users },
+    { id: "inventory", label: "Inventory", icon: Package },
+    { id: "export", label: "Export", icon: Download },
   ];
 
-   // Close dropdown when clicking outside
-   useEffect(() => {
-     const handleClickOutside = (event: MouseEvent) => {
-       const target = event.target as HTMLElement;
-       if (showNotifications && !target.closest(".notification-container")) {
-         setShowNotifications(false);
-       }
-     };
-     document.addEventListener("click", handleClickOutside);
-     return () => document.removeEventListener("click", handleClickOutside);
-   }, [showNotifications]);
-
-   // Close sidebar when clicking outside
-   useEffect(() => {
-     const handleClickOutside = (event: MouseEvent) => {
-       const target = event.target as HTMLElement;
-       if (sidebarOpen && !target.closest(".sidebar-container")) {
-         setSidebarOpen(false);
-       }
-     };
-     document.addEventListener("click", handleClickOutside);
-     return () => document.removeEventListener("click", handleClickOutside);
-   }, [sidebarOpen]);
-
-   if (loading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-500 font-medium">Loading dashboard...</p>
+          <div className="w-10 h-10 border-2 border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-600 font-medium">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ==================== SIDEBAR ==================== */}
-      <div
-        className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-white border-r border-slate-200 z-40 transform transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+    <div className="min-h-screen bg-[#A8D7FF]">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-20 bg-white z-50 flex flex-col items-center py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-auto lg:w-auto transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        <div className="p-4 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
-                <Watch className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">
-                  Watch<span className="text-blue-600">Service</span>
-                </h1>
-                <p className="text-[10px] text-slate-400">Management System</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1.5 hover:bg-slate-100 rounded-lg"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="mt-4 flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg">
-            <div className="w-9 h-9 bg-slate-900 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              {user?.full_name?.charAt(0) || "A"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{user?.full_name}</p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-            </div>
-            <ThemeToggle />
-          </div>
-
-          {/* Attendance Status */}
-          <div className={`mt-3 p-2 rounded-lg ${attendanceStatus.bg}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs">
-                <span>{attendanceStatus.icon}</span>
-                <span className={attendanceStatus.color}>
-                  {attendanceStatus.text}
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400">Admin</span>
-            </div>
-          </div>
+        {/* Logo */}
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#4DB2FF] rounded-2xl flex items-center justify-center mb-6 sm:mb-8">
+          <Watch className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
 
-        <nav className="p-3 space-y-0.5">
+        {/* Navigation */}
+        <nav className="flex-1 flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -517,200 +481,209 @@ export default function AdminDashboard() {
                 setActiveTab(item.id);
                 setSidebarOpen(false);
               }}
-              className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg transition-all ${
+              className={`sidebar-item w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
                 activeTab === item.id
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-900 hover:bg-slate-100"
+                  ? "bg-[#FFD65A] text-black shadow-md"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               }`}
+              title={item.label}
             >
-              <item.icon className="w-4 h-4" />
-              {item.label}
+              <item.icon className="w-5 h-5" />
             </button>
           ))}
-
-          <div className="pt-2 mt-2 border-t border-slate-200 space-y-2">
-            {/* Attendance Button */}
-            <button
-              onClick={() =>
-                handleAttendance(
-                  todayAttendance && !todayAttendance.check_out
-                    ? "check_out"
-                    : "check_in",
-                )
-              }
-              disabled={!!todayAttendance?.check_out}
-              className={`w-full py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-                !todayAttendance
-                  ? "bg-green-500 hover:bg-green-600 text-white"
-                  : todayAttendance.check_out
-                    ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                    : "bg-yellow-500 hover:bg-yellow-600 text-white"
-              }`}
-            >
-              {!todayAttendance ? (
-                <>
-                  <LogIn className="w-4 h-4" />
-                  Check In
-                </>
-              ) : todayAttendance.check_out ? (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  Completed
-                </>
-              ) : (
-                <>
-                  <LogOutIcon className="w-4 h-4" />
-                  Check Out
-                </>
-              )}
-            </button>
-
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-lg text-blue-600 hover:bg-red-50 transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-              Keluar
-            </button>
-          </div>
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 text-center">
-          <p className="text-[10px] text-slate-400">Watch Service v2.0</p>
+        {/* Bottom Actions */}
+        <div className="flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3">
+          {/* Attendance */}
+          <button
+            onClick={() =>
+              handleAttendance(
+                todayAttendance && !todayAttendance.check_out
+                  ? "check_out"
+                  : "check_in"
+              )
+            }
+            disabled={!!todayAttendance?.check_out}
+            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
+              !todayAttendance
+                ? "bg-[#3CCF91] text-white hover:bg-[#2db87d]"
+                : todayAttendance.check_out
+                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                  : "bg-[#FFD65A] text-black hover:bg-[#f5c94a]"
+            }`}
+            title={todayAttendance?.check_out ? "Completed" : "Attendance"}
+          >
+            {!todayAttendance ? (
+              <LogIn className="w-5 h-5" />
+            ) : todayAttendance.check_out ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <LogOutIcon className="w-5 h-5" />
+            )}
+          </button>
+
+          {/* Theme Toggle */}
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+            <ThemeToggle />
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+            title="Keluar"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
-      </div>
+      </aside>
 
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden bg-white p-2 rounded-lg shadow-sm border border-slate-200"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200"
       >
-        <Menu className="w-5 h-5" />
+        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* ==================== MAIN CONTENT ==================== */}
-      <div className="lg:ml-64">
-        {/* Header */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b border-slate-200 z-20">
-          <div className="px-6 py-3.5 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden lg:ml-64">
+        {/* Top Navbar */}
+        <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl px-3 py-2.5 sm:px-5 sm:py-3.5 flex items-center justify-between shadow-sm gap-2 sm:gap-4">
+            {/* Spacer for mobile menu button */}
+            <div className="hidden lg:block w-12" />
+
+            {/* Page Title - Center on mobile */}
+            <div className="flex-1 lg:flex-none text-center lg:text-left">
+              <h1 className="text-lg sm:text-lg md:text-xl font-bold text-slate-900">
                 {menuItems.find((m) => m.id === activeTab)?.label}
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {new Date().toLocaleDateString("id-ID", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
-              </p>
+              </h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-2 md:gap-3">
+              {/* Search - hidden on small mobile */}
+              <div className="hidden md:flex items-center relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="pl-9 pr-4 py-2 bg-slate-50 rounded-full text-sm border border-slate-200 focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all w-40 md:w-56 lg:w-64"
+                />
+              </div>
+
+              {/* Refresh */}
               <button
                 onClick={fetchAllData}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-all flex-shrink-0"
               >
-                <RefreshCw className="w-4 h-4 text-slate-400" />
+                <RefreshCw className="w-5 h-5 text-slate-400" />
               </button>
 
               {/* Notification */}
-              <div className="relative notification-container">
+              <div className="relative notification-container flex-shrink-0">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
                   className="relative p-2 hover:bg-slate-100 rounded-lg transition-all"
                 >
-                  <Bell className="w-4 h-4 text-slate-400" />
+                  <Bell className="w-5 h-5 text-slate-400" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF5F87] text-white text-[9px] font-bold flex items-center justify-center rounded-full">
                       {unreadCount}
                     </span>
                   )}
                 </button>
 
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 max-h-96 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden">
-                    <div className="p-3 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
-                      <span className="font-medium text-sm">Notifikasi</span>
-                      <button
-                        onClick={markAllRead}
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Baca semua
-                      </button>
-                    </div>
-                    <div className="overflow-y-auto max-h-72">
-                      {notifications.length === 0 ? (
-                        <div className="p-6 text-center text-slate-400">
-                          <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                          <p className="text-sm">Tidak ada notifikasi</p>
-                        </div>
-                      ) : (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={`p-3 border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-all ${!notif.is_read ? "bg-blue-50" : ""}`}
-                            onClick={() => markNotificationRead(notif.id)}
-                          >
-                            <div className="flex items-start gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {notif.title}
-                                </p>
-                                <p className="text-xs text-slate-500 line-clamp-2">
-                                  {notif.message}
-                                </p>
-                                <p className="text-[10px] text-slate-400 mt-1">
-                                  {new Date(notif.created_at).toLocaleString()}
-                                </p>
-                              </div>
-                              {!notif.is_read && (
-                                <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1" />
-                              )}
-                            </div>
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-72 sm:w-80 max-h-80 sm:max-h-96 bg-white rounded-xl sm:rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden"
+                    >
+                      <div className="p-3 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
+                        <span className="font-medium text-xs sm:text-sm text-slate-900">Notifikasi</span>
+                        <button
+                          onClick={markAllRead}
+                          className="text-xs text-[#4DB2FF] hover:underline"
+                        >
+                          Baca semua
+                        </button>
+                      </div>
+                      <div className="overflow-y-auto max-h-56 sm:max-h-72">
+                        {notifications.length === 0 ? (
+                          <div className="p-6 text-center text-slate-400">
+                            <Bell className="w-7 h-7 sm:w-8 sm:h-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-xs sm:text-sm">Tidak ada notifikasi</p>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                        ) : (
+                          notifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              className={`p-2.5 sm:p-3 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-all ${
+                                !notif.is_read ? "bg-[#e6f4ff]" : ""
+                              }`}
+                              onClick={() => markNotificationRead(notif.id)}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs sm:text-sm font-medium truncate text-slate-900">
+                                    {notif.title}
+                                  </p>
+                                  <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-2">
+                                    {notif.message}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 mt-1">
+                                    {new Date(notif.created_at).toLocaleString()}
+                                  </p>
+                                </div>
+                                {!notif.is_read && (
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#FF5F87] rounded-full flex-shrink-0 mt-1" />
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <div className="bg-blue-600 px-3 py-1 rounded-full text-white text-xs font-medium">
-                ADMIN
+              {/* Profile */}
+              <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
+                <div className="w-8 h-8 sm:w-8 sm:h-8 bg-[#4DB2FF] rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                  {user?.full_name?.charAt(0) || "A"}
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         {/* ==================== CONTENT AREA ==================== */}
-        <main className="p-6">
+        <main className="flex-1 p-2 sm:p-3 md:p-4">
           {activeTab === "overview" && (
-            <div className="space-y-6">
+            <div className="space-y-3 sm:space-y-4 md:space-y-5">
               {/* Welcome Banner */}
-              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-                <div className="flex items-center justify-between flex-wrap gap-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 p-3 sm:p-5 md:p-6 shadow-sm"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">
-                      Halo, {user?.full_name?.split(' ')[0]}! 👋
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 truncate">
+                      Halo, {user?.full_name?.split(" ")[0]}! 👋
                     </h3>
-                    <p className="text-sm text-slate-500 mt-0.5">
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
                       Kelola service center Anda dengan mudah dan efisien.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200">
-                      <span className="mr-2">📅</span>{" "}
+                  <div className="flex items-center">
+                    <div className="bg-[#DCEEFF] px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl md:rounded-2xl text-xs sm:text-sm font-medium text-slate-700">
+                      <span className="mr-1.5">📅</span>
                       {new Date().toLocaleDateString("id-ID", {
                         month: "long",
                         year: "numeric",
@@ -718,224 +691,239 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="stat-card">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Total Service
-                    </span>
-                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                      +{stats.revenueGrowth}%
-                    </span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {stats.totalServices}
-                  </p>
-                </div>
-
-                <div className="stat-card">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Pendapatan
-                    </span>
-                  </div>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {formatRupiah(stats.revenue)}
-                  </p>
-                </div>
-
-                <div className="stat-card">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Pengguna
-                    </span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {stats.totalUsers}
-                  </p>
-                </div>
-
-                <div className="stat-card">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-                      Pending
-                    </span>
-                  </div>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {stats.pendingServices}
-                  </p>
-                </div>
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+                {[
+                  {
+                    label: "Total Service",
+                    value: stats.totalServices,
+                    change: `+${stats.revenueGrowth}%`,
+                    positive: true,
+                    icon: ClipboardList,
+                  },
+                  {
+                    label: "Pendapatan",
+                    value: formatRupiah(stats.revenue),
+                    change: "+8%",
+                    positive: true,
+                    icon: DollarSign,
+                  },
+                  {
+                    label: "Pengguna",
+                    value: stats.totalUsers,
+                    change: "+2%",
+                    positive: true,
+                    icon: Users,
+                  },
+                  {
+                    label: "Pending",
+                    value: stats.pendingServices,
+                    change: "0%",
+                    positive: true,
+                    icon: Clock,
+                  },
+                ].map((stat, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-1 sm:mb-3">
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                        {stat.label}
+                      </span>
+                      <span className="text-[10px] sm:text-xs font-medium text-[#4DB2FF] bg-[#e6f4ff] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        {stat.change}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+                      <div className="w-7 h-7 sm:w-10 sm:h-10 bg-[#DCEEFF] rounded-md sm:rounded-lg md:rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <stat.icon className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-[#4DB2FF]" />
+                      </div>
+                      <p className="text-sm sm:text-xl md:text-2xl font-bold text-slate-900 truncate">
+                        {stat.value}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
 
-              {/* PO Section - Menggunakan Komponen Terpisah */}
+              {/* PO Section */}
               <POSection onUpdate={fetchStats} />
 
               {/* Service List with QR & Token */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <ClipboardList className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-semibold text-slate-900">
-                      Daftar Service
-                    </h3>
-                    <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm overflow-hidden"
+              >
+                <div className="p-3 sm:p-4 md:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#DCEEFF] rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#4DB2FF]" />
+                    </div>
+                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">Daftar Service</h3>
+                    <span className="bg-[#4DB2FF] text-white text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium">
                       {recentServices.length}
                     </span>
                   </div>
                   <button
                     onClick={() => setActiveTab("services")}
-                    className="text-sm text-blue-600 hover:underline font-medium"
+                    className="text-xs sm:text-sm text-[#4DB2FF] hover:underline font-medium w-full sm:w-auto text-left sm:text-right"
                   >
                     + Tambah Service
                   </button>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                          Invoice
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                          Customer
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                          Device
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                          Token & QR
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
-                          Aksi
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {recentServices.map((service) => (
-                        <tr
-                          key={service.id}
-                          className="hover:bg-slate-50 transition-all"
-                        >
-                          <td className="px-4 py-3">
-                            <span className="font-mono text-sm font-medium">
-                              {service.invoice_number}
-                            </span>
-                            <p className="text-xs text-slate-400">
-                              {formatDate(service.created_at)}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="font-medium text-sm">
-                              {service.customer_name}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              {service.customer_phone}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <p className="text-sm">
-                              {service.watch_brand || service.device_brand}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              {service.watch_model || service.device_model}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`badge ${
-                                service.status === "pending"
-                                  ? "badge-warning"
-                                  : service.status === "completed"
-                                    ? "badge-success"
-                                    : service.status === "in_progress"
-                                      ? "badge-info"
-                                      : service.status === "req_sparepart_admin"
-                                        ? "badge-warning"
-                                        : service.status === "po_pending"
-                                          ? "badge-warning"
-                                          : service.status === "sparepart_ready"
-                                            ? "badge-success"
-                                            : "badge-neutral"
-                              }`}
-                            >
-                              {service.status === "req_sparepart_admin"
-                                ? "Request PO"
-                                : service.status === "po_pending"
-                                  ? "PO"
-                                  : service.status === "sparepart_ready"
-                                    ? "Ready"
-                                    : service.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => openQRModal(service)}
-                                className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
-                                title="Lihat QR Code"
-                              >
-                                <QrCode className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => copyToken(service.token)}
-                                className="p-1.5 bg-slate-100 rounded-lg hover:bg-slate-200 transition-all"
-                                title="Salin Token"
-                              >
-                                <Copy className="w-4 h-4" />
-                              </button>
-                              <span className="text-xs font-mono text-slate-500 truncate max-w-[60px]">
-                                {service.token}
-                              </span>
-                              {service.token_expires_at &&
-                                new Date(service.token_expires_at) <
-                                  new Date() && (
-                                  <span className="text-xs text-red-500 font-medium">
-                                    Expired
-                                  </span>
-                                )}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            {!service.token_expires_at ||
-                            new Date(service.token_expires_at) > new Date() ? (
-                              <button
-                                onClick={() => markTokenExpired(service.id)}
-                                className="text-xs text-red-500 hover:text-red-700 font-medium"
-                              >
-                                Nonaktifkan Token
-                              </button>
-                            ) : (
-                              <span className="text-xs text-slate-400">
-                                Token Nonaktif
-                              </span>
-                            )}
-                          </td>
+                <div className="overflow-x-auto -mx-1">
+                  <div className="inline-block min-w-full align-middle">
+                    <table className="w-full min-w-[640px]">
+                      <thead>
+                        <tr>
+                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Invoice
+                          </th>
+                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Customer
+                          </th>
+                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Device
+                          </th>
+                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Token & QR
+                          </th>
+                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            Aksi
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {recentServices.map((service) => (
+                          <tr
+                            key={service.id}
+                            className="hover:bg-slate-50/50 transition-all"
+                          >
+                            <td className="px-3 py-3 sm:px-5 sm:py-4">
+                              <span className="font-mono text-xs sm:text-sm font-medium text-slate-900">
+                                {service.invoice_number}
+                              </span>
+                              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
+                                {formatDate(service.created_at)}
+                              </p>
+                            </td>
+                            <td className="px-3 py-3 sm:px-5 sm:py-4">
+                              <p className="font-medium text-xs sm:text-sm text-slate-900">
+                                {service.customer_name}
+                              </p>
+                              <p className="text-[10px] sm:text-xs text-slate-400">
+                                {service.customer_phone}
+                              </p>
+                            </td>
+                            <td className="px-3 py-3 sm:px-5 sm:py-4">
+                              <p className="text-xs sm:text-sm text-slate-900">
+                                {service.watch_brand || service.device_brand}
+                              </p>
+                              <p className="text-[10px] sm:text-xs text-slate-400">
+                                {service.watch_model || service.device_model}
+                              </p>
+                            </td>
+                            <td className="px-3 py-3 sm:px-5 sm:py-4">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+                                  service.status === "pending"
+                                    ? "bg-yellow-50 text-yellow-700"
+                                    : service.status === "completed"
+                                      ? "bg-emerald-50 text-emerald-700"
+                                      : service.status === "in_progress"
+                                        ? "bg-[#DCEEFF] text-[#4DB2FF]"
+                                        : service.status === "req_sparepart_admin"
+                                          ? "bg-yellow-50 text-yellow-700"
+                                          : service.status === "po_pending"
+                                            ? "bg-yellow-50 text-yellow-700"
+                                            : service.status === "sparepart_ready"
+                                              ? "bg-emerald-50 text-emerald-700"
+                                              : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {service.status === "req_sparepart_admin"
+                                  ? "Request PO"
+                                  : service.status === "po_pending"
+                                    ? "PO"
+                                    : service.status === "sparepart_ready"
+                                      ? "Ready"
+                                      : service.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 sm:px-5 sm:py-4">
+                              <div className="flex items-center gap-1.5 sm:gap-2">
+                                <button
+                                  onClick={() => openQRModal(service)}
+                                  className="p-1.5 bg-[#4DB2FF] text-white rounded-lg hover:bg-[#3aa0f5] transition-all flex-shrink-0"
+                                  title="Lihat QR Code"
+                                >
+                                  <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </button>
+                                <button
+                                  onClick={() => copyToken(service.token)}
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all flex-shrink-0"
+                                  title="Salin Token"
+                                >
+                                  <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
+                                </button>
+                                <span className="text-[10px] sm:text-xs font-mono text-slate-500 truncate max-w-[50px] sm:max-w-[60px]">
+                                  {service.token}
+                                </span>
+                                {service.token_expires_at &&
+                                  new Date(service.token_expires_at) <
+                                    new Date() && (
+                                    <span className="text-[10px] sm:text-xs text-red-500 font-medium">
+                                      Expired
+                                    </span>
+                                  )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 sm:px-5 sm:py-4">
+                              {!service.token_expires_at ||
+                              new Date(service.token_expires_at) > new Date() ? (
+                                <button
+                                  onClick={() => markTokenExpired(service.id)}
+                                  className="text-[10px] sm:text-xs text-red-500 hover:text-red-700 font-medium"
+                                >
+                                  Nonaktifkan
+                                </button>
+                              ) : (
+                                <span className="text-[10px] sm:text-xs text-slate-400">
+                                  Nonaktif
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 {recentServices.length === 0 && (
-                  <div className="p-8 text-center text-slate-400">
-                    <Watch className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>Belum ada service</p>
+                  <div className="p-6 sm:p-8 text-center text-slate-400">
+                    <Watch className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-30" />
+                    <p className="text-xs sm:text-sm">Belum ada service</p>
                     <button
                       onClick={() => setActiveTab("services")}
-                      className="text-blue-600 hover:underline text-sm mt-1"
+                      className="text-[#4DB2FF] hover:underline text-xs sm:text-sm mt-1"
                     >
                       Tambah service sekarang
                     </button>
                   </div>
                 )}
-              </div>
+              </motion.div>
             </div>
           )}
 
@@ -952,18 +940,18 @@ export default function AdminDashboard() {
           {/* Layanan Tab */}
           {activeTab === "layanan" && (
             <div>
-              <div className="mb-5 flex justify-between items-center">
+              <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900">
                     Manajemen Transaksi
                   </h3>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-xs sm:text-sm text-slate-500">
                     Input dan kelola transaksi layanan customer
                   </p>
                 </div>
                 <button
                   onClick={() => setShowLayananForm(true)}
-                  className="bg-blue-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 text-sm"
+                  className="bg-[#4DB2FF] text-white font-medium px-4 py-2.5 rounded-full hover:bg-[#3aa0f5] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   + Tambah Transaksi
                 </button>
@@ -976,7 +964,7 @@ export default function AdminDashboard() {
 
       {/* QR Code Generator Modal */}
       {showQRModal && selectedService && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
           <QRCodeGenerator
             invoiceNumber={selectedService.invoice_number}
             token={selectedService.token}
@@ -992,7 +980,7 @@ export default function AdminDashboard() {
 
       {/* Layanan Form Modal */}
       {showLayananForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
           <LayananForm
             onSuccess={handleLayananSuccess}
             onClose={() => setShowLayananForm(false)}

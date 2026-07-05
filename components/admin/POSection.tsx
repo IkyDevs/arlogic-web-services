@@ -83,72 +83,74 @@ export default function POSection({ onUpdate }: POSectionProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-slate-200 bg-yellow-50 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Box className="w-5 h-5 text-yellow-600" />
+    <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
+      <div className="p-5 border-b border-slate-200 bg-[#DCEEFF] flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white/50 rounded-xl flex items-center justify-center">
+            <Box className="w-4 h-4 text-[#4DB2FF]" />
+          </div>
           <h3 className="font-semibold text-slate-900">REQUEST SPAREPART (PO)</h3>
           {poServices.filter(s => s.status !== 'sparepart_ready').length > 0 && (
-            <span className="bg-yellow-500 text-white text-xs px-2 py-0.5 rounded-full">
+            <span className="bg-[#FF5F87] text-white text-xs px-2.5 py-0.5 rounded-full font-medium">
               {poServices.filter(s => s.status !== 'sparepart_ready').length} pending
             </span>
           )}
         </div>
-        <button onClick={fetchPOData} className="text-xs text-slate-500 hover:text-slate-700">
-          <RefreshCw className="w-3 h-3" />
+        <button onClick={fetchPOData} className="text-xs text-slate-500 hover:text-slate-700 p-1">
+          <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {loading ? (
-        <div className="p-8 text-center">
-          <div className="inline-block w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="p-10 text-center">
+          <div className="inline-block w-6 h-6 border-2 border-[#4DB2FF] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : poServices.length === 0 ? (
-        <div className="p-6 text-center text-slate-400">
-          <Box className="w-12 h-12 mx-auto mb-2 opacity-30" />
-          <p>Tidak ada request PO</p>
+        <div className="p-10 text-center text-slate-400">
+          <Box className="w-14 h-14 mx-auto mb-3 opacity-20" />
+          <p className="text-sm">Tidak ada request PO</p>
         </div>
       ) : (
-        <div className="divide-y divide-slate-200">
+        <div className="divide-y divide-slate-100">
           {poServices.map((service) => {
             const isReady = service.status === 'sparepart_ready'
             const isRequest = service.status === 'req_sparepart_admin'
             const isApproved = service.status === 'po_pending'
 
             return (
-              <div key={service.id} className={`p-4 transition-all ${isReady ? 'bg-green-50' : 'hover:bg-yellow-50'}`}>
-                <div className="flex items-start justify-between gap-3">
+              <div key={service.id} className={`p-5 transition-all ${isReady ? 'bg-emerald-50/30' : 'hover:bg-[#DCEEFF]/30'}`}>
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-mono text-xs font-medium">{service.invoice_number}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        isReady ? 'bg-green-100 text-green-700' :
-                        isRequest ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-blue-100 text-blue-700'
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="font-mono text-xs font-medium text-slate-600">{service.invoice_number}</span>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                        isReady ? 'bg-emerald-100 text-emerald-700' :
+                        isRequest ? 'bg-[#FFD65A] text-slate-800' :
+                        'bg-[#DCEEFF] text-[#4DB2FF]'
                       }`}>
                         {isReady ? '✅ Siap Diambil' :
                          isRequest ? 'Request PO' :
                          'PO Approved'}
                       </span>
                     </div>
-                    <p className="font-bold text-slate-900">{service.po_sparepart}</p>
-                    <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-1">
+                    <p className="font-bold text-slate-900 text-sm">{service.po_sparepart}</p>
+                    <div className="flex flex-wrap gap-3 text-sm text-slate-500 mt-1.5">
                       <span>Teknisi: {service.teknisi_name}</span>
-                      <span>•</span>
+                      <span className="text-slate-300">•</span>
                       <span>Customer: {service.customer_name}</span>
                     </div>
                     {isRequest && (
-                      <div className="mt-2 text-xs text-yellow-600 bg-yellow-50 p-1.5 rounded border border-yellow-200">
+                      <div className="mt-3 text-xs text-yellow-700 bg-yellow-50 p-2.5 rounded-xl border border-yellow-100">
                         ⏳ Menunggu respon admin
                       </div>
                     )}
                     {isApproved && service.po_admin_response && (
-                      <div className="mt-2 text-xs text-blue-600 bg-blue-50 p-1.5 rounded border border-blue-200">
+                      <div className="mt-3 text-xs text-[#4DB2FF] bg-[#DCEEFF] p-2.5 rounded-xl border border-[#b3d9ff]">
                         📝 {service.po_admin_response}
                       </div>
                     )}
                     {isReady && (
-                      <div className="mt-2 text-xs text-green-600 bg-green-50 p-1.5 rounded border border-green-200">
+                      <div className="mt-3 text-xs text-emerald-700 bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
                         ✅ Siap diambil teknisi
                       </div>
                     )}
@@ -161,14 +163,14 @@ export default function POSection({ onUpdate }: POSectionProps) {
                             setSelectedPO(service)
                             setShowReadyModal(true)
                           }}
-                          className="px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-all"
+                          className="px-4 py-2 bg-[#3CCF91] text-white text-sm font-medium rounded-xl hover:bg-[#2db87d] transition-all"
                         >
-                          <CheckCircle className="w-4 h-4 inline mr-1" />
+                          <CheckCircle className="w-4 h-4 inline mr-1.5" />
                           READY
                         </button>
                         <button
                           onClick={() => sendReminderToAdmin(service)}
-                          className="px-3 py-1.5 bg-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-300 transition-all"
+                          className="px-3 py-2 bg-white text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 border border-slate-200 transition-all"
                           title="Kirim peringatan ke admin"
                         >
                           <Bell className="w-4 h-4" />
@@ -176,14 +178,14 @@ export default function POSection({ onUpdate }: POSectionProps) {
                       </>
                     )}
                     {isApproved && (
-                      <span className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg">
-                        <Clock className="w-4 h-4 inline mr-1" />
+                      <span className="px-4 py-2 bg-[#DCEEFF] text-[#4DB2FF] text-sm font-medium rounded-xl">
+                        <Clock className="w-4 h-4 inline mr-1.5" />
                         Menunggu
                       </span>
                     )}
                     {isReady && (
-                      <span className="px-3 py-1.5 bg-green-100 text-green-700 text-sm font-medium rounded-lg">
-                        <CheckCircle className="w-4 h-4 inline mr-1" />
+                      <span className="px-4 py-2 bg-emerald-100 text-emerald-700 text-sm font-medium rounded-xl">
+                        <CheckCircle className="w-4 h-4 inline mr-1.5" />
                         Selesai
                       </span>
                     )}

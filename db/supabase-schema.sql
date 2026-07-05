@@ -474,13 +474,19 @@ CREATE TRIGGER on_auth_user_created
 -- =====================================================
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA public TO anon;
+GRANT USAGE ON SCHEMA public TO service_role;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO authenticated;
 
 ALTER DEFAULT PRIVILEGES FOR ROLE authenticated IN SCHEMA public
   GRANT ALL ON TABLES TO authenticated;
@@ -488,6 +494,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE authenticated IN SCHEMA public
   GRANT ALL ON SEQUENCES TO authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE authenticated IN SCHEMA public
   GRANT ALL ON FUNCTIONS TO authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE service_role IN SCHEMA public
+  GRANT ALL ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE service_role IN SCHEMA public
+  GRANT ALL ON SEQUENCES TO service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE service_role IN SCHEMA public
+  GRANT ALL ON FUNCTIONS TO service_role;
 
 ALTER DEFAULT PRIVILEGES FOR ROLE anon IN SCHEMA public
   GRANT SELECT ON TABLES TO anon;

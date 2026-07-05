@@ -220,10 +220,10 @@ export default function RoleManagement() {
 
   const getRoleColor = (role: string) => {
     switch(role) {
-      case 'admin': return 'bg-blue-600/10 text-blue-600 border-blue-600/20'
+      case 'admin': return 'bg-[#4DB2FF]/10 text-[#4DB2FF] border-[#4DB2FF]/20'
 case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
        case 'supervisor': return 'bg-emerald-600/10 text-emerald-600 border-emerald-600/20'
-       case 'teknisi': return 'bg-blue-600/10 text-blue-600 border-blue-600/20'
+       case 'teknisi': return 'bg-[#4DB2FF]/10 text-[#4DB2FF] border-[#4DB2FF]/20'
       default: return 'bg-slate-100 text-slate-600 border-slate-200'
     }
   }
@@ -248,7 +248,7 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="w-10 h-10 border border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-3 text-slate-500 font-medium">Loading users...</p>
         </div>
       </div>
@@ -265,7 +265,7 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
         </div>
         <button
           onClick={() => setShowAddUser(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#4DB2FF] text-white rounded-lg hover:bg-[#3aa0f5] transition-all text-sm font-medium"
         >
           <UserPlus className="w-4 h-4" />
           Add User
@@ -420,7 +420,7 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                           </button>
                           <button
                             onClick={() => setEditingUser(null)}
-                            className="p-1.5 text-blue-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-[#4DB2FF] hover:bg-red-50 rounded-lg transition-colors"
                             title="Cancel"
                           >
                             <X className="w-4 h-4" />
@@ -433,13 +433,13 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                                setEditingUser(user.id)
                                setSelectedRole(user.role)
                              }}
-                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                             className="p-1.5 text-[#4DB2FF] hover:bg-[#e6f4ff] rounded-lg transition-colors"
                            >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setDeletingUser(user)}
-                            className="p-1.5 text-blue-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-[#4DB2FF] hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete User"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -530,7 +530,7 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
               <div className="flex gap-3 pt-3">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition-all text-sm"
+                  className="flex-1 bg-[#4DB2FF] text-white font-medium py-2.5 rounded-lg hover:bg-[#3aa0f5] transition-all text-sm"
                 >
                   Add User
                 </button>
@@ -556,14 +556,14 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
             className="bg-white rounded-xl w-full max-w-md p-6 border border-slate-200 shadow-xl"
           >
             <div className="text-center">
-              <div className="w-14 h-14 bg-blue-600/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-7 h-7 text-blue-600" />
+              <div className="w-14 h-14 bg-[#4DB2FF]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-7 h-7 text-[#4DB2FF]" />
               </div>
               <h3 className="text-lg font-bold text-slate-900 mb-2">Delete User</h3>
               <p className="text-slate-500 mb-1">
                 Are you sure you want to delete <span className="font-semibold text-slate-900">{deletingUser.full_name}</span>?
               </p>
-              <p className="text-sm text-blue-600 font-medium">This action cannot be undone.</p>
+              <p className="text-sm text-[#4DB2FF] font-medium">This action cannot be undone.</p>
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setDeletingUser(null)}
@@ -575,7 +575,7 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                 <button
                   onClick={handleDeleteUser}
                   disabled={deleting}
-                  className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 bg-[#4DB2FF] text-white font-medium py-2.5 rounded-lg hover:bg-[#3aa0f5] transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {deleting ? (
                     <>

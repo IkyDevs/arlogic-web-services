@@ -76,7 +76,7 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
               {item.category || 'Uncategorized'}
             </span>
             {item.price > 0 && (
-              <span className="text-xs font-bold text-blue-600">
+              <span className="text-xs font-bold text-emerald-600">
                 Rp {Number(item.price).toLocaleString('id-ID')}
               </span>
             )}
@@ -90,17 +90,17 @@ export default function InventoryCard({ item, onUpdate }: InventoryCardProps) {
             <p className="text-xs text-slate-500">Toko</p>
             <p className="text-sm font-bold text-green-700">{item.store_stock} {item.unit}</p>
           </div>
-          <div className="bg-blue-50 rounded-lg p-2 text-center border border-blue-100">
-            <Warehouse className="w-4 h-4 text-blue-600 mx-auto" />
+          <div className="bg-emerald-50 rounded-lg p-2 text-center border border-emerald-100">
+            <Warehouse className="w-4 h-4 text-emerald-600 mx-auto" />
             <p className="text-xs text-slate-500">Gudang</p>
-            <p className="text-sm font-bold text-blue-700">{item.warehouse_stock} {item.unit}</p>
+            <p className="text-sm font-bold text-emerald-700">{item.warehouse_stock} {item.unit}</p>
           </div>
         </div>
 
         {/* Actions */}
         {isHovered && (
           <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
-            <button className="flex-1 text-xs text-blue-600 hover:bg-blue-50 py-1 rounded flex items-center justify-center gap-1">
+            <button className="flex-1 text-xs text-emerald-600 hover:bg-emerald-50 py-1 rounded flex items-center justify-center gap-1">
               <Edit2 className="w-3 h-3" />
               Edit
             </button>

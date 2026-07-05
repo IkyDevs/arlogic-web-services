@@ -231,7 +231,7 @@ Terima kasih telah menggunakan layanan kami. 🙏
           <img src={qrDataUrl} alt="QR Code" className="w-48 h-48" />
         ) : (
           <div className="w-48 h-48 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border border-blue-600 border-t-transparent" />
+            <div className="animate-spin rounded-full h-8 w-8 border border-[#4DB2FF] border-t-transparent" />
           </div>
         )}
       </div>
