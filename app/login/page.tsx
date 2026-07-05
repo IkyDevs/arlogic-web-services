@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { ensureProfile } from '@/lib/supabase/profile'
 import { useAuthStore } from '@/stores/authStore'
 import { motion } from 'framer-motion'
 import {
@@ -33,16 +34,7 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single()
-
-      if (!profile) {
-        toast.error('Profile not found')
-        return
-      }
+      const profile = await ensureProfile(supabase, data.user)
 
       setUser(profile)
       toast.success(`Welcome back, ${profile.full_name}!`)

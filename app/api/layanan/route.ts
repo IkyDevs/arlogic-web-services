@@ -60,17 +60,17 @@ export async function POST(request: NextRequest) {
     const {
       customer_name,
       customer_whatsapp,
-      service_type,
+      jenis_layanan,
       handled_by,
-      payment_method,
+      metode_pembayaran,
       lead_source,
       lead_source_custom,
-      sku_details,
-      nominal_pembayaran
+      detail_sku,
+      nominal
     } = body
 
     // Validate required fields
-    if (!customer_name || !service_type) {
+    if (!customer_name || !jenis_layanan) {
       return NextResponse.json({
         error: 'Customer name and service type are required'
       }, { status: 400 })
@@ -81,13 +81,13 @@ export async function POST(request: NextRequest) {
       .insert({
         customer_name,
         customer_whatsapp,
-        service_type,
+        jenis_layanan,
         handled_by: handled_by || null,
-        payment_method,
+        metode_pembayaran,
         lead_source: lead_source_custom || lead_source,
         lead_source_custom: lead_source_custom || null,
-        sku_details,
-        nominal_pembayaran: nominal_pembayaran ? parseFloat(nominal_pembayaran) : 0,
+        detail_sku,
+        nominal: nominal ? parseFloat(nominal) : 0,
         created_by: user.id
       })
       .select()

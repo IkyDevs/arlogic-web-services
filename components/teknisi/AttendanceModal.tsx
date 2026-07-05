@@ -31,7 +31,9 @@ export default function AttendanceModal({
   const [permissionDenied, setPermissionDenied] = useState(false)
   const [elapsedTime, setElapsedTime] = useState('00:00:00')
   const [expectedHours, setExpectedHours] = useState({ start: '', end: '', total: 9 })
-  const [overtimeHours, setOvertimeHours] = useState(0)
+  const [isOvertime, setIsOvertime] = useState(false)
+  const [checkOutNotes, setCheckOutNotes] = useState('')
+  const overtimeThreshold = 20
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -69,14 +71,20 @@ export default function AttendanceModal({
     )
   }
 
-  const calculateOvertime = (workMinutes: number) => {
-    const expectedMinutes = expectedHours.total * 60
-    if (workMinutes > expectedMinutes) {
-      const overtime = workMinutes - expectedMinutes
-      setOvertimeHours(overtime / 60)
-    } else {
-      setOvertimeHours(0)
+  const getOvertimeText = () => {
+    if (!existingAttendance?.check_in) return 'tidak ada'
+    const now = new Date()
+    const checkIn = new Date(existingAttendance.check_in)
+    const diffMs = now.getTime() - checkIn.getTime()
+    const totalMinutes = Math.floor(diffMs / 60000)
+    const thresholdMinutes = overtimeThreshold * 60
+    if (totalMinutes > thresholdMinutes) {
+      const overtime = totalMinutes - thresholdMinutes
+      const otHours = Math.floor(overtime / 60)
+      const otMinutes = overtime % 60
+      return `${otHours}h ${otMinutes}m`
     }
+    return 'tidak ada'
   }
 
   useEffect(() => {
@@ -277,8 +285,9 @@ export default function AttendanceModal({
     }
 
     const now = new Date()
-    const inTime = isCheckIn ? formatTime(now) : existingAttendance?.check_in ? formatTime(new Date(existingAttendance.check_in)) : '-'
-    const outTime = !isCheckIn ? formatTime(now) : '-'
+    const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    const role = ((user as any)?.role || (user as any)?.user_metadata?.role || 'staff').toUpperCase()
 
     let workDuration = '-'
     let totalMinutes = 0
@@ -293,27 +302,44 @@ export default function AttendanceModal({
       const minutes = totalMinutes % 60
       workDuration = `${hours}h ${minutes}m`
 
-      const expectedMinutes = expectedHours.total * 60
-      if (totalMinutes > expectedMinutes) {
-        const overtime = totalMinutes - expectedMinutes
+      const thresholdMinutes = overtimeThreshold * 60
+      if (totalMinutes > thresholdMinutes) {
+        const overtime = totalMinutes - thresholdMinutes
         const otHours = Math.floor(overtime / 60)
         const otMinutes = overtime % 60
         lembur = `${otHours}h ${otMinutes}m`
       }
     }
 
-    // Telegram caption
-    const caption = `${user?.full_name}
-masuk jam : ${inTime}
-keluar jam : ${outTime}
-total jam : ${workDuration}
-lembur : ${lembur}`
+    let photoUrl: string | null = null
+    if (!isCheckIn) {
+      let caption = `ABSEN PULANG
+absensi: ${dateStr} ${timeStr}
+role: ${role}
+nama: ${user?.full_name}
+total jam: ${workDuration}
+lembur: ${lembur}`
 
-    const photoUrl = await uploadFile(photoFile, { 
-      type: 'attendance',
-      caption: caption
-    })
-    
+      if (isOvertime) {
+        caption = caption + `\nlembur: YA\ncatatan: ${checkOutNotes || '-'}`
+      }
+
+      photoUrl = await uploadFile(photoFile, {
+        type: 'attendance',
+        caption: caption
+      })
+    } else {
+      const caption = `ABSEN MASUK
+absensi: ${dateStr} ${timeStr}
+role: ${role}
+nama: ${user?.full_name}`
+
+      photoUrl = await uploadFile(photoFile, {
+        type: 'attendance',
+        caption: caption
+      })
+    }
+
     if (!photoUrl) {
       toast.error('Failed to upload photo')
       return
@@ -325,7 +351,7 @@ lembur : ${lembur}`
           .from('attendances')
           .insert({
             teknisi_id: user?.id,
-            photo_url: photoUrl,
+            photo_url: photoUrl!,
             location: location.address,
             check_in: new Date().toISOString(),
             status: 'checked_in'
@@ -342,13 +368,18 @@ lembur : ${lembur}`
         const minutes = diffMinutes % 60
         workDuration = `${hours}h ${minutes}m`
 
+        const overtimeMinutes = isOvertime ? Math.max(0, diffMinutes - (overtimeThreshold * 60)) : 0
+
         const { error: dbError } = await supabase
           .from('attendances')
           .update({
             check_out: checkOut.toISOString(),
             status: 'checked_out',
             work_duration: workDuration,
-            total_minutes: diffMinutes
+            total_minutes: diffMinutes,
+            overtime_minutes: overtimeMinutes,
+            is_overtime: isOvertime,
+            notes: checkOutNotes || null
           })
           .eq('id', existingAttendance?.id)
           .eq('teknisi_id', user?.id)
@@ -360,16 +391,18 @@ lembur : ${lembur}`
       await supabase.from('activity_logs').insert({
         user_id: user?.id,
         action: isCheckIn ? 'CHECK_IN' : 'CHECK_OUT',
-        details: { 
+        details: {
           location: location.address,
           time: new Date().toISOString(),
           work_duration: workDuration,
-          overtime: lembur
+          overtime: lembur,
+          is_overtime: isOvertime,
+          notes: checkOutNotes || null
         }
       })
 
       setStep('success')
-      
+
       setTimeout(() => {
         if (photoPreview) URL.revokeObjectURL(photoPreview)
         if (timerRef.current) clearInterval(timerRef.current)
@@ -489,6 +522,29 @@ lembur : ${lembur}`
                   <p className="text-xs text-blue-600 mt-1">
                     Jam: {expectedHours.start} - {expectedHours.end} ({expectedHours.total} jam)
                   </p>
+                </div>
+              )}
+
+              {!isCheckIn && (
+                <div className="mb-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                  <label className="flex items-center gap-2 mb-2">
+                    <input
+                      type="checkbox"
+                      checked={isOvertime}
+                      onChange={(e) => setIsOvertime(e.target.checked)}
+                      className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="text-sm font-medium text-amber-800">Lembur</span>
+                  </label>
+                  {isOvertime && (
+                    <textarea
+                      value={checkOutNotes}
+                      onChange={(e) => setCheckOutNotes(e.target.value)}
+                      placeholder="Catatan lembur..."
+                      rows={2}
+                      className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg focus:outline-none focus:border-amber-500 text-sm resize-none"
+                    />
+                  )}
                 </div>
               )}
 

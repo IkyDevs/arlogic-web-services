@@ -14,6 +14,7 @@ import QCSidebar from '@/components/qc/QCSidebar'
 import QCStats from '@/components/qc/QCStats'
 import QCServiceList from '@/components/qc/QCServiceList'
 import QCReviewModal from '@/components/qc/QCReviewModal'
+import AttendanceModal from '@/components/teknisi/AttendanceModal'
 import ThemeToggle from '@/components/ThemeToggle'
 
 export default function QCDashboard() {
@@ -30,6 +31,11 @@ export default function QCDashboard() {
   const [sparepartSearching, setSparepartSearching] = useState(false)
   const [showSparepartResults, setShowSparepartResults] = useState(false)
 
+  // Attendance
+  const [todayAttendance, setTodayAttendance] = useState<any>(null)
+  const [showAttendance, setShowAttendance] = useState(false)
+  const [attendanceType, setAttendanceType] = useState<'check_in' | 'check_out'>('check_in')
+
   const supabase = createClient()
   const { user, logout } = useAuthStore()
   const router = useRouter()
@@ -37,6 +43,7 @@ export default function QCDashboard() {
   useEffect(() => {
     fetchServices()
     fetchTeknisiList()
+    checkTodayAttendance()
   }, [])
 
   // Close sidebar when clicking outside
@@ -94,6 +101,22 @@ export default function QCDashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // Attendance enforcement
+  useEffect(() => {
+    if (todayAttendance === null && !loading) {
+      const now = new Date()
+      const hours = now.getHours()
+      const minutes = now.getMinutes()
+      const currentTime = hours * 60 + minutes
+      const deadline = 11 * 60
+
+      if (currentTime >= deadline) {
+        setAttendanceType('check_in')
+        setShowAttendance(true)
+      }
+    }
+  }, [todayAttendance, loading])
+
   const fetchTeknisiList = async () => {
     const { data } = await supabase
       .from('profiles')
@@ -144,12 +167,43 @@ export default function QCDashboard() {
     fetchServices()
   }
 
+  const handleAttendanceSuccess = () => {
+    checkTodayAttendance()
+    toast.success(
+      `Attendance ${attendanceType === 'check_in' ? 'check in' : 'check out'} successful!`,
+    )
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     logout()
     router.push('/login')
     toast.success('Logged out')
   }
+
+  // ==================== ATTENDANCE ====================
+
+  const checkTodayAttendance = async () => {
+    const today = new Date().toISOString().split('T')[0]
+    const { data } = await supabase
+      .from('attendances')
+      .select('*')
+      .eq('teknisi_id', user?.id)
+      .gte('check_in', today)
+      .lte('check_in', today + ' 23:59:59')
+      .order('check_in', { ascending: false })
+      .limit(1)
+      .single()
+
+    setTodayAttendance(data || null)
+  }
+
+  const handleAttendance = (type: 'check_in' | 'check_out') => {
+    setAttendanceType(type)
+    setShowAttendance(true)
+  }
+
+  // ==================== END ATTENDANCE ====================
 
   const menuItems = [
     { id: 'all', label: 'Semua', icon: ClipboardCheck },
@@ -292,6 +346,15 @@ export default function QCDashboard() {
           reviewerName={user?.full_name}
         />
       )}
+
+      {/* Attendance Modal */}
+      <AttendanceModal
+        isOpen={showAttendance}
+        onClose={() => setShowAttendance(false)}
+        onSuccess={handleAttendanceSuccess}
+        type={attendanceType}
+        existingAttendance={todayAttendance}
+      />
     </div>
   )
 }

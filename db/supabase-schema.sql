@@ -1,0 +1,495 @@
+-- =====================================================
+-- ARLOGIC WEB SERVICES - SUPABASE SCHEMA
+-- Import this file in Supabase SQL Editor
+-- =====================================================
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- =====================================================
+-- PROFILES
+-- =====================================================
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('admin','teknisi','supervisor','owner','customer')),
+  teknisi_name TEXT,
+  phone TEXT,
+  gender TEXT CHECK (gender IN ('male','female','other')) DEFAULT 'other',
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- SERVICE ORDERS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS service_orders (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  invoice_number TEXT UNIQUE NOT NULL,
+  token TEXT NOT NULL,
+  token_expires_at TIMESTAMPTZ,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  serial_number TEXT,
+  device_type TEXT DEFAULT 'smartwatch',
+  device_brand TEXT,
+  device_model TEXT,
+  watch_brand TEXT,
+  watch_model TEXT,
+  watch_year INTEGER,
+  watch_movement TEXT CHECK (watch_movement IN ('automatic','quartz','mechanical','smartwatch','other')),
+  watch_condition TEXT CHECK (watch_condition IN ('new','excellent','good','fair','poor')),
+  watch_accessories TEXT[],
+  watch_serial_number TEXT,
+  category TEXT,
+  down_payment DECIMAL(10,2) DEFAULT 0,
+  payment_method TEXT DEFAULT 'cash',
+  payment_proof_url TEXT,
+  issue_description TEXT NOT NULL,
+  request TEXT,
+  notes TEXT,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending','assigned','in_progress','req_sparepart_admin','po_pending','sparepart_ready','qc_pending','revision_required','completed','cancelled')),
+  assigned_teknisi_id UUID REFERENCES profiles(id),
+  po_status TEXT,
+  po_sparepart TEXT,
+  po_requested_at TIMESTAMPTZ,
+  po_admin_response TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  start_date TIMESTAMPTZ,
+  done_date TIMESTAMPTZ,
+  work_duration TEXT,
+  estimated_cost DECIMAL(10,2),
+  final_cost DECIMAL(10,2),
+  completion_notes TEXT,
+  warranty_months INTEGER DEFAULT 3,
+  warranty_expiry TIMESTAMPTZ
+);
+
+-- =====================================================
+-- SERVICE ITEMS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS service_items (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  item_type TEXT CHECK (item_type IN ('jasa','sparepart')),
+  name TEXT NOT NULL,
+  quantity INTEGER DEFAULT 1,
+  price DECIMAL(10,2) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- SERVICE DOCUMENTATION
+-- =====================================================
+CREATE TABLE IF NOT EXISTS service_documentation (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  photo_url TEXT NOT NULL,
+  stage TEXT NOT NULL,
+  uploaded_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- SERVICE TIMELINE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS service_timeline (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  teknisi_id UUID REFERENCES profiles(id),
+  status TEXT NOT NULL,
+  message TEXT NOT NULL,
+  photo_url TEXT,
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- ATTENDANCES
+-- =====================================================
+CREATE TABLE IF NOT EXISTS attendances (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  teknisi_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  photo_url TEXT NOT NULL,
+  location TEXT,
+  check_in TIMESTAMPTZ DEFAULT NOW(),
+  check_out TIMESTAMPTZ,
+  status TEXT DEFAULT 'checked_in' CHECK (status IN ('checked_in','checked_out')),
+  work_duration TEXT,
+  total_minutes INTEGER,
+  overtime_minutes INTEGER DEFAULT 0,
+  is_overtime BOOLEAN DEFAULT FALSE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'attendances' AND column_name = 'overtime_minutes'
+  ) THEN
+    ALTER TABLE attendances ADD COLUMN overtime_minutes INTEGER DEFAULT 0;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'attendances' AND column_name = 'is_overtime'
+  ) THEN
+    ALTER TABLE attendances ADD COLUMN is_overtime BOOLEAN DEFAULT FALSE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'attendances' AND column_name = 'notes'
+  ) THEN
+    ALTER TABLE attendances ADD COLUMN notes TEXT;
+  END IF;
+END $$;
+
+-- =====================================================
+-- INVENTORY
+-- =====================================================
+CREATE TABLE IF NOT EXISTS inventory (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  item_name TEXT NOT NULL,
+  sku TEXT UNIQUE NOT NULL,
+  store_stock INTEGER DEFAULT 0,
+  warehouse_stock INTEGER DEFAULT 0,
+  unit TEXT NOT NULL,
+  min_stock INTEGER DEFAULT 0,
+  category TEXT,
+  price DECIMAL(10,2),
+  photo_url TEXT,
+  compatible_brands TEXT[],
+  compatible_models TEXT[],
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- STOCK TRANSFERS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS stock_transfers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  inventory_id UUID REFERENCES inventory(id) ON DELETE CASCADE,
+  from_location TEXT NOT NULL CHECK (from_location IN ('warehouse','store')),
+  to_location TEXT NOT NULL CHECK (to_location IN ('warehouse','store')),
+  quantity INTEGER NOT NULL,
+  notes TEXT,
+  photo_url TEXT,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- CATEGORIES
+-- =====================================================
+CREATE TABLE IF NOT EXISTS categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- QC REVIEWS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS qc_reviews (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  reviewer_id UUID REFERENCES profiles(id),
+  status TEXT CHECK (status IN ('approved','rejected')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- ACTIVITY LOGS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id),
+  action TEXT NOT NULL,
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- CONTACT LOGS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS contact_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  teknisi_id UUID REFERENCES profiles(id),
+  contact_method TEXT CHECK (contact_method IN ('whatsapp','call','sms','email')),
+  message TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- WATCH DATABASE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS watch_database (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  brand TEXT NOT NULL,
+  model TEXT NOT NULL,
+  movement TEXT CHECK (movement IN ('automatic','quartz','mechanical','smartwatch')),
+  year_from INTEGER,
+  year_to INTEGER,
+  reference_number TEXT,
+  image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(brand, model)
+);
+
+-- =====================================================
+-- WARRANTIES
+-- =====================================================
+CREATE TABLE IF NOT EXISTS warranties (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  warranty_number TEXT UNIQUE NOT NULL,
+  issued_at TIMESTAMPTZ DEFAULT NOW(),
+  expiry_date TIMESTAMPTZ NOT NULL,
+  terms TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- FEEDBACKS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS feedbacks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  customer_name TEXT NOT NULL,
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT,
+  teknisi_id UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(service_order_id)
+);
+
+-- =====================================================
+-- NOTIFICATIONS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  link TEXT,
+  data JSONB,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- LAYANAN / TRANSACTIONS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS layanan (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  customer_name TEXT NOT NULL,
+  customer_whatsapp TEXT,
+  service_type TEXT NOT NULL,
+  handled_by UUID REFERENCES profiles(id),
+  payment_method TEXT,
+  lead_source TEXT,
+  lead_source_custom TEXT,
+  sku_details TEXT,
+  nominal_pembayaran NUMERIC DEFAULT 0,
+  created_by UUID REFERENCES profiles(id)
+);
+
+-- =====================================================
+-- SERVICE JASA MASTER DATA
+-- =====================================================
+CREATE TABLE IF NOT EXISTS service_jasa (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  default_price NUMERIC DEFAULT 0,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- SPAREPART REQUESTS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS sparepart_requests (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  service_order_id UUID REFERENCES service_orders(id) ON DELETE CASCADE,
+  teknisi_id UUID REFERENCES profiles(id),
+  sparepart_name TEXT NOT NULL,
+  sparepart_sku TEXT,
+  quantity INTEGER DEFAULT 1,
+  source_type TEXT DEFAULT 'warehouse' CHECK (source_type IN ('store','warehouse')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  admin_response TEXT,
+  responded_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- SPAREPART CONVERSATIONS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS sparepart_conversations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  sparepart_request_id UUID REFERENCES sparepart_requests(id) ON DELETE CASCADE,
+  sender_id UUID REFERENCES profiles(id),
+  sender_name TEXT,
+  sender_role TEXT,
+  message TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =====================================================
+-- INDEXES
+-- =====================================================
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
+CREATE INDEX IF NOT EXISTS idx_service_orders_token ON service_orders(token);
+CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status);
+CREATE INDEX IF NOT EXISTS idx_service_orders_invoice ON service_orders(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_service_orders_teknisi ON service_orders(assigned_teknisi_id);
+CREATE INDEX IF NOT EXISTS idx_service_orders_created ON service_orders(created_at);
+CREATE INDEX IF NOT EXISTS idx_service_timeline_service ON service_timeline(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_service_timeline_created ON service_timeline(created_at);
+CREATE INDEX IF NOT EXISTS idx_attendances_teknisi ON attendances(teknisi_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_sku ON inventory(sku);
+CREATE INDEX IF NOT EXISTS idx_inventory_name ON inventory(item_name);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_service ON feedbacks(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_sparepart_requests_service ON sparepart_requests(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_sparepart_conversations_request ON sparepart_conversations(sparepart_request_id);
+
+-- =====================================================
+-- RLS
+-- =====================================================
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_documentation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_timeline ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE qc_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contact_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE watch_database ENABLE ROW LEVEL SECURITY;
+ALTER TABLE warranties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE layanan ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_jasa ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sparepart_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sparepart_conversations ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT policyname, tablename FROM pg_policies WHERE schemaname = 'public'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', r.policyname, r.tablename);
+  END LOOP;
+END $$;
+
+CREATE POLICY public_all_access ON profiles FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON service_orders FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON service_items FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON service_documentation FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON service_timeline FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON attendances FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON inventory FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON stock_transfers FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON categories FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON qc_reviews FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON activity_logs FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON contact_logs FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON watch_database FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON warranties FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON feedbacks FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON notifications FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON layanan FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON service_jasa FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON sparepart_requests FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY public_all_access ON sparepart_conversations FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+-- =====================================================
+-- TRIGGERS / FUNCTIONS
+-- =====================================================
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_inventory_updated_at ON inventory;
+CREATE TRIGGER update_inventory_updated_at
+  BEFORE UPDATE ON inventory
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_layanan_updated_at ON layanan;
+CREATE TRIGGER update_layanan_updated_at
+  BEFORE UPDATE ON layanan
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'customer')
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =====================================================
+-- GRANTS
+-- =====================================================
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT USAGE ON SCHEMA public TO anon;
+
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE authenticated IN SCHEMA public
+  GRANT ALL ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE authenticated IN SCHEMA public
+  GRANT ALL ON SEQUENCES TO authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE authenticated IN SCHEMA public
+  GRANT ALL ON FUNCTIONS TO authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE anon IN SCHEMA public
+  GRANT SELECT ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES FOR ROLE anon IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO anon;

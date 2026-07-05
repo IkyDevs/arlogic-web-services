@@ -9,6 +9,7 @@ const CHANNELS = {
   service: process.env.TELEGRAM_CHANNEL_SERVICE,
   layanan: process.env.TELEGRAM_CHANNEL_LAYANAN,
   inventory: process.env.TELEGRAM_CHANNEL_INVENTORY,
+  stock_transfer: process.env.TELEGRAM_CHANNEL_STOCK_TRANSFER,
 } as const
 
 export type TelegramChannelType = keyof typeof CHANNELS

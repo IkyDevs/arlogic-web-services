@@ -42,7 +42,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import LayananForm from "@/components/layanan/LayananForm";
 import LayananList from "@/components/layanan/LayananList";
-import AdminAttendanceModal from "@/components/admin/AdminAttendanceModal";
+import AttendanceModal from '@/components/teknisi/AttendanceModal'
 import CategoryManager from "@/components/admin/CategoryManager";
 import InventoryFilter from "@/components/admin/InventoryFilter";
 import InventoryCard from "@/components/admin/InventoryCard";
@@ -381,6 +381,21 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  useEffect(() => {
+    if (todayAttendance === null && !loading) {
+      const now = new Date()
+      const hours = now.getHours()
+      const minutes = now.getMinutes()
+      const currentTime = hours * 60 + minutes
+      const deadline = 11 * 60
+
+      if (currentTime >= deadline) {
+        setAttendanceType("check_in")
+        setShowAttendance(true)
+      }
+    }
+  }, [todayAttendance, loading]);
 
   const formatRupiah = (nominal: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -986,7 +1001,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Attendance Modal */}
-      <AdminAttendanceModal
+      <AttendanceModal
         isOpen={showAttendance}
         onClose={() => setShowAttendance(false)}
         onSuccess={handleAttendanceSuccess}
