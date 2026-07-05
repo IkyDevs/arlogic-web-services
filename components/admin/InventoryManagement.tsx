@@ -330,7 +330,8 @@ Admin: ${user?.full_name || 'Admin'}`
   }
 
   return (
-    <div>
+    <>
+      <div>
       <div className="mb-5 flex justify-between items-center">
         <div>
           <h3 className="text-xl font-bold text-slate-900">Manajemen Inventori</h3>
@@ -838,6 +839,7 @@ Admin: ${user?.full_name || 'Admin'}`
            </motion.div>
          </div>
        )}
-     </AnimatePresence>
-   )
- }
+      </AnimatePresence>
+    </>
+  )
+}
