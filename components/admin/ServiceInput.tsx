@@ -155,14 +155,14 @@ export default function ServiceInput() {
 
       const serviceId = orderData.id
 
-      // Upload QRIS photo if payment method is QRIS
+      // Upload QRIS photo if payment method is QRIS - merge with initial condition photos
       if (formData.payment_method === 'qris' && formData.qris_photo) {
         const qrisUrl = await uploadFile(formData.qris_photo, { type: 'service' })
         if (qrisUrl) {
           await supabase.from('service_documentation').insert({
             service_order_id: serviceId,
             photo_url: qrisUrl,
-            stage: 'payment_proof',
+            stage: 'initial_condition',
             uploaded_by: (await supabase.auth.getUser()).data.user?.id,
           })
         }
@@ -179,6 +179,7 @@ export default function ServiceInput() {
 CS :  ${formData.cs_name}
 WA : ${formData.cs_phone}
 Seri : ${formData.serial_number || '—'}
+Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : '—'}
 Kendala : ${formData.problem}
 Request : ${formData.request || '—'}
 Keterangan : ${formData.notes || '—'}
@@ -227,7 +228,7 @@ Keterangan : —
     photoPreviews.forEach(url => URL.revokeObjectURL(url))
     setFormData({
       cs_name: '', cs_phone: '', category: '', serial_number: '',
-      watch_brand: '', watch_model: '', watch_movement: '',
+      watch_brand: '',       watch_model: '', watch_movement: '',
       problem: '', request: '', notes: '', down_payment: '',
       payment_method: 'cash', qris_photo: null
     })
@@ -242,7 +243,7 @@ Keterangan : —
     <div className="max-w-3xl mx-auto py-3 sm:py-4 px-0 sm:px-4 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4 sm:mb-6 px-4 sm:px-0">
-        <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 bg-[#4DB2FF] rounded-xl flex items-center justify-center flex-shrink-0">
           <Watch className="w-5 h-5 text-white" />
         </div>
         <div className="min-w-0">
@@ -260,10 +261,10 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
+            className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-4 sm:p-6 shadow-sm"
           >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
-              <User className="w-4 h-4 text-slate-900" />
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#4DB2FF]/20">
+              <User className="w-4 h-4 text-[#4DB2FF]" />
               <h3 className="font-semibold text-slate-900">Customer Information</h3>
               <span className="ml-auto text-xs text-slate-400 font-medium">1/4</span>
             </div>
@@ -271,31 +272,31 @@ Keterangan : —
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  Full Name <span className="text-emerald-600">*</span>
+                  Full Name <span className="text-[#FF5F87]">*</span>
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/1 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={formData.cs_name}
                     onChange={e => setFormData(p => ({ ...p, cs_name: e.target.value }))}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all text-sm"
                     placeholder="John Doe"
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  WhatsApp / Phone <span className="text-emerald-600">*</span>
+                  WhatsApp / Phone <span className="text-[#FF5F87]">*</span>
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/1 w-4 h-4 text-slate-400" />
                   <input
                     type="tel"
                     value={formData.cs_phone}
-                    onChange={e => setFormData(p => ({ ...p, cs_phone: e.target.value }))}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-                    placeholder="+62 812 3456 7890"
+                    onChange={e => setFormData(p => ({ ...p, cs_phone: e.target.value.replace(/[^0-9]/g, '') }))}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all text-sm"
+                    placeholder="81234567890"
                   />
                 </div>
               </div>
@@ -304,12 +305,12 @@ Keterangan : —
                   Serial Number
                 </label>
                 <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/1 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={formData.serial_number}
                     onChange={e => setFormData(p => ({ ...p, serial_number: e.target.value }))}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all text-sm"
                     placeholder="Optional"
                   />
                 </div>
@@ -319,7 +320,7 @@ Keterangan : —
             <div className="flex justify-end mt-6">
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#4DB2FF] text-white rounded-xl hover:bg-[#3aa0f5] transition-all text-sm font-medium"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
@@ -334,10 +335,10 @@ Keterangan : —
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
+            className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-4 sm:p-6 shadow-sm"
           >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
-              <Watch className="w-4 h-4 text-slate-900" />
+            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#4DB2FF]/20">
+              <Watch className="w-4 h-4 text-[#4DB2FF]" />
               <h3 className="font-semibold text-slate-900">Watch Details</h3>
               <span className="ml-auto text-xs text-slate-400 font-medium">2/4</span>
             </div>
@@ -345,14 +346,14 @@ Keterangan : —
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  Brand <span className="text-emerald-600">*</span>
+                  Brand <span className="text-[#FF5F87]">*</span>
                 </label>
                 <input
                   type="text"
                   list="watchBrandsList"
                   value={formData.watch_brand}
                   onChange={e => setFormData(p => ({ ...p, watch_brand: e.target.value.toUpperCase() }))}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm uppercase"
+                  className="w-full px-3 py-2.5 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all text-sm uppercase"
                   placeholder="ROLEX, OMEGA, CASIO..."
                 />
                 <datalist id="watchBrandsList">
@@ -367,24 +368,24 @@ Keterangan : —
                   type="text"
                   value={formData.watch_model}
                   onChange={e => setFormData(p => ({ ...p, watch_model: e.target.value.toUpperCase() }))}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm uppercase"
+                  className="w-full px-3 py-2.5 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all text-sm uppercase"
                   placeholder="SUBMARINER, SPEEDMASTER..."
                 />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                  Movement <span className="text-emerald-600">*</span>
+                  Tipe Jam <span className="text-[#FF5F87]">*</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {watchMovements.map(m => (
+                   {watchMovements.map(m => (
                     <button
                       key={m.value}
                       type="button"
-                      onClick={() => setFormData(p => ({ ...p, watch_movement: m.value }))}
-                      className={`py-3 text-xs font-medium rounded-lg border transition-all flex flex-col items-center gap-1.5 ${
-                        formData.watch_movement === m.value
-                          ? 'border-slate-900 bg-slate-900 text-white'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                       onClick={() => setFormData(p => ({ ...p, watch_movement: m.value }))}
+                       className={`py-3 text-xs font-medium rounded-xl border transition-all flex flex-col items-center gap-1.5 ${
+                         formData.watch_movement === m.value
+                          ? 'border-[#4DB2FF] bg-[#4DB2FF] text-white'
+                          : 'border-[#4DB2FF]/20 bg-white text-slate-600 hover:border-[#4DB2FF]/40'
                       }`}
                     >
                       <m.icon className="w-5 h-5" />
@@ -392,7 +393,7 @@ Keterangan : —
                     </button>
                   ))}
                 </div>
-              </div>
+               </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
@@ -402,7 +403,7 @@ Keterangan : —
                   type="text"
                   value={formData.category}
                   onChange={e => setFormData(p => ({ ...p, category: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all text-sm"
                   placeholder="e.g. Ganti Battery, Service Ringkas..."
                 />
               </div>
@@ -425,20 +426,20 @@ Keterangan : —
           </motion.div>
         )}
 
-        {/* ── STEP 3: Photos ───────────────────────────────────────────── */}
-        {step === 3 && (
-          <motion.div
-            key="s3"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
-          >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
-              <Camera className="w-4 h-4 text-slate-900" />
-              <h3 className="font-semibold text-slate-900">Initial Condition Photos</h3>
-              <span className="ml-auto text-xs text-slate-400 font-medium">3/4</span>
-            </div>
+         {/* ── STEP 3: Photos ───────────────────────────────────────────── */}
+         {step === 3 && (
+           <motion.div
+             key="s3"
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: -10 }}
+             className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-4 sm:p-6 shadow-sm"
+           >
+             <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#4DB2FF]/20">
+               <Camera className="w-4 h-4 text-[#4DB2FF]" />
+               <h3 className="font-semibold text-slate-900">Initial Condition Photos</h3>
+               <span className="ml-auto text-xs text-slate-400 font-medium">3/4</span>
+             </div>
 
             <p className="text-sm text-slate-500 mb-4">
               Photos of the watch before service. Teknisi will use this as reference.
@@ -517,20 +518,20 @@ Keterangan : —
           </motion.div>
         )}
 
-        {/* ── STEP 4: Issue ─────────────────────────────────────────────── */}
-        {step === 4 && (
-          <motion.div
-            key="s4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm"
-          >
-            <div className="flex items-center gap-2 mb-5 pb-3 border-b border-slate-200">
-              <AlertCircle className="w-4 h-4 text-slate-900" />
-              <h3 className="font-semibold text-slate-900">Service Issue</h3>
-              <span className="ml-auto text-xs text-slate-400 font-medium">4/4</span>
-            </div>
+         {/* ── STEP 4: Issue ─────────────────────────────────────────────── */}
+         {step === 4 && (
+           <motion.div
+             key="s4"
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: -10 }}
+             className="bg-white rounded-[24px] border border-[#4DB2FF]/20 p-4 sm:p-6 shadow-sm"
+           >
+             <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#4DB2FF]/20">
+               <AlertCircle className="w-4 h-4 text-[#4DB2FF]" />
+               <h3 className="font-semibold text-slate-900">Service Issue</h3>
+               <span className="ml-auto text-xs text-slate-400 font-medium">4/4</span>
+             </div>
 
             <div className="space-y-4">
               <div>

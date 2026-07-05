@@ -101,22 +101,6 @@ export default function QCDashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Attendance enforcement
-  useEffect(() => {
-    if (todayAttendance === null && !loading) {
-      const now = new Date()
-      const hours = now.getHours()
-      const minutes = now.getMinutes()
-      const currentTime = hours * 60 + minutes
-      const deadline = 11 * 60
-
-      if (currentTime >= deadline) {
-        setAttendanceType('check_in')
-        setShowAttendance(true)
-      }
-    }
-  }, [todayAttendance, loading])
-
   const fetchTeknisiList = async () => {
     const { data } = await supabase
       .from('profiles')

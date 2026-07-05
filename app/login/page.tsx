@@ -47,11 +47,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center p-4">
       {/* Background Pattern */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-600/5 to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-slate-900/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-[#4DB2FF]/20 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-slate-900/10 to-transparent rounded-full blur-3xl" />
       </div>
 
       <div className="max-w-6xl w-full relative z-10">
@@ -65,12 +65,12 @@ export default function LoginPage() {
           >
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-[#4DB2FF] rounded-xl flex items-center justify-center">
                 <Watch className="w-5 h-5 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">
-                  Watch<span className="text-blue-600">Service</span>
+                  Watch<span className="text-[#4DB2FF]">Service</span>
                 </h1>
                 <p className="text-xs text-slate-400 font-medium">Management System</p>
               </div>
@@ -81,7 +81,7 @@ export default function LoginPage() {
               <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 leading-tight">
                 Professional Watch
                 <br />
-                <span className="text-blue-600">Service Management</span>
+                <span className="text-[#4DB2FF]">Service Management</span>
               </h2>
               <p className="text-slate-500 text-lg leading-relaxed max-w-md">
                 Complete solution for watch service centers.
@@ -91,17 +91,17 @@ export default function LoginPage() {
 
             {/* Features */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div className="w-8 h-8 bg-blue-600/10 rounded-lg flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-blue-600" />
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#4DB2FF]/20 shadow-sm">
+                <div className="w-8 h-8 bg-[#4DB2FF]/10 rounded-xl flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-[#4DB2FF]" />
                 </div>
                 <div>
                   <p className="font-medium text-sm text-slate-900">Real-time</p>
                   <p className="text-xs text-slate-400">Tracking</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div className="w-8 h-8 bg-slate-900/10 rounded-lg flex items-center justify-center">
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#4DB2FF]/20 shadow-sm">
+                <div className="w-8 h-8 bg-slate-900/10 rounded-xl flex items-center justify-center">
                   <Shield className="w-4 h-4 text-slate-900" />
                 </div>
                 <div>
@@ -109,9 +109,9 @@ export default function LoginPage() {
                   <p className="text-xs text-slate-400">Reliable</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
-                <div className="w-8 h-8 bg-amber-500/10 rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 text-amber-500" />
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#4DB2FF]/20 shadow-sm">
+                <div className="w-8 h-8 bg-[#FFD65A]/10 rounded-xl flex items-center justify-center">
+                  <Users className="w-4 h-4 text-[#FFD65A]" />
                 </div>
                 <div>
                   <p className="font-medium text-sm text-slate-900">Multi-role</p>
@@ -121,17 +121,17 @@ export default function LoginPage() {
             </div>
 
             {/* Trust Indicators */}
-            <div className="flex items-center gap-6 pt-4 border-t border-slate-200">
-<span className="flex items-center gap-2">
-                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                      <span className="text-sm font-medium text-slate-900">4.8/5 Rating</span>
-                    </span>
+            <div className="flex items-center gap-6 pt-4 border-t border-[#4DB2FF]/20">
+              <span className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-[#FFD65A] fill-[#FFD65A]" />
+                <span className="text-sm font-medium text-slate-900">4.8/5 Rating</span>
+              </span>
               <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <CheckCircle className="w-4 h-4 text-[#3CCF91]" />
                 <span className="text-sm font-medium text-slate-900">99.9% Uptime</span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-600" />
+                <Users className="w-4 h-4 text-[#4DB2FF]" />
                 <span className="text-sm font-medium text-slate-900">1000+ Users</span>
               </div>
             </div>
@@ -143,11 +143,11 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-8">
+            <div className="bg-white rounded-[24px] border border-[#4DB2FF]/20 shadow-lg p-8">
               {/* Header */}
               <div className="text-center mb-8">
-                <div className="inline-block px-3 py-1 bg-blue-600/10 rounded-full mb-3">
-                  <span className="text-xs font-medium text-blue-600">SECURE LOGIN</span>
+                <div className="inline-block px-3 py-1 bg-[#4DB2FF]/10 rounded-full mb-3">
+                  <span className="text-xs font-medium text-[#4DB2FF]">SECURE LOGIN</span>
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900">Welcome Back</h3>
                 <p className="text-sm text-slate-500 mt-1">Sign in to your account to continue</p>
@@ -159,7 +159,7 @@ export default function LoginPage() {
                   <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                     Email Address
                   </label>
-                  <div className={`relative transition-all ${focused === 'email' ? 'ring-2 ring-blue-600/20' : ''}`}>
+                  <div className={`relative transition-all ${focused === 'email' ? 'ring-2 ring-[#4DB2FF]/20' : ''}`}>
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="email"
@@ -168,7 +168,7 @@ export default function LoginPage() {
                       onFocus={() => setFocused('email')}
                       onBlur={() => setFocused(null)}
                       required
-                      className="w-full pl-9 pr-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 transition-all text-sm"
+                      className="w-full pl-9 pr-4 py-3 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] transition-all text-sm"
                       placeholder="admin@example.com"
                     />
                   </div>
@@ -179,7 +179,7 @@ export default function LoginPage() {
                   <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                     Password
                   </label>
-                  <div className={`relative transition-all ${focused === 'password' ? 'ring-2 ring-blue-600/20' : ''}`}>
+                  <div className={`relative transition-all ${focused === 'password' ? 'ring-2 ring-[#4DB2FF]/20' : ''}`}>
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="password"
@@ -188,7 +188,7 @@ export default function LoginPage() {
                       onFocus={() => setFocused('password')}
                       onBlur={() => setFocused(null)}
                       required
-                      className="w-full pl-9 pr-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 transition-all text-sm"
+                      className="w-full pl-9 pr-4 py-3 bg-white border border-[#4DB2FF]/20 rounded-xl focus:outline-none focus:border-[#4DB2FF] transition-all text-sm"
                        placeholder="•••••••••"
                     />
                   </div>
@@ -198,7 +198,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-slate-900 text-white font-medium py-3 rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                  className="w-full bg-[#4DB2FF] text-white font-medium py-3 rounded-xl hover:bg-[#3aa0f5] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                 >
                   {loading ? (
                     <>

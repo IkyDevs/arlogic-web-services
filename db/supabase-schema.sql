@@ -150,6 +150,8 @@ BEGIN
   END IF;
 END $$;
 
+NOTIFY pgrst, 'reload schema';
+
 -- =====================================================
 -- INVENTORY
 -- =====================================================
@@ -364,7 +366,7 @@ CREATE INDEX IF NOT EXISTS idx_service_timeline_service ON service_timeline(serv
 CREATE INDEX IF NOT EXISTS idx_service_timeline_created ON service_timeline(created_at);
 CREATE INDEX IF NOT EXISTS idx_attendances_teknisi ON attendances(teknisi_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_sku ON inventory(sku);
-CREATE INDEX IF NOT EXISTS idx_inventory_name ON inventory(item_name);
+CREATE INDEX IF NOT EXISTS idx_inventory_item_name ON inventory(item_name);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_feedbacks_service ON feedbacks(service_order_id);
 CREATE INDEX IF NOT EXISTS idx_sparepart_requests_service ON sparepart_requests(service_order_id);

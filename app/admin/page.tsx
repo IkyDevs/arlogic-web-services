@@ -399,22 +399,6 @@ export default function AdminDashboard() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [sidebarOpen]);
 
-  // Attendance enforcement
-  useEffect(() => {
-    if (todayAttendance === null && !loading) {
-      const now = new Date();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-      const currentTime = hours * 60 + minutes;
-      const deadline = 11 * 60;
-
-      if (currentTime >= deadline) {
-        setAttendanceType("check_in");
-        setShowAttendance(true);
-      }
-    }
-  }, [todayAttendance, loading]);
-
   const formatRupiah = (nominal: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",

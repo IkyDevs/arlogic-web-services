@@ -48,14 +48,31 @@ export default function AttendanceModal({
 
   const getWorkHoursByDayAndGender = (dayOfWeek: number, gender: string) => {
     const friday = 5
+    const saturday = 6
     if (dayOfWeek === friday) {
       if (gender === 'female') {
-        return { start: '11:00', end: '19:00', total: 8 }
+        return { start: '11:00', end: '19:00', total: 8, overtimeStart: '19:00' }
       } else if (gender === 'male') {
-        return { start: '13:00', end: '21:00', total: 8 }
+        return { start: '13:00', end: '21:00', total: 8, overtimeStart: '21:00' }
       }
+      return { start: '11:00', end: '20:00', total: 9, overtimeStart: '19:00' }
     }
-    return { start: '11:00', end: '20:00', total: 9 }
+    if (dayOfWeek === saturday) {
+      return { start: '11:00', end: '20:00', total: 9, overtimeStart: '19:00' }
+    }
+    return { start: '11:00', end: '20:00', total: 9, overtimeStart: '19:00' }
+  }
+
+  const parseTimeToMinutes = (timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    return hours * 60 + minutes
+  }
+
+  const getOvertimeMinutesFromSchedule = (checkInTime: Date, checkOutTime: Date, dayOfWeek: number, gender: string) => {
+    const schedule = getWorkHoursByDayAndGender(dayOfWeek, gender)
+    const overtimeStartMinutes = parseTimeToMinutes(schedule.overtimeStart || schedule.end)
+    const checkOutMinutes = checkOutTime.getHours() * 60 + checkOutTime.getMinutes()
+    return Math.max(0, checkOutMinutes - overtimeStartMinutes)
   }
 
   const calculateTime = () => {
@@ -368,7 +385,10 @@ nama: ${user?.full_name}`
         const minutes = diffMinutes % 60
         workDuration = `${hours}h ${minutes}m`
 
-        const overtimeMinutes = isOvertime ? Math.max(0, diffMinutes - (overtimeThreshold * 60)) : 0
+        const dayOfWeek = checkOut.getDay()
+        const gender = (user as any)?.gender || 'other'
+        const schemaOvertimeMinutes = getOvertimeMinutesFromSchedule(checkIn, checkOut, dayOfWeek, gender)
+        const overtimeMinutes = isOvertime ? Math.max(0, diffMinutes - (overtimeThreshold * 60)) : schemaOvertimeMinutes
 
         const { error: dbError } = await supabase
           .from('attendances')

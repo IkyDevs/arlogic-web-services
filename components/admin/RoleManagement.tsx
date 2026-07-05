@@ -28,6 +28,7 @@ export default function RoleManagement() {
     full_name: '',
     role: 'customer' as UserRole,
     password: '',
+    gender: 'other',
   })
   const [deletingUser, setDeletingUser] = useState<Profile | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -141,6 +142,7 @@ export default function RoleManagement() {
             password: newUser.password,
             full_name: newUser.full_name,
             role: newUser.role,
+            gender: newUser.gender,
           }),
         })
 
@@ -152,7 +154,7 @@ export default function RoleManagement() {
 
         toast.success(`User ${newUser.full_name} created!`, { id: loadingToast })
         setShowAddUser(false)
-        setNewUser({ email: '', full_name: '', role: 'customer', password: '' })
+        setNewUser({ email: '', full_name: '', role: 'customer', password: '', gender: 'other' })
         fetchUsers()
       } catch (err: any) {
         toast.error(err.message || 'Failed to create user', { id: loadingToast })
@@ -525,6 +527,18 @@ case 'owner': return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                   {roles.map((role) => (
                     <option key={role} value={role} className="capitalize">{role}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Gender</label>
+                <select
+                  value={newUser.gender}
+                  onChange={(e) => setNewUser({ ...newUser, gender: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               <div className="flex gap-3 pt-3">

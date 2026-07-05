@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, full_name, role } = await request.json()
+    const { email, password, full_name, role, gender } = await request.json()
 
     // Validate inputs
     if (!email || !password || !full_name || !role) {
@@ -21,9 +21,17 @@ export async function POST(request: NextRequest) {
     }
 
     const validRoles = ['admin', 'teknisi', 'supervisor', 'owner', 'customer']
+    const validGenders = ['male', 'female', 'other']
     if (!validRoles.includes(role)) {
       return NextResponse.json(
         { error: 'Invalid role' },
+        { status: 400 }
+      )
+    }
+    const normalizedGender = typeof gender === 'string' ? gender.toLowerCase() : 'other'
+    if (!validGenders.includes(normalizedGender)) {
+      return NextResponse.json(
+        { error: 'Invalid gender' },
         { status: 400 }
       )
     }
@@ -58,7 +66,7 @@ export async function POST(request: NextRequest) {
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // skip email confirmation
+      email_confirm: true,
       user_metadata: { full_name, role },
     })
 
@@ -78,10 +86,10 @@ export async function POST(request: NextRequest) {
         email,
         full_name,
         role,
+        gender: normalizedGender,
       })
 
     if (profileError) {
-      // Rollback: delete the auth user if profile creation failed
       await adminClient.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
         { error: 'Failed to create user profile: ' + profileError.message },
