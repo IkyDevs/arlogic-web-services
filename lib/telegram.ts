@@ -3,7 +3,6 @@
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
-// Channel IDs untuk setiap fitur
 const CHANNELS = {
   attendance: process.env.TELEGRAM_CHANNEL_ATTENDANCE,
   service: process.env.TELEGRAM_CHANNEL_SERVICE,
@@ -14,9 +13,50 @@ const CHANNELS = {
 
 export type TelegramChannelType = keyof typeof CHANNELS
 
-/**
- * Upload file ke Telegram dengan caption
- */
+async function sendPhotoBlob(
+  channelId: string,
+  blob: Blob,
+  fileName: string,
+  caption?: string
+): Promise<string> {
+  const formData = new FormData()
+  formData.append('chat_id', channelId)
+  formData.append('photo', blob, fileName)
+  if (caption) formData.append('caption', caption)
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
+    { method: 'POST', body: formData }
+  )
+
+  const rawText = await response.text()
+  let data: any
+  try {
+    data = JSON.parse(rawText)
+  } catch (parseError) {
+    console.error('❌ Telegram non-JSON response in sendPhoto:', rawText)
+    throw new Error(`Telegram API returned invalid response (status ${response.status})`)
+  }
+
+  if (!data.ok) {
+    throw new Error(data.description || 'Telegram API error')
+  }
+
+  const photoArray = data.result.photo
+  const fileId = photoArray[photoArray.length - 1].file_id
+
+  const fileResponse = await fetch(
+    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`
+  )
+  const fileData = await fileResponse.json()
+
+  if (!fileData.ok) {
+    throw new Error(fileData.description || 'Failed to get file URL')
+  }
+
+  return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`
+}
+
 export async function uploadMultipleToTelegram(
   files: Array<{ buffer: Buffer; name: string }>,
   caption: string,
@@ -32,54 +72,85 @@ export async function uploadMultipleToTelegram(
     throw new Error(`Channel ID for ${channelType} not configured`)
   }
 
+  if (!files || files.length === 0) {
+    return []
+  }
+
   const urls: string[] = []
-  const CHUNK_SIZE = 10
 
-  for (let i = 0; i < files.length; i += CHUNK_SIZE) {
-    const chunk = files.slice(i, i + CHUNK_SIZE)
+  try {
+    const CHUNK_SIZE = 10
+    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+      const chunk = files.slice(i, i + CHUNK_SIZE)
 
-    const media = chunk.map((file, index) => ({
-      type: 'photo',
-      media: `attach://photo_${index}`,
-      ...(index === 0 ? { caption } : {}),
-    }))
+      const media = chunk.map((file, index) => ({
+        type: 'photo',
+        media: `attach://photo_${index}`,
+        ...(index === 0 ? { caption } : {}),
+      }))
 
-    const formData = new FormData()
-    formData.append('chat_id', channelId)
-    formData.append('media', JSON.stringify(media))
+      const formData = new FormData()
+      formData.append('chat_id', channelId)
+      formData.append('media', JSON.stringify(media))
 
-    chunk.forEach((file, index) => {
-      formData.append(`photo_${index}`, new Blob([file.buffer as unknown as BlobPart], { type: 'image/jpeg' }), `photo_${index}.jpg`)
-    })
+      chunk.forEach((file, index) => {
+        formData.append(
+          `photo_${index}`,
+          new Blob([file.buffer as unknown as BlobPart], { type: 'image/jpeg' }),
+          `photo_${index}.jpg`
+        )
+      })
 
-    const response = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    )
-
-    const data = await response.json()
-
-    if (!data.ok) {
-      throw new Error(data.description || 'Telegram API error')
-    }
-
-    for (const result of data.result) {
-      const photoArray = result.photo
-      const fileId = photoArray[photoArray.length - 1].file_id
-
-      const fileResponse = await fetch(
-        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`
+      const response = await fetch(
+        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`,
+        { method: 'POST', body: formData }
       )
-      const fileData = await fileResponse.json()
 
-      if (!fileData.ok) {
-        throw new Error(fileData.description || 'Failed to get file URL')
+      const rawText = await response.text()
+      let data: any
+      try {
+        data = JSON.parse(rawText)
+      } catch (parseError) {
+        console.error('❌ Telegram non-JSON response:', rawText)
+        throw new Error(`Telegram API returned invalid response (status ${response.status})`)
       }
 
-      urls.push(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`)
+      if (!data.ok) {
+        throw new Error(data.description || 'Telegram API error')
+      }
+
+      for (const result of data.result) {
+        const photoArray = result.photo
+        const fileId = photoArray[photoArray.length - 1].file_id
+
+        const fileResponse = await fetch(
+          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`
+        )
+        const fileData = await fileResponse.json()
+
+        if (!fileData.ok) {
+          throw new Error(fileData.description || 'Failed to get file URL')
+        }
+
+        urls.push(`https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`)
+      }
+    }
+  } catch (error: any) {
+    console.error('❌ sendMediaGroup failed, falling back to sendPhoto:', error.message)
+    
+    for (const file of files) {
+      try {
+        const url = await sendPhotoBlob(
+          channelId,
+          new Blob([file.buffer as unknown as BlobPart], { type: 'image/jpeg' }),
+          file.name,
+          files.indexOf(file) === 0 ? caption : undefined
+        )
+        urls.push(url)
+      } catch (fallbackError: any) {
+        console.error(`❌ Fallback sendPhoto failed for ${file.name}:`, fallbackError.message)
+        throw fallbackError
+      }
     }
   }
 
@@ -116,7 +187,14 @@ export async function uploadToTelegram(
       }
     )
 
-    const data = await response.json()
+    const rawText = await response.text()
+    let data: any
+    try {
+      data = JSON.parse(rawText)
+    } catch (parseError) {
+      console.error('❌ Telegram non-JSON response:', rawText)
+      throw new Error(`Telegram API returned invalid response (status ${response.status})`)
+    }
 
     if (!data.ok) {
       throw new Error(data.description || 'Telegram API error')
