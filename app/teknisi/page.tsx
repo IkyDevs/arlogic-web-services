@@ -390,9 +390,7 @@ export default function TeknisiDashboard() {
             <Wrench className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900">
-              WatchService
-            </h1>
+            <h1 className="text-base font-bold text-slate-900">WatchService</h1>
             <p className="text-[10px] text-slate-500">Teknisi Panel</p>
           </div>
           <button
@@ -544,50 +542,50 @@ export default function TeknisiDashboard() {
               >
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
                         Selesai Hari Ini
                       </span>
-                      <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-600 flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
                     </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {stats.completedToday}
                     </p>
                   </div>
 
-                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
                         Sedang Dikerjakan
                       </span>
-                      <Wrench className="w-4 h-4 sm:w-6 sm:h-6 text-gray-500 flex-shrink-0" />
+                      <Wrench className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
                     </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {stats.inProgress}
                     </p>
                   </div>
 
-                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
                         Antrean
                       </span>
-                      <Clock className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 flex-shrink-0" />
+                      <Clock className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
                     </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {stats.pendingQueue}
                     </p>
                   </div>
 
-                  <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
+                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
                         Pendapatan Bulan Ini
                       </span>
-                      <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 flex-shrink-0" />
+                      <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
                     </div>
-                    <p className="text-sm sm:text-xl md:text-2xl font-bold text-gray-600 truncate">
+                    <p className="text-sm sm:text-xl md:text-2xl font-bold text-gray-600 dark:text-gray-400 truncate">
                       {formatRupiah(stats.totalEarnings)}
                     </p>
                   </div>
@@ -603,13 +601,13 @@ export default function TeknisiDashboard() {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm p-3 sm:p-5"
+                  className="bg-white dark:bg-[#1c1c1c] rounded-xl sm:rounded-2xl md:rounded-[24px] border border-gray-200 dark:border-white/10 shadow-sm p-3 sm:p-5"
                 >
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-slate-200">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
-                      <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200 dark:border-white/10">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 dark:bg-white rounded-md sm:rounded-lg flex items-center justify-center">
+                      <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">
+                    <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-gray-100">
                       Aktivitas Terbaru
                     </h3>
                   </div>
@@ -617,21 +615,21 @@ export default function TeknisiDashboard() {
                     {recentActivities.map((activity, i) => (
                       <div
                         key={activity.id}
-                        className="flex items-center gap-3 p-2 border-b border-slate-100 last:border-0"
+                        className="flex items-center gap-3 p-2 border-b border-gray-100 dark:border-white/5 last:border-0"
                       >
-                        <div className="w-2 h-2 bg-gray-900 rounded-full flex-shrink-0" />
+                        <div className="w-2 h-2 bg-gray-900 dark:bg-white rounded-full flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm text-slate-700 truncate">
+                          <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 truncate">
                             {activity.message}
                           </p>
-                          <p className="text-[10px] sm:text-xs text-slate-400">
+                          <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
                             {activity.time}
                           </p>
                         </div>
                       </div>
                     ))}
                     {recentActivities.length === 0 && (
-                      <div className="text-center py-6 text-slate-400">
+                      <div className="text-center py-6 text-gray-400">
                         <p className="text-xs sm:text-sm">
                           Belum ada aktivitas
                         </p>
@@ -652,12 +650,12 @@ export default function TeknisiDashboard() {
                 className="grid md:grid-cols-2 gap-3 sm:gap-4 md:gap-6"
               >
                 {/* Performance Stats */}
-                <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm p-3 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-slate-200">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-xl sm:rounded-2xl md:rounded-[24px] border border-gray-200 dark:border-white/10 shadow-sm p-3 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-gray-200 dark:border-white/10">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 dark:bg-white rounded-md sm:rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">
+                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">
                       Metrik Performa
                     </h3>
                   </div>
@@ -665,32 +663,38 @@ export default function TeknisiDashboard() {
                   <div className="space-y-4 sm:space-y-5">
                     <div>
                       <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
-                        <span className="text-slate-600">Completion Rate</span>
-                        <span className="text-green-600">94%</span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Completion Rate
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-100">
+                          94%
+                        </span>
                       </div>
-                      <div className="h-1.5 sm:h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="w-[94%] h-full bg-green-600 rounded-full" />
+                      <div className="h-1.5 sm:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div className="w-[94%] h-full bg-gray-900 rounded-full" />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
-                        <span className="text-slate-600">
+                        <span className="text-gray-600 dark:text-gray-400">
                           Rata-rata Waktu Service
                         </span>
-                        <span className="text-emerald-600">
+                        <span className="text-gray-900 dark:text-gray-100">
                           {stats.averageTime} hari
                         </span>
                       </div>
-                      <div className="h-1.5 sm:h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-1.5 sm:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
                         <div className="w-[75%] h-full bg-gray-900 rounded-full" />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
-                        <span className="text-slate-600">Rating Customer</span>
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Rating Customer
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-100">
                           {stats.rating} / 5.0
                         </span>
                       </div>
@@ -703,36 +707,36 @@ export default function TeknisiDashboard() {
                                 ? "fill-gray-400 text-gray-500"
                                 : star - 0.5 <= stats.rating
                                   ? "fill-gray-400/50 text-gray-500"
-                                  : "text-slate-300"
+                                  : "text-gray-300 dark:text-gray-600"
                             }`}
                           />
                         ))}
                       </div>
                     </div>
 
-                    <div className="pt-3 sm:pt-4 border-t border-slate-200">
+                    <div className="pt-3 sm:pt-4 border-t border-gray-200 dark:border-white/10">
                       <div className="flex justify-between items-center">
                         <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-slate-900">
+                          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                             {stats.completedThisMonth}
                           </p>
-                          <p className="text-[10px] text-slate-400 uppercase">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
                             Service Bulan Ini
                           </p>
                         </div>
                         <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-gray-600">
+                          <p className="text-lg sm:text-2xl font-bold text-gray-600 dark:text-gray-400">
                             {formatRupiah(stats.totalEarnings)}
                           </p>
-                          <p className="text-[10px] text-slate-400 uppercase">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
                             Pendapatan
                           </p>
                         </div>
                         <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-green-600">
+                          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                             100%
                           </p>
-                          <p className="text-[10px] text-slate-400 uppercase">
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
                             Kehadiran
                           </p>
                         </div>
@@ -742,50 +746,50 @@ export default function TeknisiDashboard() {
                 </div>
 
                 {/* Badges & Achievements */}
-                <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm p-3 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-slate-200">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 rounded-md sm:rounded-lg flex items-center justify-center">
-                      <Award className="w-3 h-3 sm:w-4 sm:h-4 text-slate-900" />
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-xl sm:rounded-2xl md:rounded-[24px] border border-gray-200 dark:border-white/10 shadow-sm p-3 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-gray-200 dark:border-white/10">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 dark:bg-white rounded-md sm:rounded-lg flex items-center justify-center">
+                      <Award className="w-3 h-3 sm:w-4 sm:h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">
+                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">
                       Pencapaian
                     </h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div className="text-center p-2.5 sm:p-3 bg-gray-100 rounded-lg sm:rounded-xl border border-[#b3d9ff]">
-                      <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm">
+                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
+                      <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
                         Speedster
                       </p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
                         Selesaikan 10 service
                       </p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-3 bg-gray-100 rounded-lg sm:rounded-xl border border-[#b3d9ff]">
-                      <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm">
+                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
+                      <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
                         Quality Expert
                       </p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
                         95% approval rate
                       </p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-3 bg-[#e6faf2] rounded-lg sm:rounded-xl border border-emerald-100">
-                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm">
+                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
+                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
                         Team Player
                       </p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
                         Bantu teknisi lain
                       </p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-3 bg-[#fff8e6] rounded-lg sm:rounded-xl border border-[#ffe5a3]">
-                      <Star className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 mx-auto mb-1.5 sm:mb-2 fill-gray-400/30" />
-                      <p className="font-semibold text-xs sm:text-sm">
+                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
+                      <Star className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2 fill-gray-300/30" />
+                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
                         Top Performer
                       </p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
                         Rating 5 bintang
                       </p>
                     </div>

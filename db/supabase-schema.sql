@@ -508,3 +508,225 @@ ALTER DEFAULT PRIVILEGES FOR ROLE anon IN SCHEMA public
   GRANT SELECT ON TABLES TO anon;
 ALTER DEFAULT PRIVILEGES FOR ROLE anon IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO anon;
+
+
+-- =====================================================
+-- REVISI BATCH 9 - 2026-07-06
+-- Database Schema Updates untuk DP optional, handle_by default, service_type fix, tema, owner analytics
+-- =====================================================
+
+-- =====================================================
+-- R3: FIX - Ensure jenis_layanan NOT NULL constraint
+-- =====================================================
+DO $$
+BEGIN
+  -- First rename old column if service_type exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'service_type'
+  ) THEN
+    ALTER TABLE layanan RENAME COLUMN service_type TO jenis_layanan;
+  END IF;
+
+  -- Create column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'jenis_layanan'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN jenis_layanan TEXT NOT NULL DEFAULT 'service_langsung';
+  ELSE
+    -- Update NULL values to default
+    UPDATE layanan SET jenis_layanan = 'service_langsung' WHERE jenis_layanan IS NULL;
+
+    -- Set NOT NULL constraint if not already set
+    ALTER TABLE layanan ALTER COLUMN jenis_layanan SET NOT NULL;
+  END IF;
+END $$;
+
+-- =====================================================
+-- R2: ADD - Support multiple photos with photo_urls array
+-- =====================================================
+DO $$
+BEGIN
+  -- Add photo_urls array column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'photo_urls'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN photo_urls TEXT[] DEFAULT '{}';
+  END IF;
+
+  -- Migrate existing photo_url to photo_urls (one-time migration)
+  UPDATE layanan
+  SET photo_urls = ARRAY[photo_url]
+  WHERE photo_url IS NOT NULL AND (photo_urls = '{}' OR photo_urls IS NULL);
+END $$;
+
+-- =====================================================
+-- R2: ADD - Column renames for consistency
+-- =====================================================
+DO $$
+BEGIN
+  -- Rename payment_method to metode_pembayaran if exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'payment_method'
+  ) THEN
+    ALTER TABLE layanan RENAME COLUMN payment_method TO metode_pembayaran;
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'metode_pembayaran'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN metode_pembayaran TEXT;
+  END IF;
+
+  -- Rename sku_details to detail_sku if exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'sku_details'
+  ) THEN
+    ALTER TABLE layanan RENAME COLUMN sku_details TO detail_sku;
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'detail_sku'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN detail_sku TEXT;
+  END IF;
+
+  -- Rename nominal_pembayaran to nominal if exists
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'nominal_pembayaran'
+  ) THEN
+    ALTER TABLE layanan RENAME COLUMN nominal_pembayaran TO nominal;
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'nominal'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN nominal NUMERIC DEFAULT 0;
+  END IF;
+
+  -- Rename created_by to created_by if missing
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'created_by'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN created_by UUID REFERENCES profiles(id);
+  END IF;
+END $$;
+
+-- =====================================================
+-- R2: ADD - Support handle_by and metadata columns
+-- =====================================================
+DO $$
+BEGIN
+  -- Add handled_by column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'handled_by'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN handled_by UUID REFERENCES profiles(id);
+  END IF;
+
+  -- Add handled_by_name column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'handled_by_name'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN handled_by_name TEXT;
+  END IF;
+
+  -- Add created_by_name column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'created_by_name'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN created_by_name TEXT;
+  END IF;
+
+  -- Add status column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'status'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN status TEXT DEFAULT 'active';
+  END IF;
+
+  -- Add notes column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'notes'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN notes TEXT;
+  END IF;
+
+  -- Add lead_source column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'lead_source'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN lead_source TEXT;
+  END IF;
+
+  -- Add lead_source_custom column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'lead_source_custom'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN lead_source_custom TEXT;
+  END IF;
+
+  -- Add customer_whatsapp column if not exists
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'customer_whatsapp'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN customer_whatsapp TEXT;
+  END IF;
+
+  -- Add photo_url column if not exists (backward compatibility)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'photo_url'
+  ) THEN
+    ALTER TABLE layanan ADD COLUMN photo_url TEXT;
+  END IF;
+END $$;
+
+-- =====================================================
+-- R9: INDEX - Add indexes for better query performance (owner analytics)
+-- =====================================================
+CREATE INDEX IF NOT EXISTS idx_layanan_created_at ON layanan(created_at);
+CREATE INDEX IF NOT EXISTS idx_layanan_handled_by ON layanan(handled_by);
+CREATE INDEX IF NOT EXISTS idx_layanan_created_by ON layanan(created_by);
+CREATE INDEX IF NOT EXISTS idx_layanan_jenis_layanan ON layanan(jenis_layanan);
+CREATE INDEX IF NOT EXISTS idx_layanan_status ON layanan(status);
+
+-- =====================================================
+-- CLEANUP & RELOAD SCHEMA CACHE
+-- =====================================================
+NOTIFY pgrst, 'reload schema';
+
+
+
+-- =====================================================
+-- RV2-5: FIX - Ensure photo_urls column is properly set NOT NULL
+-- =====================================================
+DO $$
+BEGIN
+  -- Verify photo_urls column exists and is NOT NULL
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'layanan' AND column_name = 'photo_urls'
+  ) THEN
+    -- Ensure it's NOT NULL
+    ALTER TABLE layanan ALTER COLUMN photo_urls SET NOT NULL;
+
+    -- Migrate NULL/empty arrays to empty array
+    UPDATE layanan
+    SET photo_urls = '{}'
+    WHERE photo_urls IS NULL OR array_length(photo_urls, 1) IS NULL;
+  END IF;
+END $$;
+
+NOTIFY pgrst, 'reload schema';

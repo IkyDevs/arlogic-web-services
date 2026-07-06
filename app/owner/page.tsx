@@ -204,6 +204,13 @@ export default function OwnerDashboard() {
 
       if (servicesError) throw servicesError;
 
+      // Get transaction data (layanan)
+      const { data: transactions } = await supabase
+        .from("layanan")
+        .select("*")
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString());
+
       const { data: attendances } = await supabase
         .from("attendances")
         .select("*")
@@ -224,8 +231,15 @@ export default function OwnerDashboard() {
         revenue += serviceTotal;
       });
 
-      const expenses = revenue * 0.35;
-      const profit = revenue - expenses;
+      // Add transaction revenue
+      let transactionRevenue = 0;
+      transactions?.forEach((trans) => {
+        transactionRevenue += Number(trans.nominal) || 0;
+      });
+
+      const totalRevenue = revenue + transactionRevenue;
+      const expenses = totalRevenue * 0.35;
+      const profit = totalRevenue - expenses;
       const completedServices =
         services?.filter((s) => s.status === "completed").length || 0;
       const totalServices = services?.length || 0;
@@ -283,6 +297,12 @@ export default function OwnerDashboard() {
         .gte("created_at", previousStart.toISOString())
         .lte("created_at", previousEnd.toISOString());
 
+      const { data: previousTransactions } = await supabase
+        .from("layanan")
+        .select("*")
+        .gte("created_at", previousStart.toISOString())
+        .lte("created_at", previousEnd.toISOString());
+
       let previousRevenue = 0;
       previousServices?.forEach((service) => {
         const serviceTotal =
@@ -292,13 +312,21 @@ export default function OwnerDashboard() {
         previousRevenue += serviceTotal;
       });
 
+      let previousTransactionRevenue = 0;
+      previousTransactions?.forEach((trans) => {
+        previousTransactionRevenue += Number(trans.nominal) || 0;
+      });
+
+      const previousTotalRevenue = previousRevenue + previousTransactionRevenue;
+
       const revenueGrowth =
-        previousRevenue === 0
+        previousTotalRevenue === 0
           ? 100
-          : ((revenue - previousRevenue) / previousRevenue) * 100;
+          : ((totalRevenue - previousTotalRevenue) / previousTotalRevenue) *
+            100;
 
       setDashboardData({
-        revenue,
+        revenue: totalRevenue,
         expenses,
         profit,
         completedServices,
@@ -306,7 +334,11 @@ export default function OwnerDashboard() {
         activeTechnicians,
         averageCompletionTime,
         technicianPerformance,
-        monthlyComparison: { revenue, profit, growth: revenueGrowth },
+        monthlyComparison: {
+          revenue: totalRevenue,
+          profit,
+          growth: revenueGrowth,
+        },
       });
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error);

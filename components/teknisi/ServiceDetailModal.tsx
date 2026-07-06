@@ -1,23 +1,39 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, User, Phone, Watch, AlertCircle, FileText,
-  Calendar, Hash, CheckCircle, ArrowRight, Camera,
-  Image as ImageIcon, ChevronLeft, ChevronRight,
-  ZoomIn, Download, Clock, Tag, Package, Award
-} from 'lucide-react'
-import toast from 'react-hot-toast'
-import { useAuthStore } from '@/stores/authStore'
+  X,
+  User,
+  Phone,
+  Watch,
+  AlertCircle,
+  FileText,
+  Calendar,
+  Hash,
+  CheckCircle,
+  ArrowRight,
+  Camera,
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  Download,
+  Clock,
+  Tag,
+  Package,
+  Award,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { useAuthStore } from "@/stores/authStore";
 
 interface ServiceDetailModalProps {
-  isOpen: boolean
-  onClose: () => void
-  service: any
-  onTake: () => void
-  onSkip: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  service: any;
+  onTake: () => void;
+  onSkip: () => void;
 }
 
 export default function ServiceDetailModal({
@@ -25,120 +41,121 @@ export default function ServiceDetailModal({
   onClose,
   service,
   onTake,
-  onSkip
+  onSkip,
 }: ServiceDetailModalProps) {
-  const [loading, setLoading] = useState(false)
-  const [photos, setPhotos] = useState<string[]>([])
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
-  const [showFullscreen, setShowFullscreen] = useState(false)
-  const [loadingPhotos, setLoadingPhotos] = useState(true)
-  const supabase = createClient()
-  const { user } = useAuthStore()
+  const [loading, setLoading] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [showFullscreen, setShowFullscreen] = useState(false);
+  const [loadingPhotos, setLoadingPhotos] = useState(true);
+  const supabase = createClient();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (service && isOpen) {
-      fetchPhotos()
+      fetchPhotos();
     }
-  }, [service, isOpen])
+  }, [service, isOpen]);
 
   const fetchPhotos = async () => {
-    setLoadingPhotos(true)
+    setLoadingPhotos(true);
     const { data } = await supabase
-      .from('service_documentation')
-      .select('photo_url')
-      .eq('service_order_id', service.id)
-      .order('created_at', { ascending: true })
+      .from("service_documentation")
+      .select("photo_url")
+      .eq("service_order_id", service.id)
+      .order("created_at", { ascending: true });
 
     if (data) {
-      setPhotos(data.map(p => p.photo_url))
+      setPhotos(data.map((p) => p.photo_url));
     }
-    setLoadingPhotos(false)
-  }
+    setLoadingPhotos(false);
+  };
 
   const handleTake = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const { error } = await supabase
-        .from('service_orders')
+        .from("service_orders")
         .update({
           assigned_teknisi_id: user?.id,
-          teknisi_name: user?.full_name,
-          status: 'assigned',
-          start_date: new Date().toISOString()
+          status: "assigned",
+          start_date: new Date().toISOString(),
         })
-        .eq('id', service.id)
+        .eq("id", service.id);
 
-      if (error) throw error
+      if (error) throw error;
 
-      await supabase.from('service_timeline').insert({
+      await supabase.from("service_timeline").insert({
         service_order_id: service.id,
         teknisi_id: user?.id,
-        status: 'assigned',
+        status: "assigned",
         message: `Service diambil oleh teknisi ${user?.full_name}`,
-        details: { action: 'take_project' }
-      })
+        details: { action: "take_project" },
+      });
 
-      toast.success('Service berhasil diambil!')
-      onTake()
-      onClose()
+      toast.success("Service berhasil diambil!");
+      onTake();
+      onClose();
     } catch (error: any) {
-      toast.error(error.message)
+      toast.error(error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const nextPhoto = () => {
     if (photos.length > 0) {
-      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length)
+      setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
     }
-  }
+  };
 
   const prevPhoto = () => {
     if (photos.length > 0) {
-      setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length)
+      setCurrentPhotoIndex(
+        (prev) => (prev - 1 + photos.length) % photos.length,
+      );
     }
-  }
+  };
 
   const downloadPhoto = (url: string) => {
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `service_${service.invoice_number}_photo.jpg`
-    link.click()
-    toast.success('Foto didownload!')
-  }
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `service_${service.invoice_number}_photo.jpg`;
+    link.click();
+    toast.success("Foto didownload!");
+  };
 
-  if (!isOpen || !service) return null
+  if (!isOpen || !service) return null;
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+    return new Date(date).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      assigned: 'bg-blue-100 text-blue-700',
-      in_progress: 'bg-purple-100 text-purple-700',
-      qc_pending: 'bg-orange-100 text-orange-700',
-      completed: 'bg-green-100 text-green-700',
-      cancelled: 'bg-red-100 text-red-700'
-    }
-    return colors[status] || 'bg-slate-100 text-slate-700'
-  }
+      pending: "bg-yellow-100 text-yellow-700",
+      assigned: "bg-blue-100 text-blue-700",
+      in_progress: "bg-purple-100 text-purple-700",
+      qc_pending: "bg-orange-100 text-orange-700",
+      completed: "bg-green-100 text-green-700",
+      cancelled: "bg-red-100 text-red-700",
+    };
+    return colors[status] || "bg-slate-100 text-slate-700";
+  };
 
   return (
     <AnimatePresence>
@@ -148,7 +165,7 @@ export default function ServiceDetailModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
           >
             {/* Header */}
@@ -158,10 +175,16 @@ export default function ServiceDetailModal({
                   <Watch className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Detail Service</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Detail Service
+                  </h3>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-slate-400">{service.invoice_number}</span>
-                    <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${getStatusColor(service.status)}`}>
+                    <span className="text-xs font-mono text-slate-400">
+                      {service.invoice_number}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${getStatusColor(service.status)}`}
+                    >
                       {service.status}
                     </span>
                   </div>
@@ -182,7 +205,9 @@ export default function ServiceDetailModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Camera className="w-4 h-4 text-blue-600" />
-                    <h4 className="text-sm font-medium text-slate-900">Dokumentasi Service</h4>
+                    <h4 className="text-sm font-medium text-slate-900">
+                      Dokumentasi Service
+                    </h4>
                     {photos.length > 0 && (
                       <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
                         {photos.length} foto
@@ -202,15 +227,21 @@ export default function ServiceDetailModal({
                 {loadingPhotos ? (
                   <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border border-blue-600 border-t-transparent mx-auto" />
-                    <p className="text-xs text-slate-400 mt-2">Memuat foto...</p>
+                    <p className="text-xs text-slate-400 mt-2">
+                      Memuat foto...
+                    </p>
                   </div>
                 ) : photos.length === 0 ? (
                   <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center border-dashed">
                     <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2">
                       <ImageIcon className="w-6 h-6 text-slate-300" />
                     </div>
-                    <p className="text-sm text-slate-400">Belum ada foto dokumentasi</p>
-                    <p className="text-xs text-slate-300">Foto akan muncul setelah teknisi upload</p>
+                    <p className="text-sm text-slate-400">
+                      Belum ada foto dokumentasi
+                    </p>
+                    <p className="text-xs text-slate-300">
+                      Foto akan muncul setelah teknisi upload
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -222,8 +253,8 @@ export default function ServiceDetailModal({
                         transition={{ delay: index * 0.05 }}
                         className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50 cursor-pointer hover:shadow-md transition-all"
                         onClick={() => {
-                          setCurrentPhotoIndex(index)
-                          setShowFullscreen(true)
+                          setCurrentPhotoIndex(index);
+                          setShowFullscreen(true);
                         }}
                       >
                         <img
@@ -245,7 +276,9 @@ export default function ServiceDetailModal({
                       >
                         <div className="text-center">
                           <ImageIcon className="w-8 h-8 text-slate-300 mx-auto mb-1" />
-                          <span className="text-sm font-medium text-slate-500">+{photos.length - 6} lagi</span>
+                          <span className="text-sm font-medium text-slate-500">
+                            +{photos.length - 6} lagi
+                          </span>
                         </div>
                       </div>
                     )}
@@ -259,10 +292,14 @@ export default function ServiceDetailModal({
                 <div className="bg-[#F8F9FA] rounded-xl p-4 border border-slate-200">
                   <div className="flex items-center gap-2 mb-3">
                     <User className="w-4 h-4 text-slate-900" />
-                    <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Customer</h4>
+                    <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                      Customer
+                    </h4>
                   </div>
                   <div className="space-y-1.5">
-                    <p className="text-sm font-medium text-slate-900">{service.customer_name}</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {service.customer_name}
+                    </p>
                     <p className="text-xs text-slate-500 flex items-center gap-1">
                       <Phone className="w-3 h-3" />
                       {service.customer_phone}
@@ -278,11 +315,13 @@ export default function ServiceDetailModal({
                 <div className="bg-[#F8F9FA] rounded-xl p-4 border border-slate-200">
                   <div className="flex items-center gap-2 mb-3">
                     <Watch className="w-4 h-4 text-slate-900" />
-                    <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Jam Tangan</h4>
+                    <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                      Jam Tangan
+                    </h4>
                   </div>
                   <div className="space-y-1.5">
                     <p className="text-sm font-medium text-slate-900">
-                      {service.watch_brand || service.device_brand || '-'}
+                      {service.watch_brand || service.device_brand || "-"}
                       {service.watch_model && ` ${service.watch_model}`}
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -311,20 +350,28 @@ export default function ServiceDetailModal({
               <div className="bg-[#F8F9FA] rounded-xl p-4 border border-slate-200">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertCircle className="w-4 h-4 text-blue-600" />
-                  <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Deskripsi Kerusakan</h4>
+                  <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                    Deskripsi Kerusakan
+                  </h4>
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed">{service.issue_description}</p>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  {service.issue_description}
+                </p>
                 {service.request && (
                   <>
                     <div className="h-px bg-slate-200 my-3" />
-                    <p className="text-xs font-medium text-slate-500">Request Customer</p>
+                    <p className="text-xs font-medium text-slate-500">
+                      Request Customer
+                    </p>
                     <p className="text-sm text-slate-700">{service.request}</p>
                   </>
                 )}
                 {service.notes && (
                   <>
                     <div className="h-px bg-slate-200 my-3" />
-                    <p className="text-xs font-medium text-slate-500">Catatan Tambahan</p>
+                    <p className="text-xs font-medium text-slate-500">
+                      Catatan Tambahan
+                    </p>
                     <p className="text-sm text-slate-700">{service.notes}</p>
                   </>
                 )}
@@ -336,9 +383,13 @@ export default function ServiceDetailModal({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-yellow-400" />
-                      <span className="text-sm font-medium">Estimasi Biaya</span>
+                      <span className="text-sm font-medium">
+                        Estimasi Biaya
+                      </span>
                     </div>
-                    <span className="text-xl font-bold">{formatCurrency(service.estimated_cost)}</span>
+                    <span className="text-xl font-bold">
+                      {formatCurrency(service.estimated_cost)}
+                    </span>
                   </div>
                 </div>
               )}
@@ -411,7 +462,9 @@ export default function ServiceDetailModal({
                           key={index}
                           onClick={() => setCurrentPhotoIndex(index)}
                           className={`w-2 h-2 rounded-full transition-all ${
-                            index === currentPhotoIndex ? 'bg-white w-4' : 'bg-white/40'
+                            index === currentPhotoIndex
+                              ? "bg-white w-4"
+                              : "bg-white/40"
                           }`}
                         />
                       ))}
@@ -428,5 +481,5 @@ export default function ServiceDetailModal({
         </div>
       )}
     </AnimatePresence>
-  )
+  );
 }

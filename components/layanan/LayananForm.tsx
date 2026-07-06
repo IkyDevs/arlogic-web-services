@@ -1,521 +1,727 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useAuthStore } from '@/stores/authStore'
-import { useUpload } from '@/hooks/useUpload'
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useAuthStore } from "@/stores/authStore";
+import { useUpload } from "@/hooks/useUpload";
+import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
+import toast from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  jenisLayananLabels,
-  metodePembayaranLabels,
-  leadSourceLabels,
-  JenisLayanan,
-  MetodePembayaran,
-  LeadSource
-} from '@/types'
-import toast from 'react-hot-toast'
-import { motion } from 'framer-motion'
-import {
-  User, Phone, Tag, DollarSign, FileText,
-  Send, X, Camera, Loader2, Trash2,
-  AlertCircle, Calendar,
-  CreditCard, Share2, Hash, Users,
-  ShoppingBag, TrendingDown, Wrench,
-  MapPin, Globe, Star, Music, Edit, Minus,
-  Image as ImageIcon
-} from 'lucide-react'
+  User,
+  Phone,
+  DollarSign,
+  FileText,
+  Send,
+  X,
+  Camera,
+  Loader2,
+  Trash2,
+  AlertCircle,
+  Calendar,
+  Hash,
+  Wrench,
+  Plus,
+  ChevronDown,
+} from "lucide-react";
 
 interface LayananFormProps {
-  onSuccess?: () => void
-  onClose?: () => void
-  initialData?: any
+  onSuccess?: () => void;
+  onClose?: () => void;
+  initialData?: any;
 }
 
-export default function LayananForm({ onSuccess, onClose, initialData }: LayananFormProps) {
+// Semua jenis layanan yang valid di DB (tidak null)
+const jenisLayananOptions = [
+  { value: "service_langsung", label: "Service Langsung" },
+  { value: "dp_service", label: "DP Service" },
+  { value: "ambil_jam_service", label: "Ambil Jam Service" },
+  { value: "order_online", label: "Order Online" },
+  { value: "beli_jam", label: "Beli Jam" },
+  { value: "pengeluaran", label: "Pengeluaran" },
+];
+
+const metodePembayaranOptions = [
+  { value: "cash", label: "Cash" },
+  { value: "qris", label: "QRIS" },
+  { value: "tf_bca", label: "Transfer BCA" },
+  { value: "tf_mandiri", label: "Transfer Mandiri" },
+  { value: "edc_bca", label: "EDC BCA" },
+  { value: "edc_mandiri", label: "EDC Mandiri" },
+  { value: "bri", label: "BRI" },
+  { value: "kudus", label: "Kudus" },
+];
+
+const leadSourceOptions = [
+  { value: "instagram", label: "Instagram" },
+  { value: "wom", label: "WOM (Word of Mouth)" },
+  { value: "dekat_lewat", label: "Dekat / Lewat" },
+  { value: "google", label: "Google" },
+  { value: "facebook", label: "Facebook" },
+  { value: "old", label: "Old Customer" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "dash", label: "-" },
+  { value: "tulis_sendiri", label: "Tulis Sendiri" },
+];
+
+export default function LayananForm({
+  onSuccess,
+  onClose,
+  initialData,
+}: LayananFormProps) {
+  const { user } = useAuthStore();
+  const supabase = createClient();
+  const { uploadFile, uploadFiles, uploading, progress } = useUpload();
+
+  // Form state
   const [formData, setFormData] = useState({
-    customer_name: initialData?.customer_name || '',
-    customer_whatsapp: initialData?.customer_whatsapp || '',
-    jenis_layanan: initialData?.jenis_layanan || 'service_langsung',
-    handled_by: initialData?.handled_by || '',
-    metode_pembayaran: initialData?.metode_pembayaran || 'cash',
-    lead_source: initialData?.lead_source || 'instagram',
-    lead_source_custom: initialData?.lead_source_custom || '',
-    detail_sku: initialData?.detail_sku || '',
-    nominal: initialData?.nominal || '',
-    notes: initialData?.notes || ''
-  })
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [showCustomLeadSource, setShowCustomLeadSource] = useState(false)
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+    customer_name: initialData?.customer_name || "",
+    customer_whatsapp: initialData?.customer_whatsapp || "",
+    jenis_layanan: (initialData?.jenis_layanan ||
+      "service_langsung") as JenisLayanan,
+    handled_by: initialData?.handled_by || user?.id || "",
+    metode_pembayaran: (initialData?.metode_pembayaran ||
+      "cash") as MetodePembayaran,
+    lead_source: (initialData?.lead_source || "instagram") as LeadSource,
+    lead_source_custom: initialData?.lead_source_custom || "",
+    detail_sku: initialData?.detail_sku || "",
+    nominal: initialData?.nominal?.toString() || "",
+    notes: initialData?.notes || "",
+  });
 
-  const supabase = createClient()
-  const { user } = useAuthStore()
-  const { uploadFile, uploading, progress } = useUpload()
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showOtherHandler, setShowOtherHandler] = useState(false);
 
+  // Multiple photos
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const showCustomLeadSource = formData.lead_source === "tulis_sendiri";
+
+  // ── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchUsers()
-    setShowCustomLeadSource(formData.lead_source === 'tulis_sendiri')
-  }, [formData.lead_source])
+    fetchUsers();
+  }, []);
+
+  // Set default handled_by ke current user setelah mount
+  useEffect(() => {
+    if (user?.id && !formData.handled_by) {
+      setFormData((p) => ({ ...p, handled_by: user.id }));
+    }
+  }, [user?.id]);
 
   const fetchUsers = async () => {
     const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, role')
-      .in('role', ['admin', 'teknisi', 'supervisor'])
-      .order('full_name')
-    if (data) setUsers(data)
-  }
+      .from("profiles")
+      .select("id, full_name, role")
+      .in("role", ["admin", "teknisi", "supervisor"])
+      .order("full_name");
+    if (data) setUsers(data);
+  };
 
+  // ── Photo helpers ─────────────────────────────────────────────────────────
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast.error('Hanya file gambar yang diperbolehkan')
-        return
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Ukuran gambar maksimal 10MB')
-        return
-      }
-      setPhotoFile(file)
-      const preview = URL.createObjectURL(file)
-      setPhotoPreview(preview)
-    }
-  }
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-  const removePhoto = () => {
-    setPhotoFile(null)
-    if (photoPreview) {
-      URL.revokeObjectURL(photoPreview)
-      setPhotoPreview(null)
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
+    const valid = files.filter((f) => {
+      if (!f.type.startsWith("image/")) {
+        toast.error(`${f.name} bukan gambar`);
+        return false;
+      }
+      if (f.size > 15 * 1024 * 1024) {
+        toast.error(`${f.name} terlalu besar (max 15MB)`);
+        return false;
+      }
+      return true;
+    });
 
+    setPhotoFiles((prev) => [...prev, ...valid]);
+    valid.forEach((f) =>
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]),
+    );
+
+    // reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removePhoto = (idx: number) => {
+    URL.revokeObjectURL(photoPreviews[idx]);
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== idx));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    // Validasi
-    if (!photoFile && !initialData?.photo_url) {
-      toast.error('Wajib upload foto bukti transaksi!')
-      return
+    if (!formData.customer_name.trim()) {
+      toast.error("Nama customer wajib diisi");
+      return;
     }
-    if (!formData.customer_name) {
-      toast.error('Nama customer wajib diisi')
-      return
-    }
-    if (!formData.customer_whatsapp) {
-      toast.error('Nomor WhatsApp wajib diisi')
-      return
+    if (!formData.customer_whatsapp.trim()) {
+      toast.error("Nomor WhatsApp wajib diisi");
+      return;
     }
     if (!formData.handled_by) {
-      toast.error('Pilih yang melayani')
-      return
+      toast.error("Pilih yang melayani");
+      return;
     }
     if (!formData.nominal) {
-      toast.error('Nominal wajib diisi')
-      return
+      toast.error("Nominal wajib diisi");
+      return;
+    }
+    if (!formData.jenis_layanan) {
+      toast.error("Jenis layanan wajib dipilih");
+      return;
+    }
+    if (photoFiles.length === 0 && !initialData?.photo_url) {
+      toast.error("Wajib upload minimal 1 foto");
+      return;
     }
 
-    setLoading(true)
-    let photoUrl = initialData?.photo_url || ''
-
+    setLoading(true);
     try {
-      if (photoFile) {
-        setUploadingPhoto(true)
-        photoUrl = await uploadFile(photoFile, { type: 'service' })
-        setUploadingPhoto(false)
-        if (!photoUrl) {
-          toast.error('Gagal upload foto')
-          setLoading(false)
-          return
+      let photoUrls: string[] = initialData?.photo_url
+        ? [initialData.photo_url]
+        : [];
+
+      if (photoFiles.length > 0) {
+        const urls = await uploadFiles(photoFiles, { type: "layanan" });
+        if (!urls || urls.length === 0) {
+          toast.error("Gagal upload foto");
+          return;
         }
+        photoUrls = urls;
       }
 
-      const selectedUser = users.find(u => u.id === formData.handled_by)
+      const selectedUser = users.find((u) => u.id === formData.handled_by);
 
-      const { error } = await supabase
-        .from('layanan')
-        .insert([{
-          customer_name: formData.customer_name,
-          customer_whatsapp: formData.customer_whatsapp,
-          jenis_layanan: formData.jenis_layanan,
+      // Ensure jenis_layanan is always set (never null/undefined)
+      const jenisLayananValue = formData.jenis_layanan || "service_langsung";
+
+      const { error } = await supabase.from("layanan").insert([
+        {
+          customer_name: formData.customer_name.trim(),
+          customer_whatsapp: formData.customer_whatsapp.trim(),
+          jenis_layanan: jenisLayananValue, // ← guaranteed non-null
           handled_by: formData.handled_by,
-          handled_by_name: selectedUser?.full_name,
+          handled_by_name: selectedUser?.full_name || user?.full_name,
           metode_pembayaran: formData.metode_pembayaran,
           lead_source: formData.lead_source,
-          lead_source_custom: formData.lead_source === 'tulis_sendiri' ? formData.lead_source_custom : null,
-          detail_sku: formData.detail_sku,
-          nominal: parseInt(formData.nominal),
-          notes: formData.notes,
-          photo_url: photoUrl,
+          lead_source_custom:
+            formData.lead_source === "tulis_sendiri"
+              ? formData.lead_source_custom
+              : null,
+          detail_sku: formData.detail_sku || null,
+          nominal: parseInt(formData.nominal) || 0,
+          notes: formData.notes || null,
+          photo_url: photoUrls[0] || null, // backward compat – simpan foto pertama
+          photo_urls: photoUrls, // semua foto
           created_by: user?.id,
           created_by_name: user?.full_name,
-          status: 'active'
-        }])
+          status: "active",
+        },
+      ]);
 
-      if (error) throw error
+      if (error) throw error;
 
-      toast.success('Layanan berhasil ditambahkan!')
+      // Send transaction to telegram
+      try {
+        const jenisLayananLabel =
+          jenisLayananOptions.find((opt) => opt.value === jenisLayananValue)
+            ?.label || jenisLayananValue;
+        const metodeLabel =
+          metodePembayaranOptions.find(
+            (opt) => opt.value === formData.metode_pembayaran,
+          )?.label || formData.metode_pembayaran;
 
-      if (onSuccess) onSuccess()
-      if (onClose) onClose()
+        const transactionDescription = `📊 TRANSAKSI BARU
+━━━━━━━━━━━━━━━━━━━━━━━━
+📱 Customer: ${formData.customer_name}
+📞 WA: ${formData.customer_whatsapp}
+💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
+💳 Metode: ${metodeLabel}
+📋 Jenis Layanan: ${jenisLayananLabel}
+${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
+📝 Catatan: ${formData.notes || "-"}
+👤 Dihandle: ${selectedUser?.full_name || user?.full_name}
+👤 Operator: ${user?.full_name}
+⏰ ${new Date().toLocaleString("id-ID")}
+━━━━━━━━━━━━━━━━━━━━━━━━`;
 
-      // Reset form
+        await fetch("/api/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "transaction",
+            message: transactionDescription,
+            data: {
+              customer_name: formData.customer_name,
+              nominal: parseInt(formData.nominal),
+              jenis_layanan: jenisLayananValue,
+              metode_pembayaran: formData.metode_pembayaran,
+            },
+          }),
+        });
+      } catch (telegramErr) {
+        console.error("Failed to send transaction to telegram:", telegramErr);
+        // Continue even if telegram fails
+      }
+
+      toast.success("Transaksi berhasil ditambahkan!");
+      onSuccess?.();
+      onClose?.();
+
+      // Reset
+      photoPreviews.forEach((u) => URL.revokeObjectURL(u));
       setFormData({
-        customer_name: '',
-        customer_whatsapp: '',
-        jenis_layanan: 'service_langsung',
-        handled_by: '',
-        metode_pembayaran: 'cash',
-        lead_source: 'instagram',
-        lead_source_custom: '',
-        detail_sku: '',
-        nominal: '',
-        notes: ''
-      })
-      removePhoto()
-    } catch (error: any) {
-      toast.error(error.message)
+        customer_name: "",
+        customer_whatsapp: "",
+        jenis_layanan: "service_langsung",
+        handled_by: user?.id || "",
+        metode_pembayaran: "cash",
+        lead_source: "instagram",
+        lead_source_custom: "",
+        detail_sku: "",
+        nominal: "",
+        notes: "",
+      });
+      setPhotoFiles([]);
+      setPhotoPreviews([]);
+    } catch (err: any) {
+      toast.error(err.message || "Gagal menyimpan transaksi");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const jenisLayananOptions = [
-    { value: 'ambil_jam_service', label: 'Ambil Jam Service' },
-    { value: 'order_online', label: 'Order Online' },
-    { value: 'beli_jam', label: 'Beli Jam' },
-    { value: 'pengeluaran', label: 'Pengeluaran' },
-    { value: 'dp_service', label: 'DP Service' },
-    { value: 'service_langsung', label: 'Service Langsung' }
-  ]
+  // ── UI ────────────────────────────────────────────────────────────────────
+  const inputClass =
+    "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition-all text-sm dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100 dark:focus:border-white";
+  const labelClass =
+    "block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5";
+  const sectionClass =
+    "bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-4";
 
-  const metodePembayaranOptions = [
-    { value: 'cash', label: 'Cash' },
-    { value: 'edc_mandiri', label: 'EDC Mandiri' },
-    { value: 'tf_bca', label: 'Transfer BCA' },
-    { value: 'bri', label: 'BRI' },
-    { value: 'kudus', label: 'Kudus' },
-    { value: 'edc_bca', label: 'EDC BCA' },
-    { value: 'tf_mandiri', label: 'Transfer Mandiri' },
-    { value: 'qris', label: 'QRIS' }
-  ]
-
-  const leadSourceOptions = [
-    { value: 'instagram', label: 'Instagram' },
-    { value: 'wom', label: 'WOM (Word of Mouth)' },
-    { value: 'dekat_lewat', label: 'Dekat / Lewat' },
-    { value: 'google', label: 'Google' },
-    { value: 'dash', label: '-' },
-    { value: 'facebook', label: 'Facebook' },
-    { value: 'old', label: 'Old Customer' },
-    { value: 'tiktok', label: 'TikTok' },
-    { value: 'tulis_sendiri', label: 'Tulis Sendiri' }
-  ]
+  const currentUserName = user?.full_name || "Saya";
+  const isHandledByMe = formData.handled_by === user?.id;
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white rounded-xl border border-slate-200 shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+      exit={{ opacity: 0, scale: 0.97 }}
+      className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
     >
-      {/* Header */}
-      <div className="sticky top-0 bg-white z-10 flex justify-between items-center px-6 py-4 border-b border-slate-200">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-10 flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
-            <FileText className="w-4 h-4 text-white" />
+          <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+            <FileText className="w-4 h-4 text-white dark:text-gray-900" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900">New Transaction</h2>
-            <p className="text-xs text-slate-400">Input customer transaction</p>
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              New Transaction
+            </h2>
+            <p className="text-xs text-gray-500">Input transaksi customer</p>
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-slate-400" />
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-400" />
           </button>
         )}
       </div>
 
-      {/* Form Body */}
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
-        {/* Customer Information */}
-        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <User className="w-4 h-4" />
-            Customer Data
+        {/* ── Customer Data ────────────────────────────────────────────────── */}
+        <div className={sectionClass}>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+            <User className="w-3.5 h-3.5" /> Customer Data
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Customer Name <span className="text-blue-600">*</span>
+              <label className={labelClass}>
+                Nama Customer <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   value={formData.customer_name}
-                  onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-                  placeholder="Customer name"
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      customer_name: e.target.value,
+                    }))
+                  }
+                  className={`${inputClass} pl-9`}
+                  placeholder="Nama lengkap customer"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                WhatsApp <span className="text-blue-600">*</span>
+              <label className={labelClass}>
+                WhatsApp <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="tel"
                   value={formData.customer_whatsapp}
-                  onChange={(e) => setFormData({ ...formData, customer_whatsapp: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      customer_whatsapp: e.target.value,
+                    }))
+                  }
+                  className={`${inputClass} pl-9`}
                   placeholder="081234567890"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Date
-              </label>
-              <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                {new Date().toLocaleDateString('id-ID')}
+              <label className={labelClass}>Tanggal</label>
+              <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm text-gray-600 dark:text-gray-400">
+                <Calendar className="w-4 h-4" />
+                {new Date().toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Service Details */}
-        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <Wrench className="w-4 h-4" />
-            Service Details
+        {/* ── Service Details ──────────────────────────────────────────────── */}
+        <div className={sectionClass}>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+            <Wrench className="w-3.5 h-3.5" /> Service Details
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Service Type <span className="text-blue-600">*</span>
+              <label className={labelClass}>
+                Jenis Layanan <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.jenis_layanan}
-                onChange={(e) => setFormData({ ...formData, jenis_layanan: e.target.value as JenisLayanan })}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              >
-                {jenisLayananOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Handled By <span className="text-blue-600">*</span>
-              </label>
-              <select
-                value={formData.handled_by}
-                onChange={(e) => setFormData({ ...formData, handled_by: e.target.value })}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    jenis_layanan: e.target.value as JenisLayanan,
+                  }))
+                }
+                className={inputClass}
                 required
               >
-                <option value="">Select handler</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>{u.full_name}</option>
+                {jenisLayananOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                SKU / Description
+
+            {/* ── Handled By — default current user, toggle untuk pilih lain ── */}
+            <div>
+              <label className={labelClass}>
+                Handled By <span className="text-red-500">*</span>
               </label>
+
+              {/* Toggle: by me / someone else */}
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOtherHandler(false);
+                    setFormData((p) => ({ ...p, handled_by: user?.id || "" }));
+                  }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${
+                    !showOtherHandler
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white dark:bg-[#1c1c1c] text-gray-600 border-gray-200 dark:border-white/10 hover:bg-gray-50"
+                  }`}
+                >
+                  Saya ({currentUserName})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOtherHandler(true);
+                    setFormData((p) => ({ ...p, handled_by: "" }));
+                  }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all flex items-center justify-center gap-1 ${
+                    showOtherHandler
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white dark:bg-[#1c1c1c] text-gray-600 border-gray-200 dark:border-white/10 hover:bg-gray-50"
+                  }`}
+                >
+                  <ChevronDown className="w-3.5 h-3.5" /> Orang Lain
+                </button>
+              </div>
+
+              {showOtherHandler && (
+                <select
+                  value={formData.handled_by}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, handled_by: e.target.value }))
+                  }
+                  className={inputClass}
+                  required
+                >
+                  <option value="">Pilih handler…</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.role})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="md:col-span-2">
+              <label className={labelClass}>SKU / Keterangan Barang</label>
               <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   value={formData.detail_sku}
-                  onChange={(e) => setFormData({ ...formData, detail_sku: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-                  placeholder="Item description / SKU..."
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, detail_sku: e.target.value }))
+                  }
+                  className={`${inputClass} pl-9`}
+                  placeholder="Deskripsi item / SKU…"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Transaction Details */}
-        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <DollarSign className="w-4 h-4" />
-            Transaction
+        {/* ── Transaction ──────────────────────────────────────────────────── */}
+        <div className={sectionClass}>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+            <DollarSign className="w-3.5 h-3.5" /> Transaksi
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Payment Method <span className="text-blue-600">*</span>
-              </label>
+              <label className={labelClass}>Metode Pembayaran</label>
               <select
                 value={formData.metode_pembayaran}
-                onChange={(e) => setFormData({ ...formData, metode_pembayaran: e.target.value as MetodePembayaran })}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    metode_pembayaran: e.target.value as MetodePembayaran,
+                  }))
+                }
+                className={inputClass}
               >
-                {metodePembayaranOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {metodePembayaranOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Amount <span className="text-blue-600">*</span>
+              <label className={labelClass}>
+                Nominal <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="number"
+                  min="0"
                   value={formData.nominal}
-                  onChange={(e) => setFormData({ ...formData, nominal: e.target.value })}
-                  className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, nominal: e.target.value }))
+                  }
+                  className={`${inputClass} pl-9`}
                   placeholder="0"
                   required
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Lead Source <span className="text-blue-600">*</span>
-              </label>
+              <label className={labelClass}>Lead Source</label>
               <select
                 value={formData.lead_source}
-                onChange={(e) => setFormData({ ...formData, lead_source: e.target.value as LeadSource })}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    lead_source: e.target.value as LeadSource,
+                  }))
+                }
+                className={inputClass}
               >
-                {leadSourceOptions.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {leadSourceOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
+            {showCustomLeadSource && (
+              <div>
+                <label className={labelClass}>Custom Lead Source</label>
+                <input
+                  type="text"
+                  value={formData.lead_source_custom}
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      lead_source_custom: e.target.value,
+                    }))
+                  }
+                  className={inputClass}
+                  placeholder="Tulis sumber…"
+                />
+              </div>
+            )}
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                Notes
-              </label>
+              <label className={labelClass}>Catatan</label>
               <textarea
                 value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, notes: e.target.value }))
+                }
                 rows={3}
-                className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all resize-none text-sm"
-                placeholder="Additional notes..."
+                className={`${inputClass} resize-none`}
+                placeholder="Catatan tambahan…"
               />
             </div>
           </div>
         </div>
 
-        {/* Custom Lead Source (conditional) */}
-        {showCustomLeadSource && (
-          <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-              Custom Lead Source
-            </label>
-            <input
-              type="text"
-              value={formData.lead_source_custom}
-              onChange={(e) => setFormData({ ...formData, lead_source_custom: e.target.value })}
-              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              placeholder="Type custom lead source..."
-            />
-          </div>
-        )}
-
-        {/* Photo Upload - WAJIB */}
-        <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Camera className="w-4 h-4" />
-            Transaction Photo <span className="text-blue-600">*Required</span>
-          </p>
-
-          {photoPreview ? (
-            <div className="relative">
-              <img
-                src={photoPreview}
-                alt="Preview"
-                className="w-full max-h-64 object-cover rounded-lg border border-slate-200"
-              />
-              <button
-                type="button"
-                onClick={removePhoto}
-                className="absolute top-2 right-2 bg-blue-600 text-white p-1.5 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div
+        {/* ── Multiple Photo Upload ─────────────────────────────────────────── */}
+        <div className={sectionClass}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <Camera className="w-3.5 h-3.5" /> Foto Bukti
+              <span className="text-red-500">*Wajib min. 1</span>
+            </p>
+            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center cursor-pointer hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-xs font-semibold hover:bg-gray-800 transition-all"
             >
-              <Camera className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-              <p className="text-sm font-medium text-slate-500">Click to upload photo</p>
-              <p className="text-xs text-slate-400 mt-1">JPG, PNG (max 10MB, auto compressed)</p>
-            </div>
-          )}
+              <Plus className="w-3.5 h-3.5" /> Tambah Foto
+            </button>
+          </div>
 
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            multiple
             onChange={handlePhotoSelect}
             className="hidden"
           />
 
-          {/* Upload Progress */}
-          {(uploadingPhoto || (uploading && progress > 0)) && (
-            <div className="mt-3">
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-slate-500">Compressing & uploading...</span>
-                <span className="font-medium text-slate-900">{progress}%</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+          {/* Preview grid */}
+          {photoPreviews.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {photoPreviews.map((src, i) => (
                 <div
-                  className="bg-blue-600 h-1.5 transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 mt-1">Image will be compressed 70-80%</p>
+                  key={i}
+                  className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 aspect-square"
+                >
+                  <img
+                    src={src}
+                    alt={`foto-${i}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    className="absolute top-1.5 right-1.5 p-1 bg-black/60 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 text-center">
+                    Foto {i + 1}
+                  </div>
+                </div>
+              ))}
+              {/* Add more tile */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-white/20 flex flex-col items-center justify-center gap-1 hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-gray-400"
+              >
+                <Plus className="w-6 h-6" />
+                <span className="text-xs">Tambah</span>
+              </button>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+            >
+              <Camera className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium text-gray-500">
+                Klik untuk upload foto
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                JPG/PNG, bisa lebih dari 1 foto (max 15MB/foto)
+              </p>
             </div>
           )}
 
-          {!photoPreview && !initialData?.photo_url && (
-            <p className="text-xs text-blue-600 flex items-center gap-1 mt-2">
-              <AlertCircle className="w-3 h-3" />
-              Photo is required
+          {/* Upload progress */}
+          {uploading && progress > 0 && (
+            <div className="mt-2">
+              <div className="flex justify-between text-xs mb-1 text-gray-500">
+                <span>Mengupload foto…</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                  {progress}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-100 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-gray-900 dark:bg-white h-1.5 transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {photoFiles.length === 0 && !initialData?.photo_url && (
+            <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+              <AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib
+              diupload
             </p>
           )}
         </div>
 
-        {/* Submit Button */}
-        <div className="flex gap-3 pt-4 border-t border-slate-200">
+        {/* ── Actions ──────────────────────────────────────────────────────── */}
+        <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
           <button
             type="submit"
-            disabled={loading || uploadingPhoto || (!photoPreview && !initialData?.photo_url)}
-            className="flex-1 bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+            disabled={
+              loading ||
+              uploading ||
+              (photoFiles.length === 0 && !initialData?.photo_url)
+            }
+            className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
-            {loading || uploadingPhoto ? (
+            {loading || uploading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                {uploadingPhoto ? 'Uploading Photo...' : 'Saving...'}
+                {uploading ? `Uploading ${progress}%…` : "Menyimpan…"}
               </>
             ) : (
               <>
                 <Send className="w-4 h-4" />
-                Save Transaction
+                Simpan Transaksi
               </>
             )}
           </button>
@@ -523,13 +729,13 @@ export default function LayananForm({ onSuccess, onClose, initialData }: Layanan
             <button
               type="button"
               onClick={onClose}
-              className="px-6 bg-white text-slate-900 font-medium py-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all text-sm"
+              className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm"
             >
-              Cancel
+              Batal
             </button>
           )}
         </div>
       </form>
     </motion.div>
-  )
+  );
 }

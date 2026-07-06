@@ -313,7 +313,8 @@ export interface Layanan {
   detail_sku?: string
   nominal: number
   status: 'active' | 'cancelled' | 'completed'
-  photo_url?: string
+  photo_url?: string // legacy single photo
+  photo_urls?: string[] // new multiple photos array
   created_by: string
   created_by_name: string
   created_at: string
