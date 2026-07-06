@@ -1,22 +1,27 @@
-'use client'
+"use client";
 
-import { Moon, Sun } from 'lucide-react'
-import { useTheme } from '@/components/ThemeProvider'
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme()
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-all duration-150"
-      title={theme === 'light' ? 'Aktifkan Dark Mode' : 'Aktifkan Light Mode'}
+      style={{
+        background: "var(--color-surface)",
+        borderColor: "var(--color-border)",
+        color: "var(--color-text-secondary)",
+      }}
+      className="p-2 rounded-lg border transition-all duration-150 hover:opacity-80 flex-shrink-0"
+      title={theme === "light" ? "Aktifkan Dark Mode" : "Aktifkan Light Mode"}
     >
-      {theme === 'light' ? (
-        <Moon className="w-5 h-5" />
+      {theme === "light" ? (
+        <Moon className="w-4 h-4" />
       ) : (
-        <Sun className="w-5 h-5" />
+        <Sun className="w-4 h-4" />
       )}
     </button>
-  )
+  );
 }

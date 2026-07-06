@@ -96,9 +96,9 @@ export default function AdminDashboard() {
   // Attendance
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [showAttendance, setShowAttendance] = useState(false);
-  const [attendanceType, setAttendanceType] = useState<"check_in" | "check_out">(
-    "check_in"
-  );
+  const [attendanceType, setAttendanceType] = useState<
+    "check_in" | "check_out"
+  >("check_in");
 
   // Inventory
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
 
     const totalRevenue = (revenue.data || []).reduce(
       (sum: number, item: any) => sum + (item.final_cost || 0),
-      0
+      0,
     );
 
     setStats({
@@ -262,7 +262,7 @@ export default function AdminDashboard() {
     checkTodayAttendance();
     fetchStats();
     toast.success(
-      `Attendance ${attendanceType === "check_in" ? "check in" : "check out"} successful!`
+      `Attendance ${attendanceType === "check_in" ? "check in" : "check out"} successful!`,
     );
   };
 
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
 
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
   };
@@ -426,17 +426,19 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-600 font-medium">Loading dashboard...</p>
+          <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-600 dark:text-slate-400 font-medium">
+            Loading dashboard...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#A8D7FF]">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] lg:flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -447,17 +449,31 @@ export default function AdminDashboard() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-20 bg-white z-50 flex flex-col items-center py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-auto lg:w-auto transition-transform duration-300 ease-in-out ${
+        className={`sidebar-container fixed top-0 left-0 h-full w-64 bg-white dark:bg-[#111111] z-50 flex flex-col py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-screen lg:sticky lg:top-0 transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-white/5 overflow-y-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#4DB2FF] rounded-2xl flex items-center justify-center mb-6 sm:mb-8">
-          <Watch className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+        <div className="flex items-center gap-3 px-4 mb-6 sm:mb-8 flex-shrink-0">
+          <div className="w-10 h-10 bg-gray-900 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Watch className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-900">
+              WatchService
+            </h1>
+            <p className="text-[10px] text-slate-500">Admin Panel</p>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden ml-auto p-1.5 hover:bg-slate-100 rounded-lg"
+          >
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3 overflow-y-auto">
+        <nav className="flex-1 flex flex-col gap-0.5 px-3 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -465,60 +481,67 @@ export default function AdminDashboard() {
                 setActiveTab(item.id);
                 setSidebarOpen(false);
               }}
-              className={`sidebar-item w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
+              className={`sidebar-item w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
                 activeTab === item.id
-                  ? "bg-[#FFD65A] text-black shadow-md"
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                  ? "bg-gray-900 text-white"
+                  : "text-slate-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
-              title={item.label}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{item.label}</span>
             </button>
           ))}
         </nav>
 
         {/* Bottom Actions */}
-        <div className="flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3">
+        <div className="flex flex-col gap-1 px-3 pt-3 border-t border-slate-100 flex-shrink-0">
           {/* Attendance */}
           <button
             onClick={() =>
               handleAttendance(
                 todayAttendance && !todayAttendance.check_out
                   ? "check_out"
-                  : "check_in"
+                  : "check_in",
               )
             }
             disabled={!!todayAttendance?.check_out}
-            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
+            className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
               !todayAttendance
-                ? "bg-[#3CCF91] text-white hover:bg-[#2db87d]"
+                ? "bg-green-50 text-green-600 hover:bg-green-100"
                 : todayAttendance.check_out
-                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                  : "bg-[#FFD65A] text-black hover:bg-[#f5c94a]"
+                  ? "text-slate-400 cursor-not-allowed"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
-            title={todayAttendance?.check_out ? "Completed" : "Attendance"}
           >
             {!todayAttendance ? (
-              <LogIn className="w-5 h-5" />
+              <LogIn className="w-4 h-4 flex-shrink-0" />
             ) : todayAttendance.check_out ? (
-              <CheckCircle className="w-5 h-5" />
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
             ) : (
-              <LogOutIcon className="w-5 h-5" />
+              <LogOutIcon className="w-4 h-4 flex-shrink-0" />
             )}
+            <span className="truncate">
+              {!todayAttendance
+                ? "Check In"
+                : todayAttendance.check_out
+                  ? "Completed"
+                  : "Check Out"}
+            </span>
           </button>
 
           {/* Theme Toggle */}
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+          <div className="px-3 py-2 flex items-center gap-3 text-slate-600">
             <ThemeToggle />
+            <span className="text-sm font-medium">Theme</span>
           </div>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-            title="Keluar"
+            className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            <span>Keluar</span>
           </button>
         </div>
       </aside>
@@ -526,16 +549,16 @@ export default function AdminDashboard() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white dark:bg-[#1c1c1c] p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 dark:border-white/10"
       >
         <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
       {/* ==================== MAIN CONTENT ==================== */}
-      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden lg:ml-64">
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
         {/* Top Navbar */}
         <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
-          <div className="bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl px-3 py-2.5 sm:px-5 sm:py-3.5 flex items-center justify-between shadow-sm gap-2 sm:gap-4">
+          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl px-4 py-3 flex items-center justify-between border border-gray-200 gap-2 sm:gap-4">
             {/* Spacer for mobile menu button */}
             <div className="hidden lg:block w-12" />
 
@@ -553,7 +576,7 @@ export default function AdminDashboard() {
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="pl-9 pr-4 py-2 bg-slate-50 rounded-full text-sm border border-slate-200 focus:outline-none focus:border-[#4DB2FF] focus:ring-2 focus:ring-[#4DB2FF]/10 transition-all w-40 md:w-56 lg:w-64"
+                  className="pl-9 pr-4 py-2 bg-slate-50 rounded-full text-sm border border-slate-200 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition-all w-40 md:w-56 lg:w-64"
                 />
               </div>
 
@@ -573,7 +596,7 @@ export default function AdminDashboard() {
                 >
                   <Bell className="w-5 h-5 text-slate-400" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#FF5F87] text-white text-[9px] font-bold flex items-center justify-center rounded-full">
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
                       {unreadCount}
                     </span>
                   )}
@@ -588,10 +611,12 @@ export default function AdminDashboard() {
                       className="absolute right-0 mt-2 w-72 sm:w-80 max-h-80 sm:max-h-96 bg-white rounded-xl sm:rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden"
                     >
                       <div className="p-3 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
-                        <span className="font-medium text-xs sm:text-sm text-slate-900">Notifikasi</span>
+                        <span className="font-medium text-xs sm:text-sm text-slate-900">
+                          Notifikasi
+                        </span>
                         <button
                           onClick={markAllRead}
-                          className="text-xs text-[#4DB2FF] hover:underline"
+                          className="text-xs text-gray-600 hover:underline"
                         >
                           Baca semua
                         </button>
@@ -600,14 +625,16 @@ export default function AdminDashboard() {
                         {notifications.length === 0 ? (
                           <div className="p-6 text-center text-slate-400">
                             <Bell className="w-7 h-7 sm:w-8 sm:h-8 mx-auto mb-2 opacity-30" />
-                            <p className="text-xs sm:text-sm">Tidak ada notifikasi</p>
+                            <p className="text-xs sm:text-sm">
+                              Tidak ada notifikasi
+                            </p>
                           </div>
                         ) : (
                           notifications.map((notif) => (
                             <div
                               key={notif.id}
                               className={`p-2.5 sm:p-3 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-all ${
-                                !notif.is_read ? "bg-[#e6f4ff]" : ""
+                                !notif.is_read ? "bg-gray-50" : ""
                               }`}
                               onClick={() => markNotificationRead(notif.id)}
                             >
@@ -620,11 +647,13 @@ export default function AdminDashboard() {
                                     {notif.message}
                                   </p>
                                   <p className="text-[10px] text-slate-400 mt-1">
-                                    {new Date(notif.created_at).toLocaleString()}
+                                    {new Date(
+                                      notif.created_at,
+                                    ).toLocaleString()}
                                   </p>
                                 </div>
                                 {!notif.is_read && (
-                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#FF5F87] rounded-full flex-shrink-0 mt-1" />
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full flex-shrink-0 mt-1" />
                                 )}
                               </div>
                             </div>
@@ -638,7 +667,7 @@ export default function AdminDashboard() {
 
               {/* Profile */}
               <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
-                <div className="w-8 h-8 sm:w-8 sm:h-8 bg-[#4DB2FF] rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                <div className="w-8 h-8 sm:w-8 sm:h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
                   {user?.full_name?.charAt(0) || "A"}
                 </div>
               </div>
@@ -666,7 +695,7 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center">
-                    <div className="bg-[#DCEEFF] px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl md:rounded-2xl text-xs sm:text-sm font-medium text-slate-700">
+                    <div className="bg-gray-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl md:rounded-2xl text-xs sm:text-sm font-medium text-slate-700">
                       <span className="mr-1.5">📅</span>
                       {new Date().toLocaleDateString("id-ID", {
                         month: "long",
@@ -720,13 +749,13 @@ export default function AdminDashboard() {
                       <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
                         {stat.label}
                       </span>
-                      <span className="text-[10px] sm:text-xs font-medium text-[#4DB2FF] bg-[#e6f4ff] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      <span className="text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
                         {stat.change}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-                      <div className="w-7 h-7 sm:w-10 sm:h-10 bg-[#DCEEFF] rounded-md sm:rounded-lg md:rounded-2xl flex items-center justify-center flex-shrink-0">
-                        <stat.icon className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-[#4DB2FF]" />
+                      <div className="w-7 h-7 sm:w-10 sm:h-10 bg-gray-100 rounded-md sm:rounded-lg md:rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <stat.icon className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-gray-600" />
                       </div>
                       <p className="text-sm sm:text-xl md:text-2xl font-bold text-slate-900 truncate">
                         {stat.value}
@@ -747,17 +776,19 @@ export default function AdminDashboard() {
               >
                 <div className="p-3 sm:p-4 md:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#DCEEFF] rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#4DB2FF]" />
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
                     </div>
-                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">Daftar Service</h3>
-                    <span className="bg-[#4DB2FF] text-white text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium">
+                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">
+                      Daftar Service
+                    </h3>
+                    <span className="bg-gray-900 text-white text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium">
                       {recentServices.length}
                     </span>
                   </div>
                   <button
                     onClick={() => setActiveTab("services")}
-                    className="text-xs sm:text-sm text-[#4DB2FF] hover:underline font-medium w-full sm:w-auto text-left sm:text-right"
+                    className="text-xs sm:text-sm text-gray-600 hover:underline font-medium w-full sm:w-auto text-left sm:text-right"
                   >
                     + Tambah Service
                   </button>
@@ -826,12 +857,14 @@ export default function AdminDashboard() {
                                     : service.status === "completed"
                                       ? "bg-emerald-50 text-emerald-700"
                                       : service.status === "in_progress"
-                                        ? "bg-[#DCEEFF] text-[#4DB2FF]"
-                                        : service.status === "req_sparepart_admin"
+                                        ? "bg-gray-100 text-gray-600"
+                                        : service.status ===
+                                            "req_sparepart_admin"
                                           ? "bg-yellow-50 text-yellow-700"
                                           : service.status === "po_pending"
                                             ? "bg-yellow-50 text-yellow-700"
-                                            : service.status === "sparepart_ready"
+                                            : service.status ===
+                                                "sparepart_ready"
                                               ? "bg-emerald-50 text-emerald-700"
                                               : "bg-slate-100 text-slate-700"
                                 }`}
@@ -849,7 +882,7 @@ export default function AdminDashboard() {
                               <div className="flex items-center gap-1.5 sm:gap-2">
                                 <button
                                   onClick={() => openQRModal(service)}
-                                  className="p-1.5 bg-[#4DB2FF] text-white rounded-lg hover:bg-[#3aa0f5] transition-all flex-shrink-0"
+                                  className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all flex-shrink-0"
                                   title="Lihat QR Code"
                                 >
                                   <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -875,7 +908,8 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-3 py-3 sm:px-5 sm:py-4">
                               {!service.token_expires_at ||
-                              new Date(service.token_expires_at) > new Date() ? (
+                              new Date(service.token_expires_at) >
+                                new Date() ? (
                                 <button
                                   onClick={() => markTokenExpired(service.id)}
                                   className="text-[10px] sm:text-xs text-red-500 hover:text-red-700 font-medium"
@@ -901,7 +935,7 @@ export default function AdminDashboard() {
                     <p className="text-xs sm:text-sm">Belum ada service</p>
                     <button
                       onClick={() => setActiveTab("services")}
-                      className="text-[#4DB2FF] hover:underline text-xs sm:text-sm mt-1"
+                      className="text-gray-600 hover:underline text-xs sm:text-sm mt-1"
                     >
                       Tambah service sekarang
                     </button>
@@ -935,7 +969,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   onClick={() => setShowLayananForm(true)}
-                  className="bg-[#4DB2FF] text-white font-medium px-4 py-2.5 rounded-full hover:bg-[#3aa0f5] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                  className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
                 >
                   + Tambah Transaksi
                 </button>

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import sharp from 'sharp'
 import { uploadMultipleToTelegram } from '@/lib/telegram'
+
+// Dynamically load sharp to avoid crashes on environments without native binaries (like Vercel)
+let sharp: any = null
+try {
+  sharp = require('sharp')
+} catch (e) {
+  console.warn('⚠️ sharp module could not be loaded, server-side resizing disabled:', e)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +39,15 @@ export async function POST(request: NextRequest) {
       try {
         const arrayBuffer = await file.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
+        
+        if (!sharp) {
+          console.log(`⚠️ sharp is not available, using original file directly: ${file.name}`)
+          processedFiles.push({
+            buffer: buffer,
+            name: `${type}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`
+          })
+          continue
+        }
         
         // Get dimensions
         const metadata = await sharp(buffer).metadata()

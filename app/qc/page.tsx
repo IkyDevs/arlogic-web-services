@@ -1,219 +1,233 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useAuthStore } from '@/stores/authStore'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useAuthStore } from "@/stores/authStore";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
-  LogOut, User, ClipboardCheck, Clock,
-  Menu, X, Watch, Bell, RefreshCw, Search, Package
-} from 'lucide-react'
-import toast from 'react-hot-toast'
-import QCSidebar from '@/components/qc/QCSidebar'
-import QCStats from '@/components/qc/QCStats'
-import QCServiceList from '@/components/qc/QCServiceList'
-import QCReviewModal from '@/components/qc/QCReviewModal'
-import AttendanceModal from '@/components/teknisi/AttendanceModal'
-import ThemeToggle from '@/components/ThemeToggle'
+  LogOut,
+  User,
+  ClipboardCheck,
+  Clock,
+  Menu,
+  X,
+  Watch,
+  Bell,
+  RefreshCw,
+  Search,
+  Package,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import QCSidebar from "@/components/qc/QCSidebar";
+import QCStats from "@/components/qc/QCStats";
+import QCServiceList from "@/components/qc/QCServiceList";
+import QCReviewModal from "@/components/qc/QCReviewModal";
+import AttendanceModal from "@/components/teknisi/AttendanceModal";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function QCDashboard() {
-  const [activeTab, setActiveTab] = useState('all')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [services, setServices] = useState<any[]>([])
-  const [filteredServices, setFilteredServices] = useState<any[]>([])
-  const [teknisiList, setTeknisiList] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedService, setSelectedService] = useState<any>(null)
-  const [showDetailModal, setShowDetailModal] = useState(false)
-  const [sparepartSearch, setSparepartSearch] = useState('')
-  const [sparepartResults, setSparepartResults] = useState<any[]>([])
-  const [sparepartSearching, setSparepartSearching] = useState(false)
-  const [showSparepartResults, setShowSparepartResults] = useState(false)
+  const [activeTab, setActiveTab] = useState("all");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [services, setServices] = useState<any[]>([]);
+  const [filteredServices, setFilteredServices] = useState<any[]>([]);
+  const [teknisiList, setTeknisiList] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [sparepartSearch, setSparepartSearch] = useState("");
+  const [sparepartResults, setSparepartResults] = useState<any[]>([]);
+  const [sparepartSearching, setSparepartSearching] = useState(false);
+  const [showSparepartResults, setShowSparepartResults] = useState(false);
 
   // Attendance
-  const [todayAttendance, setTodayAttendance] = useState<any>(null)
-  const [showAttendance, setShowAttendance] = useState(false)
-  const [attendanceType, setAttendanceType] = useState<'check_in' | 'check_out'>('check_in')
+  const [todayAttendance, setTodayAttendance] = useState<any>(null);
+  const [showAttendance, setShowAttendance] = useState(false);
+  const [attendanceType, setAttendanceType] = useState<
+    "check_in" | "check_out"
+  >("check_in");
 
-  const supabase = createClient()
-  const { user, logout } = useAuthStore()
-  const router = useRouter()
+  const supabase = createClient();
+  const { user, logout } = useAuthStore();
+  const router = useRouter();
 
   useEffect(() => {
-    fetchServices()
-    fetchTeknisiList()
-    checkTodayAttendance()
-  }, [])
+    fetchServices();
+    fetchTeknisiList();
+    checkTodayAttendance();
+  }, []);
 
   // Close sidebar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (sidebarOpen && !target.closest('.sidebar-container')) {
-        setSidebarOpen(false)
+      const target = event.target as HTMLElement;
+      if (sidebarOpen && !target.closest(".sidebar-container")) {
+        setSidebarOpen(false);
       }
-    }
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [sidebarOpen])
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [sidebarOpen]);
 
-  const searchSparepart = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSparepartResults([])
-      setShowSparepartResults(false)
-      return
-    }
-    
-    setSparepartSearching(true)
-    try {
-      const { data } = await supabase
-        .from('inventory')
-        .select('*')
-        .or(`item_name.ilike.%${query}%,sku.ilike.%${query}%`)
-        .limit(10)
+  const searchSparepart = useCallback(
+    async (query: string) => {
+      if (!query.trim()) {
+        setSparepartResults([]);
+        setShowSparepartResults(false);
+        return;
+      }
 
-      setSparepartResults(data || [])
-      setShowSparepartResults(true)
-    } catch (error) {
-      console.error('Search error:', error)
-    } finally {
-      setSparepartSearching(false)
-    }
-  }, [supabase])
+      setSparepartSearching(true);
+      try {
+        const { data } = await supabase
+          .from("inventory")
+          .select("*")
+          .or(`item_name.ilike.%${query}%,sku.ilike.%${query}%`)
+          .limit(10);
+
+        setSparepartResults(data || []);
+        setShowSparepartResults(true);
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setSparepartSearching(false);
+      }
+    },
+    [supabase],
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      searchSparepart(sparepartSearch)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [sparepartSearch, searchSparepart])
+      searchSparepart(sparepartSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [sparepartSearch, searchSparepart]);
 
   // Close sparepart search when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.sparepart-search-container')) {
-        setShowSparepartResults(false)
+      const target = event.target as HTMLElement;
+      if (!target.closest(".sparepart-search-container")) {
+        setShowSparepartResults(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchTeknisiList = async () => {
     const { data } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('role', 'teknisi')
-      .order('full_name')
+      .from("profiles")
+      .select("full_name")
+      .eq("role", "teknisi")
+      .order("full_name");
 
     if (data) {
-      const names = data.map(t => t.full_name).filter(Boolean) as string[]
-      setTeknisiList(names)
+      const names = data.map((t) => t.full_name).filter(Boolean) as string[];
+      setTeknisiList(names);
     }
-  }
+  };
 
   const fetchServices = async () => {
-    setLoading(true)
+    setLoading(true);
     const { data } = await supabase
-      .from('service_orders')
-      .select('*')
-      .eq('status', 'qc_pending')
-      .order('created_at', { ascending: false })
+      .from("service_orders")
+      .select("*")
+      .eq("status", "qc_pending")
+      .order("created_at", { ascending: false });
 
     if (data) {
-      setServices(data)
-      setFilteredServices(data)
+      setServices(data);
+      setFilteredServices(data);
     }
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   const filterByTeknisi = (teknisiName: string) => {
-    if (teknisiName === 'all') {
-      setFilteredServices(services)
-      setActiveTab('all')
+    if (teknisiName === "all") {
+      setFilteredServices(services);
+      setActiveTab("all");
     } else {
-      const filtered = services.filter(s => s.teknisi_name === teknisiName)
-      setFilteredServices(filtered)
-      setActiveTab(teknisiName)
+      const filtered = services.filter((s) => s.teknisi_name === teknisiName);
+      setFilteredServices(filtered);
+      setActiveTab(teknisiName);
     }
-  }
+  };
 
   const viewServiceDetails = (service: any) => {
-    setSelectedService(service)
-    setShowDetailModal(true)
-  }
+    setSelectedService(service);
+    setShowDetailModal(true);
+  };
 
   const handleReviewComplete = () => {
-    setShowDetailModal(false)
-    setSelectedService(null)
-    fetchServices()
-  }
+    setShowDetailModal(false);
+    setSelectedService(null);
+    fetchServices();
+  };
 
   const handleAttendanceSuccess = () => {
-    checkTodayAttendance()
+    checkTodayAttendance();
     toast.success(
-      `Attendance ${attendanceType === 'check_in' ? 'check in' : 'check out'} successful!`,
-    )
-  }
+      `Attendance ${attendanceType === "check_in" ? "check in" : "check out"} successful!`,
+    );
+  };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    logout()
-    router.push('/login')
-    toast.success('Logged out')
-  }
+    await supabase.auth.signOut();
+    logout();
+    router.push("/login");
+    toast.success("Logged out");
+  };
 
   // ==================== ATTENDANCE ====================
 
   const checkTodayAttendance = async () => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
-      .from('attendances')
-      .select('*')
-      .eq('teknisi_id', user?.id)
-      .gte('check_in', today)
-      .lte('check_in', today + ' 23:59:59')
-      .order('check_in', { ascending: false })
+      .from("attendances")
+      .select("*")
+      .eq("teknisi_id", user?.id)
+      .gte("check_in", today)
+      .lte("check_in", today + " 23:59:59")
+      .order("check_in", { ascending: false })
       .limit(1)
-      .single()
+      .single();
 
-    setTodayAttendance(data || null)
-  }
+    setTodayAttendance(data || null);
+  };
 
-  const handleAttendance = (type: 'check_in' | 'check_out') => {
-    setAttendanceType(type)
-    setShowAttendance(true)
-  }
+  const handleAttendance = (type: "check_in" | "check_out") => {
+    setAttendanceType(type);
+    setShowAttendance(true);
+  };
 
   // ==================== END ATTENDANCE ====================
 
-  const menuItems = [
-    { id: 'all', label: 'Semua', icon: ClipboardCheck },
-  ]
+  const menuItems = [{ id: "all", label: "Semua", icon: ClipboardCheck }];
 
-  teknisiList.forEach(name => {
+  teknisiList.forEach((name) => {
     menuItems.push({
       id: name,
       label: name,
-      icon: User
-    })
-  })
+      icon: User,
+    });
+  });
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-600 font-medium">Loading...</p>
+          <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-600 dark:text-slate-400 font-medium">
+            Loading...
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-[#A8D7FF]">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] lg:flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -229,12 +243,12 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === 'all') {
-            filterByTeknisi('all')
+          if (tabId === "all") {
+            filterByTeknisi("all");
           } else {
-            filterByTeknisi(tabId)
+            filterByTeknisi(tabId);
           }
-          setSidebarOpen(false)
+          setSidebarOpen(false);
         }}
         services={services}
         user={user}
@@ -246,16 +260,16 @@ export default function QCDashboard() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white dark:bg-[#1c1c1c] p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 dark:border-white/10"
       >
         <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
       {/* Main Content */}
-      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden lg:ml-64">
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
         {/* Header */}
         <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
-          <div className="bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl px-3 py-2.5 sm:px-5 sm:py-3.5 flex items-center justify-between shadow-sm gap-2 sm:gap-4">
+          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl px-4 py-3 flex items-center justify-between border border-gray-200 gap-2 sm:gap-4">
             {/* Spacer for mobile menu button */}
             <div className="hidden lg:block w-12" />
 
@@ -265,7 +279,9 @@ export default function QCDashboard() {
                 QC Dashboard
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                {activeTab === 'all' ? 'Semua service' : `Teknisi: ${activeTab}`}
+                {activeTab === "all"
+                  ? "Semua service"
+                  : `Teknisi: ${activeTab}`}
               </p>
             </div>
 
@@ -280,17 +296,19 @@ export default function QCDashboard() {
 
               {/* Notification */}
               <button
-                onClick={() => toast('Notifikasi belum tersedia', { icon: '🔔' })}
+                onClick={() =>
+                  toast("Notifikasi belum tersedia", { icon: "🔔" })
+                }
                 className="relative p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
-                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-[#FF5F87] rounded-full flex-shrink-0" />
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-red-500 rounded-full flex-shrink-0" />
               </button>
 
               {/* Profile */}
               <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#4DB2FF] rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
-                  {user?.full_name?.charAt(0) || 'Q'}
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                  {user?.full_name?.charAt(0) || "Q"}
                 </div>
               </div>
             </div>
@@ -299,7 +317,11 @@ export default function QCDashboard() {
 
         {/* Stats */}
         <main className="flex-1 p-2 sm:p-3 md:p-4">
-          <QCStats services={services} filteredServices={filteredServices} teknisiList={teknisiList} />
+          <QCStats
+            services={services}
+            filteredServices={filteredServices}
+            teknisiList={teknisiList}
+          />
 
           {/* Service List */}
           <div className="mt-3 sm:mt-4 md:mt-6">
@@ -320,7 +342,9 @@ export default function QCDashboard() {
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
                   <ClipboardCheck className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                 </div>
-                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">QC Review</h3>
+                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">
+                  QC Review
+                </h3>
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}
@@ -351,5 +375,5 @@ export default function QCDashboard() {
         existingAttendance={todayAttendance}
       />
     </div>
-  )
+  );
 }

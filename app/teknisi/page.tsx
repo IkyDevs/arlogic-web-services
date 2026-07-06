@@ -1,41 +1,75 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { useAuthStore } from '@/stores/authStore'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useCallback } from "react";
+import { useAuthStore } from "@/stores/authStore";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Clock, CheckCircle, LogOut, User, Calendar, Wrench,
-  Camera, LogIn, LogOut as LogOutIcon, Menu, X,
-  ClipboardList, TrendingUp, Award, Zap, Shield,
-  Battery, Signal, Wifi, ChevronRight, RefreshCw,
-  Bell, Settings, Star, Users, Package, DollarSign,
-  AlertCircle, FileText, Watch, Box, Activity, Search
-} from 'lucide-react'
-import AttendanceModal from '@/components/teknisi/AttendanceModal'
-import QueueList from '@/components/teknisi/QueueList'
-import ProgressUpdate from '@/components/teknisi/ProgressUpdate'
-import LayananForm from '@/components/layanan/LayananForm'
-import LayananList from '@/components/layanan/LayananList'
-import ThemeToggle from '@/components/ThemeToggle'
-import toast from 'react-hot-toast'
+  Clock,
+  CheckCircle,
+  LogOut,
+  User,
+  Calendar,
+  Wrench,
+  Camera,
+  LogIn,
+  LogOut as LogOutIcon,
+  Menu,
+  X,
+  ClipboardList,
+  TrendingUp,
+  Award,
+  Zap,
+  Shield,
+  Battery,
+  Signal,
+  Wifi,
+  ChevronRight,
+  RefreshCw,
+  Bell,
+  Settings,
+  Star,
+  Users,
+  Package,
+  DollarSign,
+  AlertCircle,
+  FileText,
+  Watch,
+  Box,
+  Activity,
+  Search,
+} from "lucide-react";
+import AttendanceModal from "@/components/teknisi/AttendanceModal";
+import QueueList from "@/components/teknisi/QueueList";
+import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
+import LayananForm from "@/components/layanan/LayananForm";
+import LayananList from "@/components/layanan/LayananList";
+import ThemeToggle from "@/components/ThemeToggle";
+import toast from "react-hot-toast";
 
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
-const ServiceTimeline = dynamic(() => import('@/components/teknisi/ServiceTimeline'), {
-  loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>
-})
+const ServiceTimeline = dynamic(
+  () => import("@/components/teknisi/ServiceTimeline"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
 
 export default function TeknisiDashboard() {
-  const [activeTab, setActiveTab] = useState('queue')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [todayAttendance, setTodayAttendance] = useState<any>(null)
-  const [selectedService, setSelectedService] = useState<any>(null)
-  const [showAttendance, setShowAttendance] = useState(false)
-  const [attendanceType, setAttendanceType] = useState<'check_in' | 'check_out'>('check_in')
-  const [showLayananForm, setShowLayananForm] = useState(false)
-  const [refreshLayanan, setRefreshLayanan] = useState(0)
+  const [activeTab, setActiveTab] = useState("queue");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [todayAttendance, setTodayAttendance] = useState<any>(null);
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [showAttendance, setShowAttendance] = useState(false);
+  const [attendanceType, setAttendanceType] = useState<
+    "check_in" | "check_out"
+  >("check_in");
+  const [showLayananForm, setShowLayananForm] = useState(false);
+  const [refreshLayanan, setRefreshLayanan] = useState(0);
   const [stats, setStats] = useState({
     completedToday: 0,
     completedThisMonth: 0,
@@ -43,151 +77,161 @@ export default function TeknisiDashboard() {
     pendingQueue: 0,
     averageTime: 2.5,
     rating: 4.8,
-    totalEarnings: 0
-  })
-  const [recentActivities, setRecentActivities] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [sparepartSearch, setSparepartSearch] = useState('')
-  const [sparepartResults, setSparepartResults] = useState<any[]>([])
-  const [sparepartSearching, setSparepartSearching] = useState(false)
-  const [showSparepartResults, setShowSparepartResults] = useState(false)
+    totalEarnings: 0,
+  });
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [sparepartSearch, setSparepartSearch] = useState("");
+  const [sparepartResults, setSparepartResults] = useState<any[]>([]);
+  const [sparepartSearching, setSparepartSearching] = useState(false);
+  const [showSparepartResults, setShowSparepartResults] = useState(false);
 
   // Close sparepart search when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.sparepart-search-container')) {
-        setShowSparepartResults(false)
+      const target = event.target as HTMLElement;
+      if (!target.closest(".sparepart-search-container")) {
+        setShowSparepartResults(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
-    fetchAllData()
-    const interval = setInterval(() => fetchAllData(true), 30000)
-    return () => clearInterval(interval)
-  }, [])
+    fetchAllData();
+    const interval = setInterval(() => fetchAllData(true), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const { user } = useAuthStore()
-  const router = useRouter()
-  const supabase = createClient()
+  const { user } = useAuthStore();
+  const router = useRouter();
+  const supabase = createClient();
 
-  const searchSparepart = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSparepartResults([])
-      setShowSparepartResults(false)
-      return
-    }
-    
-    setSparepartSearching(true)
-    try {
-      const { data } = await supabase
-        .from('inventory')
-        .select('*')
-        .or(`item_name.ilike.%${query}%,sku.ilike.%${query}%`)
-        .limit(10)
+  const searchSparepart = useCallback(
+    async (query: string) => {
+      if (!query.trim()) {
+        setSparepartResults([]);
+        setShowSparepartResults(false);
+        return;
+      }
 
-      setSparepartResults(data || [])
-      setShowSparepartResults(true)
-    } catch (error) {
-      console.error('Search error:', error)
-    } finally {
-      setSparepartSearching(false)
-    }
-  }, [supabase])
+      setSparepartSearching(true);
+      try {
+        const { data } = await supabase
+          .from("inventory")
+          .select("*")
+          .or(`item_name.ilike.%${query}%,sku.ilike.%${query}%`)
+          .limit(10);
+
+        setSparepartResults(data || []);
+        setShowSparepartResults(true);
+      } catch (error) {
+        console.error("Search error:", error);
+      } finally {
+        setSparepartSearching(false);
+      }
+    },
+    [supabase],
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      searchSparepart(sparepartSearch)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [sparepartSearch, searchSparepart])
+      searchSparepart(sparepartSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [sparepartSearch, searchSparepart]);
 
   // Close sidebar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (sidebarOpen && !target.closest('.sidebar-container')) {
-        setSidebarOpen(false)
+      const target = event.target as HTMLElement;
+      if (sidebarOpen && !target.closest(".sidebar-container")) {
+        setSidebarOpen(false);
       }
-    }
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [sidebarOpen])
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [sidebarOpen]);
 
   const fetchAllData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true)
-    else setRefreshing(true)
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
 
     try {
       await Promise.all([
         checkTodayAttendance(),
         fetchStats(),
-        fetchRecentActivities()
-      ])
+        fetchRecentActivities(),
+      ]);
     } catch (error) {
-      console.error('Error fetching data:', error)
-      if (!silent) toast.error('Gagal memuat data')
+      console.error("Error fetching data:", error);
+      if (!silent) toast.error("Gagal memuat data");
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      setLoading(false);
+      setRefreshing(false);
     }
-  }, [])
+  }, []);
 
   const checkTodayAttendance = async () => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
-      .from('attendances')
-      .select('*')
-      .eq('teknisi_id', user?.id)
-      .gte('check_in', today)
-      .lte('check_in', today + ' 23:59:59')
-      .order('check_in', { ascending: false })
+      .from("attendances")
+      .select("*")
+      .eq("teknisi_id", user?.id)
+      .gte("check_in", today)
+      .lte("check_in", today + " 23:59:59")
+      .order("check_in", { ascending: false })
       .limit(1)
-      .single()
+      .single();
 
-    setTodayAttendance(data || null)
-  }
+    setTodayAttendance(data || null);
+  };
 
   const fetchStats = async () => {
-    const today = new Date().toISOString().split('T')[0]
-    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+    const today = new Date().toISOString().split("T")[0];
+    const startOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+    ).toISOString();
 
-    const [
-      completedToday,
-      completedMonth,
-      inProgress,
-      pendingQueue,
-      earnings
-    ] = await Promise.all([
-      supabase.from('service_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('assigned_teknisi_id', user?.id)
-        .eq('status', 'completed')
-        .gte('completed_at', today),
-      supabase.from('service_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('assigned_teknisi_id', user?.id)
-        .eq('status', 'completed')
-        .gte('completed_at', startOfMonth),
-      supabase.from('service_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('assigned_teknisi_id', user?.id)
-        .in('status', ['assigned', 'in_progress']),
-      supabase.from('service_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending'),
-      supabase.from('service_orders')
-        .select('final_cost')
-        .eq('assigned_teknisi_id', user?.id)
-        .eq('status', 'completed')
-        .gte('completed_at', startOfMonth),
-    ])
+    const [completedToday, completedMonth, inProgress, pendingQueue, earnings] =
+      await Promise.all([
+        supabase
+          .from("service_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("assigned_teknisi_id", user?.id)
+          .eq("status", "completed")
+          .gte("completed_at", today),
+        supabase
+          .from("service_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("assigned_teknisi_id", user?.id)
+          .eq("status", "completed")
+          .gte("completed_at", startOfMonth),
+        supabase
+          .from("service_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("assigned_teknisi_id", user?.id)
+          .in("status", ["assigned", "in_progress"]),
+        supabase
+          .from("service_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending"),
+        supabase
+          .from("service_orders")
+          .select("final_cost")
+          .eq("assigned_teknisi_id", user?.id)
+          .eq("status", "completed")
+          .gte("completed_at", startOfMonth),
+      ]);
 
-    const totalEarnings = (earnings.data || []).reduce((sum: number, item: any) => sum + (item.final_cost || 0) * 0.3, 0)
+    const totalEarnings = (earnings.data || []).reduce(
+      (sum: number, item: any) => sum + (item.final_cost || 0) * 0.3,
+      0,
+    );
 
     setStats({
       completedToday: completedToday.count || 0,
@@ -196,111 +240,136 @@ export default function TeknisiDashboard() {
       pendingQueue: pendingQueue.count || 0,
       averageTime: 2.5,
       rating: 4.8,
-      totalEarnings: totalEarnings
-    })
-  }
+      totalEarnings: totalEarnings,
+    });
+  };
 
   const fetchRecentActivities = async () => {
     const { data } = await supabase
-      .from('activity_logs')
-      .select('*')
-      .eq('user_id', user?.id)
-      .order('created_at', { ascending: false })
-      .limit(5)
+      .from("activity_logs")
+      .select("*")
+      .eq("user_id", user?.id)
+      .order("created_at", { ascending: false })
+      .limit(5);
 
     if (data) {
-      const formatted = data.map(log => ({
+      const formatted = data.map((log) => ({
         id: log.id,
-        message: log.action.replace(/_/g, ' ').toLowerCase(),
+        message: log.action.replace(/_/g, " ").toLowerCase(),
         time: getRelativeTime(log.created_at),
-        details: log.details
-      }))
-      setRecentActivities(formatted)
+        details: log.details,
+      }));
+      setRecentActivities(formatted);
     }
-  }
+  };
 
   const getRelativeTime = (date: string) => {
-    const now = new Date()
-    const past = new Date(date)
-    const diffMs = now.getTime() - past.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Baru saja'
-    if (diffMins < 60) return `${diffMins} menit lalu`
-    if (diffHours < 24) return `${diffHours} jam lalu`
-    if (diffDays < 7) return `${diffDays} hari lalu`
-    return past.toLocaleDateString()
-  }
+    if (diffMins < 1) return "Baru saja";
+    if (diffMins < 60) return `${diffMins} menit lalu`;
+    if (diffHours < 24) return `${diffHours} jam lalu`;
+    if (diffDays < 7) return `${diffDays} hari lalu`;
+    return past.toLocaleDateString();
+  };
 
-  const handleAttendance = (type: 'check_in' | 'check_out') => {
-    if (type === 'check_in' && todayAttendance) {
-      toast.error('Anda sudah check in hari ini!')
-      return
+  const handleAttendance = (type: "check_in" | "check_out") => {
+    if (type === "check_in" && todayAttendance) {
+      toast.error("Anda sudah check in hari ini!");
+      return;
     }
-    if (type === 'check_out' && !todayAttendance) {
-      toast.error('Anda harus check in dulu!')
-      return
+    if (type === "check_out" && !todayAttendance) {
+      toast.error("Anda harus check in dulu!");
+      return;
     }
-    if (type === 'check_out' && todayAttendance?.check_out) {
-      toast.error('Anda sudah check out hari ini!')
-      return
+    if (type === "check_out" && todayAttendance?.check_out) {
+      toast.error("Anda sudah check out hari ini!");
+      return;
     }
 
-    setAttendanceType(type)
-    setShowAttendance(true)
-  }
+    setAttendanceType(type);
+    setShowAttendance(true);
+  };
 
   const handleAttendanceSuccess = () => {
-    checkTodayAttendance()
-    fetchRecentActivities()
-    toast.success(`Absensi ${attendanceType === 'check_in' ? 'masuk' : 'pulang'} berhasil!`)
-  }
+    checkTodayAttendance();
+    fetchRecentActivities();
+    toast.success(
+      `Absensi ${attendanceType === "check_in" ? "masuk" : "pulang"} berhasil!`,
+    );
+  };
 
   const handleLayananSuccess = () => {
-    setShowLayananForm(false)
-    setRefreshLayanan(prev => prev + 1)
-    toast.success('Layanan berhasil ditambahkan!')
-  }
+    setShowLayananForm(false);
+    setRefreshLayanan((prev) => prev + 1);
+    toast.success("Layanan berhasil ditambahkan!");
+  };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    toast.success('Logout berhasil')
-  }
+    await supabase.auth.signOut();
+    router.push("/login");
+    toast.success("Logout berhasil");
+  };
 
   const getAttendanceStatus = () => {
-    if (!todayAttendance) return { text: 'Belum Absen', color: 'text-red-500', bg: 'bg-red-50', icon: '❌' }
-    if (!todayAttendance.check_out) return { text: 'Checked In', color: 'text-yellow-600', bg: 'bg-yellow-50', icon: '✅' }
-    return { text: 'Selesai', color: 'text-green-600', bg: 'bg-green-50', icon: '✓' }
-  }
+    if (!todayAttendance)
+      return {
+        text: "Belum Absen",
+        color: "text-red-500",
+        bg: "bg-red-50",
+        icon: "❌",
+      };
+    if (!todayAttendance.check_out)
+      return {
+        text: "Checked In",
+        color: "text-yellow-600",
+        bg: "bg-yellow-50",
+        icon: "✅",
+      };
+    return {
+      text: "Selesai",
+      color: "text-green-600",
+      bg: "bg-green-50",
+      icon: "✓",
+    };
+  };
 
   const formatRupiah = (nominal: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal)
-  }
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(nominal);
+  };
 
-  const attendanceStatus = getAttendanceStatus()
+  const attendanceStatus = getAttendanceStatus();
 
   const menuItems = [
-    { id: 'queue', label: 'Antrean & Proyek', icon: ClipboardList },
-    { id: 'stats', label: 'Performa', icon: TrendingUp },
-    { id: 'layanan', label: 'Transaksi', icon: FileText },
-  ]
+    { id: "queue", label: "Antrean & Proyek", icon: ClipboardList },
+    { id: "stats", label: "Performa", icon: TrendingUp },
+    { id: "layanan", label: "Transaksi", icon: FileText },
+  ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#A8D7FF] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-[#4DB2FF] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-600 font-medium">Loading dashboard...</p>
+          <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-slate-600 dark:text-slate-400 font-medium">
+            Loading dashboard...
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-[#A8D7FF]">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] lg:flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -311,72 +380,99 @@ export default function TeknisiDashboard() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-20 bg-white z-50 flex flex-col items-center py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-auto lg:w-auto transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`sidebar-container fixed top-0 left-0 h-full w-64 bg-white dark:bg-[#111111] z-50 flex flex-col py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-screen lg:sticky lg:top-0 transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-white/5 overflow-y-auto ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#4DB2FF] rounded-2xl flex items-center justify-center mb-6 sm:mb-8">
-          <Wrench className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+        <div className="flex items-center gap-3 px-4 mb-6 sm:mb-8 flex-shrink-0">
+          <div className="w-10 h-10 bg-gray-900 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Wrench className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-base font-bold text-slate-900">
+              WatchService
+            </h1>
+            <p className="text-[10px] text-slate-500">Teknisi Panel</p>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden ml-auto p-1.5 hover:bg-slate-100 rounded-lg"
+          >
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3 overflow-y-auto">
+        <nav className="flex-1 flex flex-col gap-0.5 px-3 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => {
-                setActiveTab(item.id)
-                setSidebarOpen(false)
+                setActiveTab(item.id);
+                setSidebarOpen(false);
               }}
-              className={`sidebar-item w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
+              className={`sidebar-item w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
                 activeTab === item.id
-                  ? 'bg-[#FFD65A] text-black shadow-md'
-                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                  ? "bg-gray-900 text-white"
+                  : "text-slate-600 hover:text-gray-900 hover:bg-gray-100"
               }`}
-              title={item.label}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{item.label}</span>
             </button>
           ))}
         </nav>
 
         {/* Bottom Actions */}
-        <div className="flex flex-col items-center gap-2 sm:gap-3 px-2 sm:px-3">
+        <div className="flex flex-col gap-1 px-3 pt-3 border-t border-slate-100 flex-shrink-0">
           {/* Attendance */}
           <button
-            onClick={() => handleAttendance(todayAttendance && !todayAttendance.check_out ? 'check_out' : 'check_in')}
+            onClick={() =>
+              handleAttendance(
+                todayAttendance && !todayAttendance.check_out
+                  ? "check_out"
+                  : "check_in",
+              )
+            }
             disabled={!!todayAttendance?.check_out}
-            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all ${
+            className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
               !todayAttendance
-                ? 'bg-[#3CCF91] text-white hover:bg-[#2db87d]'
+                ? "bg-green-50 text-green-600 hover:bg-green-100"
                 : todayAttendance.check_out
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  : 'bg-[#FFD65A] text-black hover:bg-[#f5c94a]'
+                  ? "text-slate-400 cursor-not-allowed"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
-            title={todayAttendance?.check_out ? 'Completed' : 'Attendance'}
           >
             {!todayAttendance ? (
-              <LogIn className="w-5 h-5" />
+              <LogIn className="w-4 h-4 flex-shrink-0" />
             ) : todayAttendance.check_out ? (
-              <CheckCircle className="w-5 h-5" />
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
             ) : (
-              <LogOutIcon className="w-5 h-5" />
+              <LogOutIcon className="w-4 h-4 flex-shrink-0" />
             )}
+            <span className="truncate">
+              {!todayAttendance
+                ? "Check In"
+                : todayAttendance.check_out
+                  ? "Completed"
+                  : "Check Out"}
+            </span>
           </button>
 
           {/* Theme Toggle */}
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
+          <div className="px-3 py-2 flex items-center gap-3 text-slate-600">
             <ThemeToggle />
+            <span className="text-sm font-medium">Theme</span>
           </div>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-            title="Keluar"
+            className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            <span>Keluar</span>
           </button>
         </div>
       </aside>
@@ -384,23 +480,23 @@ export default function TeknisiDashboard() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white dark:bg-[#1c1c1c] p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 dark:border-white/10"
       >
         <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
       {/* ==================== MAIN CONTENT ==================== */}
-      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden lg:ml-64">
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
         {/* Top Navbar */}
         <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
-          <div className="bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl px-3 py-2.5 sm:px-5 sm:py-3.5 flex items-center justify-between shadow-sm gap-2 sm:gap-4">
+          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl px-4 py-3 flex items-center justify-between border border-gray-200 gap-2 sm:gap-4">
             {/* Spacer for mobile menu button */}
             <div className="hidden lg:block w-12" />
 
             {/* Page Title - Center on mobile */}
             <div className="flex-1 lg:flex-none text-center lg:text-left">
               <h1 className="text-lg sm:text-lg md:text-xl font-bold text-slate-900">
-                {menuItems.find(m => m.id === activeTab)?.label}
+                {menuItems.find((m) => m.id === activeTab)?.label}
               </h1>
             </div>
 
@@ -408,24 +504,26 @@ export default function TeknisiDashboard() {
               {/* Refresh */}
               <button
                 onClick={() => fetchAllData(true)}
-                className={`p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0 ${refreshing ? 'animate-spin' : ''}`}
+                className={`p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0 ${refreshing ? "animate-spin" : ""}`}
               >
                 <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
               </button>
 
               {/* Notification */}
               <button
-                onClick={() => toast('Notifikasi belum tersedia', { icon: '🔔' })}
+                onClick={() =>
+                  toast("Notifikasi belum tersedia", { icon: "🔔" })
+                }
                 className="relative p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
-                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-[#FF5F87] rounded-full flex-shrink-0" />
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-red-500 rounded-full flex-shrink-0" />
               </button>
 
               {/* Profile */}
               <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#4DB2FF] rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
-                  {user?.full_name?.charAt(0) || 'T'}
+                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
+                  {user?.full_name?.charAt(0) || "T"}
                 </div>
               </div>
             </div>
@@ -435,7 +533,7 @@ export default function TeknisiDashboard() {
         {/* ==================== CONTENT ==================== */}
         <main className="flex-1 p-2 sm:p-3 md:p-4">
           <AnimatePresence mode="wait">
-            {activeTab === 'queue' && (
+            {activeTab === "queue" && (
               <motion.div
                 key="queue"
                 initial={{ opacity: 0, y: 20 }}
@@ -448,40 +546,56 @@ export default function TeknisiDashboard() {
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
                   <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Selesai Hari Ini</span>
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                        Selesai Hari Ini
+                      </span>
                       <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-600 flex-shrink-0" />
                     </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.completedToday}</p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">
+                      {stats.completedToday}
+                    </p>
                   </div>
 
                   <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Sedang Dikerjakan</span>
-                      <Wrench className="w-4 h-4 sm:w-6 sm:h-6 text-[#FFD65A] flex-shrink-0" />
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                        Sedang Dikerjakan
+                      </span>
+                      <Wrench className="w-4 h-4 sm:w-6 sm:h-6 text-gray-500 flex-shrink-0" />
                     </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.inProgress}</p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">
+                      {stats.inProgress}
+                    </p>
                   </div>
 
                   <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Antrean</span>
-                      <Clock className="w-4 h-4 sm:w-6 sm:h-6 text-[#4DB2FF] flex-shrink-0" />
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                        Antrean
+                      </span>
+                      <Clock className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 flex-shrink-0" />
                     </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">{stats.pendingQueue}</p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">
+                      {stats.pendingQueue}
+                    </p>
                   </div>
 
                   <div className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">Pendapatan Bulan Ini</span>
-                      <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 text-[#4DB2FF] flex-shrink-0" />
+                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
+                        Pendapatan Bulan Ini
+                      </span>
+                      <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 flex-shrink-0" />
                     </div>
-                    <p className="text-sm sm:text-xl md:text-2xl font-bold text-[#4DB2FF] truncate">{formatRupiah(stats.totalEarnings)}</p>
+                    <p className="text-sm sm:text-xl md:text-2xl font-bold text-gray-600 truncate">
+                      {formatRupiah(stats.totalEarnings)}
+                    </p>
                   </div>
                 </div>
 
                 {/* Queue List Component */}
                 <QueueList
-                  teknisiId={user?.id || ''}
+                  teknisiId={user?.id || ""}
                   onTakeProject={(service) => setSelectedService(service)}
                 />
 
@@ -495,21 +609,32 @@ export default function TeknisiDashboard() {
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
                       <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
-                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">Aktivitas Terbaru</h3>
+                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">
+                      Aktivitas Terbaru
+                    </h3>
                   </div>
                   <div className="space-y-2">
                     {recentActivities.map((activity, i) => (
-                      <div key={activity.id} className="flex items-center gap-3 p-2 border-b border-slate-100 last:border-0">
-                        <div className="w-2 h-2 bg-[#4DB2FF] rounded-full flex-shrink-0" />
+                      <div
+                        key={activity.id}
+                        className="flex items-center gap-3 p-2 border-b border-slate-100 last:border-0"
+                      >
+                        <div className="w-2 h-2 bg-gray-900 rounded-full flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm text-slate-700 truncate">{activity.message}</p>
-                          <p className="text-[10px] sm:text-xs text-slate-400">{activity.time}</p>
+                          <p className="text-xs sm:text-sm text-slate-700 truncate">
+                            {activity.message}
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-slate-400">
+                            {activity.time}
+                          </p>
                         </div>
                       </div>
                     ))}
                     {recentActivities.length === 0 && (
                       <div className="text-center py-6 text-slate-400">
-                        <p className="text-xs sm:text-sm">Belum ada aktivitas</p>
+                        <p className="text-xs sm:text-sm">
+                          Belum ada aktivitas
+                        </p>
                       </div>
                     )}
                   </div>
@@ -517,7 +642,7 @@ export default function TeknisiDashboard() {
               </motion.div>
             )}
 
-            {activeTab === 'stats' && (
+            {activeTab === "stats" && (
               <motion.div
                 key="stats"
                 initial={{ opacity: 0, y: 20 }}
@@ -532,34 +657,42 @@ export default function TeknisiDashboard() {
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                     </div>
-                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">Metrik Performa</h3>
+                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">
+                      Metrik Performa
+                    </h3>
                   </div>
 
                   <div className="space-y-4 sm:space-y-5">
                     <div>
                       <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
                         <span className="text-slate-600">Completion Rate</span>
-                        <span className="text-[#3CCF91]">94%</span>
+                        <span className="text-green-600">94%</span>
                       </div>
                       <div className="h-1.5 sm:h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="w-[94%] h-full bg-[#3CCF91] rounded-full" />
+                        <div className="w-[94%] h-full bg-green-600 rounded-full" />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
-                        <span className="text-slate-600">Rata-rata Waktu Service</span>
-                        <span className="text-emerald-600">{stats.averageTime} hari</span>
+                        <span className="text-slate-600">
+                          Rata-rata Waktu Service
+                        </span>
+                        <span className="text-emerald-600">
+                          {stats.averageTime} hari
+                        </span>
                       </div>
                       <div className="h-1.5 sm:h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="w-[75%] h-full bg-[#FFD65A] rounded-full" />
+                        <div className="w-[75%] h-full bg-gray-900 rounded-full" />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
                         <span className="text-slate-600">Rating Customer</span>
-                        <span className="text-[#4DB2FF]">{stats.rating} / 5.0</span>
+                        <span className="text-gray-600">
+                          {stats.rating} / 5.0
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -567,10 +700,10 @@ export default function TeknisiDashboard() {
                             key={star}
                             className={`w-4 h-4 sm:w-5 sm:h-5 ${
                               star <= Math.floor(stats.rating)
-                                ? 'fill-[#FFD65A] text-[#FFD65A]'
+                                ? "fill-gray-400 text-gray-500"
                                 : star - 0.5 <= stats.rating
-                                ? 'fill-[#FFD65A]/50 text-[#FFD65A]'
-                                : 'text-slate-300'
+                                  ? "fill-gray-400/50 text-gray-500"
+                                  : "text-slate-300"
                             }`}
                           />
                         ))}
@@ -580,16 +713,28 @@ export default function TeknisiDashboard() {
                     <div className="pt-3 sm:pt-4 border-t border-slate-200">
                       <div className="flex justify-between items-center">
                         <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-slate-900">{stats.completedThisMonth}</p>
-                          <p className="text-[10px] text-slate-400 uppercase">Service Bulan Ini</p>
+                          <p className="text-lg sm:text-2xl font-bold text-slate-900">
+                            {stats.completedThisMonth}
+                          </p>
+                          <p className="text-[10px] text-slate-400 uppercase">
+                            Service Bulan Ini
+                          </p>
                         </div>
                         <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-[#4DB2FF]">{formatRupiah(stats.totalEarnings)}</p>
-                          <p className="text-[10px] text-slate-400 uppercase">Pendapatan</p>
+                          <p className="text-lg sm:text-2xl font-bold text-gray-600">
+                            {formatRupiah(stats.totalEarnings)}
+                          </p>
+                          <p className="text-[10px] text-slate-400 uppercase">
+                            Pendapatan
+                          </p>
                         </div>
                         <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-[#3CCF91]">100%</p>
-                          <p className="text-[10px] text-slate-400 uppercase">Kehadiran</p>
+                          <p className="text-lg sm:text-2xl font-bold text-green-600">
+                            100%
+                          </p>
+                          <p className="text-[10px] text-slate-400 uppercase">
+                            Kehadiran
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -599,39 +744,57 @@ export default function TeknisiDashboard() {
                 {/* Badges & Achievements */}
                 <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm p-3 sm:p-5">
                   <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-slate-200">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-[#FFD65A] rounded-md sm:rounded-lg flex items-center justify-center">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 rounded-md sm:rounded-lg flex items-center justify-center">
                       <Award className="w-3 h-3 sm:w-4 sm:h-4 text-slate-900" />
                     </div>
-                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">Pencapaian</h3>
+                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">
+                      Pencapaian
+                    </h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div className="text-center p-2.5 sm:p-3 bg-[#DCEEFF] rounded-lg sm:rounded-xl border border-[#b3d9ff]">
-                      <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-[#FFD65A] mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm">Speedster</p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">Selesaikan 10 service</p>
+                    <div className="text-center p-2.5 sm:p-3 bg-gray-100 rounded-lg sm:rounded-xl border border-[#b3d9ff]">
+                      <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm">
+                        Speedster
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                        Selesaikan 10 service
+                      </p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-3 bg-[#DCEEFF] rounded-lg sm:rounded-xl border border-[#b3d9ff]">
-                      <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-[#4DB2FF] mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm">Quality Expert</p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">95% approval rate</p>
+                    <div className="text-center p-2.5 sm:p-3 bg-gray-100 rounded-lg sm:rounded-xl border border-[#b3d9ff]">
+                      <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm">
+                        Quality Expert
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                        95% approval rate
+                      </p>
                     </div>
                     <div className="text-center p-2.5 sm:p-3 bg-[#e6faf2] rounded-lg sm:rounded-xl border border-emerald-100">
-                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-[#3CCF91] mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm">Team Player</p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">Bantu teknisi lain</p>
+                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="font-semibold text-xs sm:text-sm">
+                        Team Player
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                        Bantu teknisi lain
+                      </p>
                     </div>
                     <div className="text-center p-2.5 sm:p-3 bg-[#fff8e6] rounded-lg sm:rounded-xl border border-[#ffe5a3]">
-                      <Star className="w-6 h-6 sm:w-8 sm:h-8 text-[#FFD65A] mx-auto mb-1.5 sm:mb-2 fill-[#FFD65A]/30" />
-                      <p className="font-semibold text-xs sm:text-sm">Top Performer</p>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500">Rating 5 bintang</p>
+                      <Star className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 mx-auto mb-1.5 sm:mb-2 fill-gray-400/30" />
+                      <p className="font-semibold text-xs sm:text-sm">
+                        Top Performer
+                      </p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500">
+                        Rating 5 bintang
+                      </p>
                     </div>
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {activeTab === 'layanan' && (
+            {activeTab === "layanan" && (
               <motion.div
                 key="layanan"
                 initial={{ opacity: 0, y: 20 }}
@@ -640,12 +803,16 @@ export default function TeknisiDashboard() {
               >
                 <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Manajemen Transaksi</h3>
-                    <p className="text-xs sm:text-sm text-slate-500">Input transaksi layanan customer</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">
+                      Manajemen Transaksi
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Input transaksi layanan customer
+                    </p>
                   </div>
                   <button
                     onClick={() => setShowLayananForm(true)}
-                    className="bg-[#4DB2FF] text-white font-medium px-4 py-2.5 rounded-full hover:bg-[#3aa0f5] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
                   >
                     + Tambah Transaksi
                   </button>
@@ -666,7 +833,9 @@ export default function TeknisiDashboard() {
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
                   <Wrench className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                 </div>
-                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">Update Service</h3>
+                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">
+                  Update Service
+                </h3>
               </div>
               <button
                 onClick={() => setSelectedService(null)}
@@ -676,12 +845,17 @@ export default function TeknisiDashboard() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 sm:p-5">
-              <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">Service: <span className="font-medium">{selectedService.invoice_number}</span></p>
+              <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
+                Service:{" "}
+                <span className="font-medium">
+                  {selectedService.invoice_number}
+                </span>
+              </p>
               <ProgressUpdate
                 service={selectedService}
                 onUpdate={() => {
-                  setSelectedService(null)
-                  fetchAllData()
+                  setSelectedService(null);
+                  fetchAllData();
                 }}
               />
             </div>
@@ -710,5 +884,5 @@ export default function TeknisiDashboard() {
         </div>
       )}
     </div>
-  )
+  );
 }

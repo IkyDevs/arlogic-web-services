@@ -1,6 +1,54 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 
+// Helper function to compress images on the client side using Canvas API
+const compressImageOnClient = (file: File): Promise<Blob> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDimension = 1280
+        let width = img.width
+        let height = img.height
+
+        // Calculate new dimensions maintaining aspect ratio
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height)
+          canvas.toBlob(
+            (blob) => {
+              resolve(blob || file)
+            },
+            'image/jpeg',
+            0.85 // Quality setting (0.85 is standard compression sweet-spot)
+          )
+        } else {
+          resolve(file)
+        }
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
+
 export function useUpload() {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -36,9 +84,26 @@ export function useUpload() {
 
       const formData = new FormData()
       
-      // Append semua files
+      // Compress and append all files
       for (const file of files) {
-        formData.append('files', file)
+        let fileToUpload: Blob | File = file
+        
+        // Only compress if file is larger than 100KB to avoid unnecessary processing on tiny images
+        if (file.type.startsWith('image/') && file.size > 100 * 1024) {
+          try {
+            console.log(`📸 Compressing ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`)
+            fileToUpload = await compressImageOnClient(file)
+            console.log(`📉 Compressed ${file.name} to ${(fileToUpload.size / 1024).toFixed(2)} KB`)
+          } catch (compressError) {
+            console.error(`⚠️ Client-side compression failed for ${file.name}, using original:`, compressError)
+          }
+        }
+
+        const uploadFileObj = fileToUpload instanceof File 
+          ? fileToUpload 
+          : new File([fileToUpload], file.name, { type: file.type || 'image/jpeg' })
+
+        formData.append('files', uploadFileObj)
       }
       
       formData.append('type', options.type)
@@ -61,10 +126,18 @@ export function useUpload() {
       clearInterval(progressInterval)
       setProgress(100)
 
-      const data = await response.json()
+      // Read response as text first to handle non-JSON error pages from Vercel gracefully
+      const rawText = await response.text()
+      let data: any
+      try {
+        data = JSON.parse(rawText)
+      } catch (parseError) {
+        console.error('❌ Server non-JSON response:', rawText)
+        throw new Error(`Server returned invalid response (Status ${response.status}). ${rawText.slice(0, 150)}`)
+      }
 
       if (!response.ok) {
-        throw new Error(data.details || data.error || 'Upload failed')
+        throw new Error(data.details || data.error || `Upload failed (Status ${response.status})`)
       }
 
       if (!data.urls || data.urls.length === 0) {
