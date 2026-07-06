@@ -51,6 +51,7 @@ import InventoryCard from "@/components/admin/InventoryCard";
 import POSection from "@/components/admin/POSection";
 import QRCodeGenerator from "@/components/admin/QRCodeGenerator";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useTheme } from "@/components/ThemeProvider";
 
 // Dynamic imports
 const RoleManagement = dynamic(
@@ -90,8 +91,24 @@ const DashboardCharts = dynamic(
     ),
   },
 );
+const AdminDashboardAnalytics = dynamic(
+  () => import("@/components/admin/AdminDashboardAnalytics"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
 
 export default function AdminDashboard() {
+  let isDark = false;
+  try {
+    const { theme } = useTheme();
+    isDark = theme === "dark";
+  } catch (e) {
+    isDark = false;
+  }
+
   const [activeTab, setActiveTab] = useState("transaction");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -127,10 +144,14 @@ export default function AdminDashboard() {
     inventory: [],
   });
 
+  // Analytics state
+  const [chartData, setChartData] = useState<any[]>([]);
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalServices: 0,
     totalInventory: 0,
+    totalTransactions: 0,
     pendingServices: 0,
     completedToday: 0,
     revenue: 0,
@@ -139,6 +160,7 @@ export default function AdminDashboard() {
   });
 
   const [recentServices, setRecentServices] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -195,24 +217,44 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     const today = new Date().toISOString().split("T")[0];
 
-    const [users, services, inventory, pending, completed, revenue] =
-      await Promise.all([
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase
-          .from("service_orders")
-          .select("*", { count: "exact", head: true }),
-        supabase.from("inventory").select("*", { count: "exact", head: true }),
-        supabase
-          .from("service_orders")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending"),
-        supabase
-          .from("service_orders")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "completed")
-          .gte("completed_at", today),
-        supabase.from("layanan").select("nominal").eq("status", "active"),
-      ]);
+    const [
+      users,
+      services,
+      inventory,
+      inventoryData,
+      pending,
+      completed,
+      revenue,
+      transactions,
+    ] = await Promise.all([
+      supabase.from("profiles").select("*", { count: "exact", head: true }),
+      supabase
+        .from("service_orders")
+        .select("*", { count: "exact", head: true }),
+      supabase.from("inventory").select("*", { count: "exact", head: true }),
+      supabase.from("inventory").select("store_stock, warehouse_stock"),
+      supabase
+        .from("service_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending"),
+      supabase
+        .from("service_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "completed")
+        .gte("completed_at", today),
+      supabase.from("layanan").select("nominal").eq("status", "active"),
+      supabase
+        .from("layanan")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active"),
+    ]);
+
+    // Calculate total inventory (sum all store_stock + warehouse_stock)
+    const totalInventoryStock = (inventoryData.data || []).reduce(
+      (sum: number, item: any) =>
+        sum + ((item.store_stock || 0) + (item.warehouse_stock || 0)),
+      0,
+    );
 
     const totalRevenue = (revenue.data || []).reduce(
       (sum: number, item: any) => sum + (item.nominal || 0),
@@ -222,7 +264,8 @@ export default function AdminDashboard() {
     setStats({
       totalUsers: users.count || 0,
       totalServices: services.count || 0,
-      totalInventory: inventory.count || 0,
+      totalInventory: totalInventoryStock,
+      totalTransactions: transactions.count || 0,
       pendingServices: pending.count || 0,
       completedToday: completed.count || 0,
       revenue: totalRevenue,
@@ -239,6 +282,17 @@ export default function AdminDashboard() {
       .limit(10);
 
     if (data) setRecentServices(data);
+  };
+
+  const fetchRecentTransactions = async () => {
+    const { data } = await supabase
+      .from("layanan")
+      .select("*")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(15);
+
+    if (data) setRecentTransactions(data);
   };
 
   const fetchNotifications = async () => {
@@ -373,15 +427,78 @@ export default function AdminDashboard() {
 
   // ==================== OTHER FUNCTIONS ====================
 
+  const generateChartData = async () => {
+    try {
+      // Fetch transaction data untuk chart (6 bulan terakhir)
+      const today = new Date();
+      const sixMonthsAgo = new Date(
+        today.getFullYear(),
+        today.getMonth() - 6,
+        1,
+      );
+
+      const { data: transactionData } = await supabase
+        .from("layanan")
+        .select("created_at, nominal, id")
+        .gte("created_at", sixMonthsAgo.toISOString())
+        .eq("status", "active");
+
+      const { data: serviceData } = await supabase
+        .from("service_orders")
+        .select("created_at, id")
+        .gte("created_at", sixMonthsAgo.toISOString());
+
+      // Group data by month
+      const months: {
+        [key: string]: { month: string; transaction: number; service: number };
+      } = {};
+
+      // Initialize last 6 months
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const monthKey = d.toLocaleDateString("id-ID", { month: "short" });
+        months[monthKey] = { month: monthKey, transaction: 0, service: 0 };
+      }
+
+      // Count transactions by month
+      transactionData?.forEach((tx: any) => {
+        const txDate = new Date(tx.created_at);
+        const monthKey = txDate.toLocaleDateString("id-ID", { month: "short" });
+        if (months[monthKey]) {
+          months[monthKey].transaction += 1;
+        }
+      });
+
+      // Count services by month
+      serviceData?.forEach((svc: any) => {
+        const svcDate = new Date(svc.created_at);
+        const monthKey = svcDate.toLocaleDateString("id-ID", {
+          month: "short",
+        });
+        if (months[monthKey]) {
+          months[monthKey].service += 1;
+        }
+      });
+
+      const chartDataArray = Object.values(months);
+      setChartData(chartDataArray);
+    } catch (error) {
+      console.error("Error generating chart data:", error);
+      setChartData([]);
+    }
+  };
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
       await Promise.all([
         fetchStats(),
         fetchRecentServices(),
+        fetchRecentTransactions(),
         fetchNotifications(),
         fetchInventory(),
         checkTodayAttendance(),
+        generateChartData(),
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -475,7 +592,12 @@ export default function AdminDashboard() {
   };
 
   const menuItems = [
-    { id: "transaction", label: "Transaction", icon: ShoppingCart },
+    { id: "transaction", label: "Dashboard", icon: LayoutDashboard },
+    {
+      id: "management-transaction",
+      label: "Management Transaction",
+      icon: ShoppingCart,
+    },
     { id: "services", label: "Service", icon: ClipboardList },
     { id: "sparepart", label: "Request Sparepart", icon: Package },
     { id: "users", label: "Users", icon: Users },
@@ -652,8 +774,9 @@ export default function AdminDashboard() {
                       className="absolute top-full mt-2 w-96 max-h-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
                     >
                       <div className="max-h-96 overflow-y-auto">
-                        {(searchResults.transactions.length +
-                          searchResults.inventory.length) === 0 ? (
+                        {searchResults.transactions.length +
+                          searchResults.inventory.length ===
+                        0 ? (
                           <div className="p-6 text-center text-slate-400">
                             <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
                             <p className="text-sm">Tidak ada hasil pencarian</p>
@@ -665,27 +788,31 @@ export default function AdminDashboard() {
                               <>
                                 <div className="p-3 bg-slate-50 border-b border-slate-100 sticky top-0">
                                   <p className="text-xs font-semibold text-slate-600 uppercase">
-                                    Service ({searchResults.transactions.length})
+                                    Service ({searchResults.transactions.length}
+                                    )
                                   </p>
                                 </div>
-                                {searchResults.transactions.slice(0, 3).map((result: any) => (
-                                  <div
-                                    key={result.id}
-                                    className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
-                                    onClick={() => {
-                                      setSearchQuery("");
-                                      setShowSearchResults(false);
-                                      setActiveTab("transaction");
-                                    }}
-                                  >
-                                    <p className="text-sm font-medium text-slate-900">
-                                      {result.invoice_number}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {result.customer_name} • {result.customer_phone}
-                                    </p>
-                                  </div>
-                                ))}
+                                {searchResults.transactions
+                                  .slice(0, 3)
+                                  .map((result: any) => (
+                                    <div
+                                      key={result.id}
+                                      className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
+                                      onClick={() => {
+                                        setSearchQuery("");
+                                        setShowSearchResults(false);
+                                        setActiveTab("transaction");
+                                      }}
+                                    >
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {result.invoice_number}
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {result.customer_name} •{" "}
+                                        {result.customer_phone}
+                                      </p>
+                                    </div>
+                                  ))}
                                 {searchResults.transactions.length > 3 && (
                                   <div className="p-2 text-center border-b border-slate-100">
                                     <button
@@ -696,7 +823,8 @@ export default function AdminDashboard() {
                                       }}
                                       className="text-xs text-gray-600 hover:text-gray-900"
                                     >
-                                      Lihat semua hasil ({searchResults.transactions.length})
+                                      Lihat semua hasil (
+                                      {searchResults.transactions.length})
                                     </button>
                                   </div>
                                 )}
@@ -711,24 +839,26 @@ export default function AdminDashboard() {
                                     Inventory ({searchResults.inventory.length})
                                   </p>
                                 </div>
-                                {searchResults.inventory.slice(0, 3).map((result: any) => (
-                                  <div
-                                    key={result.id}
-                                    className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
-                                    onClick={() => {
-                                      setSearchQuery("");
-                                      setShowSearchResults(false);
-                                      setActiveTab("inventory");
-                                    }}
-                                  >
-                                    <p className="text-sm font-medium text-slate-900">
-                                      {result.item_name}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {result.category}
-                                    </p>
-                                  </div>
-                                ))}
+                                {searchResults.inventory
+                                  .slice(0, 3)
+                                  .map((result: any) => (
+                                    <div
+                                      key={result.id}
+                                      className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
+                                      onClick={() => {
+                                        setSearchQuery("");
+                                        setShowSearchResults(false);
+                                        setActiveTab("inventory");
+                                      }}
+                                    >
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {result.item_name}
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {result.category}
+                                      </p>
+                                    </div>
+                                  ))}
                                 {searchResults.inventory.length > 3 && (
                                   <div className="p-2 text-center">
                                     <button
@@ -739,7 +869,8 @@ export default function AdminDashboard() {
                                       }}
                                       className="text-xs text-gray-600 hover:text-gray-900"
                                     >
-                                      Lihat semua hasil ({searchResults.inventory.length})
+                                      Lihat semua hasil (
+                                      {searchResults.inventory.length})
                                     </button>
                                   </div>
                                 )}
@@ -851,129 +982,48 @@ export default function AdminDashboard() {
         {/* ==================== CONTENT AREA ==================== */}
         <main className="flex-1 p-2 sm:p-3 md:p-4">
           {activeTab === "transaction" && (
-            <div className="space-y-3 sm:space-y-4 md:space-y-5">
-              {/* Welcome Banner */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 p-3 sm:p-5 md:p-6 shadow-sm"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-                  <div>
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 truncate">
-                      Halo, {user?.full_name?.split(" ")[0]}! 👋
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                      Kelola transaction dan statistik dashboard Anda dengan
-                      mudah dan efisien.
-                    </p>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="bg-gray-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl md:rounded-2xl text-xs sm:text-sm font-medium text-slate-700">
-                      <span className="mr-1.5">📅</span>
-                      {new Date().toLocaleDateString("id-ID", {
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+            <AdminDashboardAnalytics
+              totalTransactions={stats.totalTransactions}
+              totalUsers={stats.totalUsers}
+              totalServices={stats.totalServices}
+              totalInventory={stats.totalInventory}
+              revenue={stats.revenue}
+              revenueGrowth={stats.revenueGrowth}
+              isDark={isDark}
+              chartData={chartData}
+              recentTransactions={recentTransactions}
+            />
+          )}
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                {[
-                  {
-                    label: "Total Service",
-                    value: stats.totalServices,
-                    change: `+${stats.revenueGrowth}%`,
-                    positive: true,
-                    icon: ClipboardList,
-                  },
-                  {
-                    label: "Pendapatan",
-                    value: formatRupiah(stats.revenue),
-                    change: "+8%",
-                    positive: true,
-                    icon: DollarSign,
-                  },
-                  {
-                    label: "Pengguna",
-                    value: stats.totalUsers,
-                    change: "+2%",
-                    positive: true,
-                    icon: Users,
-                  },
-                  {
-                    label: "Pending",
-                    value: stats.pendingServices,
-                    change: "0%",
-                    positive: true,
-                    icon: Clock,
-                  },
-                ].map((stat, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="bg-white rounded-lg sm:rounded-xl md:rounded-[24px] border border-slate-200 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all"
+          {activeTab === "management-transaction" && (
+            <div className="space-y-4 md:space-y-6">
+              <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+                <div>
+                  <h2
+                    className={`text-2xl md:text-3xl font-bold ${isDark ? "text-white" : "text-slate-900"}`}
                   >
-                    <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider truncate mr-1">
-                        {stat.label}
-                      </span>
-                      <span className="text-[10px] sm:text-xs font-medium text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                        {stat.change}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-                      <div className="w-7 h-7 sm:w-10 sm:h-10 bg-gray-100 rounded-md sm:rounded-lg md:rounded-2xl flex items-center justify-center flex-shrink-0">
-                        <stat.icon className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-gray-600" />
-                      </div>
-                      <p className="text-sm sm:text-xl md:text-2xl font-bold text-slate-900 truncate">
-                        {stat.value}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Transaction List */}
-              <div>
-                <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">
-                      Manajemen Transaksi
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-500">
-                      Input dan kelola transaksi layanan customer
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowLayananForm(true)}
-                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                    Manajemen Transaksi
+                  </h2>
+                  <p
+                    className={`text-sm md:text-base ${isDark ? "text-slate-400" : "text-slate-600"}`}
                   >
-                    + Tambah Transaksi
-                  </button>
+                    Input dan kelola transaksi layanan customer
+                  </p>
                 </div>
-                <LayananList isAdmin={true} key={refreshLayanan} />
+                <button
+                  onClick={() => setShowLayananForm(true)}
+                  className="bg-gray-900 dark:bg-slate-700 text-white font-medium px-4 md:px-6 py-2.5 md:py-3 rounded-full hover:bg-gray-800 dark:hover:bg-slate-600 transition-all flex items-center justify-center gap-2 text-sm"
+                >
+                  + Tambah Transaksi
+                </button>
               </div>
-
-              {/* Dashboard Charts */}
-              <DashboardCharts
-                totalTransactions={recentServices.length}
-                totalUsers={stats.totalUsers}
-                totalServices={stats.totalServices}
-                pendingServices={stats.pendingServices}
-                revenue={stats.revenue}
-              />
+              <LayananList isAdmin={true} key={refreshLayanan} />
             </div>
           )}
 
-          {activeTab === "sparepart" && <POSection onUpdate={fetchStats} />}
+          {activeTab === "services" && <ServiceInput />}
 
-          {activeTab === "users" && <RoleManagement />}
+          {activeTab === "sparepart" && <POSection onUpdate={fetchStats} />}
 
           {activeTab === "inventory" && (
             <InventoryManagement onUpdate={fetchInventory} />
