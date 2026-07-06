@@ -236,8 +236,23 @@ export default function InventoryManagement({
 
     try {
       if (transferPhotoFile) {
+        const caption = `📦 STOCK TRANSFER
+━━━━━━━━━━━━━━━━━━━━━━━━
+📝 Item: ${selectedItem.item_name}
+🏷️ SKU: ${selectedItem.sku}
+📍 Dari: ${transferFrom === "warehouse" ? "Gudang" : "Toko"}
+📍 Ke: ${transferTo === "warehouse" ? "Gudang" : "Toko"}
+📊 Jumlah: ${qty} ${selectedItem.unit}
+📝 Catatan: ${transferNotes || "-"}
+👤 Admin: ${user?.full_name || "Admin"}
+⏰ ${new Date().toLocaleString("id-ID")}
+━━━━━━━━━━━━━━━━━━━━━━━━`;
+
         photoUrl =
-          (await uploadFile(transferPhotoFile, { type: "inventory" })) || "";
+          (await uploadFile(transferPhotoFile, {
+            type: "inventory",
+            caption: caption,
+          })) || "";
       }
 
       const { error: transferError } = await supabase
@@ -279,18 +294,6 @@ export default function InventoryManagement({
 
       if (updateError) throw updateError;
 
-      const caption = `STOCK TRANSFER
-Item: ${selectedItem.item_name}
-SKU: ${selectedItem.sku}
-Dari: ${transferFrom === "warehouse" ? "Gudang" : "Toko"}
-Ke: ${transferTo === "warehouse" ? "Gudang" : "Toko"}
-Jumlah: ${qty} ${selectedItem.unit}
-Admin: ${user?.full_name || "Admin"}`;
-
-      if (photoUrl && transferPhotoFile) {
-        await uploadFile(transferPhotoFile, { type: "inventory", caption });
-      }
-
       toast.success("Stock transfer berhasil!");
       setShowTransferForm(false);
       fetchInventory();
@@ -314,13 +317,32 @@ Admin: ${user?.full_name || "Admin"}`;
     setLoading(true);
     let photoUrl = "";
 
-    if (photoFile) {
-      setUploadingPhoto(true);
-      photoUrl = (await uploadFile(photoFile, { type: "service" })) || "";
-      setUploadingPhoto(false);
-    }
-
     try {
+      if (photoFile) {
+        setUploadingPhoto(true);
+
+        // Create caption with inventory details
+        const itemCaption = `📦 INVENTORY ITEM
+━━━━━━━━━━━━━━━━━━━━━━━━
+📝 Nama: ${formData.item_name}
+🏷️ SKU: ${formData.sku}
+📂 Kategori: ${formData.category || "Uncategorized"}
+📊 Stock Toko: ${formData.store_stock || 0} ${formData.unit || "pcs"}
+📊 Stock Gudang: ${formData.warehouse_stock || 0} ${formData.unit || "pcs"}
+⚠️ Min Stock: ${formData.min_stock || 0} ${formData.unit || "pcs"}
+💰 Harga: Rp ${(parseInt(formData.price) || 0).toLocaleString("id-ID")}
+👤 Admin: ${user?.full_name || "Admin"}
+⏰ ${new Date().toLocaleString("id-ID")}
+━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+        photoUrl =
+          (await uploadFile(photoFile, {
+            type: "inventory",
+            caption: itemCaption,
+          })) || "";
+        setUploadingPhoto(false);
+      }
+
       const dataToInsert = {
         item_name: formData.item_name,
         sku: formData.sku,

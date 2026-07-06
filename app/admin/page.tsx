@@ -82,9 +82,17 @@ const ExportReports = dynamic(
     ),
   },
 );
+const DashboardCharts = dynamic(
+  () => import("@/components/admin/DashboardCharts"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("transaction");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLayananForm, setShowLayananForm] = useState(false);
@@ -109,6 +117,16 @@ export default function AdminDashboard() {
   });
   const [loadingInventory, setLoadingInventory] = useState(false);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchResults, setSearchResults] = useState<any>({
+    transactions: [],
+    services: [],
+    users: [],
+    inventory: [],
+  });
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalServices: 0,
@@ -127,6 +145,50 @@ export default function AdminDashboard() {
   const supabase = createClient();
   const { user, logout } = useAuthStore();
   const router = useRouter();
+
+  // ==================== SEARCH FUNCTIONS ====================
+
+  const performSearch = (query: string) => {
+    if (!query.trim()) {
+      setSearchResults({
+        transactions: [],
+        services: [],
+        users: [],
+        inventory: [],
+      });
+      setShowSearchResults(false);
+      return;
+    }
+
+    const q = query.toLowerCase();
+
+    // Search in transactions (recentServices/service_orders)
+    const transactionsFound = recentServices.filter(
+      (s: any) =>
+        s.invoice_number?.toLowerCase().includes(q) ||
+        s.customer_name?.toLowerCase().includes(q) ||
+        s.customer_phone?.toLowerCase().includes(q) ||
+        s.watch_brand?.toLowerCase().includes(q) ||
+        s.watch_model?.toLowerCase().includes(q),
+    );
+
+    // Search in layanan (transactions)
+    const layananFound = inventoryItems.filter(
+      (i: any) =>
+        i.item_name?.toLowerCase().includes(q) ||
+        i.category?.toLowerCase().includes(q) ||
+        i.description?.toLowerCase().includes(q),
+    );
+
+    setSearchResults({
+      transactions: transactionsFound,
+      services: transactionsFound, // Same as transactions in this context
+      users: [], // Users search would need to fetch users
+      inventory: layananFound,
+    });
+
+    setShowSearchResults(true);
+  };
 
   // ==================== FETCH FUNCTIONS ====================
 
@@ -149,7 +211,7 @@ export default function AdminDashboard() {
           .select("*", { count: "exact", head: true })
           .eq("status", "completed")
           .gte("completed_at", today),
-        supabase.from("layanan").select("nominal").eq("status", "completed"),
+        supabase.from("layanan").select("nominal").eq("status", "active"),
       ]);
 
     const totalRevenue = (revenue.data || []).reduce(
@@ -413,9 +475,9 @@ export default function AdminDashboard() {
   };
 
   const menuItems = [
-    { id: "overview", label: "Dashboard", icon: LayoutDashboard },
+    { id: "transaction", label: "Transaction", icon: ShoppingCart },
     { id: "services", label: "Service", icon: ClipboardList },
-    { id: "layanan", label: "Transaction", icon: ShoppingCart },
+    { id: "sparepart", label: "Request Sparepart", icon: Package },
     { id: "users", label: "Users", icon: Users },
     { id: "inventory", label: "Inventory", icon: Package },
     { id: "export", label: "Export", icon: Download },
@@ -571,8 +633,124 @@ export default function AdminDashboard() {
                 <input
                   type="text"
                   placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    performSearch(e.target.value);
+                  }}
+                  onFocus={() => searchQuery && setShowSearchResults(true)}
                   className="pl-9 pr-4 py-2 bg-slate-50 rounded-full text-sm border border-slate-200 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition-all w-40 md:w-56 lg:w-64"
                 />
+
+                {/* Search Results Dropdown */}
+                <AnimatePresence>
+                  {showSearchResults && searchQuery && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full mt-2 w-96 max-h-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
+                    >
+                      <div className="max-h-96 overflow-y-auto">
+                        {(searchResults.transactions.length +
+                          searchResults.inventory.length) === 0 ? (
+                          <div className="p-6 text-center text-slate-400">
+                            <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">Tidak ada hasil pencarian</p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Transactions Results */}
+                            {searchResults.transactions.length > 0 && (
+                              <>
+                                <div className="p-3 bg-slate-50 border-b border-slate-100 sticky top-0">
+                                  <p className="text-xs font-semibold text-slate-600 uppercase">
+                                    Service ({searchResults.transactions.length})
+                                  </p>
+                                </div>
+                                {searchResults.transactions.slice(0, 3).map((result: any) => (
+                                  <div
+                                    key={result.id}
+                                    className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
+                                    onClick={() => {
+                                      setSearchQuery("");
+                                      setShowSearchResults(false);
+                                      setActiveTab("transaction");
+                                    }}
+                                  >
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {result.invoice_number}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {result.customer_name} • {result.customer_phone}
+                                    </p>
+                                  </div>
+                                ))}
+                                {searchResults.transactions.length > 3 && (
+                                  <div className="p-2 text-center border-b border-slate-100">
+                                    <button
+                                      onClick={() => {
+                                        setSearchQuery("");
+                                        setShowSearchResults(false);
+                                        setActiveTab("transaction");
+                                      }}
+                                      className="text-xs text-gray-600 hover:text-gray-900"
+                                    >
+                                      Lihat semua hasil ({searchResults.transactions.length})
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                            {/* Inventory Results */}
+                            {searchResults.inventory.length > 0 && (
+                              <>
+                                <div className="p-3 bg-slate-50 border-b border-slate-100 sticky top-0">
+                                  <p className="text-xs font-semibold text-slate-600 uppercase">
+                                    Inventory ({searchResults.inventory.length})
+                                  </p>
+                                </div>
+                                {searchResults.inventory.slice(0, 3).map((result: any) => (
+                                  <div
+                                    key={result.id}
+                                    className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
+                                    onClick={() => {
+                                      setSearchQuery("");
+                                      setShowSearchResults(false);
+                                      setActiveTab("inventory");
+                                    }}
+                                  >
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {result.item_name}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {result.category}
+                                    </p>
+                                  </div>
+                                ))}
+                                {searchResults.inventory.length > 3 && (
+                                  <div className="p-2 text-center">
+                                    <button
+                                      onClick={() => {
+                                        setSearchQuery("");
+                                        setShowSearchResults(false);
+                                        setActiveTab("inventory");
+                                      }}
+                                      className="text-xs text-gray-600 hover:text-gray-900"
+                                    >
+                                      Lihat semua hasil ({searchResults.inventory.length})
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Refresh */}
@@ -672,7 +850,7 @@ export default function AdminDashboard() {
 
         {/* ==================== CONTENT AREA ==================== */}
         <main className="flex-1 p-2 sm:p-3 md:p-4">
-          {activeTab === "overview" && (
+          {activeTab === "transaction" && (
             <div className="space-y-3 sm:space-y-4 md:space-y-5">
               {/* Welcome Banner */}
               <motion.div
@@ -686,7 +864,8 @@ export default function AdminDashboard() {
                       Halo, {user?.full_name?.split(" ")[0]}! 👋
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                      Kelola service center Anda dengan mudah dan efisien.
+                      Kelola transaction dan statistik dashboard Anda dengan
+                      mudah dan efisien.
                     </p>
                   </div>
                   <div className="flex items-center">
@@ -760,182 +939,39 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              {/* PO Section */}
-              <POSection onUpdate={fetchStats} />
-
-              {/* Service List with QR & Token */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] border border-slate-200 shadow-sm overflow-hidden"
-              >
-                <div className="p-3 sm:p-4 md:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
-                    </div>
-                    <h3 className="font-semibold text-sm sm:text-base text-slate-900">
-                      Daftar Service
+              {/* Transaction List */}
+              <div>
+                <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">
+                      Manajemen Transaksi
                     </h3>
-                    <span className="bg-gray-900 text-white text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium">
-                      {recentServices.length}
-                    </span>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Input dan kelola transaksi layanan customer
+                    </p>
                   </div>
                   <button
-                    onClick={() => setActiveTab("services")}
-                    className="text-xs sm:text-sm text-gray-600 hover:underline font-medium w-full sm:w-auto text-left sm:text-right"
+                    onClick={() => setShowLayananForm(true)}
+                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
                   >
-                    + Tambah Service
+                    + Tambah Transaksi
                   </button>
                 </div>
+                <LayananList isAdmin={true} key={refreshLayanan} />
+              </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          Invoice
-                        </th>
-                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider hidden sm:table-cell">
-                          Customer
-                        </th>
-                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider hidden md:table-cell">
-                          Device
-                        </th>
-                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider hidden lg:table-cell">
-                          Token & QR
-                        </th>
-                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                          Aksi
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {recentServices.map((service) => (
-                        <tr
-                          key={service.id}
-                          className="hover:bg-slate-50/50 transition-all"
-                        >
-                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4">
-                            <span className="font-mono text-xs sm:text-sm font-medium text-slate-900">
-                              {service.invoice_number}
-                            </span>
-                            <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
-                              {formatDate(service.created_at)}
-                            </p>
-                          </td>
-                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4 hidden sm:table-cell">
-                            <p className="font-medium text-xs sm:text-sm text-slate-900">
-                              {service.customer_name}
-                            </p>
-                            <p className="text-[10px] sm:text-xs text-slate-400">
-                              {service.customer_phone}
-                            </p>
-                          </td>
-                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4 hidden md:table-cell">
-                            <p className="text-xs sm:text-sm text-slate-900">
-                              {service.watch_brand || service.device_brand}
-                            </p>
-                            <p className="text-[10px] sm:text-xs text-slate-400">
-                              {service.watch_model || service.device_model}
-                            </p>
-                          </td>
-                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4">
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-                                service.status === "pending"
-                                  ? "bg-yellow-50 text-yellow-700"
-                                  : service.status === "completed"
-                                    ? "bg-emerald-50 text-emerald-700"
-                                    : service.status === "in_progress"
-                                      ? "bg-gray-100 text-gray-600"
-                                      : service.status === "req_sparepart_admin"
-                                        ? "bg-yellow-50 text-yellow-700"
-                                        : service.status === "po_pending"
-                                          ? "bg-yellow-50 text-yellow-700"
-                                          : service.status === "sparepart_ready"
-                                            ? "bg-emerald-50 text-emerald-700"
-                                            : "bg-slate-100 text-slate-700"
-                              }`}
-                            >
-                              {service.status === "req_sparepart_admin"
-                                ? "Request PO"
-                                : service.status === "po_pending"
-                                  ? "PO"
-                                  : service.status === "sparepart_ready"
-                                    ? "Ready"
-                                    : service.status}
-                            </span>
-                          </td>
-                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4 hidden lg:table-cell">
-                            <div className="flex items-center gap-1.5 sm:gap-2">
-                              <button
-                                onClick={() => openQRModal(service)}
-                                className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all flex-shrink-0"
-                                title="Lihat QR Code"
-                              >
-                                <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              </button>
-                              <button
-                                onClick={() => copyToken(service.token)}
-                                className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all flex-shrink-0"
-                                title="Salin Token"
-                              >
-                                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
-                              </button>
-                              <span className="text-[10px] sm:text-xs font-mono text-slate-500 truncate max-w-[50px] sm:max-w-[60px]">
-                                {service.token}
-                              </span>
-                              {service.token_expires_at &&
-                                new Date(service.token_expires_at) <
-                                  new Date() && (
-                                  <span className="text-[10px] sm:text-xs text-red-500 font-medium">
-                                    Expired
-                                  </span>
-                                )}
-                            </div>
-                          </td>
-                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4">
-                            {!service.token_expires_at ||
-                            new Date(service.token_expires_at) > new Date() ? (
-                              <button
-                                onClick={() => markTokenExpired(service.id)}
-                                className="text-[10px] sm:text-xs text-red-500 hover:text-red-700 font-medium"
-                              >
-                                Nonaktifkan
-                              </button>
-                            ) : (
-                              <span className="text-[10px] sm:text-xs text-slate-400">
-                                Nonaktif
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {recentServices.length === 0 && (
-                  <div className="p-6 sm:p-8 text-center text-slate-400">
-                    <Watch className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 opacity-30" />
-                    <p className="text-xs sm:text-sm">Belum ada service</p>
-                    <button
-                      onClick={() => setActiveTab("services")}
-                      className="text-gray-600 hover:underline text-xs sm:text-sm mt-1"
-                    >
-                      Tambah service sekarang
-                    </button>
-                  </div>
-                )}
-              </motion.div>
+              {/* Dashboard Charts */}
+              <DashboardCharts
+                totalTransactions={recentServices.length}
+                totalUsers={stats.totalUsers}
+                totalServices={stats.totalServices}
+                pendingServices={stats.pendingServices}
+                revenue={stats.revenue}
+              />
             </div>
           )}
 
-          {activeTab === "services" && <ServiceInput />}
+          {activeTab === "sparepart" && <POSection onUpdate={fetchStats} />}
 
           {activeTab === "users" && <RoleManagement />}
 
@@ -944,29 +980,6 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === "export" && <ExportReports />}
-
-          {/* Layanan Tab */}
-          {activeTab === "layanan" && (
-            <div>
-              <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900">
-                    Manajemen Transaksi
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500">
-                    Input dan kelola transaksi layanan customer
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowLayananForm(true)}
-                  className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
-                >
-                  + Tambah Transaksi
-                </button>
-              </div>
-              <LayananList isAdmin={true} key={refreshLayanan} />
-            </div>
-          )}
         </main>
       </div>
 

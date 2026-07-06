@@ -284,6 +284,35 @@ Keterangan : —
           .eq("id", authUser?.id)
           .single();
 
+        // Upload QRIS/Transfer payment proof photo to transaction group
+        let dpPhotoUrl = null;
+        if (
+          (formData.payment_method === "qris" ||
+            formData.payment_method === "transfer") &&
+          formData.qris_photo
+        ) {
+          const dpPhotoCaption = `📦 BUKTI PEMBAYARAN DP
+━━━━━━━━━━━━━━━━━━━━━━━━
+📱 Customer: ${formData.cs_name}
+📞 WA: ${formData.cs_phone}
+💰 Nominal: Rp ${dpValue.toLocaleString("id-ID")}
+💳 Metode: ${formData.payment_method === "qris" ? "QRIS" : "Transfer"}
+📋 Invoice: ${invoiceNumber}
+⏰ ${new Date().toLocaleString("id-ID")}
+━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+          try {
+            const dpPhotoUrls = await uploadFiles([formData.qris_photo], {
+              type: "layanan",
+              caption: dpPhotoCaption,
+            });
+            dpPhotoUrl = dpPhotoUrls?.[0] || null;
+          } catch (photoErr) {
+            console.error("Failed to upload DP photo:", photoErr);
+            // Continue even if photo upload fails
+          }
+        }
+
         // Insert DP transaction
         const { data: dpTransaction } = await supabase
           .from("layanan")
@@ -299,7 +328,8 @@ Keterangan : —
               detail_sku: `DP - Invoice ${invoiceNumber}`,
               nominal: dpValue,
               notes: `Down Payment untuk service order ${invoiceNumber}`,
-              photo_url: null,
+              photo_url: dpPhotoUrl, // ← now includes QRIS/Transfer proof photo
+              photo_urls: dpPhotoUrl ? [dpPhotoUrl] : [],
               created_by: authUser?.id,
               created_by_name: userProfile?.full_name || "System",
               status: "active",

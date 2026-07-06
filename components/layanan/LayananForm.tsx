@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
@@ -65,7 +65,7 @@ const leadSourceOptions = [
   { value: "tulis_sendiri", label: "Tulis Sendiri" },
 ];
 
-export default function LayananForm({
+export default memo(function LayananForm({
   onSuccess,
   onClose,
   initialData,
@@ -104,7 +104,11 @@ export default function LayananForm({
 
   // ── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetchUsers();
+    const debounceTimer = setTimeout(() => {
+      fetchUsers();
+    }, 0);
+
+    return () => clearTimeout(debounceTimer);
   }, []);
 
   // Set default handled_by ke current user setelah mount
@@ -192,23 +196,50 @@ export default function LayananForm({
     setShowConfirmation(false);
     setLoading(true);
     try {
+      const selectedUser = users.find((u) => u.id === formData.handled_by);
+
+      // Ensure jenis_layanan is always set (never null/undefined)
+      const jenisLayananValue = formData.jenis_layanan || "service_langsung";
+
+      // Prepare transaction description early for photo captions
+      const jenisLayananLabel =
+        jenisLayananOptions.find((opt) => opt.value === jenisLayananValue)
+          ?.label || jenisLayananValue;
+      const metodeLabel =
+        metodePembayaranOptions.find(
+          (opt) => opt.value === formData.metode_pembayaran,
+        )?.label || formData.metode_pembayaran;
+
+      const transactionDescription = `📊 TRANSAKSI BARU
+━━━━━━━━━━━━━━━━━━━━━━━━
+📱 Customer: ${formData.customer_name}
+📞 WA: ${formData.customer_whatsapp}
+💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
+💳 Metode: ${metodeLabel}
+📋 Jenis Layanan: ${jenisLayananLabel}
+${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
+📝 Catatan: ${formData.notes || "-"}
+👤 Dihandle: ${selectedUser?.full_name || user?.full_name}
+👤 Operator: ${user?.full_name}
+⏰ ${new Date().toLocaleString("id-ID")}
+━━━━━━━━━━━━━━━━━━━━━━━━`;
+
       let photoUrls: string[] = initialData?.photo_url
         ? [initialData.photo_url]
         : [];
 
       if (photoFiles.length > 0) {
-        const urls = await uploadFiles(photoFiles, { type: "layanan" });
+        // Upload photos with description as caption
+        const urls = await uploadFiles(photoFiles, {
+          type: "layanan",
+          caption: transactionDescription,
+        });
         if (!urls || urls.length === 0) {
           toast.error("Gagal upload foto");
           return;
         }
         photoUrls = urls;
       }
-
-      const selectedUser = users.find((u) => u.id === formData.handled_by);
-
-      // Ensure jenis_layanan is always set (never null/undefined)
-      const jenisLayananValue = formData.jenis_layanan || "service_langsung";
 
       const { error } = await supabase.from("layanan").insert([
         {
@@ -236,30 +267,8 @@ export default function LayananForm({
 
       if (error) throw error;
 
-      // Send transaction to telegram
+      // Send transaction message to telegram (text notification)
       try {
-        const jenisLayananLabel =
-          jenisLayananOptions.find((opt) => opt.value === jenisLayananValue)
-            ?.label || jenisLayananValue;
-        const metodeLabel =
-          metodePembayaranOptions.find(
-            (opt) => opt.value === formData.metode_pembayaran,
-          )?.label || formData.metode_pembayaran;
-
-        const transactionDescription = `📊 TRANSAKSI BARU
-━━━━━━━━━━━━━━━━━━━━━━━━
-📱 Customer: ${formData.customer_name}
-📞 WA: ${formData.customer_whatsapp}
-💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
-💳 Metode: ${metodeLabel}
-📋 Jenis Layanan: ${jenisLayananLabel}
-${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
-📝 Catatan: ${formData.notes || "-"}
-👤 Dihandle: ${selectedUser?.full_name || user?.full_name}
-👤 Operator: ${user?.full_name}
-⏰ ${new Date().toLocaleString("id-ID")}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
-
         await fetch("/api/telegram", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -889,4 +898,4 @@ ${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
       )}
     </motion.div>
   );
-}
+});

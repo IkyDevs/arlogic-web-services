@@ -156,14 +156,18 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
     setError("");
 
     try {
+      // Clean and normalize token
+      const normalizedToken = token.trim().toUpperCase();
+
       // Fetch service order
       const { data, error: fetchError } = await supabase
         .from("service_orders")
         .select("*")
-        .eq("token", token.toUpperCase())
+        .eq("token", normalizedToken)
         .single();
 
       if (fetchError || !data) {
+        console.error("Token fetch error:", fetchError);
         setError("Token tidak valid. Silakan cek kembali.");
         setService(null);
         setItems([]);
