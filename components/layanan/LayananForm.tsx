@@ -39,6 +39,7 @@ const jenisLayananOptions = [
   { value: "order_online", label: "Order Online" },
   { value: "beli_jam", label: "Beli Jam" },
   { value: "pengeluaran", label: "Pengeluaran" },
+  { value: "analog_digital", label: "ANALOG-DIGITAL" },
 ];
 
 const metodePembayaranOptions = [
@@ -92,6 +93,7 @@ export default function LayananForm({
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   // Multiple photos
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -182,6 +184,12 @@ export default function LayananForm({
       return;
     }
 
+    // Show confirmation modal instead of submitting directly
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    setShowConfirmation(false);
     setLoading(true);
     try {
       let photoUrls: string[] = initialData?.photo_url
@@ -628,7 +636,7 @@ ${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
 
           {/* Preview grid */}
           {photoPreviews.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {photoPreviews.map((src, i) => (
                 <div
                   key={i}
@@ -736,6 +744,149 @@ ${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
           )}
         </div>
       </form>
+
+      {/* ── Confirmation Modal ─────────────────────────────────────────── */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-sm md:max-w-md border border-gray-200 dark:border-white/10"
+          >
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                Konfirmasi Transaksi
+              </h3>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex gap-2">
+                <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
+                  Periksa kembali semua data di bawah sebelum menyimpan
+                </p>
+              </div>
+
+              {/* Summary Items */}
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Customer
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {formData.customer_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formData.customer_whatsapp}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Nominal
+                    </p>
+                    <p className="text-sm font-bold text-blue-600">
+                      Rp {parseInt(formData.nominal).toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Jenis Layanan
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {
+                        jenisLayananOptions.find(
+                          (opt) => opt.value === formData.jenis_layanan,
+                        )?.label
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Metode Pembayaran
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {
+                      metodePembayaranOptions.find(
+                        (opt) => opt.value === formData.metode_pembayaran,
+                      )?.label
+                    }
+                  </p>
+                </div>
+
+                {formData.detail_sku && (
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      SKU / Detail
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {formData.detail_sku}
+                    </p>
+                  </div>
+                )}
+
+                {formData.notes && (
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Catatan
+                    </p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
+                      {formData.notes}
+                    </p>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Foto
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {photoPreviews.length} foto akan diupload
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmation(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-gray-100 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-white/20 transition-all text-sm"
+              >
+                Ubah
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                disabled={loading || uploading}
+                className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading || uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {uploading ? `Uploading ${progress}%…` : "Menyimpan…"}
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Simpan
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

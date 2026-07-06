@@ -379,8 +379,8 @@ export default function OwnerDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center p-4">
-        <div className="text-center bg-white dark:bg-[#111111] rounded-[24px] p-8 border border-gray-200 dark:border-white/5">
+      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center p-4 sm:p-6 md:p-8">
+        <div className="text-center bg-white dark:bg-[#111111] rounded-[24px] p-6 sm:p-8 md:p-10 border border-gray-200 dark:border-white/5">
           <div className="w-10 h-10 border border-gray-900 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-3 text-slate-500 dark:text-slate-400 font-medium">
             Loading dashboard...
@@ -396,17 +396,19 @@ export default function OwnerDashboard() {
       <div
         className={`sidebar-container fixed inset-y-0 left-0 w-64 bg-white dark:bg-[#111111] border-r border-gray-200 dark:border-white/5 z-40 transform transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 overflow-y-auto`}
       >
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-3 sm:p-4 md:p-5 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Watch className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-900">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900">
                   WatchService
                 </h1>
-                <p className="text-[10px] text-slate-500">Owner Panel</p>
+                <p className="text-[10px] sm:text-xs text-slate-500">
+                  Owner Panel
+                </p>
               </div>
             </div>
             <button
@@ -417,19 +419,23 @@ export default function OwnerDashboard() {
             </button>
           </div>
 
-          <div className="mt-4 flex items-center gap-3 p-2.5 bg-[#F5F5F7]/30 rounded-2xl">
-            <div className="w-9 h-9 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+          <div className="mt-3 sm:mt-4 flex items-center gap-2 sm:gap-3 p-2 sm:p-2.5 bg-[#F5F5F7]/30 rounded-2xl">
+            <div className="w-8 sm:w-9 h-8 sm:h-9 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm flex-shrink-0">
               {user?.full_name?.charAt(0) || "O"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{user?.full_name}</p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+              <p className="font-medium text-xs sm:text-sm truncate">
+                {user?.full_name}
+              </p>
+              <p className="text-[10px] sm:text-xs text-slate-500 truncate">
+                {user?.email}
+              </p>
             </div>
             <ThemeToggle />
           </div>
         </div>
 
-        <nav className="p-3 space-y-0.5">
+        <nav className="p-2 sm:p-3 md:p-4 space-y-0.5">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -485,7 +491,7 @@ export default function OwnerDashboard() {
                 <Menu className="w-5 h-5" />
               </button>
               <div className="min-w-0">
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900 truncate">
+                <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 truncate">
                   {menuItems.find((m) => m.id === activeTab)?.label}
                 </h2>
                 <p className="text-xs text-slate-400 hidden sm:block">
@@ -610,7 +616,7 @@ export default function OwnerDashboard() {
         </header>
 
         {/* ==================== CONTENT ==================== */}
-        <main className="p-3 sm:p-4 md:p-6">
+        <main className="p-2 sm:p-3 md:p-4 lg:p-5">
           <AnimatePresence mode="wait">
             {activeTab === "overview" && (
               <motion.div

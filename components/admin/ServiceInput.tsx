@@ -45,7 +45,8 @@ const QRCodeGenerator = dynamic(
 const watchMovements = [
   { value: "automatic", label: "AUTOMATIC", icon: Settings },
   { value: "quartz", label: "QUARTZ", icon: Battery },
-  { value: "digital", label: "DIGITAL", icon: RotateCw },
+  { value: "mechanical", label: "MECHANICAL", icon: Settings },
+  { value: "analog_digital", label: "ANALOG-DIGITAL", icon: RotateCw },
   { value: "smartwatch", label: "SMARTWATCH", icon: Smartphone },
 ];
 
@@ -547,7 +548,7 @@ Keterangan : —
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Tipe Jam <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {watchMovements.map((m) => (
                     <button
                       key={m.value}
@@ -627,7 +628,7 @@ Keterangan : —
 
             {/* Photo Grid */}
             {photoPreviews.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
                 {photoPreviews.map((src, i) => (
                   <div
                     key={i}

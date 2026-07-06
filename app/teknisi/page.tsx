@@ -493,7 +493,7 @@ export default function TeknisiDashboard() {
 
             {/* Page Title - Center on mobile */}
             <div className="flex-1 lg:flex-none text-center lg:text-left">
-              <h1 className="text-lg sm:text-lg md:text-xl font-bold text-slate-900">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900">
                 {menuItems.find((m) => m.id === activeTab)?.label}
               </h1>
             </div>
@@ -831,7 +831,7 @@ export default function TeknisiDashboard() {
       {/* Progress Update Modal */}
       {selectedService && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-sm md:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
             <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
@@ -879,7 +879,7 @@ export default function TeknisiDashboard() {
       {/* Layanan Form Modal */}
       {showLayananForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-slate-200">
+          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-sm md:max-w-lg max-h-[90vh] overflow-y-auto border border-slate-200">
             <LayananForm
               onSuccess={handleLayananSuccess}
               onClose={() => setShowLayananForm(false)}

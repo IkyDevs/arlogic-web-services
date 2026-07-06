@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS service_orders (
   watch_brand TEXT,
   watch_model TEXT,
   watch_year INTEGER,
-  watch_movement TEXT CHECK (watch_movement IN ('automatic','quartz','mechanical','smartwatch','other')),
+  watch_movement TEXT CHECK (watch_movement IN ('automatic','quartz','mechanical','smartwatch','analog_digital','other')),
   watch_condition TEXT CHECK (watch_condition IN ('new','excellent','good','fair','poor')),
   watch_accessories TEXT[],
   watch_serial_number TEXT,

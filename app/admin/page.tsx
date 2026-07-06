@@ -149,14 +149,11 @@ export default function AdminDashboard() {
           .select("*", { count: "exact", head: true })
           .eq("status", "completed")
           .gte("completed_at", today),
-        supabase
-          .from("service_orders")
-          .select("final_cost")
-          .eq("status", "completed"),
+        supabase.from("layanan").select("nominal").eq("status", "completed"),
       ]);
 
     const totalRevenue = (revenue.data || []).reduce(
-      (sum: number, item: any) => sum + (item.final_cost || 0),
+      (sum: number, item: any) => sum + (item.nominal || 0),
       0,
     );
 
@@ -459,9 +456,7 @@ export default function AdminDashboard() {
             <Watch className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-slate-900">
-              WatchService
-            </h1>
+            <h1 className="text-base font-bold text-slate-900">WatchService</h1>
             <p className="text-[10px] text-slate-500">Admin Panel</p>
           </div>
           <button
@@ -564,7 +559,7 @@ export default function AdminDashboard() {
 
             {/* Page Title - Center on mobile */}
             <div className="flex-1 lg:flex-none text-center lg:text-left">
-              <h1 className="text-lg sm:text-lg md:text-xl font-bold text-slate-900">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900">
                 {menuItems.find((m) => m.id === activeTab)?.label}
               </h1>
             </div>
@@ -794,139 +789,134 @@ export default function AdminDashboard() {
                   </button>
                 </div>
 
-                <div className="overflow-x-auto -mx-1">
-                  <div className="inline-block min-w-full align-middle">
-                    <table className="w-full min-w-[640px]">
-                      <thead>
-                        <tr>
-                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Invoice
-                          </th>
-                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Customer
-                          </th>
-                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Device
-                          </th>
-                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Token & QR
-                          </th>
-                          <th className="px-3 py-2.5 sm:px-5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            Aksi
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {recentServices.map((service) => (
-                          <tr
-                            key={service.id}
-                            className="hover:bg-slate-50/50 transition-all"
-                          >
-                            <td className="px-3 py-3 sm:px-5 sm:py-4">
-                              <span className="font-mono text-xs sm:text-sm font-medium text-slate-900">
-                                {service.invoice_number}
-                              </span>
-                              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
-                                {formatDate(service.created_at)}
-                              </p>
-                            </td>
-                            <td className="px-3 py-3 sm:px-5 sm:py-4">
-                              <p className="font-medium text-xs sm:text-sm text-slate-900">
-                                {service.customer_name}
-                              </p>
-                              <p className="text-[10px] sm:text-xs text-slate-400">
-                                {service.customer_phone}
-                              </p>
-                            </td>
-                            <td className="px-3 py-3 sm:px-5 sm:py-4">
-                              <p className="text-xs sm:text-sm text-slate-900">
-                                {service.watch_brand || service.device_brand}
-                              </p>
-                              <p className="text-[10px] sm:text-xs text-slate-400">
-                                {service.watch_model || service.device_model}
-                              </p>
-                            </td>
-                            <td className="px-3 py-3 sm:px-5 sm:py-4">
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
-                                  service.status === "pending"
-                                    ? "bg-yellow-50 text-yellow-700"
-                                    : service.status === "completed"
-                                      ? "bg-emerald-50 text-emerald-700"
-                                      : service.status === "in_progress"
-                                        ? "bg-gray-100 text-gray-600"
-                                        : service.status ===
-                                            "req_sparepart_admin"
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr>
+                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Invoice
+                        </th>
+                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider hidden sm:table-cell">
+                          Customer
+                        </th>
+                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider hidden md:table-cell">
+                          Device
+                        </th>
+                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider hidden lg:table-cell">
+                          Token & QR
+                        </th>
+                        <th className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                          Aksi
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {recentServices.map((service) => (
+                        <tr
+                          key={service.id}
+                          className="hover:bg-slate-50/50 transition-all"
+                        >
+                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4">
+                            <span className="font-mono text-xs sm:text-sm font-medium text-slate-900">
+                              {service.invoice_number}
+                            </span>
+                            <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
+                              {formatDate(service.created_at)}
+                            </p>
+                          </td>
+                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4 hidden sm:table-cell">
+                            <p className="font-medium text-xs sm:text-sm text-slate-900">
+                              {service.customer_name}
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-slate-400">
+                              {service.customer_phone}
+                            </p>
+                          </td>
+                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4 hidden md:table-cell">
+                            <p className="text-xs sm:text-sm text-slate-900">
+                              {service.watch_brand || service.device_brand}
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-slate-400">
+                              {service.watch_model || service.device_model}
+                            </p>
+                          </td>
+                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+                                service.status === "pending"
+                                  ? "bg-yellow-50 text-yellow-700"
+                                  : service.status === "completed"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : service.status === "in_progress"
+                                      ? "bg-gray-100 text-gray-600"
+                                      : service.status === "req_sparepart_admin"
+                                        ? "bg-yellow-50 text-yellow-700"
+                                        : service.status === "po_pending"
                                           ? "bg-yellow-50 text-yellow-700"
-                                          : service.status === "po_pending"
-                                            ? "bg-yellow-50 text-yellow-700"
-                                            : service.status ===
-                                                "sparepart_ready"
-                                              ? "bg-emerald-50 text-emerald-700"
-                                              : "bg-slate-100 text-slate-700"
-                                }`}
+                                          : service.status === "sparepart_ready"
+                                            ? "bg-emerald-50 text-emerald-700"
+                                            : "bg-slate-100 text-slate-700"
+                              }`}
+                            >
+                              {service.status === "req_sparepart_admin"
+                                ? "Request PO"
+                                : service.status === "po_pending"
+                                  ? "PO"
+                                  : service.status === "sparepart_ready"
+                                    ? "Ready"
+                                    : service.status}
+                            </span>
+                          </td>
+                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4 hidden lg:table-cell">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <button
+                                onClick={() => openQRModal(service)}
+                                className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all flex-shrink-0"
+                                title="Lihat QR Code"
                               >
-                                {service.status === "req_sparepart_admin"
-                                  ? "Request PO"
-                                  : service.status === "po_pending"
-                                    ? "PO"
-                                    : service.status === "sparepart_ready"
-                                      ? "Ready"
-                                      : service.status}
+                                <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              </button>
+                              <button
+                                onClick={() => copyToken(service.token)}
+                                className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all flex-shrink-0"
+                                title="Salin Token"
+                              >
+                                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
+                              </button>
+                              <span className="text-[10px] sm:text-xs font-mono text-slate-500 truncate max-w-[50px] sm:max-w-[60px]">
+                                {service.token}
                               </span>
-                            </td>
-                            <td className="px-3 py-3 sm:px-5 sm:py-4">
-                              <div className="flex items-center gap-1.5 sm:gap-2">
-                                <button
-                                  onClick={() => openQRModal(service)}
-                                  className="p-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all flex-shrink-0"
-                                  title="Lihat QR Code"
-                                >
-                                  <QrCode className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </button>
-                                <button
-                                  onClick={() => copyToken(service.token)}
-                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all flex-shrink-0"
-                                  title="Salin Token"
-                                >
-                                  <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
-                                </button>
-                                <span className="text-[10px] sm:text-xs font-mono text-slate-500 truncate max-w-[50px] sm:max-w-[60px]">
-                                  {service.token}
-                                </span>
-                                {service.token_expires_at &&
-                                  new Date(service.token_expires_at) <
-                                    new Date() && (
-                                    <span className="text-[10px] sm:text-xs text-red-500 font-medium">
-                                      Expired
-                                    </span>
-                                  )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 sm:px-5 sm:py-4">
-                              {!service.token_expires_at ||
-                              new Date(service.token_expires_at) >
-                                new Date() ? (
-                                <button
-                                  onClick={() => markTokenExpired(service.id)}
-                                  className="text-[10px] sm:text-xs text-red-500 hover:text-red-700 font-medium"
-                                >
-                                  Nonaktifkan
-                                </button>
-                              ) : (
-                                <span className="text-[10px] sm:text-xs text-slate-400">
-                                  Nonaktif
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                              {service.token_expires_at &&
+                                new Date(service.token_expires_at) <
+                                  new Date() && (
+                                  <span className="text-[10px] sm:text-xs text-red-500 font-medium">
+                                    Expired
+                                  </span>
+                                )}
+                            </div>
+                          </td>
+                          <td className="px-2 sm:px-3 md:px-5 py-2.5 sm:py-4">
+                            {!service.token_expires_at ||
+                            new Date(service.token_expires_at) > new Date() ? (
+                              <button
+                                onClick={() => markTokenExpired(service.id)}
+                                className="text-[10px] sm:text-xs text-red-500 hover:text-red-700 font-medium"
+                              >
+                                Nonaktifkan
+                              </button>
+                            ) : (
+                              <span className="text-[10px] sm:text-xs text-slate-400">
+                                Nonaktif
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
                 {recentServices.length === 0 && (

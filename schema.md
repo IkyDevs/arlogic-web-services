@@ -58,7 +58,7 @@
 - id UUID PK
 - customer_name TEXT
 - customer_whatsapp TEXT
-- jenis_layanan TEXT
+- jenis_layanan TEXT (service_langsung, dp_service, ambil_jam_service, order_online, beli_jam, pengeluaran, analog_digital) - **Updated in Revisi v3**
 - handled_by UUID (FK profiles)
 - handled_by_name TEXT
 - metode_pembayaran TEXT
@@ -67,7 +67,8 @@
 - detail_sku TEXT
 - nominal NUMERIC DEFAULT 0
 - notes TEXT
-- photo_url TEXT
+- photo_url TEXT (backward compat - first photo)
+- photo_urls JSONB (array of URLs - **Added in Revisi v3 for multiple photos**)
 - created_by UUID (FK profiles)
 - created_by_name TEXT
 - status TEXT DEFAULT 'active'

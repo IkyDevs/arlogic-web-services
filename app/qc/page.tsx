@@ -275,7 +275,7 @@ export default function QCDashboard() {
 
             {/* Page Title - Center on mobile */}
             <div className="flex-1 lg:flex-none text-center lg:text-left">
-              <h1 className="text-lg sm:text-lg md:text-xl font-bold text-slate-900">
+              <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900">
                 QC Dashboard
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
