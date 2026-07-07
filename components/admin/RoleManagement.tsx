@@ -25,6 +25,9 @@ import {
   MoreVertical,
   Copy,
   Check,
+  Star,
+  Wrench,
+  User,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -734,5 +737,3 @@ export default function RoleManagement() {
   );
 }
 
-// Import missing icons
-import { Star, Wrench, User } from "lucide-react";

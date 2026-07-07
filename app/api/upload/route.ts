@@ -71,8 +71,10 @@ export async function POST(request: NextRequest) {
         console.log(`📐 Resized to: ${width}x${height}`)
         
         const processedBuffer = await sharp(buffer)
+          .rotate()
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
           .resize(width, height, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 90 })
+          .jpeg({ quality: 85 })
           .toBuffer()
         
         console.log(`✅ Processed: ${buffer.length} → ${processedBuffer.length} bytes`)

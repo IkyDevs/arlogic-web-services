@@ -830,31 +830,26 @@ export default function TeknisiDashboard() {
 
       {/* Progress Update Modal */}
       {selectedService && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-sm md:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
-            <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-slate-900 rounded-md sm:rounded-lg flex items-center justify-center">
-                  <Wrench className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedService(null)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                  <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
                 </div>
-                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-slate-900">
-                  Update Service
-                </h3>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Update Service</h2>
+                  <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                </div>
               </div>
-              <button
-                onClick={() => setSelectedService(null)}
-                className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-all"
-              >
-                <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+              <button onClick={() => setSelectedService(null)}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 sm:p-5">
-              <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
-                Service:{" "}
-                <span className="font-medium">
-                  {selectedService.invoice_number}
-                </span>
-              </p>
+            <div className="flex-1 overflow-y-auto p-6">
               <ProgressUpdate
                 service={selectedService}
                 onUpdate={() => {
@@ -863,7 +858,7 @@ export default function TeknisiDashboard() {
                 }}
               />
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 

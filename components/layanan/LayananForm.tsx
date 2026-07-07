@@ -267,27 +267,6 @@ ${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
 
       if (error) throw error;
 
-      // Send transaction message to telegram (text notification)
-      try {
-        await fetch("/api/telegram", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "transaction",
-            message: transactionDescription,
-            data: {
-              customer_name: formData.customer_name,
-              nominal: parseInt(formData.nominal),
-              jenis_layanan: jenisLayananValue,
-              metode_pembayaran: formData.metode_pembayaran,
-            },
-          }),
-        });
-      } catch (telegramErr) {
-        console.error("Failed to send transaction to telegram:", telegramErr);
-        // Continue even if telegram fails
-      }
-
       toast.success("Transaksi berhasil ditambahkan!");
       onSuccess?.();
       onClose?.();

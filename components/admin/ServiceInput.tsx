@@ -70,7 +70,7 @@ const watchBrands = [
 
 const STEP_LABELS = ["Customer", "Watch", "Photos", "Issue"];
 
-export default function ServiceInput() {
+export default function ServiceInput({ variant = "page" }: { variant?: "page" | "modal" }) {
   const supabase = createClient();
   const { uploadFile, uploadFiles, uploading, progress } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -216,9 +216,12 @@ export default function ServiceInput() {
 
       const serviceId = orderData.id;
 
-      // Merge QRIS bukti pembayaran dengan initial condition photos
+      // Merge QRIS/Transfer bukti pembayaran dengan initial condition photos
       let allPhotosToUpload = [...photos];
-      if (formData.payment_method === "qris" && formData.qris_photo) {
+      if (
+        (formData.payment_method === "qris" || formData.payment_method === "transfer") &&
+        formData.qris_photo
+      ) {
         allPhotosToUpload.push(formData.qris_photo);
       }
 
@@ -338,37 +341,6 @@ Keterangan : —
           .select("id")
           .single();
 
-        // Send DP transaction to telegram
-        try {
-          const dpDescription = `📊 TRANSAKSI DP
-━━━━━━━━━━━━━━━━━━━━━━━━
-📱 Customer: ${formData.cs_name}
-📞 WA: ${formData.cs_phone}
-💰 Nominal: Rp ${dpValue.toLocaleString("id-ID")}
-💳 Metode: ${formData.payment_method === "qris" ? "QRIS" : formData.payment_method === "transfer" ? "Transfer" : "Cash"}
-📋 Invoice: ${invoiceNumber}
-📝 Keterangan: Down Payment
-👤 Operator: ${userProfile?.full_name || "System"}
-⏰ ${new Date().toLocaleString("id-ID")}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-          await fetch("/api/telegram", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "transaction",
-              message: dpDescription,
-              data: {
-                customer_name: formData.cs_name,
-                nominal: dpValue,
-                metode_pembayaran: formData.payment_method,
-              },
-            }),
-          });
-        } catch (telegramErr) {
-          console.error("Failed to send DP to telegram:", telegramErr);
-          // Continue even if telegram fails
-        }
       }
 
       setLastInvoice({ invoice: invoiceNumber, token, serviceId });
@@ -407,9 +379,9 @@ Keterangan : —
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-3 sm:py-4 px-0 sm:px-4 overflow-x-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4 sm:mb-6 px-4 sm:px-0">
+    <div className={`overflow-x-hidden ${variant === "modal" ? "" : "max-w-3xl mx-auto py-3 sm:py-4 px-0 sm:px-4"}`}>
+      {variant === "page" && (
+        <div className="flex items-center gap-3 mb-4 sm:mb-6 px-4 sm:px-0">
         <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
           <Watch className="w-5 h-5 text-white dark:text-gray-900" />
         </div>
@@ -422,6 +394,7 @@ Keterangan : —
           </p>
         </div>
       </div>
+      )}
 
       <AnimatePresence mode="wait">
         {/* ── STEP 1: Customer ─────────────────────────────────────────── */}

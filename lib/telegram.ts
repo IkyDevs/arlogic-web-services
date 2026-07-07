@@ -78,6 +78,9 @@ export async function uploadMultipleToTelegram(
 
   const urls: string[] = []
 
+  const toBlob = (buffer: Buffer): Blob =>
+    new Blob([new Uint8Array(buffer)], { type: 'image/jpeg' })
+
   try {
     const CHUNK_SIZE = 10
     for (let i = 0; i < files.length; i += CHUNK_SIZE) {
@@ -96,7 +99,7 @@ export async function uploadMultipleToTelegram(
       chunk.forEach((file, index) => {
         formData.append(
           `photo_${index}`,
-          new Blob([file.buffer as unknown as BlobPart], { type: 'image/jpeg' }),
+          toBlob(file.buffer),
           `photo_${index}.jpg`
         )
       })
@@ -137,14 +140,17 @@ export async function uploadMultipleToTelegram(
     }
   } catch (error: any) {
     console.error('❌ sendMediaGroup failed, falling back to sendPhoto:', error.message)
+    console.error('   Caption length:', caption.length, 'chars, Files:', files.length)
     
-    for (const file of files) {
+    for (let fi = 0; fi < files.length; fi++) {
+      const file = files[fi]
       try {
+        console.log(`   Fallback sending photo ${fi + 1}/${files.length}: ${file.name}`)
         const url = await sendPhotoBlob(
           channelId,
-          new Blob([file.buffer as unknown as BlobPart], { type: 'image/jpeg' }),
+          toBlob(file.buffer),
           file.name,
-          files.indexOf(file) === 0 ? caption : undefined
+          fi === 0 ? caption : undefined
         )
         urls.push(url)
       } catch (fallbackError: any) {

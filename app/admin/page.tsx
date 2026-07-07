@@ -75,6 +75,11 @@ const ServiceInput = dynamic(() => import("@/components/admin/ServiceInput"), {
     <div className="text-center py-8 text-slate-500">Loading...</div>
   ),
 });
+const ServiceList = dynamic(() => import("@/components/admin/ServiceList"), {
+  loading: () => (
+    <div className="text-center py-8 text-slate-500">Loading...</div>
+  ),
+});
 const ExportReports = dynamic(
   () => import("@/components/admin/ExportReports"),
   {
@@ -99,6 +104,14 @@ const AdminDashboardAnalytics = dynamic(
     ),
   },
 );
+const AttendanceDashboard = dynamic(
+  () => import("@/components/admin/AttendanceDashboard"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
 
 export default function AdminDashboard() {
   let isDark = false;
@@ -113,10 +126,13 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLayananForm, setShowLayananForm] = useState(false);
+  const [showServiceForm, setShowServiceForm] = useState(false);
   const [refreshLayanan, setRefreshLayanan] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [showTransactionDetail, setShowTransactionDetail] = useState(false);
 
   // Attendance
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
@@ -600,6 +616,7 @@ export default function AdminDashboard() {
     },
     { id: "services", label: "Service", icon: ClipboardList },
     { id: "sparepart", label: "Request Sparepart", icon: Package },
+    { id: "attendance", label: "Absensi", icon: Clock },
     { id: "users", label: "Users", icon: Users },
     { id: "inventory", label: "Inventory", icon: Package },
     { id: "export", label: "Export", icon: Download },
@@ -801,7 +818,7 @@ export default function AdminDashboard() {
                                       onClick={() => {
                                         setSearchQuery("");
                                         setShowSearchResults(false);
-                                        setActiveTab("transaction");
+                                        setActiveTab("services");
                                       }}
                                     >
                                       <p className="text-sm font-medium text-slate-900">
@@ -819,7 +836,7 @@ export default function AdminDashboard() {
                                       onClick={() => {
                                         setSearchQuery("");
                                         setShowSearchResults(false);
-                                        setActiveTab("transaction");
+                                        setActiveTab("services");
                                       }}
                                       className="text-xs text-gray-600 hover:text-gray-900"
                                     >
@@ -987,11 +1004,17 @@ export default function AdminDashboard() {
               totalUsers={stats.totalUsers}
               totalServices={stats.totalServices}
               totalInventory={stats.totalInventory}
+              pendingServices={stats.pendingServices}
               revenue={stats.revenue}
               revenueGrowth={stats.revenueGrowth}
               isDark={isDark}
               chartData={chartData}
               recentTransactions={recentTransactions}
+              onTransactionClick={(tx) => {
+                setSelectedTransaction(tx);
+                setShowTransactionDetail(true);
+              }}
+              onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
 
@@ -1021,13 +1044,28 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === "services" && <ServiceInput />}
+          {activeTab === "services" && (
+            <ServiceList onAdd={() => setShowServiceForm(true)} />
+          )}
 
           {activeTab === "sparepart" && <POSection onUpdate={fetchStats} />}
 
           {activeTab === "inventory" && (
             <InventoryManagement onUpdate={fetchInventory} />
           )}
+
+          {activeTab === "attendance" && (
+            <AttendanceDashboard
+              user={user}
+              todayAttendance={todayAttendance}
+              onAttendanceChange={() => {
+                checkTodayAttendance();
+                fetchStats();
+              }}
+            />
+          )}
+
+          {activeTab === "users" && <RoleManagement />}
 
           {activeTab === "export" && <ExportReports />}
         </main>
@@ -1046,6 +1084,106 @@ export default function AdminDashboard() {
               setSelectedService(null);
             }}
           />
+        </div>
+      )}
+
+      {/* Transaction Detail Modal */}
+      {showTransactionDetail && selectedTransaction && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowTransactionDetail(false)}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-5 py-4 flex items-center justify-between z-10">
+              <h3 className="font-bold text-slate-900">Detail Transaksi</h3>
+              <button onClick={() => setShowTransactionDetail(false)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <User className="w-8 h-8 text-blue-600 p-1.5 bg-blue-100 rounded-lg" />
+                <div>
+                  <p className="text-xs text-slate-500">Customer</p>
+                  <p className="font-semibold text-slate-900">{selectedTransaction.customer_name}</p>
+                  <p className="text-sm text-slate-600">{selectedTransaction.customer_whatsapp}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Nominal</p>
+                  <p className="font-bold text-emerald-600 text-lg">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(selectedTransaction.nominal || 0)}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Jenis Layanan</p>
+                  <p className="font-semibold text-slate-900 text-sm capitalize">{({ service_langsung: "Service Langsung", dp_service: "DP Service", ambil_jam_service: "Ambil Jam", order_online: "Order Online", beli_jam: "Beli Jam", pengeluaran: "Pengeluaran", analog_digital: "Analog Digital" } as Record<string, string>)[selectedTransaction.jenis_layanan] || selectedTransaction.jenis_layanan}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pembayaran</p>
+                  <p className="font-semibold text-slate-900 text-sm">{({ cash: "Cash", qris: "QRIS", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" } as Record<string, string>)[selectedTransaction.metode_pembayaran] || selectedTransaction.metode_pembayaran}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Staff</p>
+                  <p className="font-semibold text-slate-900 text-sm">{selectedTransaction.handled_by_name || "-"}</p>
+                </div>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Waktu</p>
+                <p className="text-sm text-slate-700">{new Date(selectedTransaction.created_at).toLocaleString("id-ID")}</p>
+              </div>
+              {selectedTransaction.detail_sku && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">SKU / Detail</p>
+                  <p className="text-sm text-slate-700">{selectedTransaction.detail_sku}</p>
+                </div>
+              )}
+              {selectedTransaction.notes && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Catatan</p>
+                  <p className="text-sm text-slate-700">{selectedTransaction.notes}</p>
+                </div>
+              )}
+              {selectedTransaction.photo_urls && selectedTransaction.photo_urls.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Foto Bukti</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedTransaction.photo_urls.map((url: string, i: number) => (
+                      <img key={i} src={url} alt={"foto-" + i} className="rounded-lg border border-slate-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => window.open(url, "_blank")} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Service Input Modal */}
+      {showServiceForm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowServiceForm(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                  <Watch className="w-4 h-4 text-white dark:text-gray-900" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">New Watch Service</h2>
+                  <p className="text-xs text-gray-500">Create service order for timepiece</p>
+                </div>
+              </div>
+              <button onClick={() => setShowServiceForm(false)}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            {/* Modal Content */}
+            <div className="p-6">
+              <ServiceInput variant="modal" />
+            </div>
+          </motion.div>
         </div>
       )}
 

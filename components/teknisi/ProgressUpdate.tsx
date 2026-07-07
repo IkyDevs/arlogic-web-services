@@ -211,11 +211,11 @@ export default function ProgressUpdate({
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex-1 text-center">
             <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center text-sm font-semibold ${
-              step >= s ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-500'
+              step >= s ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-500'
             }`}>
               {s}
             </div>
-            <p className="text-xs mt-1 text-slate-500">
+            <p className="text-xs mt-1 text-gray-500">
               {s === 1 ? 'Photos' : s === 2 ? 'Items' : 'Summary'}
             </p>
           </div>
@@ -230,16 +230,16 @@ export default function ProgressUpdate({
              initial={{ opacity: 0, x: 20 }}
              animate={{ opacity: 1, x: 0 }}
              exit={{ opacity: 0, x: -20 }}
-             className="bg-slate-50 rounded-xl p-4 border border-slate-200"
+             className="bg-gray-50 rounded-xl p-4 border border-gray-200"
            >
-            <h3 className="font-semibold text-slate-900 mb-4">Service Photos</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Service Photos</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               {photoPreviews.map((preview, index) => (
                 <div key={index} className="relative group">
                   <img
                     src={preview}
                     alt={`Service ${index + 1}`}
-                    className="w-full h-32 object-cover rounded-lg border border-slate-200"
+                    className="w-full h-32 object-cover rounded-lg border border-gray-200"
                   />
                   <button
                     onClick={() => removePhoto(index)}
@@ -251,10 +251,10 @@ export default function ProgressUpdate({
               ))}
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-blue-600 transition-colors"
+                className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:border-gray-900 transition-colors"
               >
-                <Camera className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <span className="text-xs text-slate-500">Add Photo</span>
+                <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <span className="text-xs text-gray-500">Add Photo</span>
               </button>
               <input
                 ref={fileInputRef}
@@ -265,7 +265,7 @@ export default function ProgressUpdate({
                 className="hidden"
               />
             </div>
-            <p className="text-xs text-slate-400">Upload photos of the service progress</p>
+            <p className="text-xs text-gray-400">Upload photos of the service progress</p>
           </motion.div>
         )}
 
@@ -276,15 +276,15 @@ export default function ProgressUpdate({
              initial={{ opacity: 0, x: 20 }}
              animate={{ opacity: 1, x: 0 }}
              exit={{ opacity: 0, x: -20 }}
-             className="bg-slate-50 rounded-xl p-4 border border-slate-200"
+             className="bg-gray-50 rounded-xl p-4 border border-gray-200"
            >
-            <h3 className="font-semibold text-slate-900 mb-4">Service Items</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Service Items</h3>
 
             {/* Items List */}
             {items.length > 0 && (
               <div className="mb-4 space-y-2 max-h-60 overflow-y-auto">
                 {items.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200">
+                  <div key={index} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200">
                     <div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -294,7 +294,7 @@ export default function ProgressUpdate({
                         </span>
                         <span className="font-medium">{item.name}</span>
                       </div>
-                      <div className="text-sm text-slate-500 mt-1">
+                      <div className="text-sm text-gray-500 mt-1">
                         {item.quantity} x Rp {item.price.toLocaleString()}
                       </div>
                     </div>
@@ -314,7 +314,7 @@ export default function ProgressUpdate({
               <select
                 value={newItem.item_type}
                 onChange={(e) => setNewItem({ ...newItem, item_type: e.target.value as 'jasa' | 'sparepart' })}
-                className="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                className="px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 text-sm"
               >
                 <option value="jasa">Jasa Service</option>
                 <option value="sparepart">Sparepart</option>
@@ -324,18 +324,18 @@ export default function ProgressUpdate({
                 placeholder="Item name"
                 value={newItem.name}
                 onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                className="md:col-span-2 px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                className="md:col-span-2 px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 text-sm"
               />
               <input
                 type="number"
                 placeholder="Price"
                 value={newItem.price || ''}
                 onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) })}
-                className="px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                className="px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 text-sm"
               />
               <button
                 onClick={addItem}
-                className="bg-slate-900 text-white py-2 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                className="bg-gray-900 text-white py-2 rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-sm font-medium"
               >
                 <Plus className="w-4 h-4" />
                 Add
@@ -351,52 +351,52 @@ export default function ProgressUpdate({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="bg-[#F8F9FA] rounded-xl p-4 border border-slate-200"
+            className="bg-gray-50 rounded-xl p-4 border border-gray-200"
           >
-            <h3 className="font-semibold text-slate-900 mb-4">Service Summary</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Service Summary</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-900 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Start Date
                 </label>
                 <input
                   type="date"
                   value={startDate.toISOString().split('T')[0]}
                   onChange={(e) => setStartDate(new Date(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-900 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Done Date (Optional)
                 </label>
                 <input
                   type="date"
                   value={doneDate?.toISOString().split('T')[0] || ''}
                   onChange={(e) => setDoneDate(e.target.value ? new Date(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-900 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Completion Notes
                 </label>
                 <textarea
                   value={completionNotes}
                   onChange={(e) => setCompletionNotes(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-600 resize-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 text-sm resize-none"
                   placeholder="Add notes about the service completion..."
                 />
               </div>
 
-              <div className="pt-4 border-t border-slate-200">
+              <div className="pt-4 border-t border-gray-200">
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total Cost</span>
-                  <span className="text-2xl text-blue-600">Rp {finalCost.toLocaleString()}</span>
+                  <span className="text-2xl text-gray-900">Rp {finalCost.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -409,7 +409,7 @@ export default function ProgressUpdate({
         {step > 1 && (
           <button
             onClick={prevStep}
-            className="px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all"
+            className="px-4 py-2 bg-white text-gray-900 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all text-sm font-medium"
           >
             Back
           </button>
@@ -417,7 +417,7 @@ export default function ProgressUpdate({
         {step < 3 ? (
           <button
             onClick={nextStep}
-            className={`flex-1 bg-slate-900 text-white font-medium py-2.5 rounded-lg hover:bg-slate-800 transition-all ${step === 1 ? 'w-full' : ''}`}
+            className={`flex-1 bg-gray-900 text-white font-medium py-2.5 rounded-xl hover:bg-gray-800 transition-all text-sm ${step === 1 ? 'w-full' : ''}`}
           >
             Continue
           </button>
@@ -425,7 +425,7 @@ export default function ProgressUpdate({
           <button
             onClick={submitProgress}
             disabled={loading}
-            className="w-full bg-slate-900 text-white font-medium py-2.5 rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50"
+            className="w-full bg-gray-900 text-white font-medium py-2.5 rounded-xl hover:bg-gray-800 transition-all disabled:opacity-50 text-sm"
           >
             {loading ? 'Saving...' : 'Save Progress'}
           </button>
@@ -433,24 +433,24 @@ export default function ProgressUpdate({
       </div>
 
       {/* Action Buttons - Add Jasa, Add Sparepart, Submit to QC */}
-      <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t border-slate-200">
+      <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t border-gray-200">
         <button
           onClick={onAddJasa}
-          className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+          className="flex-1 bg-blue-600 text-white font-medium py-2.5 rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-sm"
         >
           <Wrench className="w-4 h-4" />
           TAMBAH JASA
         </button>
         <button
           onClick={onAddSparepart}
-          className="flex-1 bg-[#F8F9FA] text-slate-900 font-medium py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+          className="flex-1 bg-white text-gray-900 font-medium py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 text-sm"
         >
           <Package className="w-4 h-4" />
           TAMBAH SPAREPART
         </button>
         <button
           onClick={onSubmitToQC}
-          className="flex-1 bg-slate-900 text-white font-medium py-2.5 rounded-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+          className="flex-1 bg-gray-900 text-white font-medium py-2.5 rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-sm"
         >
           <CheckCircle className="w-4 h-4" />
           SUBMIT TO QC
@@ -459,14 +459,14 @@ export default function ProgressUpdate({
 
       {/* Upload Progress */}
       {uploading && (
-        <div className="fixed bottom-4 right-4 bg-white rounded-xl shadow-lg p-4 w-64 border border-slate-200">
+        <div className="fixed bottom-4 right-4 bg-white rounded-xl shadow-lg p-4 w-64 border border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-5 w-5 border border-blue-600 border-t-transparent" />
+            <div className="animate-spin rounded-full h-5 w-5 border border-gray-900 border-t-transparent" />
             <div className="flex-1">
-              <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-600 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div className="h-full bg-gray-900 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
               </div>
-              <p className="text-xs text-slate-500 mt-1">Uploading photos... {progress}%</p>
+              <p className="text-xs text-gray-500 mt-1">Uploading photos... {progress}%</p>
             </div>
           </div>
         </div>

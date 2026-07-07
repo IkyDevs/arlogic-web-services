@@ -240,7 +240,7 @@ export default function QueueList({
       },
       pending: {
         label: "MENUNGGU",
-        color: "bg-slate-100 text-slate-700 border-slate-200",
+        color: "bg-gray-100 text-gray-700 border-gray-200",
       },
       completed: {
         label: "SELESAI",
@@ -292,9 +292,9 @@ export default function QueueList({
 
   if (loading) {
     return (
-      <div className="border border-slate-200 p-8 text-center">
-        <div className="inline-block w-6 h-6 border border-slate-200 border-t-transparent rounded-full animate-spin" />
-        <p className="mt-2 font-mono">LOADING...</p>
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
+        <div className="inline-block w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+        <p className="mt-3 text-sm font-medium text-gray-500">Memuat data...</p>
       </div>
     );
   }
@@ -303,29 +303,26 @@ export default function QueueList({
     <div className="space-y-8">
       {/* My Current Projects Section */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-[#2563eb] flex items-center justify-center border border-slate-200">
-            <Wrench className="w-4 h-4 text-white" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+            <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
           </div>
-          <h3 className="text-xl font-black">
-            PROYEK SAYA ({myServices.length})
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            Proyek Saya ({myServices.length})
           </h3>
         </div>
 
         {myServices.length === 0 ? (
-          <div className="border border-slate-200 p-8 text-center bg-slate-50">
-            <Package className="w-12 h-12 mx-auto mb-2 text-slate-400" />
-            <p className="font-mono">Belum ada proyek yang diambil</p>
-            <p className="text-xs text-slate-500">
-              Ambil proyek dari daftar di bawah
-            </p>
+          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
+            <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <p className="text-sm font-medium text-gray-500">Belum ada proyek yang diambil</p>
+            <p className="text-xs text-gray-400 mt-1">Ambil proyek dari daftar di bawah</p>
           </div>
         ) : (
           <div className="grid gap-4">
             {myServices.map((service, index) => {
               const statusBadge = getStatusBadge(service.status);
-              const lastUpdateMessage =
-                service.last_update?.message || "Belum ada update";
+              const lastUpdateMessage = service.last_update?.message || "Belum ada update";
 
               return (
                 <motion.div
@@ -333,67 +330,47 @@ export default function QueueList({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all overflow-hidden"
                 >
                   <div className="p-4">
                     <div className="flex flex-wrap justify-between items-start gap-3">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="px-2 py-0.5 bg-slate-900 text-white text-xs font-mono rounded">
+                          <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
                             {service.invoice_number}
                           </span>
-                          <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}
-                          >
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}>
                             {statusBadge.label}
                           </span>
                           {service.status === "req_sparepart_admin" && (
-                            <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full border border-orange-200">
-                              ⏳ Menunggu Admin
-                            </span>
+                            <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full border border-orange-200">⏳ Menunggu Admin</span>
                           )}
                           {service.status === "po_pending" && (
-                            <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full border border-purple-200">
-                              📦 PO Diproses
-                            </span>
+                            <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full border border-purple-200">📦 PO Diproses</span>
                           )}
                           {service.status === "sparepart_ready" && (
-                            <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full border border-green-200">
-                              ✅ Siap Diambil
-                            </span>
+                            <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full border border-green-200">✅ Siap Diambil</span>
                           )}
                           {service.last_update && (
-                            <span className="text-xs text-slate-400">
-                              Update:{" "}
-                              {new Date(
-                                service.last_update.created_at,
-                              ).toLocaleDateString()}
-                            </span>
+                            <span className="text-xs text-gray-400">{new Date(service.last_update.created_at).toLocaleDateString()}</span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
-                          <div className="flex items-center gap-1 text-sm">
-                            <User className="w-4 h-4 text-slate-400" />
-                            <span className="font-medium">
-                              {service.customer_name}
-                            </span>
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <User className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{service.customer_name}</span>
                           </div>
-                          <div className="flex items-center gap-1 text-sm">
-                            <Watch className="w-4 h-4 text-slate-400" />
-                            <span>
-                              {service.watch_brand || service.device_brand}{" "}
-                              {service.watch_model || service.device_model}
-                            </span>
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Watch className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600 dark:text-gray-400">{service.watch_brand || service.device_brand}{" "}{service.watch_model || service.device_model}</span>
                           </div>
                         </div>
 
-                        <p className="text-sm text-slate-600 line-clamp-2 mb-2">
-                          {service.issue_description}
-                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">{service.issue_description}</p>
 
                         {service.last_update && (
-                          <div className="flex items-center gap-2 text-xs text-slate-500 mt-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-2">
                             <Clock className="w-3 h-3" />
                             <span>Terakhir: {lastUpdateMessage}</span>
                           </div>
@@ -401,59 +378,32 @@ export default function QueueList({
                       </div>
 
                       <div className="flex gap-2 flex-wrap">
-                        {/* Timeline - Selalu muncul */}
-                        <button
-                          onClick={() => openTimeline(service)}
-                          className="px-3 py-1.5 text-sm bg-white text-slate-900 font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1"
-                        >
-                          <Clock className="w-4 h-4" />
-                          TIMELINE
+                        <button onClick={() => openTimeline(service)}
+                          className="px-3 py-1.5 text-sm bg-white dark:bg-[#1c1c1c] text-gray-900 dark:text-gray-100 font-medium border border-gray-200 dark:border-white/10 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all flex items-center gap-1">
+                          <Clock className="w-4 h-4" /> TIMELINE
                         </button>
-
-                        {/* UPDATE SERVICE - Untuk assigned, in_progress, dan revision_required */}
-                        {(service.status === "assigned" ||
-                          service.status === "in_progress" ||
-                          service.status === "revision_required") && (
-                          <button
-                            onClick={() => openProgressUpdate(service)}
-                            className="px-3 py-1.5 text-sm bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-all flex items-center gap-1"
-                          >
+                        {(service.status === "assigned" || service.status === "in_progress" || service.status === "revision_required") && (
+                          <button onClick={() => openProgressUpdate(service)}
+                            className="px-3 py-1.5 text-sm bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1">
                             <Wrench className="w-4 h-4" />
-                            {service.status === "revision_required"
-                              ? "REVISI & KIRIM"
-                              : "UPDATE SERVICE"}
+                            {service.status === "revision_required" ? "REVISI & KIRIM" : "UPDATE SERVICE"}
                           </button>
                         )}
-
-                        {/* REMINDER - Untuk req_sparepart_admin dan po_pending */}
-                        {(service.status === "req_sparepart_admin" ||
-                          service.status === "po_pending") && (
-                          <button
-                            onClick={() => sendReminderToAdmin(service)}
-                            className="px-3 py-1.5 text-sm bg-yellow-500 text-white font-medium rounded-lg hover:bg-yellow-600 transition-all flex items-center gap-1"
-                            title="Kirim peringatan ke admin"
-                          >
-                            <Bell className="w-4 h-4" />
-                            REMINDER
+                        {(service.status === "req_sparepart_admin" || service.status === "po_pending") && (
+                          <button onClick={() => sendReminderToAdmin(service)}
+                            className="px-3 py-1.5 text-sm bg-yellow-500 text-white font-medium rounded-xl hover:bg-yellow-600 transition-all flex items-center gap-1" title="Kirim peringatan ke admin">
+                            <Bell className="w-4 h-4" /> REMINDER
                           </button>
                         )}
-
-                        {/* AMBIL SPAREPART - Hanya untuk sparepart_ready */}
                         {service.status === "sparepart_ready" && (
-                          <button
-                            onClick={() => openAddSparepart(service)}
-                            className="px-3 py-1.5 text-sm bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 transition-all flex items-center gap-1"
-                          >
-                            <Package className="w-4 h-4" />
-                            AMBIL SPAREPART
+                          <button onClick={() => openAddSparepart(service)}
+                            className="px-3 py-1.5 text-sm bg-green-500 text-white font-medium rounded-xl hover:bg-green-600 transition-all flex items-center gap-1">
+                            <Package className="w-4 h-4" /> AMBIL SPAREPART
                           </button>
                         )}
-
-                        {/* QC Pending - Status info saja */}
                         {service.status === "qc_pending" && (
-                          <div className="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 border border-purple-300 rounded-lg flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            MENUNGGU QC
+                          <div className="px-3 py-1.5 text-sm bg-purple-100 text-purple-700 border border-purple-300 rounded-xl flex items-center gap-1 font-medium">
+                            <Clock className="w-4 h-4" /> MENUNGGU QC
                           </div>
                         )}
                       </div>
@@ -468,22 +418,20 @@ export default function QueueList({
 
       {/* Available Queue Section - NEW SERVICES */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 bg-[#f59e0b] flex items-center justify-center border border-slate-200">
-            <Package className="w-4 h-4 text-black" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+            <Package className="w-4 h-4 text-white dark:text-gray-900" />
           </div>
-          <h3 className="text-xl font-black">
-            SERVICE BARU ({pendingServices.length})
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            Service Baru ({pendingServices.length})
           </h3>
         </div>
 
         {pendingServices.length === 0 ? (
-          <div className="border border-slate-200 p-8 text-center bg-slate-50">
+          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
             <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-            <p className="font-mono">Tidak ada service baru</p>
-            <p className="text-xs text-slate-500">
-              Semua service sudah diambil
-            </p>
+            <p className="text-sm font-medium text-gray-500">Tidak ada service baru</p>
+            <p className="text-xs text-gray-400 mt-1">Semua service sudah diambil</p>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -493,53 +441,39 @@ export default function QueueList({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-blue-600"
+                className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-gray-900 dark:hover:border-white"
                 onClick={() => viewServiceDetails(service)}
               >
                 <div className="p-4">
                   <div className="flex flex-wrap justify-between items-start gap-3">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-slate-900 text-white text-xs font-mono rounded">
+                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
                           {service.invoice_number}
                         </span>
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
-                          BARU
-                        </span>
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">BARU</span>
                       </div>
 
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <div className="flex items-center gap-1 text-sm">
-                          <User className="w-4 h-4 text-slate-400" />
-                          <span className="font-medium">
-                            {service.customer_name}
-                          </span>
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <User className="w-4 h-4 text-gray-400" />
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{service.customer_name}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Watch className="w-4 h-4 text-slate-400" />
-                          <span>
-                            {service.watch_brand || service.device_brand}
-                          </span>
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Watch className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-600 dark:text-gray-400">{service.watch_brand || service.device_brand}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-sm">
-                          <AlertCircle className="w-4 h-4 text-slate-400" />
-                          <span className="line-clamp-1">
-                            {service.issue_description?.substring(0, 50)}...
-                          </span>
+                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                          <AlertCircle className="w-4 h-4 text-gray-400" />
+                          <span className="line-clamp-1">{service.issue_description?.substring(0, 50)}...</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          viewServiceDetails(service);
-                        }}
-                        className="px-3 py-1.5 text-sm bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-all flex items-center gap-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        DETAIL
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={(e) => { e.stopPropagation(); viewServiceDetails(service); }}
+                        className="px-3 py-1.5 text-sm bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1">
+                        <Eye className="w-4 h-4" /> DETAIL
                       </button>
                     </div>
                   </div>
@@ -562,77 +496,52 @@ export default function QueueList({
           />
 
           {showTimelineModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm md:max-w-md lg:max-w-xl max-h-[80vh] overflow-hidden flex flex-col">
-                <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowTimelineModal(false)}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      TIMELINE SERVICE
-                    </h3>
-                    <p className="text-xs text-slate-400">
-                      {selectedService.invoice_number}
-                    </p>
+                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Timeline Service</h2>
+                    <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
                   </div>
-                  <button
-                    onClick={() => setShowTimelineModal(false)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-all"
-                  >
-                    <X className="w-5 h-5 text-slate-400" />
+                  <button onClick={() => setShowTimelineModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                    <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-5">
-                  <ServiceTimeline
-                    serviceId={selectedService.id}
-                    customerPhone={selectedService.customer_phone}
-                    customerName={selectedService.customer_name}
-                    onUpdate={() => fetchQueues()}
-                  />
+                <div className="flex-1 overflow-y-auto p-6">
+                  <ServiceTimeline serviceId={selectedService.id} customerPhone={selectedService.customer_phone} customerName={selectedService.customer_name} onUpdate={() => fetchQueues()} />
                 </div>
-              </div>
+              </motion.div>
             </div>
           )}
 
           {showProgressModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm md:max-w-md lg:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-                <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
-                      <Wrench className="w-4 h-4 text-white" />
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowProgressModal(false)}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                      <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900">
-                      UPDATE SERVICE
-                    </h3>
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Update Service</h2>
+                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setShowProgressModal(false)}
-                    className="p-2 hover:bg-slate-100 rounded-lg transition-all"
-                  >
-                    <X className="w-5 h-5 text-slate-400" />
+                  <button onClick={() => setShowProgressModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                    <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-5">
-                  <p className="text-sm text-slate-500 mb-4">
-                    Service:{" "}
-                    <span className="font-medium">
-                      {selectedService.invoice_number}
-                    </span>
-                  </p>
-                  <ProgressUpdate
-                    service={selectedService}
-                    onUpdate={() => fetchQueues()}
-                    onAddSparepart={() => {
-                      setShowProgressModal(false);
-                      openAddSparepart(selectedService);
-                    }}
-                    onAddJasa={() => {
-                      setShowProgressModal(false);
-                      openAddJasa(selectedService);
-                    }}
-                    onSubmitToQC={() => handleSubmitToQC(selectedService)}
-                  />
+                <div className="flex-1 overflow-y-auto p-6">
+                  <ProgressUpdate service={selectedService} onUpdate={() => fetchQueues()}
+                    onAddSparepart={() => { setShowProgressModal(false); openAddSparepart(selectedService); }}
+                    onAddJasa={() => { setShowProgressModal(false); openAddJasa(selectedService); }}
+                    onSubmitToQC={() => handleSubmitToQC(selectedService)} />
                 </div>
-              </div>
+              </motion.div>
             </div>
           )}
 
