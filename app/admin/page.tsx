@@ -569,6 +569,18 @@ export default function AdminDashboard() {
     fetchAllData();
   }, []);
 
+  // Auto-refresh on new service_orders or layanan (realtime)
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-dashboard-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_orders" }, () => { fetchAllData(); })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "layanan" }, () => { fetchAllData(); })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "service_orders" }, () => { fetchAllData(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
