@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
-import { Search, Filter, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, X, Plus, RotateCw } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText } from "lucide-react";
+import toast from "react-hot-toast";
+
 const serviceStatusLabels: Record<string, string> = {
   pending: "Menunggu", assigned: "Ditugaskan", in_progress: "Dalam Pengerjaan",
   req_sparepart_admin: "Request PO", po_pending: "PO Pending",
@@ -34,6 +37,10 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+function fmtRupiah(n: number) {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
+}
+
 function getStatusColor(status: string) {
   const map: Record<string, string> = {
     pending: "bg-slate-100 text-slate-700 border-slate-200",
@@ -60,6 +67,9 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [sortField, setSortField] = useState("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [selectedService, setSelectedService] = useState<any>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
 
   const fetchServices = async () => {
     setLoading(true);
@@ -86,7 +96,6 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   useEffect(() => { fetchServices(); }, [movementFilter, categoryFilter, sortField, sortDir]);
   useEffect(() => { extractCategories(); }, []);
 
-  // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => fetchServices(), 300);
     return () => clearTimeout(timer);
@@ -100,6 +109,19 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return null;
     return sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
+  };
+
+  const openDetail = (svc: any) => {
+    setSelectedService(svc);
+    setShowModal(true);
+  };
+
+  const copyToken = () => {
+    if (!selectedService?.token) return;
+    navigator.clipboard.writeText(selectedService.token);
+    setCopiedToken(true);
+    toast.success("Token disalin!");
+    setTimeout(() => setCopiedToken(false), 2000);
   };
 
   return (
@@ -125,12 +147,10 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
               placeholder="Cari nama / WA / invoice..." className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all" />
             {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-slate-400" /></button>}
           </div>
-
           <select value={movementFilter} onChange={(e) => setMovementFilter(e.target.value)}
             className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all">
             {moveOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
             className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all">
             <option value="">Semua Kategori</option>
@@ -173,7 +193,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 const MoveIcon = movementIcons[svc.watch_movement] || Watch;
                 return (
                   <motion.tr key={svc.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                    className="hover:bg-slate-50 transition-colors">
+                    className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openDetail(svc)}>
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs font-semibold text-slate-900">{svc.invoice_number}</span>
                     </td>
@@ -194,14 +214,10 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                       ) : <span className="text-xs text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3">
-                      {svc.category ? (
-                        <span className="inline-block px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200">{svc.category}</span>
-                      ) : <span className="text-xs text-slate-400">—</span>}
+                      {svc.category ? <span className="inline-block px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-700 border border-slate-200">{svc.category}</span> : <span className="text-xs text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full border ${getStatusColor(svc.status)}`}>
-                        {serviceStatusLabels[svc.status] || svc.status}
-                      </span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full border ${getStatusColor(svc.status)}`}>{serviceStatusLabels[svc.status] || svc.status}</span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{fmtDate(svc.created_at)}</td>
                   </motion.tr>
@@ -211,18 +227,115 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
           </table>
         </div>
         {!loading && services.length > 0 && (
-          <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">
-            Menampilkan {services.length} service
-          </div>
+          <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">Menampilkan {services.length} service</div>
         )}
       </div>
 
-      {/* Refresh button */}
       <div className="flex justify-center">
         <button onClick={fetchServices} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">
           <RotateCw className="w-4 h-4" /> Refresh
         </button>
       </div>
+
+      {/* Service Detail Modal */}
+      {showModal && selectedService && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="sticky top-0 bg-white z-20 flex items-center justify-between px-5 py-4 border-b border-slate-200 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center">
+                  <Watch className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Detail Service</h2>
+                  <p className="text-[11px] text-slate-500">{selectedService.invoice_number}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* QR + Token */}
+              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
+                  <QRCodeSVG value={typeof window !== "undefined" ? window.location.origin + "/tracking/" + selectedService.token : ""} size={72} level="H" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Token Tracking</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <code className="text-sm font-mono font-bold text-slate-900 truncate">{selectedService.token}</code>
+                    <button onClick={copyToken} className="p-1 hover:bg-slate-200 rounded-lg transition-colors flex-shrink-0">
+                      {copiedToken ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Scan QR atau gunakan token untuk tracking</p>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <User className="w-4 h-4 text-blue-600" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-500">Customer</p>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{selectedService.customer_name}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <Phone className="w-4 h-4 text-blue-600" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-slate-500">Phone</p>
+                    <p className="text-sm font-semibold text-slate-900 font-mono truncate">{selectedService.customer_phone}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Device Info */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">Device</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-slate-500">Brand:</span> <span className="font-medium text-slate-900">{selectedService.watch_brand || selectedService.device_brand || "-"}</span></div>
+                  <div><span className="text-slate-500">Model:</span> <span className="font-medium text-slate-900">{selectedService.watch_model || selectedService.device_model || "-"}</span></div>
+                  {selectedService.watch_movement && <div className="flex items-center gap-1"><span className="text-slate-500">Movement:</span> {React.createElement(movementIcons[selectedService.watch_movement] || Watch, { className: "w-3.5 h-3.5 text-slate-600" })}<span className="font-medium">{movementLabels[selectedService.watch_movement]}</span></div>}
+                  {selectedService.category && <div><span className="text-slate-500">Kategori:</span> <span className="font-medium">{selectedService.category}</span></div>}
+                </div>
+              </div>
+
+              {/* Issue */}
+              <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-0.5">Kendala</p>
+                    <p className="text-sm text-slate-800">{selectedService.issue_description}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500">Status</p>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold rounded-full border mt-0.5 ${getStatusColor(selectedService.status)}`}>{serviceStatusLabels[selectedService.status] || selectedService.status}</span>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500">Estimasi Biaya</p>
+                  <p className="text-sm font-bold text-slate-900">{selectedService.estimated_cost ? fmtRupiah(selectedService.estimated_cost) : "-"}</p>
+                </div>
+                <div className="col-span-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500">Dibuat pada</p>
+                  <p className="text-sm text-slate-700">{new Date(selectedService.created_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

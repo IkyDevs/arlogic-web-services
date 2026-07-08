@@ -39,7 +39,7 @@ const jenisLayananOptions = [
   { value: "order_online", label: "Order Online" },
   { value: "beli_jam", label: "Beli Jam" },
   { value: "pengeluaran", label: "Pengeluaran" },
-  { value: "analog_digital", label: "ANALOG-DIGITAL" },
+
 ];
 
 const metodePembayaranOptions = [
@@ -210,18 +210,24 @@ export default memo(function LayananForm({
           (opt) => opt.value === formData.metode_pembayaran,
         )?.label || formData.metode_pembayaran;
 
-      const transactionDescription = `📊 TRANSAKSI BARU
+      const now = new Date();
+      const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
+
+      const typeIcon = jenisLayananValue === "dp_service" ? "💳" : "🔧";
+      const transactionDescription = `📊 TRANSAKSI
+
 ━━━━━━━━━━━━━━━━━━━━━━━━
+${typeIcon} tipe : ${jenisLayananLabel}
 📱 Customer: ${formData.customer_name}
 📞 WA: ${formData.customer_whatsapp}
 💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
 💳 Metode: ${metodeLabel}
-📋 Jenis Layanan: ${jenisLayananLabel}
-${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
-📝 Catatan: ${formData.notes || "-"}
-👤 Dihandle: ${selectedUser?.full_name || user?.full_name}
+📋 Invoice: ${formData.detail_sku || "-"}
+📝 Keterangan: ${formData.notes || "-"}
 👤 Operator: ${user?.full_name}
-⏰ ${new Date().toLocaleString("id-ID")}
+⏰ ${fmtDateTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
 
       let photoUrls: string[] = initialData?.photo_url
@@ -229,7 +235,6 @@ ${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
         : [];
 
       if (photoFiles.length > 0) {
-        // Upload photos with description as caption
         const urls = await uploadFiles(photoFiles, {
           type: "layanan",
           caption: transactionDescription,
@@ -245,7 +250,7 @@ ${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
         {
           customer_name: formData.customer_name.trim(),
           customer_whatsapp: formData.customer_whatsapp.trim(),
-          jenis_layanan: jenisLayananValue, // ← guaranteed non-null
+          jenis_layanan: jenisLayananValue,
           handled_by: formData.handled_by,
           handled_by_name: selectedUser?.full_name || user?.full_name,
           metode_pembayaran: formData.metode_pembayaran,
@@ -257,8 +262,8 @@ ${formData.detail_sku ? `📦 SKU/Detail: ${formData.detail_sku}` : ""}
           detail_sku: formData.detail_sku || null,
           nominal: parseInt(formData.nominal) || 0,
           notes: formData.notes || null,
-          photo_url: photoUrls[0] || null, // backward compat – simpan foto pertama
-          photo_urls: photoUrls, // semua foto
+          photo_url: photoUrls[0] || null,
+          photo_urls: photoUrls,
           created_by: user?.id,
           created_by_name: user?.full_name,
           status: "active",

@@ -43,25 +43,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Delete related records first (foreign key constraints)
-    // 1. Update service_timeline to remove teknisi_id references
-    await supabase
-      .from('service_timeline')
-      .update({ teknisi_id: null })
-      .eq('teknisi_id', userId)
+    const cleanups = [
+      supabase.from('activity_logs').delete().eq('user_id', userId),
+      supabase.from('notifications').delete().eq('user_id', userId),
+      supabase.from('service_timeline').update({ teknisi_id: null }).eq('teknisi_id', userId),
+      supabase.from('service_orders').update({ assigned_teknisi_id: null }).eq('assigned_teknisi_id', userId),
+      supabase.from('service_documentation').update({ uploaded_by: null }).eq('uploaded_by', userId),
+      supabase.from('attendances').delete().eq('teknisi_id', userId),
+      supabase.from('feedbacks').delete().eq('teknisi_id', userId),
+      supabase.from('layanan').update({ handled_by: null }).eq('handled_by', userId),
+      supabase.from('layanan').update({ created_by: null }).eq('created_by', userId),
+    ];
 
-    // 2. Update service_orders to remove assigned_teknisi_id references
-    await supabase
-      .from('service_orders')
-      .update({ assigned_teknisi_id: null })
-      .eq('assigned_teknisi_id', userId)
+    await Promise.all(cleanups);
 
-    // 3. Delete attendance records
-    await supabase
-      .from('attendances')
-      .delete()
-      .eq('teknisi_id', userId)
-
-    // 4. Delete from public.profiles
+    // Delete from public.profiles
     const { error: profileError } = await supabase
       .from('profiles')
       .delete()

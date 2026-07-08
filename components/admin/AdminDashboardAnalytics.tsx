@@ -20,13 +20,14 @@ const paymentIcons: Record<string, any> = {
 
 const jenisLabels: Record<string, string> = {
   service_langsung: "Service Langsung", dp_service: "DP Service", ambil_jam_service: "Ambil Jam",
-  order_online: "Order Online", beli_jam: "Beli Jam", pengeluaran: "Pengeluaran", analog_digital: "Analog Digital",
+  order_online: "Order Online", beli_jam: "Beli Jam", pengeluaran: "Pengeluaran",
 };
 
 interface AdminDashboardAnalyticsProps {
   totalTransactions?: number; totalUsers?: number; totalServices?: number;
   totalInventory?: number; pendingServices?: number; revenue?: number;
-  revenueGrowth?: number; isDark?: boolean; chartData?: any[]; recentTransactions?: any[];
+  totalExpenses?: number; revenueGrowth?: number; isDark?: boolean;
+  chartData?: any[]; recentTransactions?: any[];
   onTransactionClick?: (tx: any) => void;
   onNavigate?: (tab: string) => void;
 }
@@ -48,8 +49,8 @@ function getPaymentColor(method: string, isDark: boolean) {
 
 export default function AdminDashboardAnalytics({
   totalTransactions = 0, totalUsers = 0, totalServices = 0, totalInventory = 0,
-  pendingServices = 0, revenue = 0, revenueGrowth = 12.5, isDark = false,
-  chartData: externalChartData = [], recentTransactions = [],
+  pendingServices = 0, revenue = 0, totalExpenses = 0, revenueGrowth = 12.5,
+  isDark = false, chartData: externalChartData = [], recentTransactions = [],
   onTransactionClick, onNavigate,
 }: AdminDashboardAnalyticsProps) {
 
@@ -143,23 +144,44 @@ export default function AdminDashboardAnalytics({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className={`lg:col-span-1 ${cardBg} rounded-xl p-4 md:p-5 border ${cardBorder} shadow-sm bg-gradient-to-br ${isDark ? "from-slate-800 to-slate-900" : "from-slate-900 to-slate-800"} text-white cursor-pointer hover:scale-[1.01] transition-all`}
           onClick={() => onNavigate?.("management-transaction")}>
-          <p className="text-slate-300 text-xs font-medium mb-1">Total Pendapatan</p>
-          <p className="text-xl md:text-2xl lg:text-3xl font-bold">{formatRupiah(revenue)}</p>
-          <div className="mt-4 space-y-3">
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-slate-300 text-xs">Pertumbuhan</span>
-                <span className="text-green-400 font-semibold text-xs">+{revenueGrowth}%</span>
-              </div>
-              <div className="w-full bg-slate-700 rounded-full h-1.5">
-                <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full" style={{ width: `${Math.min(revenueGrowth, 100)}%` }} />
-              </div>
-            </div>
+          <p className="text-slate-300 text-xs font-medium mb-1">Pendapatan Bersih</p>
+          <p className="text-xl md:text-2xl lg:text-3xl font-bold">{formatRupiah(revenue - totalExpenses)}</p>
+          <div className="mt-3 flex items-center justify-between text-[11px]">
+            <span className="text-emerald-400">Pemasukan: {formatRupiah(revenue)}</span>
+            <span className="text-red-400">Pengeluaran: {formatRupiah(totalExpenses)}</span>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-700 flex items-center gap-2 text-emerald-400">
+          <div className="w-full bg-slate-700 rounded-full h-1 mt-2 flex">
+            <div className="bg-emerald-500 h-1 rounded-l-full transition-all" style={{ width: revenue + totalExpenses > 0 ? `${revenue / (revenue + totalExpenses) * 100}%` : "100%" }} />
+            {totalExpenses > 0 && <div className="bg-red-500 h-1 rounded-r-full transition-all" style={{ width: `${totalExpenses / (revenue + totalExpenses) * 100}%` }} />}
+          </div>
+          <div className="mt-3 flex items-center gap-2 text-emerald-400">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span className="text-xs font-medium">Trending Naik</span>
+            <span className="text-xs font-medium">Pertumbuhan +{revenueGrowth}%</span>
           </div>
+
+          {/* Payment method breakdown */}
+          {paymentDist.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-slate-700/50 space-y-2">
+              <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Per Metode Pembayaran</p>
+              {(() => {
+                const totalTx = paymentDist.reduce((s, x) => s + x.value, 0);
+                return paymentDist.sort((a, b) => b.value - a.value).slice(0, 4).map((item, i) => {
+                  const pct = totalTx > 0 ? Math.round(item.value / totalTx * 100) : 0;
+                  return (
+                    <div key={item.name}>
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="text-[11px] text-slate-300">{item.name}</span>
+                        <span className="text-[11px] text-slate-200 font-semibold">{item.value} trans</span>
+                      </div>
+                      <div className="w-full bg-slate-700 rounded-full h-1">
+                        <div className="h-1 rounded-full transition-all" style={{ width: pct + "%", backgroundColor: ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B"][i] }} />
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}

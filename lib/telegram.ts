@@ -96,7 +96,7 @@ export async function uploadMultipleToTelegram(
   const toBlob = (buffer: Buffer): Blob =>
     new Blob([new Uint8Array(buffer)], { type: 'image/jpeg' })
 
-  const CHUNK_SIZE = 5
+  const CHUNK_SIZE = 10
   for (let i = 0; i < files.length; i += CHUNK_SIZE) {
     const chunk = files.slice(i, i + CHUNK_SIZE)
     let chunkOk = false

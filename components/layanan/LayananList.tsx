@@ -31,7 +31,9 @@ import toast from "react-hot-toast";
 
 interface LayananListProps {
   isAdmin?: boolean;
+  compact?: boolean;
   onEdit?: (layanan: Layanan) => void;
+  onStatsUpdate?: (stats: { total: number; totalNominal: number; active: number; completed: number; jenisCount: Record<string, number>; metodeRevenue: Record<string, number> }) => void;
 }
 
 interface LayananWithPhoto extends Layanan {
@@ -40,7 +42,9 @@ interface LayananWithPhoto extends Layanan {
 
 export default function LayananList({
   isAdmin = false,
+  compact = false,
   onEdit,
+  onStatsUpdate,
 }: LayananListProps) {
   const { user } = useAuthStore();
   const [layanan, setLayanan] = useState<LayananWithPhoto[]>([]);
@@ -116,9 +120,29 @@ export default function LayananList({
     toast.success("Data refreshed");
   };
 
+  const emitStats = (data: LayananWithPhoto[]) => {
+    let total = 0, totalRevenue = 0, totalExpenses = 0;
+    const jenisCount: Record<string, number> = {};
+    const metodeRevenue: Record<string, number> = {};
+    let active = 0, completed = 0;
+    for (const item of data) {
+      if (item.status === "active") active++;
+      if (item.status === "completed") completed++;
+      const j = item.jenis_layanan || "Lainnya";
+      jenisCount[j] = (jenisCount[j] || 0) + 1;
+      const nominal = item.nominal || 0;
+      total += nominal;
+      if (j === "pengeluaran") totalExpenses += nominal;
+      else totalRevenue += nominal;
+      const m = item.metode_pembayaran || "unknown";
+      metodeRevenue[m] = (metodeRevenue[m] || 0) + nominal;
+    }
+    onStatsUpdate?.({ total: data.length, totalNominal: totalRevenue, active, completed, jenisCount, metodeRevenue });
+    setTotalNominal(totalRevenue);
+  };
+
   const calculateTotal = (data: LayananWithPhoto[]) => {
-    const total = data.reduce((sum, item) => sum + (item.nominal || 0), 0);
-    setTotalNominal(total);
+    emitStats(data);
   };
 
   const filterLayanan = () => {
@@ -305,7 +329,7 @@ export default function LayananList({
     { value: "pengeluaran", label: "Pengeluaran" },
     { value: "dp_service", label: "DP Service" },
     { value: "service_langsung", label: "Service Langsung" },
-    { value: "analog_digital", label: "ANALOG-DIGITAL" },
+
   ];
 
   const metodePembayaranOptions = [
@@ -331,6 +355,7 @@ export default function LayananList({
   return (
     <div className="space-y-5">
       {/* ==================== STATS CARDS ==================== */}
+      {!compact && (
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
         {/* Card 1: Total Transaksi */}
         <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
@@ -388,6 +413,7 @@ export default function LayananList({
           <p className="text-xs text-slate-400 mt-1">Selesai</p>
         </div>
       </div>
+      )}
 
       {/* ==================== SEARCH & FILTER ==================== */}
       <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 md:p-5 shadow-sm">

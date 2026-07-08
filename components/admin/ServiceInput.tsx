@@ -216,22 +216,20 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
 
       const serviceId = orderData.id;
 
-      // Merge QRIS/Transfer bukti pembayaran dengan initial condition photos
+      // All photos (initial condition + qris/transfer proof) grouped as one album
       let allPhotosToUpload = [...photos];
-      if (
-        (formData.payment_method === "qris" || formData.payment_method === "transfer") &&
-        formData.qris_photo
-      ) {
-        allPhotosToUpload.push(formData.qris_photo);
+      if (formData.qris_photo && (formData.payment_method === "qris" || formData.payment_method === "transfer")) {
+        const alreadyInPhotos = photos.some(
+          (f) => f.name === formData.qris_photo?.name && f.size === formData.qris_photo?.size
+        );
+        if (!alreadyInPhotos) {
+          allPhotosToUpload.push(formData.qris_photo);
+        }
       }
 
       if (allPhotosToUpload.length > 0) {
         const now = new Date().toLocaleString("id-ID", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
+          day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
         });
 
         let formattedCaption = `Kategori : ${formData.category || "—"}
@@ -243,7 +241,6 @@ Kendala : ${formData.problem}
 Request : ${formData.request || "—"}
 Keterangan : ${formData.notes || "—"}`;
 
-        // Hanya tampilkan DP dan Pembayaran jika ada nilai DP
         if (hasDp) {
           formattedCaption += `
 dp : Rp ${dpValue.toLocaleString("id-ID")}
@@ -259,8 +256,7 @@ Pengerjaan :
 Barang :
 Jasa :
 Total : —
-Keterangan : —
-`;
+Keterangan : —`;
 
         const urls = await uploadFiles(allPhotosToUpload, {
           type: "service",
@@ -287,32 +283,36 @@ Keterangan : —
           .eq("id", authUser?.id)
           .single();
 
-        // Upload QRIS/Transfer payment proof photo to transaction group
+        // Upload DP proof photo directly to layanan channel (2nd send: transaction photo + caption = 1 chat)
         let dpPhotoUrl = null;
-        if (
-          (formData.payment_method === "qris" ||
-            formData.payment_method === "transfer") &&
-          formData.qris_photo
-        ) {
-          const dpPhotoCaption = `📦 BUKTI PEMBAYARAN DP
+        if (formData.qris_photo && (formData.payment_method === "qris" || formData.payment_method === "transfer")) {
+          try {
+            const now = new Date();
+            const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
+
+            const dpDescription = `📊 TRANSAKSI
+
 ━━━━━━━━━━━━━━━━━━━━━━━━
+💳 tipe : dp service
 📱 Customer: ${formData.cs_name}
 📞 WA: ${formData.cs_phone}
 💰 Nominal: Rp ${dpValue.toLocaleString("id-ID")}
-💳 Metode: ${formData.payment_method === "qris" ? "QRIS" : "Transfer"}
+💳 Metode: ${formData.payment_method === "qris" ? "QRIS" : formData.payment_method === "transfer" ? "Transfer" : "Cash"}
 📋 Invoice: ${invoiceNumber}
-⏰ ${new Date().toLocaleString("id-ID")}
+📝 Keterangan: Down Payment
+👤 Operator: ${userProfile?.full_name || "System"}
+⏰ ${fmtDateTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
 
-          try {
             const dpPhotoUrls = await uploadFiles([formData.qris_photo], {
               type: "layanan",
-              caption: dpPhotoCaption,
+              caption: dpDescription,
             });
             dpPhotoUrl = dpPhotoUrls?.[0] || null;
           } catch (photoErr) {
-            console.error("Failed to upload DP photo:", photoErr);
-            // Continue even if photo upload fails
+            console.error("Failed to upload DP photo to transaction:", photoErr);
           }
         }
 
@@ -331,7 +331,7 @@ Keterangan : —
               detail_sku: `DP - Invoice ${invoiceNumber}`,
               nominal: dpValue,
               notes: `Down Payment untuk service order ${invoiceNumber}`,
-              photo_url: dpPhotoUrl, // ← now includes QRIS/Transfer proof photo
+              photo_url: dpPhotoUrl,
               photo_urls: dpPhotoUrl ? [dpPhotoUrl] : [],
               created_by: authUser?.id,
               created_by_name: userProfile?.full_name || "System",
@@ -341,6 +341,10 @@ Keterangan : —
           .select("id")
           .single();
 
+        // Auto-refresh: trigger fetchAllData via custom event
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("new-transaction"));
+        }
       }
 
       setLastInvoice({ invoice: invoiceNumber, token, serviceId });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -82,6 +82,14 @@ const ServiceList = dynamic(() => import("@/components/admin/ServiceList"), {
 });
 const ExportReports = dynamic(
   () => import("@/components/admin/ExportReports"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
+const TransactionManagement = dynamic(
+  () => import("@/components/layanan/TransactionManagement"),
   {
     loading: () => (
       <div className="text-center py-8 text-slate-500">Loading...</div>
@@ -171,6 +179,7 @@ export default function AdminDashboard() {
     pendingServices: 0,
     completedToday: 0,
     revenue: 0,
+    totalExpenses: 0,
     revenueGrowth: 12.5,
     avgRating: 4.8,
   });
@@ -241,6 +250,7 @@ export default function AdminDashboard() {
       pending,
       completed,
       revenue,
+      expenses,
       transactions,
     ] = await Promise.all([
       supabase.from("profiles").select("*", { count: "exact", head: true }),
@@ -258,11 +268,11 @@ export default function AdminDashboard() {
         .select("*", { count: "exact", head: true })
         .eq("status", "completed")
         .gte("completed_at", today),
-      supabase.from("layanan").select("nominal").eq("status", "active"),
+      supabase.from("layanan").select("nominal").neq("status", "cancelled").neq("jenis_layanan", "pengeluaran"),
+      supabase.from("layanan").select("nominal").neq("status", "cancelled").eq("jenis_layanan", "pengeluaran"),
       supabase
         .from("layanan")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "active"),
+        .select("*", { count: "exact", head: true }),
     ]);
 
     // Calculate total inventory (sum all store_stock + warehouse_stock)
@@ -277,6 +287,11 @@ export default function AdminDashboard() {
       0,
     );
 
+    const totalExpenses = (expenses.data || []).reduce(
+      (sum: number, item: any) => sum + (item.nominal || 0),
+      0,
+    );
+
     setStats({
       totalUsers: users.count || 0,
       totalServices: services.count || 0,
@@ -285,6 +300,7 @@ export default function AdminDashboard() {
       pendingServices: pending.count || 0,
       completedToday: completed.count || 0,
       revenue: totalRevenue,
+      totalExpenses: totalExpenses,
       revenueGrowth: 12.5,
       avgRating: 4.8,
     });
@@ -304,7 +320,6 @@ export default function AdminDashboard() {
     const { data } = await supabase
       .from("layanan")
       .select("*")
-      .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(15);
 
@@ -526,6 +541,7 @@ export default function AdminDashboard() {
   const handleLayananSuccess = () => {
     setShowLayananForm(false);
     setRefreshLayanan((prev) => prev + 1);
+    fetchAllData();
     toast.success("Layanan berhasil ditambahkan!");
   };
 
@@ -570,12 +586,16 @@ export default function AdminDashboard() {
   }, []);
 
   // Auto-refresh on new service_orders or layanan (realtime)
+  const fetchAllDataRef = useRef(fetchAllData);
+  fetchAllDataRef.current = fetchAllData;
+
   useEffect(() => {
+    const refresh = () => fetchAllDataRef.current();
     const channel = supabase
       .channel("admin-dashboard-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_orders" }, () => { fetchAllData(); })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "layanan" }, () => { fetchAllData(); })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "service_orders" }, () => { fetchAllData(); })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_orders" }, refresh)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "layanan" }, refresh)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "service_orders" }, refresh)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -1018,6 +1038,7 @@ export default function AdminDashboard() {
               totalInventory={stats.totalInventory}
               pendingServices={stats.pendingServices}
               revenue={stats.revenue}
+              totalExpenses={stats.totalExpenses || 0}
               revenueGrowth={stats.revenueGrowth}
               isDark={isDark}
               chartData={chartData}
@@ -1032,27 +1053,15 @@ export default function AdminDashboard() {
 
           {activeTab === "management-transaction" && (
             <div className="space-y-4 md:space-y-6">
-              <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-                <div>
-                  <h2
-                    className={`text-2xl md:text-3xl font-bold ${isDark ? "text-white" : "text-slate-900"}`}
-                  >
-                    Manajemen Transaksi
-                  </h2>
-                  <p
-                    className={`text-sm md:text-base ${isDark ? "text-slate-400" : "text-slate-600"}`}
-                  >
-                    Input dan kelola transaksi layanan customer
-                  </p>
-                </div>
+              <div className="flex justify-end mb-4">
                 <button
                   onClick={() => setShowLayananForm(true)}
-                  className="bg-gray-900 dark:bg-slate-700 text-white font-medium px-4 md:px-6 py-2.5 md:py-3 rounded-full hover:bg-gray-800 dark:hover:bg-slate-600 transition-all flex items-center justify-center gap-2 text-sm"
+                  className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-sm"
                 >
                   + Tambah Transaksi
                 </button>
               </div>
-              <LayananList isAdmin={true} key={refreshLayanan} />
+              <TransactionManagement isDark={isDark} key={refreshLayanan} />
             </div>
           )}
 

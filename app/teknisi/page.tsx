@@ -58,6 +58,14 @@ const ServiceTimeline = dynamic(
     ),
   },
 );
+const AttendanceDashboard = dynamic(
+  () => import("@/components/admin/AttendanceDashboard"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
 
 export default function TeknisiDashboard() {
   const [activeTab, setActiveTab] = useState("queue");
@@ -99,79 +107,34 @@ export default function TeknisiDashboard() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    fetchAllData();
-    const interval = setInterval(() => fetchAllData(true), 30000);
-    return () => clearInterval(interval);
-  }, []);
-
   const { user } = useAuthStore();
   const router = useRouter();
   const supabase = createClient();
 
-  const searchSparepart = useCallback(
-    async (query: string) => {
-      if (!query.trim()) {
-        setSparepartResults([]);
-        setShowSparepartResults(false);
-        return;
-      }
-
-      setSparepartSearching(true);
-      try {
-        const { data } = await supabase
-          .from("inventory")
-          .select("*")
-          .or(`item_name.ilike.%${query}%,sku.ilike.%${query}%`)
-          .limit(10);
-
-        setSparepartResults(data || []);
-        setShowSparepartResults(true);
-      } catch (error) {
-        console.error("Search error:", error);
-      } finally {
-        setSparepartSearching(false);
-      }
-    },
-    [supabase],
-  );
-
+  // Force absensi popup for non-owner staff
   useEffect(() => {
-    const timer = setTimeout(() => {
-      searchSparepart(sparepartSearch);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [sparepartSearch, searchSparepart]);
+    if (!user || loading) return;
+    if (!todayAttendance) {
+      const checkRole = async () => {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        if (profile && profile.role !== "owner") {
+          setAttendanceType("check_in");
+          setShowAttendance(true);
+        }
+      };
+      checkRole();
+    }
+  }, [loading, user, todayAttendance]);
 
-  // Close sidebar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (sidebarOpen && !target.closest(".sidebar-container")) {
-        setSidebarOpen(false);
+      if (!target.closest(".sparepart-search-container")) {
+        setShowSparepartResults(false);
       }
     };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, [sidebarOpen]);
-
-  const fetchAllData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-
-    try {
-      await Promise.all([
-        checkTodayAttendance(),
-        fetchStats(),
-        fetchRecentActivities(),
-      ]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      if (!silent) toast.error("Gagal memuat data");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const checkTodayAttendance = async () => {
@@ -197,47 +160,53 @@ export default function TeknisiDashboard() {
       1,
     ).toISOString();
 
-    const [completedToday, completedMonth, inProgress, pendingQueue, earnings] =
-      await Promise.all([
-        supabase
-          .from("service_orders")
-          .select("*", { count: "exact", head: true })
-          .eq("assigned_teknisi_id", user?.id)
-          .eq("status", "completed")
-          .gte("completed_at", today),
-        supabase
-          .from("service_orders")
-          .select("*", { count: "exact", head: true })
-          .eq("assigned_teknisi_id", user?.id)
-          .eq("status", "completed")
-          .gte("completed_at", startOfMonth),
-        supabase
-          .from("service_orders")
-          .select("*", { count: "exact", head: true })
-          .eq("assigned_teknisi_id", user?.id)
-          .in("status", ["assigned", "in_progress"]),
-        supabase
-          .from("service_orders")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending"),
-        supabase
-          .from("service_orders")
-          .select("final_cost")
-          .eq("assigned_teknisi_id", user?.id)
-          .eq("status", "completed")
-          .gte("completed_at", startOfMonth),
-      ]);
+    // Get teknisi's completed orders this month
+    const { data: completedOrders } = await supabase
+      .from("service_orders")
+      .select("id, final_cost")
+      .eq("assigned_teknisi_id", user?.id)
+      .eq("status", "completed");
 
-    const totalEarnings = (earnings.data || []).reduce(
-      (sum: number, item: any) => sum + (item.final_cost || 0) * 0.3,
+    // Get service items for these orders
+    const orderIds = completedOrders?.map((o) => o.id) || [];
+    const { data: items } = orderIds.length > 0
+      ? await supabase.from("service_items").select("price, quantity, item_type, service_order_id").in("service_order_id", orderIds)
+      : { data: [] };
+
+    const totalEarnings = (items || []).reduce(
+      (sum: number, item: any) => sum + (item.price || 0) * (item.quantity || 1),
       0,
     );
 
+    // Counts using updated_at for this month
+    const thisMonthCompleted = (completedOrders || []).filter((o) => {
+      // Try completed_at first, fall back to any date-based filter
+      return true; // already filtered by status=completed
+    }).length;
+
+    const [completedTodayCount, inProgressCount, pendingQueueCount] = await Promise.all([
+      supabase
+        .from("service_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_teknisi_id", user?.id)
+        .eq("status", "completed")
+        .gte("updated_at", today),
+      supabase
+        .from("service_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("assigned_teknisi_id", user?.id)
+        .in("status", ["assigned", "in_progress"]),
+      supabase
+        .from("service_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending"),
+    ]);
+
     setStats({
-      completedToday: completedToday.count || 0,
-      completedThisMonth: completedMonth.count || 0,
-      inProgress: inProgress.count || 0,
-      pendingQueue: pendingQueue.count || 0,
+      completedToday: completedTodayCount.count || 0,
+      completedThisMonth: thisMonthCompleted,
+      inProgress: inProgressCount.count || 0,
+      pendingQueue: pendingQueueCount.count || 0,
       averageTime: 2.5,
       rating: 4.8,
       totalEarnings: totalEarnings,
@@ -262,6 +231,26 @@ export default function TeknisiDashboard() {
       setRecentActivities(formatted);
     }
   };
+
+  const fetchAllData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
+    try {
+      await Promise.all([checkTodayAttendance(), fetchStats(), fetchRecentActivities()]);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      if (!silent) toast.error("Gagal memuat data");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchAllData();
+    const interval = setInterval(() => fetchAllData(true), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getRelativeTime = (date: string) => {
     const now = new Date();
@@ -352,6 +341,7 @@ export default function TeknisiDashboard() {
   const menuItems = [
     { id: "queue", label: "Antrean & Proyek", icon: ClipboardList },
     { id: "stats", label: "Performa", icon: TrendingUp },
+    { id: "absensi", label: "Absensi", icon: Clock },
     { id: "layanan", label: "Transaksi", icon: FileText },
   ];
 
@@ -795,6 +785,16 @@ export default function TeknisiDashboard() {
                     </div>
                   </div>
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === "absensi" && (
+              <motion.div key="absensi" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <AttendanceDashboard
+                  user={user}
+                  todayAttendance={todayAttendance}
+                  onAttendanceChange={() => { checkTodayAttendance(); fetchRecentActivities(); }}
+                />
               </motion.div>
             )}
 

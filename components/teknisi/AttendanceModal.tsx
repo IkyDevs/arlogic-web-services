@@ -33,6 +33,7 @@ export default function AttendanceModal({
   const [expectedHours, setExpectedHours] = useState({ start: '', end: '', total: 9 })
   const [isOvertime, setIsOvertime] = useState(false)
   const [checkOutNotes, setCheckOutNotes] = useState('')
+  const [checkInNotes, setCheckInNotes] = useState('')
   const overtimeThreshold = 20
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -349,7 +350,8 @@ lembur: ${lembur}`
       const caption = `ABSEN MASUK
 absensi: ${dateStr} ${timeStr}
 role: ${role}
-nama: ${user?.full_name}`
+nama: ${user?.full_name}
+catatan: ${checkInNotes || '-'}`
 
       photoUrl = await uploadFile(photoFile, {
         type: 'attendance',
@@ -371,7 +373,8 @@ nama: ${user?.full_name}`
             photo_url: photoUrl!,
             location: location.address,
             check_in: new Date().toISOString(),
-            status: 'checked_in'
+            status: 'checked_in',
+            notes: checkInNotes || null
           })
 
         if (dbError) throw dbError
@@ -530,6 +533,16 @@ nama: ${user?.full_name}`
                 </div>
               </div>
 
+              <div className="mb-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                <textarea
+                  value={isCheckIn ? checkInNotes : checkOutNotes}
+                  onChange={(e) => isCheckIn ? setCheckInNotes(e.target.value) : setCheckOutNotes(e.target.value)}
+                  placeholder={isCheckIn ? "Catatan absen masuk (opsional)..." : "Catatan absen pulang (opsional)..."}
+                  rows={2}
+                  className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm resize-none"
+                />
+              </div>
+
               {!isCheckIn && existingAttendance?.check_in && (
                 <div className="mb-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
                   <div className="flex items-center justify-between gap-2">
@@ -556,15 +569,6 @@ nama: ${user?.full_name}`
                     />
                     <span className="text-sm font-medium text-amber-800">Lembur</span>
                   </label>
-                  {isOvertime && (
-                    <textarea
-                      value={checkOutNotes}
-                      onChange={(e) => setCheckOutNotes(e.target.value)}
-                      placeholder="Catatan lembur..."
-                      rows={2}
-                      className="w-full px-3 py-2 bg-white border border-amber-200 rounded-lg focus:outline-none focus:border-amber-500 text-sm resize-none"
-                    />
-                  )}
                 </div>
               )}
 

@@ -63,7 +63,6 @@ export default function SparepartReadyModal({
           status: 'sparepart_ready',
           po_status: 'completed',  // ← pastikan ini 'completed'
           po_admin_response: notes || 'Sparepart sudah ready',
-          po_responded_at: new Date().toISOString()
         })
         .eq('id', service.id)
 
