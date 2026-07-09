@@ -234,16 +234,32 @@ ${typeIcon} tipe : ${jenisLayananLabel}
         ? [initialData.photo_url]
         : [];
 
+      let telegramSent = false;
       if (photoFiles.length > 0) {
         const urls = await uploadFiles(photoFiles, {
           type: "layanan",
           caption: transactionDescription,
         });
-        if (!urls || urls.length === 0) {
+        if (urls && urls.length > 0) {
+          photoUrls = urls;
+          telegramSent = true;
+        } else {
           toast.error("Gagal upload foto");
           return;
         }
-        photoUrls = urls;
+      }
+
+      if (!telegramSent) {
+        // Fallback: send text-only notification
+        try {
+          await fetch("/api/telegram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "transaction", message: transactionDescription }),
+          });
+        } catch (telegramErr) {
+          console.error("Failed to send transaction to telegram:", telegramErr);
+        }
       }
 
       const { error } = await supabase.from("layanan").insert([

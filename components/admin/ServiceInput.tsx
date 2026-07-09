@@ -285,14 +285,13 @@ Keterangan : —`;
 
         // Upload DP proof photo directly to layanan channel (2nd send: transaction photo + caption = 1 chat)
         let dpPhotoUrl = null;
-        if (formData.qris_photo && (formData.payment_method === "qris" || formData.payment_method === "transfer")) {
-          try {
-            const now = new Date();
-            const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-            const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
+        let dpTelegramSent = false;
+        const now = new Date();
+        const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
 
-            const dpDescription = `📊 TRANSAKSI
+        const dpDescription = `📊 TRANSAKSI
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 💳 tipe : dp service
@@ -306,13 +305,29 @@ Keterangan : —`;
 ⏰ ${fmtDateTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
 
+        if (formData.qris_photo && (formData.payment_method === "qris" || formData.payment_method === "transfer")) {
+          try {
             const dpPhotoUrls = await uploadFiles([formData.qris_photo], {
               type: "layanan",
               caption: dpDescription,
             });
             dpPhotoUrl = dpPhotoUrls?.[0] || null;
+            dpTelegramSent = true;
           } catch (photoErr) {
             console.error("Failed to upload DP photo to transaction:", photoErr);
+          }
+        }
+
+        if (!dpTelegramSent) {
+          // Fallback: send text-only notification for Cash DP (no photo)
+          try {
+            await fetch("/api/telegram", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ type: "transaction", message: dpDescription }),
+            });
+          } catch (telegramErr) {
+            console.error("Failed to send DP text to telegram:", telegramErr);
           }
         }
 
