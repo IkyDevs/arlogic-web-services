@@ -29,14 +29,12 @@ import {
   Star,
   Activity,
   Settings,
-  QrCode,
-  Copy,
-  Box,
+  FileText,
+  Search,
   User,
   LogIn,
   LogOut as LogOutIcon,
   Camera,
-  Search,
   ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -114,6 +112,14 @@ const AdminDashboardAnalytics = dynamic(
 );
 const AttendanceDashboard = dynamic(
   () => import("@/components/admin/AttendanceDashboard"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
+const ClosingDashboard = dynamic(
+  () => import("@/components/admin/ClosingDashboard"),
   {
     loading: () => (
       <div className="text-center py-8 text-slate-500">Loading...</div>
@@ -237,6 +243,23 @@ export default function AdminDashboard() {
     setShowSearchResults(true);
   };
 
+  // ==================== TODAY STATS (separate fetch for reliability) ====================
+  const [todayStats, setTodayStats] = useState({ transactions: 0, revenue: 0, expenses: 0 });
+
+  const fetchTodayStats = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const [txCount, txRev, txExp] = await Promise.all([
+      supabase.from("layanan").select("*", { count: "exact", head: true }).gte("created_at", today + "T00:00:00").lte("created_at", today + "T23:59:59"),
+      supabase.from("layanan").select("nominal").neq("status", "cancelled").neq("jenis_layanan", "pengeluaran").gte("created_at", today + "T00:00:00").lte("created_at", today + "T23:59:59"),
+      supabase.from("layanan").select("nominal").neq("status", "cancelled").eq("jenis_layanan", "pengeluaran").gte("created_at", today + "T00:00:00").lte("created_at", today + "T23:59:59"),
+    ]);
+    setTodayStats({
+      transactions: txCount.count || 0,
+      revenue: (txRev.data || []).reduce((s: number, i: any) => s + (i.nominal || 0), 0),
+      expenses: (txExp.data || []).reduce((s: number, i: any) => s + (i.nominal || 0), 0),
+    });
+  };
+
   // ==================== FETCH FUNCTIONS ====================
 
   const fetchStats = async () => {
@@ -252,6 +275,9 @@ export default function AdminDashboard() {
       revenue,
       expenses,
       transactions,
+      todayRevenue,
+      todayExpenses,
+      todayTransactions,
     ] = await Promise.all([
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase
@@ -273,9 +299,16 @@ export default function AdminDashboard() {
       supabase
         .from("layanan")
         .select("*", { count: "exact", head: true }),
+      // Today-specific queries
+      supabase.from("layanan").select("nominal").neq("status", "cancelled").neq("jenis_layanan", "pengeluaran").gte("created_at", today + "T00:00:00").lte("created_at", today + "T23:59:59"),
+      supabase.from("layanan").select("nominal").neq("status", "cancelled").eq("jenis_layanan", "pengeluaran").gte("created_at", today + "T00:00:00").lte("created_at", today + "T23:59:59"),
+      supabase
+        .from("layanan")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", today + "T00:00:00")
+        .lte("created_at", today + "T23:59:59"),
     ]);
 
-    // Calculate total inventory (sum all store_stock + warehouse_stock)
     const totalInventoryStock = (inventoryData.data || []).reduce(
       (sum: number, item: any) =>
         sum + ((item.store_stock || 0) + (item.warehouse_stock || 0)),
@@ -292,15 +325,25 @@ export default function AdminDashboard() {
       0,
     );
 
+    const todayRev = (todayRevenue.data || []).reduce(
+      (sum: number, item: any) => sum + (item.nominal || 0),
+      0,
+    );
+
+    const todayExp = (todayExpenses.data || []).reduce(
+      (sum: number, item: any) => sum + (item.nominal || 0),
+      0,
+    );
+
     setStats({
       totalUsers: users.count || 0,
       totalServices: services.count || 0,
       totalInventory: totalInventoryStock,
-      totalTransactions: transactions.count || 0,
+      totalTransactions: todayTransactions.count || 0,
       pendingServices: pending.count || 0,
       completedToday: completed.count || 0,
-      revenue: totalRevenue,
-      totalExpenses: totalExpenses,
+      revenue: todayRev,
+      totalExpenses: todayExp,
       revenueGrowth: 12.5,
       avgRating: 4.8,
     });
@@ -317,9 +360,12 @@ export default function AdminDashboard() {
   };
 
   const fetchRecentTransactions = async () => {
+    const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("layanan")
       .select("*")
+      .gte("created_at", today + "T00:00:00")
+      .lte("created_at", today + "T23:59:59")
       .order("created_at", { ascending: false })
       .limit(15);
 
@@ -530,6 +576,7 @@ export default function AdminDashboard() {
         fetchInventory(),
         checkTodayAttendance(),
         generateChartData(),
+        fetchTodayStats(),
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -651,6 +698,7 @@ export default function AdminDashboard() {
     { id: "attendance", label: "Absensi", icon: Clock },
     { id: "users", label: "Users", icon: Users },
     { id: "inventory", label: "Inventory", icon: Package },
+    { id: "closing", label: "Closing", icon: FileText },
     { id: "export", label: "Export", icon: Download },
   ];
 
@@ -1039,6 +1087,9 @@ export default function AdminDashboard() {
               pendingServices={stats.pendingServices}
               revenue={stats.revenue}
               totalExpenses={stats.totalExpenses || 0}
+              todayTransactions={todayStats.transactions}
+              todayRevenue={todayStats.revenue}
+              todayExpenses={todayStats.expenses}
               revenueGrowth={stats.revenueGrowth}
               isDark={isDark}
               chartData={chartData}
@@ -1088,6 +1139,8 @@ export default function AdminDashboard() {
 
           {activeTab === "users" && <RoleManagement />}
 
+          {activeTab === "closing" && <ClosingDashboard />}
+
           {activeTab === "export" && <ExportReports />}
         </main>
       </div>
@@ -1110,69 +1163,89 @@ export default function AdminDashboard() {
 
       {/* Transaction Detail Modal */}
       {showTransactionDetail && selectedTransaction && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowTransactionDetail(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowTransactionDetail(false)}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-slate-200 px-5 py-4 flex items-center justify-between z-10">
-              <h3 className="font-bold text-slate-900">Detail Transaksi</h3>
-              <button onClick={() => setShowTransactionDetail(false)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
-                <X className="w-4 h-4 text-slate-400" />
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                  <ShoppingCart className="w-4 h-4 text-white dark:text-gray-900" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail Transaksi</h2>
+                  <p className="text-xs text-gray-500">ID: {selectedTransaction.id?.slice(0, 8) || "-"}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowTransactionDetail(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
-            <div className="p-5 space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                <User className="w-8 h-8 text-blue-600 p-1.5 bg-blue-100 rounded-lg" />
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-100 dark:border-blue-800">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-xl flex items-center justify-center">
+                  <User className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                </div>
                 <div>
-                  <p className="text-xs text-slate-500">Customer</p>
-                  <p className="font-semibold text-slate-900">{selectedTransaction.customer_name}</p>
-                  <p className="text-sm text-slate-600">{selectedTransaction.customer_whatsapp}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Customer</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedTransaction.customer_name}</p>
+                  {selectedTransaction.customer_whatsapp && <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTransaction.customer_whatsapp}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Nominal</p>
+                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Nominal</p>
                   <p className="font-bold text-emerald-600 text-lg">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(selectedTransaction.nominal || 0)}</p>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Jenis Layanan</p>
-                  <p className="font-semibold text-slate-900 text-sm capitalize">{({ service_langsung: "Service Langsung", dp_service: "DP Service", ambil_jam_service: "Ambil Jam", order_online: "Order Online", beli_jam: "Beli Jam", pengeluaran: "Pengeluaran", analog_digital: "Analog Digital" } as Record<string, string>)[selectedTransaction.jenis_layanan] || selectedTransaction.jenis_layanan}</p>
+                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Jenis</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm capitalize">{({ service_langsung: "Service Langsung", dp_service: "DP Service", ambil_jam_service: "Ambil Jam", order_online: "Order Online", beli_jam: "Beli Jam", pengeluaran: "Pengeluaran" } as Record<string, string>)[selectedTransaction.jenis_layanan] || selectedTransaction.jenis_layanan}</p>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pembayaran</p>
-                  <p className="font-semibold text-slate-900 text-sm">{({ cash: "Cash", qris: "QRIS", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" } as Record<string, string>)[selectedTransaction.metode_pembayaran] || selectedTransaction.metode_pembayaran}</p>
+                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Pembayaran</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{({ cash: "Cash", qris: "QRIS", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" } as Record<string, string>)[selectedTransaction.metode_pembayaran] || selectedTransaction.metode_pembayaran}</p>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider">Staff</p>
-                  <p className="font-semibold text-slate-900 text-sm">{selectedTransaction.handled_by_name || "-"}</p>
+                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Staff</p>
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{selectedTransaction.handled_by_name || "-"}</p>
                 </div>
               </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Waktu</p>
-                <p className="text-sm text-slate-700">{new Date(selectedTransaction.created_at).toLocaleString("id-ID")}</p>
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Waktu</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{new Date(selectedTransaction.created_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
               </div>
               {selectedTransaction.detail_sku && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">SKU / Detail</p>
-                  <p className="text-sm text-slate-700">{selectedTransaction.detail_sku}</p>
+                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">SKU / Detail</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTransaction.detail_sku}</p>
                 </div>
               )}
               {selectedTransaction.notes && (
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Catatan</p>
-                  <p className="text-sm text-slate-700">{selectedTransaction.notes}</p>
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-100 dark:border-amber-800">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Catatan</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTransaction.notes}</p>
                 </div>
               )}
-              {selectedTransaction.photo_urls && selectedTransaction.photo_urls.length > 0 && (
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Foto Bukti</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedTransaction.photo_urls.map((url: string, i: number) => (
-                      <img key={i} src={url} alt={"foto-" + i} className="rounded-lg border border-slate-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => window.open(url, "_blank")} />
-                    ))}
+              {(() => {
+                let urls: string[] = [];
+                if (selectedTransaction.photo_urls) {
+                  if (Array.isArray(selectedTransaction.photo_urls)) {
+                    urls = selectedTransaction.photo_urls;
+                  } else if (typeof selectedTransaction.photo_urls === "string") {
+                    try { urls = JSON.parse(selectedTransaction.photo_urls); } catch { urls = []; }
+                  }
+                }
+                return urls.length > 0 ? (
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Foto Bukti</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {urls.map((url: string, i: number) => (
+                        <img key={i} src={url} alt={"foto-" + i} className="rounded-lg border border-gray-200 dark:border-white/10 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => window.open(url, "_blank")} />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
             </div>
           </motion.div>
         </div>

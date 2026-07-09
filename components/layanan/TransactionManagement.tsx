@@ -24,7 +24,8 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const supabase = createClient();
   const [expanded, setExpanded] = useState(false);
   const [allData, setAllData] = useState<any[]>([]);
-  const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun">("bulan");
+  const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun">("hari");
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [stats, setStats] = useState({ total: 0, totalNominal: 0, active: 0, completed: 0, jenisCount: {} as Record<string, number>, metodeRevenue: {} as Record<string, number> });
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[] } | null>(null);
 
@@ -35,25 +36,23 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
 
   useEffect(() => { fetchAll(); }, []);
 
-  const openFilterModal = useCallback((title: string, filterFn: (item: any) => boolean) => {
-    setFilterModal({ title, filtered: allData.filter(filterFn) });
-  }, [allData]);
-
   // Filter data by period
   const filteredData = useMemo(() => {
-    const now = new Date();
     if (filterPeriod === "hari") {
-      const today = now.toISOString().split("T")[0];
-      return allData.filter((d) => d.created_at?.startsWith(today));
+      return allData.filter((d) => d.created_at?.startsWith(selectedDate));
     }
+    const now = new Date();
     if (filterPeriod === "bulan") {
       const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       return allData.filter((d) => d.created_at?.startsWith(month));
     }
-    // tahun
     const year = String(now.getFullYear());
     return allData.filter((d) => d.created_at?.startsWith(year));
-  }, [allData, filterPeriod]);
+  }, [allData, filterPeriod, selectedDate]);
+
+  const openFilterModal = useCallback((title: string, filterFn: (item: any) => boolean) => {
+    setFilterModal({ title, filtered: filteredData.filter(filterFn) });
+  }, [filteredData]);
 
   const analytics = useMemo(() => {
     const data = filteredData;
@@ -196,11 +195,15 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
         </div>
         <div className="flex items-center gap-2 bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 p-1 shadow-sm">
           {(["hari", "bulan", "tahun"] as const).map((p) => (
-            <button key={p} onClick={() => setFilterPeriod(p)}
+            <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}>
-              {p === "hari" ? "Hari Ini" : p === "bulan" ? "Bulan Ini" : "Tahun Ini"}
+              {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
             </button>
           ))}
+          {filterPeriod === "hari" && (
+            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+              className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
+          )}
         </div>
       </motion.div>
 
@@ -260,7 +263,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
                   className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
                   <h3 className="text-xs font-bold text-slate-900 dark:text-white mb-2">
-                    Aktivitas {filterPeriod === "hari" ? "Harian" : filterPeriod === "bulan" ? "30 Hari" : "Tahunan"}
+                    Aktivitas {filterPeriod === "hari" ? `Harian (${new Date(selectedDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })})` : filterPeriod === "bulan" ? "30 Hari" : "Tahunan"}
                   </h3>
                   <ResponsiveContainer width="100%" height={160}>
                     <AreaChart data={dailyChartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
@@ -402,7 +405,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
                 <span className="text-[10px] font-medium text-slate-400">{analytics.total} total</span>
               </div>
               <div className="flex-1 overflow-y-auto min-h-[600px] lg:min-h-0 lg:max-h-[1120px]">
-                <LayananList isAdmin={true} compact={true} onStatsUpdate={(s) => setStats(s)} />
+                <LayananList isAdmin={true} compact={true} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} />
               </div>
             </motion.div>
           </motion.div>
@@ -416,7 +419,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
               </div>
               <span className="text-xs text-slate-400">{analytics.total} total</span>
             </div>
-            <LayananList isAdmin={true} compact={false} onStatsUpdate={(s) => setStats(s)} />
+            <LayananList isAdmin={true} compact={false} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} />
           </motion.div>
         )}
       </AnimatePresence>

@@ -730,3 +730,42 @@ BEGIN
 END $$;
 
 NOTIFY pgrst, 'reload schema';
+
+-- Closing Harian table for daily settlement cross-check
+CREATE TABLE IF NOT EXISTS closings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  closing_date DATE NOT NULL,
+  total_transactions INTEGER NOT NULL DEFAULT 0,
+  total_expected BIGINT NOT NULL DEFAULT 0,
+  total_actual BIGINT NOT NULL DEFAULT 0,
+  difference BIGINT NOT NULL DEFAULT 0,
+  difference_notes TEXT,
+  detail JSONB DEFAULT '{}',
+  notes TEXT,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+  admin_notes TEXT,
+  rejection_reason TEXT,
+  created_by UUID REFERENCES profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_closings_date ON closings(closing_date);
+CREATE INDEX IF NOT EXISTS idx_closings_status ON closings(status);
+
+-- RLS policies — biasanya di-bypass oleh service_role key di API route
+ALTER TABLE closings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Full access via service_role bypass" ON closings USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';
+
+-- ============================================================
+-- MIGRATION: 2026-07-09 - Closing Harian + Perbaikan
+-- ============================================================
+-- 1. Tambah tabel closings untuk daily settlement (admin closing → owner approval)
+-- 2. Kolom difference_notes untuk catatan selisih dari admin
+-- 3. API route /api/admin/closing menggunakan service_role key
+-- 4. AdminDashboardAnalytics: default recentTransactions = hari ini
+-- 5. TransactionManagement + LayananList: filter dateFilter untuk compact mode
+-- 6. Owner dashboard: tab Closing untuk approve/reject
+-- 7. ClosingApproval: approve only + kirim ke Telegram channel CLOSING

@@ -85,6 +85,13 @@ const FeedbackList = dynamic(() => import("@/components/owner/FeedbackList"), {
     </div>
   ),
 });
+const ClosingApproval = dynamic(() => import("@/components/admin/ClosingApproval"), {
+  loading: () => (
+    <div className="bg-white rounded-xl border border-slate-200 p-8 text-center shadow-sm">
+      Loading...
+    </div>
+  ),
+});
 
 type DateRange = "today" | "week" | "month" | "custom";
 type PeriodType = "month" | "year";
@@ -93,6 +100,7 @@ type ActiveTab =
   | "revenue"
   | "performance"
   | "feedback"
+  | "closing"
   | "watch_db";
 
 interface DashboardData {
@@ -362,6 +370,7 @@ export default function OwnerDashboard() {
     { id: "revenue", label: "Revenue", icon: DollarSign },
     { id: "performance", label: "Performance", icon: BarChart3 },
     { id: "feedback", label: "Feedback", icon: Star },
+    { id: "closing", label: "Closing", icon: FileText },
     { id: "watch_db", label: "Watch DB", icon: Database },
   ];
 
@@ -884,6 +893,12 @@ export default function OwnerDashboard() {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <FeedbackList />
+              </motion.div>
+            )}
+
+            {activeTab === "closing" && (
+              <motion.div key="closing" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <ClosingApproval />
               </motion.div>
             )}
 

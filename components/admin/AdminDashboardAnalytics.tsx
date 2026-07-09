@@ -26,7 +26,8 @@ const jenisLabels: Record<string, string> = {
 interface AdminDashboardAnalyticsProps {
   totalTransactions?: number; totalUsers?: number; totalServices?: number;
   totalInventory?: number; pendingServices?: number; revenue?: number;
-  totalExpenses?: number; revenueGrowth?: number; isDark?: boolean;
+  totalExpenses?: number; todayTransactions?: number; todayRevenue?: number; todayExpenses?: number;
+  revenueGrowth?: number; isDark?: boolean;
   chartData?: any[]; recentTransactions?: any[];
   onTransactionClick?: (tx: any) => void;
   onNavigate?: (tab: string) => void;
@@ -49,7 +50,9 @@ function getPaymentColor(method: string, isDark: boolean) {
 
 export default function AdminDashboardAnalytics({
   totalTransactions = 0, totalUsers = 0, totalServices = 0, totalInventory = 0,
-  pendingServices = 0, revenue = 0, totalExpenses = 0, revenueGrowth = 12.5,
+  pendingServices = 0, revenue = 0, totalExpenses = 0,
+  todayTransactions = 0, todayRevenue = 0, todayExpenses = 0,
+  revenueGrowth = 12.5,
   isDark = false, chartData: externalChartData = [], recentTransactions = [],
   onTransactionClick, onNavigate,
 }: AdminDashboardAnalyticsProps) {
@@ -125,7 +128,7 @@ export default function AdminDashboardAnalytics({
 
       {/* Stat Cards — click to navigate */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <StatCard label="Total Transaction" value={totalTransactions} icon={ShoppingCart} trend={revenueGrowth}
+        <StatCard label="Transaksi Hari Ini" value={todayTransactions} icon={ShoppingCart} trend={revenueGrowth}
           gradient={isDark ? "bg-gradient-to-br from-blue-900/40 to-blue-800/20" : "bg-gradient-to-br from-blue-50 to-blue-100/60"}
           onClick={() => onNavigate?.("management-transaction")} />
         <StatCard label="Total Users" value={totalUsers} icon={Users} trend={8}
@@ -144,15 +147,15 @@ export default function AdminDashboardAnalytics({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className={`lg:col-span-1 ${cardBg} rounded-xl p-4 md:p-5 border ${cardBorder} shadow-sm bg-gradient-to-br ${isDark ? "from-slate-800 to-slate-900" : "from-slate-900 to-slate-800"} text-white cursor-pointer hover:scale-[1.01] transition-all`}
           onClick={() => onNavigate?.("management-transaction")}>
-          <p className="text-slate-300 text-xs font-medium mb-1">Pendapatan Bersih</p>
-          <p className="text-xl md:text-2xl lg:text-3xl font-bold">{formatRupiah(revenue - totalExpenses)}</p>
+          <p className="text-slate-300 text-xs font-medium mb-1">Pendapatan Hari Ini</p>
+          <p className="text-xl md:text-2xl lg:text-3xl font-bold">{formatRupiah(todayRevenue - todayExpenses)}</p>
           <div className="mt-3 flex items-center justify-between text-[11px]">
-            <span className="text-emerald-400">Pemasukan: {formatRupiah(revenue)}</span>
-            <span className="text-red-400">Pengeluaran: {formatRupiah(totalExpenses)}</span>
+            <span className="text-emerald-400">Masuk: {formatRupiah(todayRevenue)}</span>
+            <span className="text-red-400">Keluar: {formatRupiah(todayExpenses)}</span>
           </div>
           <div className="w-full bg-slate-700 rounded-full h-1 mt-2 flex">
-            <div className="bg-emerald-500 h-1 rounded-l-full transition-all" style={{ width: revenue + totalExpenses > 0 ? `${revenue / (revenue + totalExpenses) * 100}%` : "100%" }} />
-            {totalExpenses > 0 && <div className="bg-red-500 h-1 rounded-r-full transition-all" style={{ width: `${totalExpenses / (revenue + totalExpenses) * 100}%` }} />}
+            <div className="bg-emerald-500 h-1 rounded-l-full transition-all" style={{ width: todayRevenue + todayExpenses > 0 ? `${todayRevenue / (todayRevenue + todayExpenses) * 100}%` : "100%" }} />
+            {todayExpenses > 0 && <div className="bg-red-500 h-1 rounded-r-full transition-all" style={{ width: `${todayExpenses / (todayRevenue + todayExpenses) * 100}%` }} />}
           </div>
           <div className="mt-3 flex items-center gap-2 text-emerald-400">
             <TrendingUp className="w-3.5 h-3.5" />

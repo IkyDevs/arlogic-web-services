@@ -32,6 +32,7 @@ import toast from "react-hot-toast";
 interface LayananListProps {
   isAdmin?: boolean;
   compact?: boolean;
+  dateFilter?: string;
   onEdit?: (layanan: Layanan) => void;
   onStatsUpdate?: (stats: { total: number; totalNominal: number; active: number; completed: number; jenisCount: Record<string, number>; metodeRevenue: Record<string, number> }) => void;
 }
@@ -43,6 +44,7 @@ interface LayananWithPhoto extends Layanan {
 export default function LayananList({
   isAdmin = false,
   compact = false,
+  dateFilter,
   onEdit,
   onStatsUpdate,
 }: LayananListProps) {
@@ -74,7 +76,7 @@ export default function LayananList({
   useEffect(() => {
     fetchLayanan();
     fetchStaffList();
-  }, []);
+  }, [dateFilter]);
 
   useEffect(() => {
     filterLayanan();
@@ -100,10 +102,11 @@ export default function LayananList({
 
   const fetchLayanan = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("layanan")
-      .select("*")
-      .order("created_at", { ascending: false });
+    let query = supabase.from("layanan").select("*");
+    if (dateFilter) {
+      query = query.gte("created_at", dateFilter + "T00:00:00").lte("created_at", dateFilter + "T23:59:59");
+    }
+    const { data } = await query.order("created_at", { ascending: false });
 
     if (data) {
       setLayanan(data);
