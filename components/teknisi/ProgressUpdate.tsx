@@ -78,9 +78,7 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
       }
       setProgress(100)
       if (items.length > 0) {
-        for (const item of items) {
-          await supabase.from('service_items').insert(item)
-        }
+        await supabase.from('service_items').insert(items)
       }
       const done = doneDate || new Date()
       const start = startDate

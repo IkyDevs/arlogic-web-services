@@ -6,39 +6,36 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Clock,
-  CheckCircle,
-  LogOut,
-  User,
-  Calendar,
-  Wrench,
-  Camera,
-  LogIn,
-  LogOut as LogOutIcon,
-  Menu,
-  X,
+  LayoutDashboard,
   ClipboardList,
   TrendingUp,
-  Award,
-  Zap,
-  Shield,
-  Battery,
-  Signal,
-  Wifi,
-  ChevronRight,
-  RefreshCw,
+  LogOut,
   Bell,
-  Settings,
+  Clock,
+  Menu,
+  X,
+  Watch,
+  Zap,
+  Award,
+  Shield,
+  UserCheck,
+  User,
+  RefreshCw,
+  Eye,
+  Plus,
+  Wrench,
+  Search as SearchIcon,
   Star,
   Users,
   Package,
   DollarSign,
   AlertCircle,
   FileText,
-  Watch,
   Box,
   Activity,
   Search,
+  LogIn,
+  CheckCircle,
 } from "lucide-react";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import QueueList from "@/components/teknisi/QueueList";
@@ -92,6 +89,8 @@ export default function TeknisiDashboard() {
     completionRate: 0,
   });
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [selectedActivity, setSelectedActivity] = useState<any>(null);
+  const [showActivityModal, setShowActivityModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sparepartSearch, setSparepartSearch] = useState("");
@@ -467,7 +466,7 @@ export default function TeknisiDashboard() {
             ) : todayAttendance.check_out ? (
               <CheckCircle className="w-4 h-4 flex-shrink-0" />
             ) : (
-              <LogOutIcon className="w-4 h-4 flex-shrink-0" />
+              <LogOut className="w-4 h-4 flex-shrink-0" />
             )}
             <span className="truncate">
               {!todayAttendance
@@ -635,7 +634,15 @@ export default function TeknisiDashboard() {
                     {recentActivities.map((activity, i) => (
                       <div
                         key={activity.id}
-                        className="flex items-center gap-3 p-2 border-b border-gray-100 dark:border-white/5 last:border-0"
+                        onClick={() => {
+                          if (activity.details) {
+                            setSelectedActivity(activity);
+                            setShowActivityModal(true);
+                          }
+                        }}
+                        className={`flex items-center gap-3 p-2 border-b border-gray-100 dark:border-white/5 last:border-0 ${
+                          activity.details ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors rounded-lg" : ""
+                        }`}
                       >
                         <div className="w-2 h-2 bg-gray-900 dark:bg-white rounded-full flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -646,6 +653,11 @@ export default function TeknisiDashboard() {
                             {activity.time}
                           </p>
                         </div>
+                        {activity.details && (
+                          <div className="text-[10px] text-blue-500 flex-shrink-0 font-medium">
+                            Detail →
+                          </div>
+                        )}
                       </div>
                     ))}
                     {recentActivities.length === 0 && (
@@ -657,7 +669,62 @@ export default function TeknisiDashboard() {
                     )}
                   </div>
                 </motion.div>
-              </motion.div>
+
+              {/* Activity Detail Modal */}
+              {showActivityModal && selectedActivity && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowActivityModal(false)}>
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+                    onClick={(e) => e.stopPropagation()}>
+                    <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                      <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Detail Aktivitas</h2>
+                      <button onClick={() => setShowActivityModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                        <X className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
+                    <div className="p-5 space-y-3">
+                      <p className="text-xs text-gray-500">{selectedActivity.time}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">{selectedActivity.message}</p>
+                      
+                      {/* Customer Info */}
+                      {selectedActivity.details?.customer_name && (
+                        <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-800 p-3 space-y-1.5">
+                          <div className="flex items-center gap-2 text-sm">
+                            <User className="w-4 h-4 text-blue-600" />
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{selectedActivity.details.customer_name}</span>
+                          </div>
+                          {selectedActivity.details.customer_phone && (
+                            <p className="text-xs text-gray-500 pl-6">WA: {selectedActivity.details.customer_phone}</p>
+                          )}
+                          <div className="flex items-center gap-3 pl-6 text-xs text-gray-500 flex-wrap">
+                            {selectedActivity.details.watch_brand && <span>Brand: {selectedActivity.details.watch_brand}</span>}
+                            {selectedActivity.details.serial_number && <span>Serial: {selectedActivity.details.serial_number}</span>}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedActivity.details?.changes && Array.isArray(selectedActivity.details.changes) && (
+                        <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-3 space-y-1.5">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Perubahan oleh QC:</p>
+                          {selectedActivity.details.changes.map((change: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2 text-sm">
+                              <span className="text-blue-500 mt-0.5">•</span>
+                              <span className="text-gray-700 dark:text-gray-300">{change}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {selectedActivity.details?.invoice && (
+                        <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 text-xs text-gray-600">
+                          <span className="font-medium">Invoice:</span>
+                          <span className="font-mono">{selectedActivity.details.invoice}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </motion.div>
             )}
 
             {activeTab === "stats" && (

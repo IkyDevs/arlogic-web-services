@@ -101,6 +101,7 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
     serviceId: string;
   } | null>(null);
   const [step, setStep] = useState(1);
+  const [estimatedCost, setEstimatedCost] = useState("");
 
   const generateInvoiceNumber = () => {
     const d = new Date();
@@ -142,9 +143,9 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
     }
     if (
       step === 2 &&
-      (!formData.watch_brand.trim() || !formData.watch_movement)
+      !formData.watch_brand
     ) {
-      toast.error("Fill watch brand and movement!");
+      toast.error("Fill watch brand!");
       return;
     }
     if (step === 3 && photos.length === 0) {
@@ -152,10 +153,6 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
         "No photos added. Teknisi won't have initial condition reference.",
         { icon: "⚠️" },
       );
-    }
-    if (step === 4 && !formData.problem.trim()) {
-      toast.error("Describe the problem!");
-      return;
     }
     setStep((s) => s + 1);
   };
@@ -206,6 +203,7 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
             issue_description: formData.problem,
             request: formData.request || null,
             notes: formData.notes || null,
+            estimated_cost: estimatedCost ? parseInt(estimatedCost) : null,
             status: "pending",
           },
         ])
@@ -263,15 +261,17 @@ Keterangan : —`;
           caption: formattedCaption,
         });
 
-        for (const url of urls) {
-          if (url) {
-            await supabase.from("service_documentation").insert({
-              service_order_id: serviceId,
-              photo_url: url,
-              stage: "initial_condition",
-              uploaded_by: (await supabase.auth.getUser()).data.user?.id,
-            });
-          }
+        const authUserForDoc = (await supabase.auth.getUser()).data.user;
+        const docInserts = urls
+          .filter((url: string | null): url is string => url !== null)
+          .map((url: string) => ({
+            service_order_id: serviceId,
+            photo_url: url,
+            stage: "initial_condition",
+            uploaded_by: authUserForDoc?.id,
+          }));
+        if (docInserts.length > 0) {
+          await supabase.from("service_documentation").insert(docInserts);
         }
       }
 
@@ -431,7 +431,7 @@ Keterangan : —`;
                 Customer Information
               </h3>
               <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 font-medium">
-                1/4
+                1/5
               </span>
             </div>
 
@@ -521,7 +521,7 @@ Keterangan : —`;
                 Watch Details
               </h3>
               <span className="ml-auto text-xs text-gray-400 dark:text-gray-500 font-medium">
-                2/4
+                2/5
               </span>
             </div>
 
@@ -639,7 +639,7 @@ Keterangan : —`;
                 Initial Condition Photos
               </h3>
               <span className="ml-auto text-xs text-slate-400 font-medium">
-                3/4
+                3/5
               </span>
             </div>
 
@@ -730,7 +730,7 @@ Keterangan : —`;
           </motion.div>
         )}
 
-        {/* ── STEP 4: Issue ─────────────────────────────────────────────── */}
+        {/* ── STEP 4: Issue + Estimasi Biaya ─────────────────────────── */}
         {step === 4 && (
           <motion.div
             key="s4"
@@ -743,7 +743,7 @@ Keterangan : —`;
               <AlertCircle className="w-4 h-4 text-[#4DB2FF]" />
               <h3 className="font-semibold text-slate-900">Service Issue</h3>
               <span className="ml-auto text-xs text-slate-400 font-medium">
-                4/4
+                4/5
               </span>
             </div>
 
@@ -789,6 +789,23 @@ Keterangan : —`;
                   className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all resize-none text-sm"
                   placeholder="Any additional notes..."
                 />
+              </div>
+
+              {/* Estimasi Biaya */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                  Estimasi Biaya (opsional)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">Rp</span>
+                  <input
+                    type="text"
+                    value={estimatedCost}
+                    onChange={(e) => setEstimatedCost(e.target.value.replace(/\D/g, ""))}
+                    placeholder="0"
+                    className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
               </div>
 
               <div>

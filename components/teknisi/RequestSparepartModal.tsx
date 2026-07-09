@@ -95,16 +95,16 @@ export default function RequestSparepartModal({
         .eq("role", "admin");
 
       if (admins && admins.length > 0) {
-        for (const admin of admins) {
-          await supabase.from("notifications").insert({
+        await supabase.from("notifications").insert(
+          admins.map((admin: any) => ({
             user_id: admin.id,
             title: "📦 Request Sparepart (PO)",
             message: `${user?.full_name} membutuhkan ${formData.sparepart_name} (x${formData.quantity}) untuk service ${service.invoice_number}. ${formData.notes ? "Catatan: " + formData.notes : ""}`,
             type: "warning",
             link: "/admin",
             is_read: false,
-          });
-        }
+          }))
+        );
       }
 
       setSuccess(true);

@@ -188,15 +188,19 @@ export default function QueueList({
         .eq("role", "admin");
 
       if (admins && admins.length > 0) {
+        const notifications: any[] = []
         for (const admin of admins) {
-          await supabase.from("notifications").insert({
+          notifications.push({
             user_id: admin.id,
-            title: "⏰ Peringatan: PO Belum Direspon",
-            message: `Teknisi ${user?.full_name} mengingatkan PO untuk ${service.po_sparepart} (${service.invoice_number}) belum direspon. Mohon segera ditindaklanjuti.`,
-            type: "warning",
-            link: "/admin",
-            is_read: false,
-          });
+            title: '⏰ Reminder: PO Belum Direspon',
+            message: `PO untuk ${service.invoice_number} (${service.po_sparepart}) belum direspon oleh admin.`,
+            type: 'warning',
+            link: '/admin',
+            is_read: false
+          })
+        }
+        if (notifications.length > 0) {
+          await supabase.from('notifications').insert(notifications)
         }
       }
       toast.success("Peringatan terkirim ke admin!");

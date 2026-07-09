@@ -117,18 +117,22 @@ export default function QCReviewModal({
     try {
       // Save item changes before updating status
       if (status === 'approved' && localItems.length > 0) {
-        // Delete all existing items and re-insert
+        // Delete all existing items and re-insert in batch
         await supabase.from('service_items').delete().eq('service_order_id', service.id)
-        for (const item of localItems) {
-          await supabase.from('service_items').insert({
+        await supabase.from('service_items').insert(
+          localItems.map((item: any) => ({
             service_order_id: service.id,
             name: item.name,
             price: item.price,
             quantity: item.quantity,
             item_type: item.item_type,
             notes: item.notes || null,
-          })
-        }
+          }))
+        )
+
+        // Update final_cost on the service order
+        const newTotal = localItems.reduce((s: number, i: any) => s + (parseFloat(i.price) || 0) * (i.quantity || 1), 0)
+        await supabase.from('service_orders').update({ final_cost: newTotal }).eq('id', service.id)
       }
 
       const newStatus = status === 'approved' ? 'completed' : 'revision_required'
@@ -199,6 +203,10 @@ export default function QCReviewModal({
             details: {
               service_id: service.id,
               invoice: service.invoice_number,
+              customer_name: service.customer_name,
+              customer_phone: service.customer_phone,
+              watch_brand: service.watch_brand || service.device_brand || "",
+              serial_number: service.serial_number || "",
               reviewer: reviewerName,
               changes: changes,
             },

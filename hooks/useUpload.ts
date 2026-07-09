@@ -1,51 +1,50 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 
-// Helper function to compress images on the client side using Canvas API
 const compressImageOnClient = (file: File): Promise<Blob> => {
   return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const maxDimension = 1280
-        let width = img.width
-        let height = img.height
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      // Telegram recommends max 1280px for photos in media groups
+      const maxDimension = 1280
+      let width = img.width
+      let height = img.height
 
-        // Calculate new dimensions maintaining aspect ratio
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width)
-            width = maxDimension
-          } else {
-            width = Math.round((width * maxDimension) / height)
-            height = maxDimension
-          }
-        }
-
-        canvas.width = width
-        canvas.height = height
-
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height)
-          canvas.toBlob(
-            (blob) => {
-              resolve(blob || file)
-            },
-            'image/jpeg',
-            0.85 // Quality setting (0.85 is standard compression sweet-spot)
-          )
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width)
+          width = maxDimension
         } else {
-          resolve(file)
+          width = Math.round((width * maxDimension) / height)
+          height = maxDimension
         }
       }
-      img.onerror = () => resolve(file)
-      img.src = e.target?.result as string
+
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height)
+        // High quality — Telegram supports up to 10MB per photo
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(img.src)
+            resolve(blob || file)
+          },
+          'image/jpeg',
+          0.92
+        )
+      } else {
+        URL.revokeObjectURL(img.src)
+        resolve(file)
+      }
     }
-    reader.onerror = () => resolve(file)
-    reader.readAsDataURL(file)
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src)
+      resolve(file)
+    }
+    img.src = URL.createObjectURL(file)
   })
 }
 
@@ -70,7 +69,6 @@ export function useUpload() {
     setProgress(0)
 
     try {
-      // Validasi setiap file
       for (const file of files) {
         if (file.size > 20 * 1024 * 1024) {
           toast.error(`File "${file.name}" terlalu besar. Maksimal 20MB`)
@@ -82,41 +80,33 @@ export function useUpload() {
         }
       }
 
-      const formData = new FormData()
-      
-      // Compress and append all files
-      for (const file of files) {
-        let fileToUpload: Blob | File = file
-        
-        // Only compress if file is larger than 100KB to avoid unnecessary processing on tiny images
-        if (file.type.startsWith('image/') && file.size > 100 * 1024) {
-          try {
-            console.log(`📸 Compressing ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`)
-            fileToUpload = await compressImageOnClient(file)
-            console.log(`📉 Compressed ${file.name} to ${(fileToUpload.size / 1024).toFixed(2)} KB`)
-          } catch (compressError) {
-            console.error(`⚠️ Client-side compression failed for ${file.name}, using original:`, compressError)
+      // Compress all files in parallel
+      const compressed = await Promise.all(
+        files.map(async (file) => {
+          if (file.size > 200 * 1024) {
+            try {
+              const blob = await compressImageOnClient(file)
+              return new File([blob], file.name, { type: 'image/jpeg' })
+            } catch {
+              return file
+            }
           }
-        }
+          return file
+        })
+      )
 
-        const uploadFileObj = fileToUpload instanceof File 
-          ? fileToUpload 
-          : new File([fileToUpload], file.name, { type: file.type || 'image/jpeg' })
-
-        formData.append('files', uploadFileObj)
+      const formData = new FormData()
+      for (const f of compressed) {
+        formData.append('files', f)
       }
       
       formData.append('type', options.type)
-      if (options.caption) {
-        formData.append('caption', options.caption)
-      }
-      if (options.formData) {
-        formData.append('formData', JSON.stringify(options.formData))
-      }
+      if (options.caption) formData.append('caption', options.caption)
+      if (options.formData) formData.append('formData', JSON.stringify(options.formData))
 
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + 5, 90))
-      }, 300)
+      }, 200)
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -126,7 +116,6 @@ export function useUpload() {
       clearInterval(progressInterval)
       setProgress(100)
 
-      // Read response as text first to handle non-JSON error pages from Vercel gracefully
       const rawText = await response.text()
       let data: any
       try {
@@ -144,9 +133,7 @@ export function useUpload() {
         throw new Error('No URLs returned from server')
       }
 
-      console.log(`✅ Upload success: ${data.count || data.urls.length} files (channel: ${data.channel || 'telegram'})`)
       toast.success(`${data.urls.length} foto berhasil diupload!`)
-      
       return data.urls
       
     } catch (error: any) {
@@ -159,7 +146,6 @@ export function useUpload() {
     }
   }
 
-  // Single file upload (backward compatibility)
   const uploadFile = async (
     file: File,
     options: { 
@@ -172,10 +158,5 @@ export function useUpload() {
     return urls.length > 0 ? urls[0] : null
   }
 
-  return {
-    uploadFile,
-    uploadFiles,
-    uploading,
-    progress,
-  }
+  return { uploadFile, uploadFiles, uploading, progress }
 }

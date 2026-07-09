@@ -30,69 +30,35 @@ export async function POST(request: NextRequest) {
     const parsedFormData = JSON.parse(formDataJson)
     console.log('📤 Parsed form data:', parsedFormData)
 
-    // Process each file: compress & resize
+    // Process all files — skip sharp since client already compressed to JPEG
     const processedFiles: Array<{ buffer: Buffer; name: string }> = []
+    const timestamp = Date.now()
     
     for (const file of files) {
-      console.log(`📤 Processing: ${file.name}, Size: ${file.size} bytes`)
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
       
-      try {
-        const arrayBuffer = await file.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        
-        if (!sharp) {
-          console.log(`⚠️ sharp is not available, using original file directly: ${file.name}`)
+      if (sharp) {
+        try {
+          // Fast pass: just ensure JPEG format, keep high quality
+          const processedBuffer = await sharp(buffer)
+            .jpeg({ quality: 90 })
+            .toBuffer()
           processedFiles.push({
-            buffer: buffer,
-            name: `${type}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`
+            buffer: processedBuffer,
+            name: `${type}/${timestamp}_${Math.random().toString(36).substring(2, 8)}.jpg`
           })
-          continue
+        } catch {
+          // Fallback: use original
+          processedFiles.push({
+            buffer,
+            name: `${type}/${timestamp}_${Math.random().toString(36).substring(2, 8)}.jpg`
+          })
         }
-        
-        // Get dimensions
-        const metadata = await sharp(buffer).metadata()
-        console.log(`📐 Original: ${metadata.width}x${metadata.height}`)
-        
-        // Resize to max 1280px for Telegram
-        const maxDimension = 1280
-        let width = metadata.width || 0
-        let height = metadata.height || 0
-        
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width)
-            width = maxDimension
-          } else {
-            width = Math.round((width * maxDimension) / height)
-            height = maxDimension
-          }
-        }
-        
-        console.log(`📐 Resized to: ${width}x${height}`)
-        
-        const processedBuffer = await sharp(buffer)
-          .rotate()
-          .flatten({ background: { r: 255, g: 255, b: 255 } })
-          .resize(width, height, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 85 })
-          .toBuffer()
-        
-        console.log(`✅ Processed: ${buffer.length} → ${processedBuffer.length} bytes`)
-        
-        // Simpan file yang sudah diproses
+      } else {
         processedFiles.push({
-          buffer: processedBuffer,
-          name: `${type}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`
-        })
-        
-      } catch (error) {
-        console.error(`❌ Error processing ${file.name}:`, error)
-        // Jika error, gunakan file asli
-        const arrayBuffer = await file.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        processedFiles.push({
-          buffer: buffer,
-          name: `${type}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`
+          buffer,
+          name: `${type}/${timestamp}_${Math.random().toString(36).substring(2, 8)}.jpg`
         })
       }
     }

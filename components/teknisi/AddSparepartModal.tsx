@@ -285,16 +285,16 @@ export default function AddSparepartModal({
         .eq("role", "admin");
 
       if (admins && admins.length > 0) {
-        for (const admin of admins) {
-          await supabase.from("notifications").insert({
+        await supabase.from("notifications").insert(
+          admins.map((admin: any) => ({
             user_id: admin.id,
             title: "📦 Laporan Stock Sparepart",
             message: `${user?.full_name} melaporkan stock ${reportData?.item_name || "sparepart"} (SKU: ${reportData?.sku}) habis. Pesan: ${reportMessage}`,
             type: "warning",
             link: "/admin/inventory",
             is_read: false,
-          });
-        }
+          }))
+        );
       }
 
       toast.success("Laporan terkirim ke admin!");

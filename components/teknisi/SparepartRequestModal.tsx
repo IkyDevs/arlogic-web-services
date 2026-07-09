@@ -118,23 +118,23 @@ export default function SparepartRequestModal({
         console.log(`📨 Sending notifications to ${admins?.length || 0} admins...`)
 
         if (admins && admins.length > 0) {
-          for (const admin of admins) {
-            const { error: notifError } = await supabase
-              .from('notifications')
-              .insert({
+          const { error: notifError } = await supabase
+            .from('notifications')
+            .insert(
+              admins.map((admin: any) => ({
                 user_id: admin.id,
                 title: '📦 Request Sparepart Baru',
                 message: `${user?.full_name} membutuhkan ${formData.sparepart_name} (x${formData.quantity}) untuk service ${service.invoice_number} - ${service.customer_name}`,
                 type: 'warning',
                 link: '/admin',
                 is_read: false
-              })
+              }))
+            )
 
-            if (notifError) {
-              console.error(`❌ Failed to send notification to ${admin.full_name}:`, notifError)
-            } else {
-              console.log(`✅ Notification sent to ${admin.full_name} (${admin.role})`)
-            }
+          if (notifError) {
+            console.error('❌ Failed to send notifications:', notifError)
+          } else {
+            console.log(`✅ Notifications sent to ${admins.length} admins`)
           }
         }
       }

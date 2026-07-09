@@ -757,15 +757,54 @@ CREATE INDEX IF NOT EXISTS idx_closings_status ON closings(status);
 ALTER TABLE closings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Full access via service_role bypass" ON closings USING (true) WITH CHECK (true);
 
+-- =====================================================
+-- FOREIGN KEY INDEXES (untuk performa join)
+-- =====================================================
+-- service_items
+CREATE INDEX IF NOT EXISTS idx_service_items_order ON service_items(service_order_id);
+-- service_documentation
+CREATE INDEX IF NOT EXISTS idx_service_doc_order ON service_documentation(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_service_doc_uploader ON service_documentation(uploaded_by);
+-- service_timeline
+CREATE INDEX IF NOT EXISTS idx_service_timeline_teknisi ON service_timeline(teknisi_id);
+CREATE INDEX IF NOT EXISTS idx_service_timeline_status ON service_timeline(status);
+-- qc_reviews
+CREATE INDEX IF NOT EXISTS idx_qc_reviews_order ON qc_reviews(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_qc_reviews_reviewer ON qc_reviews(reviewer_id);
+-- activity_logs
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action);
+-- contact_logs
+CREATE INDEX IF NOT EXISTS idx_contact_logs_order ON contact_logs(service_order_id);
+CREATE INDEX IF NOT EXISTS idx_contact_logs_teknisi ON contact_logs(teknisi_id);
+-- warranties
+CREATE INDEX IF NOT EXISTS idx_warranties_order ON warranties(service_order_id);
+-- feedbacks
+CREATE INDEX IF NOT EXISTS idx_feedbacks_teknisi ON feedbacks(teknisi_id);
+-- stock_transfers
+CREATE INDEX IF NOT EXISTS idx_stock_transfers_inventory ON stock_transfers(inventory_id);
+CREATE INDEX IF NOT EXISTS idx_stock_transfers_creator ON stock_transfers(created_by);
+-- sparepart_requests
+CREATE INDEX IF NOT EXISTS idx_sparepart_requests_teknisi ON sparepart_requests(teknisi_id);
+-- sparepart_conversations
+CREATE INDEX IF NOT EXISTS idx_sparepart_conv_sender ON sparepart_conversations(sender_id);
+-- notifications
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
+-- activity_logs created_at (sering di-order)
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at);
+-- notifications created_at
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at);
+-- service_orders
+CREATE INDEX IF NOT EXISTS idx_service_orders_category ON service_orders(category);
+CREATE INDEX IF NOT EXISTS idx_service_orders_updated ON service_orders(updated_at);
+
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================================
--- MIGRATION: 2026-07-09 - Closing Harian + Perbaikan
+-- MIGRATION: 2026-07-09 - Performance optimization
 -- ============================================================
--- 1. Tambah tabel closings untuk daily settlement (admin closing → owner approval)
--- 2. Kolom difference_notes untuk catatan selisih dari admin
--- 3. API route /api/admin/closing menggunakan service_role key
--- 4. AdminDashboardAnalytics: default recentTransactions = hari ini
--- 5. TransactionManagement + LayananList: filter dateFilter untuk compact mode
--- 6. Owner dashboard: tab Closing untuk approve/reject
--- 7. ClosingApproval: approve only + kirim ke Telegram channel CLOSING
+-- 1. Hapus aws-sdk v2 (50MB tidak dipakai)
+-- 2. Tambah 20+ FK indexes untuk query join
+-- 3. Batch insert pattern untuk N+1 query fixes
+-- 4. Fix useEffect stale closure di teknisi page

@@ -65,16 +65,16 @@ export default function POSection({ onUpdate }: POSectionProps) {
         .eq('role', 'admin')
 
       if (admins && admins.length > 0) {
-        for (const admin of admins) {
-          await supabase.from('notifications').insert({
+        await supabase.from('notifications').insert(
+          admins.map((admin: any) => ({
             user_id: admin.id,
             title: '⏰ Peringatan: PO Belum Direspon',
             message: `PO untuk ${service.po_sparepart} (${service.invoice_number}) belum direspon. Mohon segera ditindaklanjuti.`,
             type: 'warning',
             link: '/admin',
             is_read: false
-          })
-        }
+          }))
+        )
       }
       toast.success('Peringatan terkirim ke admin!')
     } catch (error: any) {

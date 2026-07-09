@@ -126,6 +126,14 @@ const ClosingDashboard = dynamic(
     ),
   },
 );
+const DoneService = dynamic(
+  () => import("@/components/admin/DoneService"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
 
 export default function AdminDashboard() {
   let isDark = false;
@@ -699,6 +707,7 @@ export default function AdminDashboard() {
     { id: "users", label: "Users", icon: Users },
     { id: "inventory", label: "Inventory", icon: Package },
     { id: "closing", label: "Closing", icon: FileText },
+    { id: "done", label: "Done", icon: CheckCircle },
     { id: "export", label: "Export", icon: Download },
   ];
 
@@ -1140,6 +1149,8 @@ export default function AdminDashboard() {
           {activeTab === "users" && <RoleManagement />}
 
           {activeTab === "closing" && <ClosingDashboard />}
+
+          {activeTab === "done" && <DoneService />}
 
           {activeTab === "export" && <ExportReports />}
         </main>
