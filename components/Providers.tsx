@@ -26,7 +26,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
               id: user.id,
               email: user.email || '',
               full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-              role: user.user_metadata?.role || 'customer',
+              role: user.user_metadata?.role || 'teknisi',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             } as any)

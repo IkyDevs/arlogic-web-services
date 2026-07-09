@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 
-const validRoles = ['admin', 'teknisi', 'supervisor', 'owner', 'customer']
+const validRoles = ['admin', 'teknisi', 'supervisor', 'owner']
 
 export default function Home() {
   const router = useRouter()

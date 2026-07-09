@@ -5,11 +5,11 @@ type AuthUserLike = {
 }
 
 function buildFallbackProfile(authUser: AuthUserLike) {
-  const allowedRoles = ['admin', 'teknisi', 'supervisor', 'owner', 'customer'] as const
+  const allowedRoles = ['admin', 'teknisi', 'supervisor', 'owner'] as const
   const roleFromMeta = authUser.user_metadata?.role
   const role = typeof roleFromMeta === 'string' && allowedRoles.includes(roleFromMeta as any)
     ? roleFromMeta
-    : 'customer'
+    : 'teknisi'
 
   return {
     id: authUser.id,
