@@ -76,8 +76,12 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     setLoading(true)
     let photoUrl = null
     try {
+      const d = new Date();
+      const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+      const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
       if (selectedPhoto) {
-        photoUrl = await uploadFile(selectedPhoto, { type: 'service', caption: `Progress: ${message.substring(0, 100)}` })
+        photoUrl = await uploadFile(selectedPhoto, { type: 'service', caption: `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message}\nstatus: ${status || 'progress'}` })
         if (!photoUrl) { toast.error('Failed to upload photo'); return }
       }
       const { error } = await supabase.from('service_timeline').insert({

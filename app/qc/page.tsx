@@ -132,13 +132,17 @@ export default function QCDashboard() {
     setLoading(true);
     const { data } = await supabase
       .from("service_orders")
-      .select("*")
+      .select("*, profiles:assigned_teknisi_id(full_name)")
       .eq("status", "qc_pending")
       .order("created_at", { ascending: false });
 
     if (data) {
-      setServices(data);
-      setFilteredServices(data);
+      const mapped = data.map((s: any) => ({
+        ...s,
+        teknisi_name: s.profiles?.full_name || "-",
+      }));
+      setServices(mapped);
+      setFilteredServices(mapped);
     }
     setLoading(false);
   };

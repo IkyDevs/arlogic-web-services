@@ -93,11 +93,11 @@ export default function AdminDashboardAnalytics({
   const cardBg = isDark ? "bg-slate-800/80" : "bg-white";
   const labelCls = `text-[10px] md:text-xs font-medium ${isDark ? "text-slate-400" : "text-slate-500"}`;
 
-  const StatCard = ({ label, value, icon: Icon, trend, gradient, onClick }: { label: string; value: number | string; icon: any; trend?: number; gradient: string; onClick?: () => void }) => (
+  const StatCard = ({ label, value, icon: Icon, gradient, onClick }: { label: string; value: number | string; icon: any; gradient: string; onClick?: () => void }) => (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
       className={`${gradient} rounded-xl p-4 border ${cardBorder} shadow-sm backdrop-blur-sm ${onClick ? "cursor-pointer hover:scale-[1.02] active:scale-[0.98]" : ""} transition-all`}
       onClick={onClick}>
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between">
         <div>
           <p className={labelCls}>{label}</p>
           <p className={`text-xl lg:text-2xl font-bold mt-0.5 ${isDark ? "text-white" : "text-slate-900"}`}>{value}</p>
@@ -106,13 +106,6 @@ export default function AdminDashboardAnalytics({
           <Icon className={`w-4 h-4 ${isDark ? "text-slate-300" : "text-slate-600"}`} />
         </div>
       </div>
-      {trend !== undefined && (
-        <div className="flex items-center gap-1 text-[10px] md:text-xs">
-          {trend >= 0 ? <ArrowUp className="w-3 h-3 text-green-500" /> : <ArrowDown className="w-3 h-3 text-red-500" />}
-          <span className={`font-semibold ${trend >= 0 ? "text-green-500" : "text-red-500"}`}>{Math.abs(trend)}%</span>
-          <span className={isDark ? "text-slate-400" : "text-slate-500"}>vs bulan lalu</span>
-        </div>
-      )}
     </motion.div>
   );
 
@@ -128,16 +121,16 @@ export default function AdminDashboardAnalytics({
 
       {/* Stat Cards — click to navigate */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <StatCard label="Transaksi Hari Ini" value={todayTransactions} icon={ShoppingCart} trend={revenueGrowth}
+        <StatCard label="Transaksi Hari Ini" value={todayTransactions} icon={ShoppingCart}
           gradient={isDark ? "bg-gradient-to-br from-blue-900/40 to-blue-800/20" : "bg-gradient-to-br from-blue-50 to-blue-100/60"}
           onClick={() => onNavigate?.("management-transaction")} />
-        <StatCard label="Total Users" value={totalUsers} icon={Users} trend={8}
+        <StatCard label="Total Users" value={totalUsers} icon={Users}
           gradient={isDark ? "bg-gradient-to-br from-green-900/40 to-green-800/20" : "bg-gradient-to-br from-green-50 to-green-100/60"}
           onClick={() => onNavigate?.("users")} />
-        <StatCard label="Total Services" value={totalServices} icon={Box} trend={5}
+        <StatCard label="Total Services" value={totalServices} icon={Box}
           gradient={isDark ? "bg-gradient-to-br from-purple-900/40 to-purple-800/20" : "bg-gradient-to-br from-purple-50 to-purple-100/60"}
           onClick={() => onNavigate?.("services")} />
-        <StatCard label="Pending Service" value={pendingServices} icon={Clock} trend={-2}
+        <StatCard label="Pending Service" value={pendingServices} icon={Clock}
           gradient={isDark ? "bg-gradient-to-br from-amber-900/40 to-amber-800/20" : "bg-gradient-to-br from-amber-50 to-amber-100/60"}
           onClick={() => onNavigate?.("services")} />
       </div>
@@ -156,10 +149,6 @@ export default function AdminDashboardAnalytics({
           <div className="w-full bg-slate-700 rounded-full h-1 mt-2 flex">
             <div className="bg-emerald-500 h-1 rounded-l-full transition-all" style={{ width: todayRevenue + todayExpenses > 0 ? `${todayRevenue / (todayRevenue + todayExpenses) * 100}%` : "100%" }} />
             {todayExpenses > 0 && <div className="bg-red-500 h-1 rounded-r-full transition-all" style={{ width: `${todayExpenses / (todayRevenue + todayExpenses) * 100}%` }} />}
-          </div>
-          <div className="mt-3 flex items-center gap-2 text-emerald-400">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span className="text-xs font-medium">Pertumbuhan +{revenueGrowth}%</span>
           </div>
 
           {/* Payment method breakdown */}

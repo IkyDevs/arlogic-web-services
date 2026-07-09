@@ -78,14 +78,18 @@ export default function TeknisiDashboard() {
   >("check_in");
   const [showLayananForm, setShowLayananForm] = useState(false);
   const [refreshLayanan, setRefreshLayanan] = useState(0);
+  const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun" | undefined>("hari");
+  const [layananDate, setLayananDate] = useState(new Date().toISOString().split("T")[0]);
   const [stats, setStats] = useState({
     completedToday: 0,
     completedThisMonth: 0,
     inProgress: 0,
     pendingQueue: 0,
     averageTime: 2.5,
-    rating: 4.8,
+    rating: 0,
     totalEarnings: 0,
+    attendance: 0,
+    completionRate: 0,
   });
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,7 +188,7 @@ export default function TeknisiDashboard() {
       return true; // already filtered by status=completed
     }).length;
 
-    const [completedTodayCount, inProgressCount, pendingQueueCount] = await Promise.all([
+    const [completedTodayCount, inProgressCount, pendingQueueCount, ratingData, attendanceData] = await Promise.all([
       supabase
         .from("service_orders")
         .select("*", { count: "exact", head: true })
@@ -200,7 +204,31 @@ export default function TeknisiDashboard() {
         .from("service_orders")
         .select("*", { count: "exact", head: true })
         .eq("status", "pending"),
+      supabase
+        .from("feedbacks")
+        .select("rating")
+        .eq("teknisi_id", user?.id),
+      supabase
+        .from("attendances")
+        .select("*", { count: "exact", head: true })
+        .eq("teknisi_id", user?.id)
+        .gte("check_in", startOfMonth),
     ]);
+
+    // Compute real rating
+    const ratings = ratingData.data || [];
+    const avgRating = ratings.length > 0
+      ? ratings.reduce((s: number, r: any) => s + (r.rating || 0), 0) / ratings.length
+      : 0;
+
+    // Compute real attendance (days with check_in this month / total work days)
+    const attendanceDays = attendanceData.count || 0;
+    const workDaysThisMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+    const attendancePct = workDaysThisMonth > 0 ? Math.round(attendanceDays / workDaysThisMonth * 100) : 0;
+
+    // Completion rate
+    const totalJobs = thisMonthCompleted + (inProgressCount.count || 0);
+    const completionRate = totalJobs > 0 ? Math.round(thisMonthCompleted / totalJobs * 100) : 0;
 
     setStats({
       completedToday: completedTodayCount.count || 0,
@@ -208,8 +236,10 @@ export default function TeknisiDashboard() {
       inProgress: inProgressCount.count || 0,
       pendingQueue: pendingQueueCount.count || 0,
       averageTime: 2.5,
-      rating: 4.8,
+      rating: avgRating || 0,
       totalEarnings: totalEarnings,
+      attendance: attendancePct,
+      completionRate: completionRate,
     });
   };
 
@@ -640,148 +670,99 @@ export default function TeknisiDashboard() {
                 className="grid md:grid-cols-2 gap-3 sm:gap-4 md:gap-6"
               >
                 {/* Performance Stats */}
-                <div className="bg-white dark:bg-[#1c1c1c] rounded-xl sm:rounded-2xl md:rounded-[24px] border border-gray-200 dark:border-white/10 shadow-sm p-3 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-gray-200 dark:border-white/10">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 dark:bg-white rounded-md sm:rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-white dark:text-gray-900" />
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-white/10">
+                    <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      Metrik Performa
-                    </h3>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Metrik Performa</h3>
                   </div>
 
-                  <div className="space-y-4 sm:space-y-5">
+                  <div className="space-y-4">
+                    {/* Completion Rate */}
                     <div>
-                      <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          Completion Rate
-                        </span>
-                        <span className="text-gray-900 dark:text-gray-100">
-                          94%
-                        </span>
+                      <div className="flex justify-between text-sm font-medium mb-1">
+                        <span className="text-gray-600 dark:text-gray-400">Completion Rate</span>
+                        <span className="text-gray-900 dark:text-gray-100">{stats.completionRate}%</span>
                       </div>
-                      <div className="h-1.5 sm:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div className="w-[94%] h-full bg-gray-900 rounded-full" />
+                      <div className="h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-gray-900 rounded-full" style={{ width: stats.completionRate + "%" }} />
                       </div>
                     </div>
 
+                    {/* Average Service Time */}
                     <div>
-                      <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          Rata-rata Waktu Service
-                        </span>
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {stats.averageTime} hari
-                        </span>
+                      <div className="flex justify-between text-sm font-medium mb-1">
+                        <span className="text-gray-600 dark:text-gray-400">Rata-rata Waktu Service</span>
+                        <span className="text-gray-900 dark:text-gray-100">{stats.averageTime} hari</span>
                       </div>
-                      <div className="h-1.5 sm:h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div className="w-[75%] h-full bg-gray-900 rounded-full" />
+                      <div className="h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-gray-900 rounded-full" style={{ width: Math.min(stats.averageTime * 25, 100) + "%" }} />
                       </div>
                     </div>
 
+                    {/* Customer Rating */}
                     <div>
-                      <div className="flex justify-between text-xs sm:text-sm font-medium mb-1 sm:mb-2">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          Rating Customer
-                        </span>
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {stats.rating} / 5.0
-                        </span>
+                      <div className="flex justify-between text-sm font-medium mb-1">
+                        <span className="text-gray-600 dark:text-gray-400">Rating Customer</span>
+                        <span className="text-gray-900 dark:text-gray-100">{stats.rating > 0 ? stats.rating.toFixed(1) : "-"} / 5.0</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                              star <= Math.floor(stats.rating)
-                                ? "fill-gray-400 text-gray-500"
-                                : star - 0.5 <= stats.rating
-                                  ? "fill-gray-400/50 text-gray-500"
-                                  : "text-gray-300 dark:text-gray-600"
-                            }`}
-                          />
+                          <Star key={star} className={`w-5 h-5 ${star <= Math.round(stats.rating) ? "fill-amber-400 text-amber-500" : "text-gray-300 dark:text-gray-600"}`} />
                         ))}
                       </div>
                     </div>
 
-                    <div className="pt-3 sm:pt-4 border-t border-gray-200 dark:border-white/10">
-                      <div className="flex justify-between items-center">
-                        <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                            {stats.completedThisMonth}
-                          </p>
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
-                            Service Bulan Ini
-                          </p>
+                    {/* Summary row */}
+                    <div className="pt-3 border-t border-gray-200 dark:border-white/10">
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.completedThisMonth}</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Selesai</p>
                         </div>
-                        <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-gray-600 dark:text-gray-400">
-                            {formatRupiah(stats.totalEarnings)}
-                          </p>
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
-                            Pendapatan
-                          </p>
+                        <div>
+                          <p className="text-xl font-bold text-emerald-600">{formatRupiah(stats.totalEarnings)}</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Pendapatan</p>
                         </div>
-                        <div className="text-center">
-                          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                            100%
-                          </p>
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
-                            Kehadiran
-                          </p>
+                        <div>
+                          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.attendance}%</p>
+                          <p className="text-[10px] text-gray-400 uppercase">Kehadiran</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Badges & Achievements */}
-                <div className="bg-white dark:bg-[#1c1c1c] rounded-xl sm:rounded-2xl md:rounded-[24px] border border-gray-200 dark:border-white/10 shadow-sm p-3 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4 sm:mb-5 pb-2 sm:pb-3 border-b border-gray-200 dark:border-white/10">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 dark:bg-white rounded-md sm:rounded-lg flex items-center justify-center">
-                      <Award className="w-3 h-3 sm:w-4 sm:h-4 text-white dark:text-gray-900" />
+                {/* Achievements */}
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200 dark:border-white/10">
+                    <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center">
+                      <Award className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100">
-                      Pencapaian
-                    </h3>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Pencapaian</h3>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
-                      <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                        Speedster
-                      </p>
-                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
-                        Selesaikan 10 service
-                      </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`text-center p-3 rounded-xl border ${stats.completedThisMonth >= 1 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
+                      <Zap className={`w-8 h-8 mx-auto mb-1.5 ${stats.completedThisMonth >= 1 ? "text-emerald-600" : "text-gray-400"}`} />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">First Service</p>
+                      <p className="text-[10px] text-gray-500">Selesaikan 1 service</p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
-                      <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                        Quality Expert
-                      </p>
-                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
-                        95% approval rate
-                      </p>
+                    <div className={`text-center p-3 rounded-xl border ${stats.completedThisMonth >= 10 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
+                      <Shield className={`w-8 h-8 mx-auto mb-1.5 ${stats.completedThisMonth >= 10 ? "text-emerald-600" : "text-gray-400"}`} />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Quality Expert</p>
+                      <p className="text-[10px] text-gray-500">{stats.completedThisMonth}/10 service</p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
-                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2" />
-                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                        Team Player
-                      </p>
-                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
-                        Bantu teknisi lain
-                      </p>
+                    <div className={`text-center p-3 rounded-xl border ${stats.rating >= 4.5 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
+                      <Star className={`w-8 h-8 mx-auto mb-1.5 ${stats.rating >= 4.5 ? "text-amber-500 fill-amber-500" : "text-gray-400"}`} />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Top Rated</p>
+                      <p className="text-[10px] text-gray-500">{stats.rating > 0 ? stats.rating.toFixed(1) : "-"} / 5.0 rating</p>
                     </div>
-                    <div className="text-center p-2.5 sm:p-3 bg-gray-50 dark:bg-white/5 rounded-lg sm:rounded-xl border border-gray-200 dark:border-white/10">
-                      <Star className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 mx-auto mb-1.5 sm:mb-2 fill-gray-300/30" />
-                      <p className="font-semibold text-xs sm:text-sm text-gray-900 dark:text-gray-100">
-                        Top Performer
-                      </p>
-                      <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
-                        Rating 5 bintang
-                      </p>
+                    <div className={`text-center p-3 rounded-xl border ${stats.totalEarnings >= 1000000 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
+                      <Award className={`w-8 h-8 mx-auto mb-1.5 ${stats.totalEarnings >= 1000000 ? "text-amber-500" : "text-gray-400"}`} />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Earned Rp 1jt</p>
+                      <p className="text-[10px] text-gray-500">{stats.totalEarnings >= 1000000 ? "Tercapai!" : formatRupiah(stats.totalEarnings)}</p>
                     </div>
                   </div>
                 </div>
@@ -799,29 +780,32 @@ export default function TeknisiDashboard() {
             )}
 
             {activeTab === "layanan" && (
-              <motion.div
-                key="layanan"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-              >
-                <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <motion.div key="layanan" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">
-                      Manajemen Transaksi
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-500">
-                      Input transaksi layanan customer
-                    </p>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Manajemen Transaksi</h3>
+                    <p className="text-xs sm:text-sm text-slate-500">Input transaksi layanan customer</p>
                   </div>
-                  <button
-                    onClick={() => setShowLayananForm(true)}
-                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
-                  >
+                  <button onClick={() => setShowLayananForm(true)}
+                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto">
                     + Tambah Transaksi
                   </button>
                 </div>
-                <LayananList isAdmin={false} key={refreshLayanan} />
+                {/* Date filter */}
+                <div className="flex items-center gap-2 mb-4 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1 shadow-sm">
+                  {(["hari", "bulan", "tahun"] as const).map((p) => (
+                    <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setLayananDate(new Date().toISOString().split("T")[0]); }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${(filterPeriod || "hari") === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}>
+                      {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
+                    </button>
+                  ))}
+                  {(!filterPeriod || filterPeriod === "hari") && (
+                    <input type="date" value={layananDate || new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setLayananDate(e.target.value)}
+                      className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
+                  )}
+                </div>
+                <LayananList isAdmin={false} key={refreshLayanan} dateFilter={(!filterPeriod || filterPeriod === "hari") ? (layananDate || new Date().toISOString().split("T")[0]) : undefined} />
               </motion.div>
             )}
           </AnimatePresence>

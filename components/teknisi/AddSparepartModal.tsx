@@ -26,6 +26,7 @@ interface SelectedSparepart {
   id: string;
   name: string;
   sku: string;
+  price: number;
   quantity: number;
   source_type: "store" | "warehouse";
   unit: string;
@@ -194,6 +195,7 @@ export default function AddSparepartModal({
       id: item.id,
       name: item.item_name,
       sku: item.sku,
+      price: item.price || 0,
       quantity: 1,
       source_type: source,
       unit: item.unit || "pcs",
@@ -361,7 +363,7 @@ export default function AddSparepartModal({
           item_type: "sparepart",
           name: sparepart.name,
           quantity: sparepart.quantity,
-          price: 0,
+          price: sparepart.price || 0,
         });
       }
 
@@ -397,16 +399,19 @@ export default function AddSparepartModal({
       console.log("📊 Status setelah update:", checkData);
 
       // Add to timeline - selalu tambahkan
-      await supabase.from("service_timeline").insert({
-        service_order_id: service.id,
-        teknisi_id: user?.id,
-        status: "in_progress",
-        message: `Sparepart PO telah diambil, service dilanjutkan`,
+        const sparepartNames = selectedSparepartList.map((s: any) => s.name).filter(Boolean);
+        const sparepartMsg = sparepartNames.length > 0
+          ? `teknisi mengambil ${sparepartNames.join(', ')} untuk keperluan service`
+          : `Sparepart PO telah diambil, service dilanjutkan`;
+
+        await supabase.from("service_timeline").insert({
+          service_order_id: service.id,
+          teknisi_id: user?.id,
+          status: "in_progress",
+          message: sparepartMsg,
         details: {
           action: "po_sparepart_taken",
-          sparepart_list: selectedSparepartList
-            .filter((s) => s.is_po)
-            .map((s) => s.name),
+          sparepart_list: selectedSparepartList.map((s: any) => s.name),
         },
       });
 

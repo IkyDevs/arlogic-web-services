@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { ServiceOrder } from "@/types";
@@ -26,6 +26,11 @@ import {
   FileText,
   Box,
   Bell,
+  Camera,
+  Check,
+  Trash2,
+  Loader,
+  ImageIcon,
 } from "lucide-react";
 import ServiceDetailModal from "./ServiceDetailModal";
 import ServiceTimeline from "./ServiceTimeline";
@@ -67,6 +72,22 @@ export default function QueueList({
   const [showRequestSparepart, setShowRequestSparepart] = useState(false);
   const [requestSparepartQuery, setRequestSparepartQuery] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showSubmitQCModal, setShowSubmitQCModal] = useState(false);
+  const [showServiceInfoModal, setShowServiceInfoModal] = useState(false);
+  const [qcPhotos, setQCPhotos] = useState<File[]>([]);
+  const [qcPhotoPreviews, setQCPhotoPreviews] = useState<string[]>([]);
+  const [qcItems, setQCItems] = useState<any[]>([]);
+  const [qcTotalCost, setQCTotalCost] = useState(0);
+  const [qcSubmitting, setQCSubmitting] = useState(false);
+  const qcFileInputRef = useRef<HTMLInputElement>(null);
+  const [editingPrice, setEditingPrice] = useState<{ [key: number]: number }>({});
+  const qcInitialItemsRef = useRef<any[]>([]);
+  const [serviceInfoPhotos, setServiceInfoPhotos] = useState<string[]>([]);
+  const [serviceInfoPhotosLoading, setServiceInfoPhotosLoading] =
+    useState(false);
+
   const supabase = createClient();
   const { user } = useAuthStore();
 
@@ -208,6 +229,221 @@ export default function QueueList({
     setShowProgressModal(true);
   };
 
+  const openUpdate = (service: ExtendedServiceOrder) => {
+    setSelectedService(service);
+    setShowUpdateModal(true);
+  };
+
+  const openSubmitQC = async (service: ExtendedServiceOrder) => {
+    setSelectedService(service);
+    setQCPhotos([]);
+    setQCPhotoPreviews([]);
+    await fetchQCItems(service.id);
+    setShowSubmitQCModal(true);
+  };
+
+  const fetchQCItems = async (serviceId: string) => {
+    const { data } = await supabase
+      .from("service_items")
+      .select("*")
+      .eq("service_order_id", serviceId);
+    if (data) {
+      setQCItems(data);
+      qcInitialItemsRef.current = JSON.parse(JSON.stringify(data));
+      setQCTotalCost(
+        data.reduce(
+          (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+          0,
+        ),
+      );
+    } else {
+      setQCItems([]);
+      setQCTotalCost(0);
+    }
+  };
+
+  const handleQCPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const newPhotos = [...qcPhotos, ...files];
+    setQCPhotos(newPhotos);
+    const newPreviews = files.map((f) => URL.createObjectURL(f));
+    setQCPhotoPreviews([...qcPhotoPreviews, ...newPreviews]);
+  };
+
+  const removeQCPhoto = (index: number) => {
+    URL.revokeObjectURL(qcPhotoPreviews[index]);
+    setQCPhotos(qcPhotos.filter((_, i) => i !== index));
+    setQCPhotoPreviews(qcPhotoPreviews.filter((_, i) => i !== index));
+  };
+
+  const deleteQCItem = (index: number) => {
+    const updated = qcItems.filter((_, i) => i !== index);
+    setQCItems(updated);
+    setQCTotalCost(updated.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0));
+  };
+
+  const startEditPrice = (index: number, currentPrice: number) => {
+    setEditingPrice({ ...editingPrice, [index]: currentPrice });
+  };
+
+  const savePrice = (index: number) => {
+    const newPrice = editingPrice[index];
+    if (newPrice === undefined || newPrice < 0) return;
+    const updated = qcItems.map((item, i) =>
+      i === index ? { ...item, price: newPrice } : item
+    );
+    setQCItems(updated);
+    setQCTotalCost(updated.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0));
+    const { [index]: _, ...rest } = editingPrice;
+    setEditingPrice(rest);
+  };
+
+  const handleSubmitQC = async () => {
+    if (!selectedService || !user) return;
+    setQCSubmitting(true);
+    try {
+      // Build caption
+      const now = new Date();
+      const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+      const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      const fmtDate = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} (${String(now.getMonth()+1).padStart(2,"0")}), ${now.getFullYear()}`;
+
+      const barangList = qcItems.filter((i) => i.item_type === "sparepart").map((i) => `• ${i.name} (${i.quantity}x) @Rp ${(i.price || 0).toLocaleString()}`).join("\n") || "—";
+      const jasaList = qcItems.filter((i) => i.item_type === "jasa").map((i) => `• ${i.name} (${i.quantity}x) @Rp ${(i.price || 0).toLocaleString()}`).join("\n") || "—";
+
+      const startDate = selectedService.start_date ? new Date(selectedService.start_date).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "-";
+
+      // Check for DP
+      let dpText = "";
+      let kekuranganText = "";
+      try {
+        const { data: dpData } = await supabase
+          .from("layanan")
+          .select("nominal")
+          .eq("detail_sku", `DP - Invoice ${selectedService.invoice_number}`)
+          .maybeSingle();
+        if (dpData && dpData.nominal) {
+          const dpNominal = dpData.nominal || 0;
+          dpText = `\ndp: Rp ${dpNominal.toLocaleString("id-ID")}`;
+          const kekurangan = qcTotalCost - dpNominal;
+          kekuranganText = `\nkekurangan: Rp ${kekurangan.toLocaleString("id-ID")}`;
+        }
+      } catch { /* ignore */ }
+
+      const captionHeader = selectedService.status === "revision_required" ? "UPDATE QC AFTER REJECT QC" : "UPDATE QC";
+      const caption = `${captionHeader}
+Teknisi : ${user?.full_name || "-"}
+Start : ${startDate}
+Done : ${fmtDate}
+pengerjaan :
+barang:
+${barangList}
+jasa:
+${jasaList}
+total: Rp ${qcTotalCost.toLocaleString("id-ID")}${dpText}${kekuranganText}
+keterangan:`;
+
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < qcPhotos.length; i++) {
+        const formData = new FormData();
+        formData.append("files", qcPhotos[i]);
+        formData.append("type", "service");
+        formData.append("caption", caption);
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.urls && data.urls.length > 0) {
+          uploadedUrls.push(data.urls[0]);
+          await supabase.from("service_documentation").insert({
+            service_order_id: selectedService.id,
+            photo_url: data.urls[0],
+            stage: "qc",
+            uploaded_by: user.id,
+          });
+        }
+      }
+
+      const { error } = await supabase
+        .from("service_orders")
+        .update({
+          status: "qc_pending",
+          done_date: new Date().toISOString(),
+          work_duration: selectedService.start_date
+            ? Math.ceil((new Date().getTime() - new Date(selectedService.start_date).getTime()) / (1000 * 60 * 60 * 24))
+            : null,
+        })
+        .eq("id", selectedService.id);
+
+      if (error) throw error;
+
+      // Detect changes from initial items
+      const initialItems = qcInitialItemsRef.current;
+      const deletedItems: string[] = [];
+      const priceChanges: string[] = [];
+
+      for (const orig of initialItems) {
+        const stillExists = qcItems.some((item) => item.id === orig.id && item.name === orig.name);
+        if (!stillExists) {
+          deletedItems.push(`${orig.item_type === "jasa" ? "jasa" : "sparepart"} ${orig.name}`);
+        }
+      }
+
+      for (const curr of qcItems) {
+        const orig = initialItems.find((o: any) => o.id === curr.id && o.name === curr.name);
+        if (orig && orig.price !== curr.price) {
+          priceChanges.push(`${curr.name}: Rp ${(orig.price || 0).toLocaleString()} → Rp ${(curr.price || 0).toLocaleString()}`);
+        }
+      }
+
+      let changeMsg = "";
+      if (deletedItems.length > 0) changeMsg += `menghapus ${deletedItems.join(", ")}. `;
+      if (priceChanges.length > 0) changeMsg += `mengubah harga ${priceChanges.join(", ")}. `;
+      if (changeMsg) changeMsg = changeMsg.trim() + " ";
+
+      await supabase.from("service_timeline").insert({
+        service_order_id: selectedService.id,
+        teknisi_id: teknisiId,
+        status: "qc_pending",
+        message: `${changeMsg}Service telah selesai dan dikirim ke QC oleh teknisi${
+          uploadedUrls.length > 0
+            ? ` (${uploadedUrls.length} foto)`
+            : ""
+        }`,
+        details: {
+          action: "submit_to_qc",
+          photos_count: uploadedUrls.length,
+          total_cost: qcTotalCost,
+        },
+      });
+
+      toast.success("Service berhasil dikirim ke QC!");
+      setShowSubmitQCModal(false);
+      setQCPhotos([]);
+      setQCPhotoPreviews([]);
+      fetchQueues();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setQCSubmitting(false);
+    }
+  };
+
+  const viewMyServiceInfo = async (service: ExtendedServiceOrder) => {
+    setSelectedService(service);
+    setServiceInfoPhotosLoading(true);
+    setShowServiceInfoModal(true);
+
+    const { data } = await supabase
+      .from("service_documentation")
+      .select("photo_url")
+      .eq("service_order_id", service.id)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      setServiceInfoPhotos(data.map((p) => p.photo_url));
+    }
+    setServiceInfoPhotosLoading(false);
+  };
+
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; color: string }> = {
       assigned: {
@@ -330,7 +566,8 @@ export default function QueueList({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                  onClick={() => viewMyServiceInfo(service)}
+                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer"
                 >
                   <div className="p-4 space-y-3">
                     {/* Row 1: Invoice + Status badges */}
@@ -341,6 +578,11 @@ export default function QueueList({
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}>
                         {statusBadge.label}
                       </span>
+                      {service.status === "revision_required" && (
+                        <span className="px-2 py-0.5 text-xs bg-red-600 text-white font-bold rounded-full border border-red-700">
+                          REJECT QC
+                        </span>
+                      )}
                       {service.status === "req_sparepart_admin" && (
                         <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full border border-orange-200">⏳ Menunggu Admin</span>
                       )}
@@ -385,25 +627,26 @@ export default function QueueList({
 
                     {/* Row 4: Action buttons — always at bottom */}
                     <div className="flex gap-2 flex-wrap pt-2 border-t border-gray-100 dark:border-white/5">
-                      <button onClick={() => openTimeline(service)}
-                        className="px-3 py-1.5 text-xs bg-white dark:bg-[#1c1c1c] text-gray-900 dark:text-gray-100 font-medium border border-gray-200 dark:border-white/10 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> TIMELINE
-                      </button>
                       {(service.status === "assigned" || service.status === "in_progress" || service.status === "revision_required") && (
-                        <button onClick={() => openProgressUpdate(service)}
-                          className="px-3 py-1.5 text-xs bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1">
-                          <Wrench className="w-3.5 h-3.5" />
-                          {service.status === "revision_required" ? "REVISI & KIRIM" : "UPDATE"}
-                        </button>
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); openUpdate(service); }}
+                            className="px-3 py-1.5 text-xs bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1">
+                            <Wrench className="w-3.5 h-3.5" /> UPDATE
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); openSubmitQC(service); }}
+                            className="px-3 py-1.5 text-xs bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> SUBMIT QC
+                          </button>
+                        </>
                       )}
                       {(service.status === "req_sparepart_admin" || service.status === "po_pending") && (
-                        <button onClick={() => sendReminderToAdmin(service)}
+                        <button onClick={(e) => { e.stopPropagation(); sendReminderToAdmin(service); }}
                           className="px-3 py-1.5 text-xs bg-yellow-500 text-white font-medium rounded-xl hover:bg-yellow-600 transition-all flex items-center gap-1">
                           <Bell className="w-3.5 h-3.5" /> REMINDER
                         </button>
                       )}
                       {service.status === "sparepart_ready" && (
-                        <button onClick={() => openAddSparepart(service)}
+                        <button onClick={(e) => { e.stopPropagation(); openAddSparepart(service); }}
                           className="px-3 py-1.5 text-xs bg-green-500 text-white font-medium rounded-xl hover:bg-green-600 transition-all flex items-center gap-1">
                           <Package className="w-3.5 h-3.5" /> AMBIL
                         </button>
@@ -501,6 +744,310 @@ export default function QueueList({
             onSkip={() => setShowDetailModal(false)}
           />
 
+          {/* UPDATE MODAL — combines Timeline + Add Jasa + Add Sparepart */}
+          {showUpdateModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowUpdateModal(false)}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                      <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Update Service</h2>
+                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowUpdateModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                  <ServiceTimeline
+                    serviceId={selectedService.id}
+                    customerPhone={selectedService.customer_phone}
+                    customerName={selectedService.customer_name}
+                    invoiceNumber={selectedService.invoice_number}
+                    onUpdate={() => fetchQueues()}
+                  />
+
+                  <div className="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-white/10">
+                    <button onClick={() => { setShowUpdateModal(false); openAddJasa(selectedService); }}
+                      className="flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all text-sm">
+                      <Wrench className="w-4 h-4" /> TAMBAH JASA
+                    </button>
+                    <button onClick={() => { setShowUpdateModal(false); openAddSparepart(selectedService); }}
+                      className="flex items-center justify-center gap-2 py-3 bg-white dark:bg-[#1c1c1c] text-gray-900 dark:text-gray-100 font-semibold rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-sm">
+                      <Package className="w-4 h-4" /> TAMBAH SPAREPART
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* PROGRESS (legacy) MODAL */}
+          {showProgressModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowProgressModal(false)}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                      <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail Update</h2>
+                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowProgressModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                  <ProgressUpdate service={selectedService} onUpdate={() => fetchQueues()}
+                    onAddSparepart={() => { setShowProgressModal(false); openAddSparepart(selectedService); }}
+                    onAddJasa={() => { setShowProgressModal(false); openAddJasa(selectedService); }}
+                    onSubmitToQC={() => handleSubmitToQC(selectedService)} />
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* SUBMIT QC MODAL */}
+          {showSubmitQCModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowSubmitQCModal(false)}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Submit QC</h2>
+                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowSubmitQCModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                  {/* Summary */}
+                  <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Invoice</span>
+                      <span className="text-xs font-mono font-medium text-gray-900 dark:text-gray-100">{selectedService.invoice_number}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Customer</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{selectedService.customer_name}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Device</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">{selectedService.watch_brand || selectedService.device_brand}</span>
+                    </div>
+                  </div>
+
+                  {/* Items List */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                      <Package className="w-4 h-4 text-gray-400" />
+                      Daftar Item
+                    </h4>
+                    {qcItems.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-3">Belum ada item</p>
+                    ) : (
+                      <div className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
+                        <div className="divide-y divide-gray-200 dark:divide-white/10">
+                          {qcItems.map((item, i) => {
+                            const isEditing = editingPrice[i] !== undefined;
+                            return (
+                              <div key={item.id || i} className="flex items-center justify-between px-4 py-2 gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${item.item_type === "jasa" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}>
+                                    {item.item_type === "jasa" ? "JASA" : "SPR"}
+                                  </span>
+                                  <span className="text-sm text-gray-900 dark:text-gray-100 truncate">{item.name}</span>
+                                  <span className="text-xs text-gray-400 flex-shrink-0">{item.quantity}x</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {isEditing ? (
+                                    <>
+                                      <input type="number"
+                                        value={editingPrice[i]}
+                                        onChange={(e) => setEditingPrice({ ...editingPrice, [i]: parseInt(e.target.value) || 0 })}
+                                        className="w-20 px-1.5 py-0.5 text-xs border border-gray-200 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-indigo-500/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        onKeyDown={(e) => e.key === "Enter" && savePrice(i)} />
+                                      <button onClick={() => savePrice(i)} className="p-0.5 text-green-600 hover:bg-green-50 rounded"><Check className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => { const { [i]: _, ...rest } = editingPrice; setEditingPrice(rest); }} className="p-0.5 text-gray-400 hover:bg-gray-100 rounded"><X className="w-3.5 h-3.5" /></button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button onClick={() => startEditPrice(i, item.price || 0)} className="text-xs font-semibold text-gray-900 dark:text-gray-100 hover:text-indigo-600 transition-colors">
+                                        Rp {(item.price * item.quantity).toLocaleString()}
+                                      </button>
+                                      <button onClick={() => deleteQCItem(i)} className="p-0.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="bg-gray-50 dark:bg-white/5 px-4 py-3 border-t border-gray-200 dark:border-white/10 flex justify-between items-center">
+                          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">Total Biaya</span>
+                          <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                            Rp {qcTotalCost.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Photo Upload */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                      <Camera className="w-4 h-4 text-gray-400" />
+                      Foto Hasil Service
+                    </h4>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {qcPhotoPreviews.map((preview, i) => (
+                        <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50">
+                          <img src={preview} alt="" className="w-full h-full object-cover" />
+                          <button onClick={() => removeQCPhoto(i)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <button onClick={() => qcFileInputRef.current?.click()}
+                        className="aspect-square border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center hover:border-gray-900 dark:hover:border-white transition-colors bg-gray-50 dark:bg-white/5">
+                        <Camera className="w-6 h-6 text-gray-300" />
+                      </button>
+                      <input ref={qcFileInputRef} type="file" accept="image/*" multiple onChange={handleQCPhotoUpload} className="hidden" />
+                    </div>
+                    <p className="text-xs text-gray-400">Tambahkan foto hasil service sebagai bukti QC</p>
+                  </div>
+
+                  {/* Submit */}
+                  <button onClick={handleSubmitQC} disabled={qcSubmitting}
+                    className="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
+                    {qcSubmitting ? (
+                      <><Loader className="w-4 h-4 animate-spin" /> MENGIRIM...</>
+                    ) : (
+                      <><CheckCircle className="w-4 h-4" /> KIRIM KE QC</>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* SERVICE INFO MODAL — card click on my services */}
+          {showServiceInfoModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setShowServiceInfoModal(false); setServiceInfoPhotos([]); }}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                onClick={(e) => e.stopPropagation()}>
+                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                      <Watch className="w-4 h-4 text-white dark:text-gray-900" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail Service</h2>
+                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setShowServiceInfoModal(false); setServiceInfoPhotos([]); }}
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                  {/* Photos */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Camera className="w-4 h-4 text-gray-600" />
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Dokumentasi Service</h4>
+                      {serviceInfoPhotos.length > 0 && (
+                        <span className="text-xs text-gray-400 bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
+                          {serviceInfoPhotos.length} foto
+                        </span>
+                      )}
+                    </div>
+                    {serviceInfoPhotosLoading ? (
+                      <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-6 text-center border border-gray-200 dark:border-white/10">
+                        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto" />
+                        <p className="text-xs text-gray-400 mt-2">Memuat foto...</p>
+                      </div>
+                    ) : serviceInfoPhotos.length === 0 ? (
+                      <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-6 text-center border border-dashed border-gray-200 dark:border-white/10">
+                        <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-1" />
+                        <p className="text-xs text-gray-400">Belum ada foto dokumentasi</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        {serviceInfoPhotos.map((photo, i) => (
+                          <div key={i} className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(photo, "_blank")}>
+                            <img src={photo} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">Invoice</span>
+                      <span className="text-xs font-mono font-medium text-gray-900 dark:text-gray-100">{selectedService.invoice_number}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">Status</span>
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusBadge(selectedService.status).color}`}>
+                        {getStatusBadge(selectedService.status).label}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">Customer</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{selectedService.customer_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">Phone</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">{selectedService.customer_phone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">Device</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">{selectedService.watch_brand || selectedService.device_brand} {selectedService.watch_model || selectedService.device_model}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-xs text-gray-500">Tanggal Masuk</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">{new Date(selectedService.created_at).toLocaleDateString("id-ID")}</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                    <h4 className="text-xs font-semibold text-gray-900 dark:text-gray-100 mb-1">Deskripsi Kerusakan</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{selectedService.issue_description}</p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* LEGACY TIMELINE MODAL */}
           {showTimelineModal && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowTimelineModal(false)}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
@@ -517,35 +1064,6 @@ export default function QueueList({
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
                   <ServiceTimeline serviceId={selectedService.id} customerPhone={selectedService.customer_phone} customerName={selectedService.customer_name} invoiceNumber={selectedService.invoice_number} onUpdate={() => fetchQueues()} />
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {showProgressModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowProgressModal(false)}>
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
-                onClick={(e) => e.stopPropagation()}>
-                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                      <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Update Service</h2>
-                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setShowProgressModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
-                    <X className="w-4 h-4 text-gray-400" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-6">
-                  <ProgressUpdate service={selectedService} onUpdate={() => fetchQueues()}
-                    onAddSparepart={() => { setShowProgressModal(false); openAddSparepart(selectedService); }}
-                    onAddJasa={() => { setShowProgressModal(false); openAddJasa(selectedService); }}
-                    onSubmitToQC={() => handleSubmitToQC(selectedService)} />
                 </div>
               </motion.div>
             </div>

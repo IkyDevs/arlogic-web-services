@@ -68,7 +68,12 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
       const newPhotoUrls: string[] = []
       for (let i = 0; i < photos.length; i++) {
         setProgress(Math.round((i / photos.length) * 100))
-        const url = await uploadFile(photos[i], { type: 'service', caption: `Progress photo ${i + 1}` })
+        const d = new Date();
+        const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+        const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+        const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+        const caption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${completionNotes || 'Progress service'}\nstatus: ${service?.status || 'in_progress'}`;
+        const url = await uploadFile(photos[i], { type: 'service', caption })
         if (url) { newPhotoUrls.push(url); await supabase.from('service_documentation').insert({ service_order_id: service.id, photo_url: url, stage: 'progress', uploaded_by: user?.id }) }
       }
       setProgress(100)
