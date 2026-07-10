@@ -241,20 +241,20 @@ Keterangan : ${formData.notes || "—"}`;
 
         if (hasDp) {
           formattedCaption += `
-dp : Rp ${dpValue.toLocaleString("id-ID")}
+dp : Rp ${dpValue.toLocaleString("id-ID")}`;
+          if (estimatedCost) {
+            formattedCaption += `
+estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
+          }
+          formattedCaption += `
 Pembayaran : ${formData.payment_method === "qris" ? "QRIS" : formData.payment_method === "transfer" ? "Transfer" : "Cash"}`;
+        } else if (estimatedCost) {
+          formattedCaption += `
+estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
         }
 
         formattedCaption += `
-Teknisi : —
-In : ${now}
-Start : —
-Done : —
-Pengerjaan :
-Barang :
-Jasa :
-Total : —
-Keterangan : —`;
+In : ${now}`;
 
         const urls = await uploadFiles(allPhotosToUpload, {
           type: "service",
@@ -262,14 +262,14 @@ Keterangan : —`;
         });
 
         const authUserForDoc = (await supabase.auth.getUser()).data.user;
-        const docInserts = urls
-          .filter((url: string | null): url is string => url !== null)
-          .map((url: string) => ({
-            service_order_id: serviceId,
-            photo_url: url,
-            stage: "initial_condition",
-            uploaded_by: authUserForDoc?.id,
-          }));
+        const docInserts = urls.map((r) => ({
+          service_order_id: serviceId,
+          photo_url: r.url,
+          stage: "initial_condition",
+          uploaded_by: authUserForDoc?.id,
+          telegram_chat_id: r.chat_id,
+          telegram_message_id: r.message_id,
+        }));
         if (docInserts.length > 0) {
           await supabase.from("service_documentation").insert(docInserts);
         }

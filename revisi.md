@@ -88,11 +88,264 @@
 - Update `components/admin/POSection.tsx` sesuai theme baru
 - Update komponen admin lain untuk konsistensi warna
 
+---
+
+## Revisi v.20 - 2026-07-10
+
+### Issue 1: QR URL localhost di ServiceList Modal
+
+**Masalah**: QR code di popup detail service (ServiceList.tsx) masih pakai `window.location.origin` → jadi `http://localhost:3000/...` untuk customer.
+
+**Fix**: `components/admin/ServiceList.tsx` — ganti ke `process.env.NEXT_PUBLIC_APP_URL || window.location.origin`, dan format URL samakan dengan QRCodeGenerator (`/tracking/{invoice}?token={token}`).
+
+### Issue 2: Detail Aktivitas Teknisi Lebih Lengkap
+
+**Masalah**: Popup detail aktivitas teknisi hanya munculin perubahan teks, tidak ada foto jam, item sebelum/sesudah.
+
+**Fix**:
+- `components/qc/QCReviewModal.tsx`: Activity_logs sekarang menyimpan `items_before` (array item original), `items_after` (array item baru), dan `photo_urls` (array foto dari service_documentation)
+- `app/teknisi/page.tsx`: Modal detail aktivitas sekarang nampilin:
+  - Foto jam (grid 3 kolom, bisa klik buka tab baru)
+  - Item Sebelum Revisi (background gray)
+  - Item Setelah Revisi (background green)
+  - Perubahan oleh QC (background amber)
+
+### Issue 3: Edit Caption Telegram Debug
+
+**Masalah**: Edit caption Telegram saat QC revisi item masih belum bekerja.
+
+**Fix**: Tambah error handling & toast notification:
+- `components/qc/QCReviewModal.tsx`: Sekarang ngecek response dari `/api/telegram/edit-caption`, kalo error tampilin toast ke user
+- Pastiin error message muncul di UI, bukan cuma di console.log
+
+**Root Cause**: Route `edit-caption` mencari dokumentasi PERTAMA (`created_at ASC`), yaitu foto `initial_condition`. Tapi caption yang harus diedit ada di foto TERAKHIR (stage `qc` yang diupload teknisi). Jadi edit caption sukses secara teknis, tapi mengenai message yang salah.
+
+**Fix**: `app/api/telegram/edit-caption/route.ts`:
+- Ubah `order(created_at, ASC)` → `order(created_at, DESC)` — cari TERBARU dulu
+- Ambil 5 docs teratas (bukan 1), loop coba edit semua sampai ada yang berhasil
+- Tambah logging detail (doc id, stage, chat_id, msg_id, preview caption) untuk debugging
+
+### Files Changed
+- `components/admin/ServiceList.tsx`
+- `components/qc/QCReviewModal.tsx`
+- `app/teknisi/page.tsx`
+- `app/api/telegram/edit-caption/route.ts`
+
+### No Database Changes
+
+---
+
+## Revisi v.21 - 2026-07-10
+
+### Issue 1: Payment Method "transfer" Tidak Muncul
+
+**Masalah**: DP transaction dengan payment method "transfer" atau "qris" muncul kosong di list transaction admin. Penyebab: tipe `MetodePembayaran` dan semua label maps tidak menyertakan `"transfer"`.
+
+**Fix**:
+- `types/index.ts`: Tambah `"transfer"` ke `MetodePembayaran` type dan `metodePembayaranLabels`
+- `components/layanan/LayananList.tsx`: Tambah `"transfer"` ke filter options, tambah fallback `|| item.metode_pembayaran` di display & CSV export
+- `components/layanan/TransactionManagement.tsx`: Tambah `"transfer"` ke `paymentColors` & `paymentLabels`
+- `components/admin/AdminDashboardAnalytics.tsx`: Tambah `"transfer"` ke `paymentLabels`, `paymentIcons`, `getPaymentColor`
+
+### Issue 2: Status Caption di Telegram (QC Flow)
+
+**Masalah**: Caption Telegram tidak menampilkan status QC.
+
+**Fix**:
+- `components/teknisi/QueueList.tsx`: Tambah `status : menunggu qc` di caption saat teknisi submit ke QC
+- `components/qc/QCReviewModal.tsx`: Ganti status jadi `status : QC approve` saat QC approve dengan perubahan
+
+### Issue 3: Simplify Caption New Service
+
+**Masalah**: Caption awal service masih menyertakan placeholder `Teknisi : —`, `Start : —`, `Done : —`, `Pengerjaan :`, `Barang :`, `Jasa :`, `Total : —`, `Keterangan : —` yang tidak relevan untuk input awal.
+
+**Fix**: `components/admin/ServiceInput.tsx`:
+- Hapus semua baris placeholder di atas
+- Tambah `estimasi : Rp ...` setelah DP (jika ada estimasi biaya)
+- Hanya sisakan: Kategori, CS, WA, Seri, Tipe, Kendala, Request, Keterangan, dp, estimasi, Pembayaran, In
+
+### Files Changed
+- `types/index.ts`
+- `components/layanan/LayananList.tsx`
+- `components/layanan/TransactionManagement.tsx`
+- `components/admin/AdminDashboardAnalytics.tsx`
+- `components/teknisi/QueueList.tsx`
+- `components/qc/QCReviewModal.tsx`
+- `components/admin/ServiceInput.tsx`
+
+### No Database Changes
+
+---
+
+## Revisi v.22 - 2026-07-10
+
+### Fitur: Kirim Tracking ke WhatsApp dari Detail Service
+
+**Deskripsi**: Di modal detail service (popup klik list service), tambah button "Kirim ke WhatsApp" yang otomatis buka WhatsApp dengan pesan berisi link tracking, invoice, dan token.
+
+**File**: `components/admin/ServiceList.tsx`
+- Button hijau di bawah QR + Token section
+- Format pesan: Halo {nama}, invoice, link tracking, token
+- Format nomor: otomatis convert 0xxx → 62xxx
+
+### No Database Changes
+
+---
+
+## Revisi v.21 - 2026-07-10
+
+### Issue 1: Restriksi Revisi Item oleh QC
+
+**Perubahan**:
+- Hapus tombol delete (Trash2) dari semua item — QC tidak boleh menghapus item
+- QC bisa menambah JASA baru via "Tambah Jasa Custom" (+)
+- QC bisa edit harga untuk semua item (JASA dan Sparepart)
+- Sparepart: hanya edit harga, tidak bisa ditambah/dihapus
+
+**File**: `components/qc/QCReviewModal.tsx`
+
+### Issue 2: Laporan Absensi di QC/Supervisor Dashboard
+
+**Fitur baru**: Tab "Absensi" di dashboard QC yang menampilkan rekap absensi semua staff.
+
+**File baru**: `components/qc/AttendanceReport.tsx`
+- Filter harian/mingguan/bulanan
+- Pencarian staff
+- Kolom: Tanggal, Staff, Check In, Check Out, Durasi, Status (Active/Lembur/Selesai)
+- Sorting berdasarkan tanggal atau staff
+
+**File diubah**: `app/qc/page.tsx`
+- Tambah menu "Absensi" di sidebar
+- Render AttendanceReport saat tab absensi aktif
+- Import Calendar icon
+
+### Files Changed
+- `components/qc/QCReviewModal.tsx`
+- `components/qc/AttendanceReport.tsx` (NEW)
+- `app/qc/page.tsx`
+
+### No Database Changes
+
+---
+
+## Revisi v.22 - 2026-07-10
+
+### Fitur: Closing via Telegram + Edit Saat Approve
+
+**Deskripsi**: Kirim notifikasi closing ke Telegram saat admin submit, dan edit otomatis saat owner approve (update status dari "waiting approve owner" → "Approve").
+
+**Perubahan**:
+
+1. **`app/api/admin/closing/route.ts`**:
+   - `create`: setelah insert closing, kirim pesan ke Telegram channel closing, simpan `chat_id` + `message_id` ke database
+   - `approve`: setelah update status, edit pesan Telegram yang sudah dikirim (ubah status + tambah notes owner)
+   - Fallback: kirim pesan baru jika tidak punya referensi message_id
+
+2. **`components/admin/ClosingApproval.tsx`**: Hapus kode kirim Telegram client-side (sekarang dihandle oleh API route)
+
+3. **Database migration**:
+   ```sql
+   ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT DEFAULT '';
+   ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT DEFAULT 0;
+   ```
+
+**Format pesan Telegram**:
+```
+CLOSING
+tanggal : Jumat, 10 Juli, 2026
+total keseluruhan : Rp ...
+total payment:
+ > cash: Rp ...
+ > qris: Rp ...
+status : DONE / SELISIH
+owner : waiting approve owner / Approve
+notes: ...
+```
+
+### Files Changed
+- `app/api/admin/closing/route.ts`
+- `components/admin/ClosingApproval.tsx`
+- `db/supabase-schema.sql`
+
+### Database Migration
+Jalankan SQL berikut di Supabase SQL Editor:
+```sql
+ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT DEFAULT '';
+ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT DEFAULT 0;
+NOTIFY pgrst, 'reload schema';
+```
+
 ### Catatan untuk Revisi Selanjutnya
 
 - Multi-group Telegram perlu update `lib/telegram.ts` agar support mapping dinamis
 - Attendance timer & overtime perlu update logic di `components/teknisi/AttendanceModal.tsx`
 - Responsive design perlu review semua dashboard
+
+---
+
+## Revisi DP Return, QC Overflow, Edit Caption Telegram - 2026-07-10
+
+### Issue 1: DP Return Logic
+
+**Masalah**: Ketika DP 100k dan total biaya 50k, caption menampilkan `kekurangan: Rp -50.000` (negatif).
+
+**Fix**: `components/teknisi/QueueList.tsx` — logic diubah:
+- Jika `total > DP`: tampilkan `kekurangan: Rp X`
+- Jika `total < DP`: tampilkan `return: Rp X`
+- Jika `total === DP`: hide kedua baris
+
+### Issue 2: QC Tambah Jasa Custom Overflow
+
+**Masalah**: Di QCReviewModal, form "Tambah Jasa Custom" overflow keluar dari box utama pada layar sempit.
+
+**Fix**: `components/qc/QCReviewModal.tsx` — tambah `flex-wrap` dan `min-w-[140px]` pada input nama agar elemen wrapping ke baris baru saat tidak muat.
+
+### Issue 3: Edit Telegram Caption saat QC Revisi
+
+**Masalah**: Ketika QC merevisi harga item/jasa, caption Telegram yang sudah terkirim tidak berubah.
+
+**Fix — Full pipeline edit caption:**
+
+1. **Database**: Tambah kolom `telegram_chat_id TEXT` dan `telegram_message_id BIGINT` di `service_documentation` (`db/supabase-schema.sql`)
+2. **Telegram lib** (`lib/telegram.ts`):
+   - `sendPhotoBlob` return `{ url, chat_id, message_id }` (sebelumnya hanya string)
+   - `uploadMultipleToTelegram` return array of `{ url, chat_id, message_id }`
+   - Tambah fungsi `editMessageCaption(chatId, messageId, caption)` → call Telegram API
+3. **Upload API** (`app/api/upload/route.ts`): Return `messages[]` dengan chat_id + message_id
+4. **Upload Hook** (`hooks/useUpload.ts`): Return `UploadFileResult[]` (url + chat_id + message_id)
+5. **Penyimpanan**: ServiceInput, ProgressUpdate, QueueList simpan chat_id + message_id saat insert `service_documentation`
+6. **Edit API** (`app/api/telegram/edit-caption/route.ts`): Endpoint baru untuk edit caption berdasarkan service_order_id
+7. **Integrasi QC** (`components/qc/QCReviewModal.tsx`): Saat approve dengan perubahan item, call edit caption API dengan caption baru yang berisi `revisi : ...`
+
+### Files Changed
+- `components/teknisi/QueueList.tsx`
+- `components/qc/QCReviewModal.tsx`
+- `components/admin/ServiceInput.tsx`
+- `components/teknisi/ProgressUpdate.tsx`
+- `lib/telegram.ts`
+- `hooks/useUpload.ts`
+- `app/api/upload/route.ts`
+- `app/api/telegram/edit-caption/route.ts` (NEW)
+- `db/supabase-schema.sql`
+
+---
+
+## Revisi Foto Service Detail Modal - 2026-07-10
+
+### Context
+
+Di admin dashboard, tab Service, popup detail service tidak menampilkan foto. Foto service disimpan di tabel `service_documentation` (terpisah dari `service_orders`), tetapi `ServiceList.tsx` hanya query `service_orders` tanpa mengambil `service_documentation`.
+
+### Code Changes
+
+- **File**: `components/admin/ServiceList.tsx`
+- **Change**: Tambah state `servicePhotos` dan `loadingPhotos`
+- **Change**: Fungsi `openDetail` sekarang fetch foto dari `service_documentation` berdasarkan `service_order_id`
+- **Change**: Modal detail menampilkan grid foto (3 kolom) setelah bagian Device Info
+- **Change**: Foto bisa diklik untuk dibuka di tab baru
+- **Change**: State `servicePhotos` di-reset saat modal ditutup
+
+### No Database Changes
 
 ---
 

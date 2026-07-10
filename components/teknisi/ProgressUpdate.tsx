@@ -73,8 +73,18 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
         const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
         const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
         const caption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${completionNotes || 'Progress service'}\nstatus: ${service?.status || 'in_progress'}`;
-        const url = await uploadFile(photos[i], { type: 'service', caption })
-        if (url) { newPhotoUrls.push(url); await supabase.from('service_documentation').insert({ service_order_id: service.id, photo_url: url, stage: 'progress', uploaded_by: user?.id }) }
+        const result = await uploadFile(photos[i], { type: 'service', caption })
+        if (result) {
+          newPhotoUrls.push(result.url);
+          await supabase.from('service_documentation').insert({
+            service_order_id: service.id,
+            photo_url: result.url,
+            stage: 'progress',
+            uploaded_by: user?.id,
+            telegram_chat_id: result.chat_id,
+            telegram_message_id: result.message_id,
+          });
+        }
       }
       setProgress(100)
       if (items.length > 0) {

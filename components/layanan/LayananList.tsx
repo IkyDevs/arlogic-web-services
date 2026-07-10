@@ -280,7 +280,7 @@ export default function LayananList({
       item.customer_whatsapp,
       jenisLayananLabels[item.jenis_layanan],
       item.handled_by_name,
-      metodePembayaranLabels[item.metode_pembayaran],
+      metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran,
       item.lead_source === "tulis_sendiri"
         ? item.lead_source_custom
         : leadSourceLabels[item.lead_source],
@@ -337,13 +337,14 @@ export default function LayananList({
 
   const metodePembayaranOptions = [
     { value: "cash", label: "Cash" },
+    { value: "qris", label: "QRIS" },
+    { value: "transfer", label: "Transfer" },
     { value: "edc_mandiri", label: "EDC Mandiri" },
     { value: "tf_bca", label: "Transfer BCA" },
     { value: "bri", label: "BRI" },
     { value: "kudus", label: "Kudus" },
     { value: "edc_bca", label: "EDC BCA" },
     { value: "tf_mandiri", label: "Transfer Mandiri" },
-    { value: "qris", label: "QRIS" },
   ];
 
   if (loading) {
@@ -657,7 +658,7 @@ export default function LayananList({
                     {item.handled_by_name || "-"}
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-sm hidden lg:table-cell">
-                    {metodePembayaranLabels[item.metode_pembayaran]}
+                    {metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran}
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 font-bold text-blue-600 whitespace-nowrap text-sm sm:text-base">
                     {formatRupiah(item.nominal)}

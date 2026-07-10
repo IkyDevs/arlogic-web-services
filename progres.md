@@ -25,6 +25,17 @@
 - [x] Attendance timer & overtime calculation - updated templates + overtime checkbox + 8PM threshold
 - [x] Stock transfer tracking (warehouse → store)
 - [x] Admin dashboard UI redesign to fintech style
+- [x] Service detail modal foto dari service_documentation
+- [x] DP return logic (kekurangan/return di caption)
+- [x] QC overflow fix (tambah jasa custom flex-wrap)
+- [x] Edit Telegram caption saat QC revisi item (dengan error toast)
+- [x] QR URL fix di ServiceList (pake NEXT_PUBLIC_APP_URL)
+- [x] Detail aktivitas teknisi: foto jam + item sebelum/sesudah revisi
+- [x] Payment method "transfer" di type & labels (fix blank display)
+- [x] Status caption "menunggu qc" / "QC approve" di Telegram
+- [x] Simplify caption new service (hapus placeholder, tambah estimasi)
+- [x] QC item restrictions (no delete, JASA add/edit, sparepart edit harga saja)
+- [x] Attendance report di QC/Supervisor dashboard (table + filter harian/mingguan/bulanan)
 - [ ] Technician service queue & "take service" flow alignment
 - [ ] QC/Supervisor dashboard approve/reject flow refinement
 - [ ] Telegram multi-group support configuration

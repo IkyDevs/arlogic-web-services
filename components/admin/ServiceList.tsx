@@ -70,6 +70,8 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [selectedService, setSelectedService] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
+  const [servicePhotos, setServicePhotos] = useState<string[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
 
   const fetchServices = async () => {
     setLoading(true);
@@ -111,9 +113,17 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
     return sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
   };
 
-  const openDetail = (svc: any) => {
+  const openDetail = async (svc: any) => {
     setSelectedService(svc);
     setShowModal(true);
+    setLoadingPhotos(true);
+    const { data } = await supabase
+      .from("service_documentation")
+      .select("photo_url")
+      .eq("service_order_id", svc.id)
+      .order("created_at", { ascending: true });
+    setServicePhotos((data || []).map((d: any) => d.photo_url));
+    setLoadingPhotos(false);
   };
 
   const copyToken = () => {
@@ -239,7 +249,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
       {/* Service Detail Modal */}
       {showModal && selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setShowModal(false); setServicePhotos([]); }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200"
             onClick={(e) => e.stopPropagation()}>
@@ -254,7 +264,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                   <p className="text-[11px] text-slate-500">{selectedService.invoice_number}</p>
                 </div>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+              <button onClick={() => { setShowModal(false); setServicePhotos([]); }} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="w-4 h-4 text-slate-400" />
               </button>
             </div>
@@ -263,7 +273,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
               {/* QR + Token */}
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
-                  <QRCodeSVG value={typeof window !== "undefined" ? window.location.origin + "/tracking/" + selectedService.token : ""} size={72} level="H" />
+                  <QRCodeSVG value={typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + selectedService.invoice_number + "?token=" + selectedService.token : ""} size={72} level="H" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Token Tracking</p>
@@ -276,6 +286,28 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                   <p className="text-[10px] text-slate-400 mt-0.5">Scan QR atau gunakan token untuk tracking</p>
                 </div>
               </div>
+
+              {/* Send to WhatsApp */}
+              <button onClick={() => {
+                const phone = selectedService.customer_phone?.replace(/\D/g, "");
+                const p = phone?.startsWith("0") ? "62" + phone.substring(1) : phone;
+                const appUrl = (typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) : "");
+                const trackingUrl = appUrl + "/tracking/" + selectedService.invoice_number + "?token=" + selectedService.token;
+                const msg = encodeURIComponent(
+                  `Halo ${selectedService.customer_name},\n\n` +
+                  `Berikut adalah informasi tracking untuk service anda:\n\n` +
+                  `📋 Invoice: ${selectedService.invoice_number}\n` +
+                  `🔗 Link Tracking: ${trackingUrl}\n` +
+                  `🔑 Token: ${selectedService.token}\n\n` +
+                  `Scan QR code pada struk atau gunakan link/token di atas untuk memantau status service anda.\n\n` +
+                  `Terima kasih.\n- Arlogic Watch Service`
+                );
+                window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
+              }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-all text-sm">
+                <Phone className="w-4 h-4" />
+                Kirim ke WhatsApp
+              </button>
 
               {/* Customer Info */}
               <div className="grid grid-cols-2 gap-3">
@@ -305,6 +337,20 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                   {selectedService.category && <div><span className="text-slate-500">Kategori:</span> <span className="font-medium">{selectedService.category}</span></div>}
                 </div>
               </div>
+
+              {/* Photos */}
+              {servicePhotos.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">Foto</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {servicePhotos.map((url, i) => (
+                      <img key={i} src={url} alt={"foto-" + i}
+                        className="rounded-xl border border-slate-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => window.open(url, "_blank")} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Issue */}
               <div className="p-3 bg-red-50 rounded-xl border border-red-100">

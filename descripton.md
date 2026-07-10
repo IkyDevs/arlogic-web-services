@@ -35,6 +35,9 @@
 - Compressed via sharp sebelum upload (max 1280px, quality 90)
 - Channel mapping di `lib/telegram.ts`
 - Upload menggunakan `sendMediaGroup` untuk multiple files
+- Setiap upload return `{ url, chat_id, message_id }` untuk mendukung edit caption
+- Fungsi `editMessageCaption()` untuk mengupdate caption pesan yang sudah terkirim
+- Endpoint `/api/telegram/edit-caption` untuk edit caption berdasarkan service_order_id
 
 ### RLS Policies
 - Selalu drop policy lama sebelum create policy baru

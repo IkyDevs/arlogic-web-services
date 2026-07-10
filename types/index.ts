@@ -298,7 +298,8 @@ export type MetodePembayaran =
   | "kudus"
   | "edc_bca"
   | "tf_mandiri"
-  | "qris";
+  | "qris"
+  | "transfer";
 
 export type LeadSource =
   | "instagram"
@@ -386,6 +387,7 @@ export const metodePembayaranLabels: Record<MetodePembayaran, string> = {
   edc_bca: "EDC BCA",
   tf_mandiri: "Transfer Mandiri",
   qris: "QRIS",
+  transfer: "Transfer",
 };
 
 export const leadSourceLabels: Record<LeadSource, string> = {

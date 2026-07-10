@@ -48,36 +48,6 @@ export default function ClosingApproval() {
 
       if (!res.success) throw new Error(res.error);
 
-      // Send to Telegram closing channel
-      const detailObj = closing.detail || {};
-      const detailLines = Object.entries(detailObj)
-        .map(([method, d]: [string, any]) => `• ${method}: Web ${fmtRupiah(d.expected || 0)} | Aktual ${fmtRupiah(d.actual || 0)}`)
-        .join("\n");
-
-      const message = `✅ CLOSING DISETUJUI
-━━━━━━━━━━━━━━━━━━━━━━━━
-📅 Tanggal: ${new Date(closing.closing_date).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-📊 Total Transaksi: ${closing.total_transactions}
-💰 Total Web: ${fmtRupiah(closing.total_expected)}
-💵 Total Aktual: ${fmtRupiah(closing.total_actual)}
-${closing.difference !== 0 ? `⚠️ Selisih: ${fmtRupiah(Math.abs(closing.difference))}\n` : "✅ Selisih: 0 (MATCH)\n"}
-━━━━━━━━━━━━━━━━━━━━━━━━
-Rincian:
-${detailLines}
-━━━━━━━━━━━━━━━━━━━━━━━━
-${notes ? `📝 Catatan Owner: ${notes}\n` : ""}
-👤 Disetujui oleh Owner
-⏰ ${new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
-
-      const channelId = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_CLOSING;
-      if (channelId) {
-        await fetch("/api/telegram", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "closing", message }),
-        });
-      }
-
       toast.success("Closing disetujui! Notifikasi terkirim ke Telegram.");
       fetchClosings();
       setApproveNotes((s) => ({ ...s, [closing.id]: "" }));

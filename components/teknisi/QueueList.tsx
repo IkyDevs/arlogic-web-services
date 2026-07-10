@@ -329,8 +329,12 @@ export default function QueueList({
         if (dpData && dpData.nominal) {
           const dpNominal = dpData.nominal || 0;
           dpText = `\ndp: Rp ${dpNominal.toLocaleString("id-ID")}`;
-          const kekurangan = qcTotalCost - dpNominal;
-          kekuranganText = `\nkekurangan: Rp ${kekurangan.toLocaleString("id-ID")}`;
+          const selisih = qcTotalCost - dpNominal;
+          if (selisih > 0) {
+            kekuranganText = `\nkekurangan: Rp ${selisih.toLocaleString("id-ID")}`;
+          } else if (selisih < 0) {
+            kekuranganText = `\nreturn: Rp ${Math.abs(selisih).toLocaleString("id-ID")}`;
+          }
         }
       } catch { /* ignore */ }
 
@@ -345,9 +349,12 @@ ${barangList}
 jasa:
 ${jasaList}
 total: Rp ${qcTotalCost.toLocaleString("id-ID")}${dpText}${kekuranganText}
+status : menunggu qc
 keterangan:`;
 
       const uploadedUrls: string[] = [];
+      let firstChatId = '';
+      let firstMessageId = 0;
       for (let i = 0; i < qcPhotos.length; i++) {
         const formData = new FormData();
         formData.append("files", qcPhotos[i]);
@@ -356,12 +363,17 @@ keterangan:`;
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
         if (data.urls && data.urls.length > 0) {
+          const chatId = data.messages?.[0]?.chat_id || '';
+          const messageId = data.messages?.[0]?.message_id || 0;
           uploadedUrls.push(data.urls[0]);
+          if (!firstChatId && chatId) { firstChatId = chatId; firstMessageId = messageId; }
           await supabase.from("service_documentation").insert({
             service_order_id: selectedService.id,
             photo_url: data.urls[0],
             stage: "qc",
             uploaded_by: user.id,
+            telegram_chat_id: chatId,
+            telegram_message_id: messageId,
           });
         }
       }

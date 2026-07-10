@@ -7,8 +7,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DollarSign, ShoppingCart, TrendingUp, BarChart3, PieChartIcon, Users, Wallet, Target, Activity, X, Search, Phone, Clock as ClockIcon, CheckCircle } from "lucide-react";
 import LayananList from "./LayananList";
 
-const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444" };
-const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" };
+const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", transfer: "#6B7280", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444" };
+const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" };
 const jenisColors = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#F97316"];
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 

@@ -674,7 +674,7 @@ export default function TeknisiDashboard() {
               {showActivityModal && selectedActivity && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowActivityModal(false)}>
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+                    className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
                     onClick={(e) => e.stopPropagation()}>
                     <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
                       <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Detail Aktivitas</h2>
@@ -685,7 +685,7 @@ export default function TeknisiDashboard() {
                     <div className="p-5 space-y-3">
                       <p className="text-xs text-gray-500">{selectedActivity.time}</p>
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">{selectedActivity.message}</p>
-                      
+
                       {/* Customer Info */}
                       {selectedActivity.details?.customer_name && (
                         <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-800 p-3 space-y-1.5">
@@ -703,21 +703,76 @@ export default function TeknisiDashboard() {
                         </div>
                       )}
 
-                      {selectedActivity.details?.changes && Array.isArray(selectedActivity.details.changes) && (
+                      {/* Invoice */}
+                      {selectedActivity.details?.invoice && (
+                        <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-3">
+                          <p className="text-xs text-gray-500">Invoice</p>
+                          <p className="text-sm font-mono font-semibold text-gray-900 dark:text-gray-100">{selectedActivity.details.invoice}</p>
+                        </div>
+                      )}
+
+                      {/* Photos */}
+                      {selectedActivity.details?.photo_urls && Array.isArray(selectedActivity.details.photo_urls) && selectedActivity.details.photo_urls.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Foto Jam</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {selectedActivity.details.photo_urls.slice(0, 6).map((url: string, i: number) => (
+                              <img key={i} src={url} alt={"foto-" + i}
+                                className="rounded-lg border border-gray-200 dark:border-white/10 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => window.open(url, "_blank")} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Items Before */}
+                      {selectedActivity.details?.items_before && Array.isArray(selectedActivity.details.items_before) && selectedActivity.details.items_before.length > 0 && (
                         <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-3 space-y-1.5">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Perubahan oleh QC:</p>
-                          {selectedActivity.details.changes.map((change: string, i: number) => (
-                            <div key={i} className="flex items-start gap-2 text-sm">
-                              <span className="text-blue-500 mt-0.5">•</span>
-                              <span className="text-gray-700 dark:text-gray-300">{change}</span>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Sebelum Revisi</p>
+                          {selectedActivity.details.items_before.map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`px-1 py-0.5 text-[10px] font-medium rounded ${item.item_type === 'jasa' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
+                                  {item.item_type === 'jasa' ? 'JASA' : 'SPR'}
+                                </span>
+                                <span className="truncate text-gray-700 dark:text-gray-300">{item.name}</span>
+                                <span className="text-xs text-gray-400">x{item.quantity}</span>
+                              </div>
+                              <span className="font-semibold text-gray-900 dark:text-gray-100">Rp {Number(item.price).toLocaleString('id-ID')}</span>
                             </div>
                           ))}
                         </div>
                       )}
-                      {selectedActivity.details?.invoice && (
-                        <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 text-xs text-gray-600">
-                          <span className="font-medium">Invoice:</span>
-                          <span className="font-mono">{selectedActivity.details.invoice}</span>
+
+                      {/* Items After */}
+                      {selectedActivity.details?.items_after && Array.isArray(selectedActivity.details.items_after) && selectedActivity.details.items_after.length > 0 && (
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-800 p-3 space-y-1.5">
+                          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Item Setelah Revisi</p>
+                          {selectedActivity.details.items_after.map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`px-1 py-0.5 text-[10px] font-medium rounded ${item.item_type === 'jasa' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
+                                  {item.item_type === 'jasa' ? 'JASA' : 'SPR'}
+                                </span>
+                                <span className="truncate text-gray-700 dark:text-gray-300">{item.name}</span>
+                                <span className="text-xs text-gray-400">x{item.quantity}</span>
+                              </div>
+                              <span className="font-semibold text-emerald-700">Rp {Number(item.price).toLocaleString('id-ID')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Changes Summary */}
+                      {selectedActivity.details?.changes && Array.isArray(selectedActivity.details.changes) && (
+                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800 p-3 space-y-1.5">
+                          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Perubahan oleh QC:</p>
+                          {selectedActivity.details.changes.map((change: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2 text-sm">
+                              <span className="text-amber-500 mt-0.5">•</span>
+                              <span className="text-gray-700 dark:text-gray-300">{change}</span>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>

@@ -48,6 +48,12 @@ const compressImageOnClient = (file: File): Promise<Blob> => {
   })
 }
 
+export interface UploadFileResult {
+  url: string
+  chat_id: string
+  message_id: number
+}
+
 export function useUpload() {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -59,7 +65,7 @@ export function useUpload() {
       caption?: string
       formData?: Record<string, any>
     }
-  ): Promise<string[]> => {
+  ): Promise<UploadFileResult[]> => {
     if (!files || files.length === 0) {
       toast.error('Tidak ada file untuk diupload')
       return []
@@ -133,8 +139,13 @@ export function useUpload() {
         throw new Error('No URLs returned from server')
       }
 
-      toast.success(`${data.urls.length} foto berhasil diupload!`)
-      return data.urls
+      const results: UploadFileResult[] = (data.urls || []).map((url: string, i: number) => ({
+        url,
+        chat_id: data.messages?.[i]?.chat_id || '',
+        message_id: data.messages?.[i]?.message_id || 0,
+      }))
+      toast.success(`${results.length} foto berhasil diupload!`)
+      return results
       
     } catch (error: any) {
       console.error('❌ Upload error:', error)
@@ -153,9 +164,9 @@ export function useUpload() {
       caption?: string
       formData?: Record<string, any>
     }
-  ): Promise<string | null> => {
-    const urls = await uploadFiles([file], options)
-    return urls.length > 0 ? urls[0] : null
+  ): Promise<UploadFileResult | null> => {
+    const results = await uploadFiles([file], options)
+    return results.length > 0 ? results[0] : null
   }
 
   return { uploadFile, uploadFiles, uploading, progress }

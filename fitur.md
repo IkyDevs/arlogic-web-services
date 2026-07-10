@@ -11,6 +11,7 @@
 ### 2. Service Order (Watch Repair)
 - Admin input service order dengan foto, brand, model, keluhan
 - Generate QR code & token tracking untuk customer
+- QR code di popup detail service pakai `NEXT_PUBLIC_APP_URL` (bukan localhost)
 - Tracking page publik (`/tracking/[id]`)
 - Status: pending → assigned → in_progress → waiting_sparepart → qc_pending → completed
 - Timeline update & service items (sparepart + jasa)
@@ -45,6 +46,10 @@
 - List service yang sudah done by teknisi
 - Approve / reject dengan catatan
 - Reject mengirim kembali ke teknisi untuk perbaikan
+- QC hanya bisa edit harga item (tidak bisa hapus)
+- QC bisa tambah JASA custom
+- Sparepart hanya bisa edit harga (tidak bisa tambah/hapus)
+- **Laporan Absensi**: Tabel absensi semua staff dengan filter harian/mingguan/bulanan
 
 ### 7. Owner Dashboard
 - Statistik attendance, service, inventory
@@ -56,6 +61,8 @@
 - Channel mapping: attendance, service, layanan, inventory, stock_transfer
 - Upload multiple photos (media group)
 - Caption dengan metadata form
+- Edit caption otomatis saat QC merevisi item (via `editMessageCaption` API)
+- Setiap upload menyimpan `chat_id` + `message_id` untuk keperluan edit
 
 ### 9. Theme
 - Light mode & dark mode toggle

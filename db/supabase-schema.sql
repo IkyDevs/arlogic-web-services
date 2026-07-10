@@ -799,6 +799,16 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at
 CREATE INDEX IF NOT EXISTS idx_service_orders_category ON service_orders(category);
 CREATE INDEX IF NOT EXISTS idx_service_orders_updated ON service_orders(updated_at);
 
+-- ============================================================
+-- MIGRATION: 2026-07-10 - Telegram message tracking
+-- ============================================================
+ALTER TABLE service_documentation ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT DEFAULT '';
+ALTER TABLE service_documentation ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_service_doc_telegram ON service_documentation(telegram_chat_id, telegram_message_id);
+
+ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT DEFAULT '';
+ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT DEFAULT 0;
+
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================================

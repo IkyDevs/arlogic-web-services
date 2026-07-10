@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Search,
   Package,
+  Calendar,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
@@ -24,6 +25,7 @@ import QCStats from "@/components/qc/QCStats";
 import QCServiceList from "@/components/qc/QCServiceList";
 import QCReviewModal from "@/components/qc/QCReviewModal";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
+import AttendanceReport from "@/components/qc/AttendanceReport";
 import ThemeToggle from "@/components/ThemeToggle";
 
 export default function QCDashboard() {
@@ -207,7 +209,10 @@ export default function QCDashboard() {
 
   // ==================== END ATTENDANCE ====================
 
-  const menuItems = [{ id: "all", label: "Semua", icon: ClipboardCheck }];
+  const menuItems: { id: string; label: string; icon: any }[] = [
+    { id: "all", label: "Semua", icon: ClipboardCheck },
+    { id: "absensi", label: "Absensi", icon: Calendar },
+  ];
 
   teknisiList.forEach((name) => {
     menuItems.push({
@@ -247,7 +252,9 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === "all") {
+          if (tabId === "absensi") {
+            setActiveTab("absensi");
+          } else if (tabId === "all") {
             filterByTeknisi("all");
           } else {
             filterByTeknisi(tabId);
@@ -283,9 +290,11 @@ export default function QCDashboard() {
                 QC Dashboard
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                {activeTab === "all"
-                  ? "Semua service"
-                  : `Teknisi: ${activeTab}`}
+                {activeTab === "absensi"
+                  ? "Rekap absensi staff"
+                  : activeTab === "all"
+                    ? "Semua service"
+                    : `Teknisi: ${activeTab}`}
               </p>
             </div>
 
@@ -319,21 +328,27 @@ export default function QCDashboard() {
           </div>
         </header>
 
-        {/* Stats */}
+        {/* Content */}
         <main className="flex-1 p-2 sm:p-3 md:p-4">
-          <QCStats
-            services={services}
-            filteredServices={filteredServices}
-            teknisiList={teknisiList}
-          />
+          {activeTab === "absensi" ? (
+            <AttendanceReport />
+          ) : (
+            <>
+              <QCStats
+                services={services}
+                filteredServices={filteredServices}
+                teknisiList={teknisiList}
+              />
 
-          {/* Service List */}
-          <div className="mt-3 sm:mt-4 md:mt-6">
-            <QCServiceList
-              services={filteredServices}
-              onViewDetails={viewServiceDetails}
-            />
-          </div>
+              {/* Service List */}
+              <div className="mt-3 sm:mt-4 md:mt-6">
+                <QCServiceList
+                  services={filteredServices}
+                  onViewDetails={viewServiceDetails}
+                />
+              </div>
+            </>
+          )}
         </main>
       </div>
 

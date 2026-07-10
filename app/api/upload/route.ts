@@ -83,17 +83,21 @@ export async function POST(request: NextRequest) {
     console.log(`📤 Uploading ${processedFiles.length} files to Telegram channel: ${channelType}`)
 
     // Upload multiple files ke Telegram (gabung dalam 1 request)
-    const urls = await uploadMultipleToTelegram(
+    const telegramResults = await uploadMultipleToTelegram(
       processedFiles,
       fullCaption,
       channelType
     )
+    
+    const urls = telegramResults.map(r => r.url)
+    const messageRefs = telegramResults.map(r => ({ chat_id: r.chat_id, message_id: r.message_id }))
     
     console.log(`✅ Upload to Telegram successful (${urls.length} files)`)
     
     return NextResponse.json({
       success: true,
       urls: urls,
+      messages: messageRefs,
       count: urls.length,
       storage: 'telegram',
       channel: channelType,

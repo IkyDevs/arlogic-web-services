@@ -9,12 +9,12 @@ const COLORS_LIGHT = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#E
 const COLORS_DARK = ["#60A5FA", "#34D399", "#A78BFA", "#FBBF24", "#F87171", "#F472B6", "#2DD4BF", "#FB923C"];
 
 const paymentLabels: Record<string, string> = {
-  cash: "Cash", qris: "QRIS", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri",
+  cash: "Cash", qris: "QRIS", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri",
   edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus",
 };
 
 const paymentIcons: Record<string, any> = {
-  cash: Banknote, qris: Wallet, tf_bca: Phone, tf_mandiri: Phone,
+  cash: Banknote, qris: Wallet, transfer: Phone, tf_bca: Phone, tf_mandiri: Phone,
   edc_bca: ShoppingCart, edc_mandiri: ShoppingCart, bri: Banknote, kudus: Banknote,
 };
 
@@ -43,8 +43,8 @@ function formatTime(d: string) {
 
 function getPaymentColor(method: string, isDark: boolean) {
   const map: Record<string, string> = isDark
-    ? { cash: "bg-emerald-900/40 text-emerald-300 border-emerald-700/50", qris: "bg-blue-900/40 text-blue-300 border-blue-700/50", tf_bca: "bg-purple-900/40 text-purple-300 border-purple-700/50", tf_mandiri: "bg-purple-900/40 text-purple-300 border-purple-700/50", edc_bca: "bg-amber-900/40 text-amber-300 border-amber-700/50", edc_mandiri: "bg-amber-900/40 text-amber-300 border-amber-700/50", bri: "bg-cyan-900/40 text-cyan-300 border-cyan-700/50", kudus: "bg-pink-900/40 text-pink-300 border-pink-700/50" }
-    : { cash: "bg-emerald-100 text-emerald-700 border-emerald-200", qris: "bg-blue-100 text-blue-700 border-blue-200", tf_bca: "bg-purple-100 text-purple-700 border-purple-200", tf_mandiri: "bg-purple-100 text-purple-700 border-purple-200", edc_bca: "bg-amber-100 text-amber-700 border-amber-200", edc_mandiri: "bg-amber-100 text-amber-700 border-amber-200", bri: "bg-cyan-100 text-cyan-700 border-cyan-200", kudus: "bg-pink-100 text-pink-700 border-pink-200" };
+    ? { cash: "bg-emerald-900/40 text-emerald-300 border-emerald-700/50", qris: "bg-blue-900/40 text-blue-300 border-blue-700/50", transfer: "bg-slate-600 text-slate-300 border-slate-500", tf_bca: "bg-purple-900/40 text-purple-300 border-purple-700/50", tf_mandiri: "bg-purple-900/40 text-purple-300 border-purple-700/50", edc_bca: "bg-amber-900/40 text-amber-300 border-amber-700/50", edc_mandiri: "bg-amber-900/40 text-amber-300 border-amber-700/50", bri: "bg-cyan-900/40 text-cyan-300 border-cyan-700/50", kudus: "bg-pink-900/40 text-pink-300 border-pink-700/50" }
+    : { cash: "bg-emerald-100 text-emerald-700 border-emerald-200", qris: "bg-blue-100 text-blue-700 border-blue-200", transfer: "bg-slate-200 text-slate-700 border-slate-300", tf_bca: "bg-purple-100 text-purple-700 border-purple-200", tf_mandiri: "bg-purple-100 text-purple-700 border-purple-200", edc_bca: "bg-amber-100 text-amber-700 border-amber-200", edc_mandiri: "bg-amber-100 text-amber-700 border-amber-200", bri: "bg-cyan-100 text-cyan-700 border-cyan-200", kudus: "bg-pink-100 text-pink-700 border-pink-200" };
   return map[method] || (isDark ? "bg-slate-700 text-slate-300 border-slate-600" : "bg-slate-100 text-slate-600 border-slate-200");
 }
 
