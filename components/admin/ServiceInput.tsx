@@ -28,6 +28,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
+import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
 const QRCodeGenerator = dynamic(
@@ -366,6 +367,13 @@ In : ${now}`;
       setSuccess(true);
       setStep(5);
       toast.success("Watch service order created!");
+
+      // Notify Telegram for new customer
+      fetch("/api/telegram/customer-new", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formData.cs_name, phone: formData.cs_phone }),
+      }).catch(() => {});
     } catch (err: any) {
       toast.error(err.message || "Failed to create order");
     } finally {
@@ -440,18 +448,13 @@ In : ${now}`;
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Full Name <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/1 w-4 h-4 text-gray-400 dark:text-gray-500" />
-                  <input
-                    type="text"
-                    value={formData.cs_name}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, cs_name: e.target.value }))
-                    }
-                    className="w-full pl-9 pr-3 py-2.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-gray-900 dark:focus:border-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 transition-all text-sm dark:text-gray-100"
-                    placeholder="John Doe"
-                  />
-                </div>
+                <CustomerAutocomplete
+                  value={formData.cs_name}
+                  onChange={(val) => setFormData((p) => ({ ...p, cs_name: val }))}
+                  onSelect={(name, phone) => setFormData((p) => ({ ...p, cs_name: name, cs_phone: phone }))}
+                  placeholder="John Doe"
+                  autoFocus
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">

@@ -275,9 +275,170 @@ ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT DEFAULT
 NOTIFY pgrst, 'reload schema';
 ```
 
-### Catatan untuk Revisi Selanjutnya
+---
 
-- Multi-group Telegram perlu update `lib/telegram.ts` agar support mapping dinamis
+## Revisi v.23 - 2026-07-10
+
+### 1. Dark Mode Stat Card Gradients
+**File**: `app/globals.css`
+- Tambah CSS override untuk gradient backgrounds di TransactionManagement stat cards (`from-blue-50.to-blue-100/60`, `from-amber-50.to-amber-100/60`, `from-green-50.to-green-100/60`, `from-purple-50.to-purple-100/60`)
+- Tambah override untuk `bg-white/50` → `rgba(0,0,0,0.3)` di dark mode
+
+### 2. "Check In" → "Absen"
+**Files**: `app/admin/page.tsx`, `app/teknisi/page.tsx`, `components/qc/QCSidebar.tsx`
+- Ubah teks button "Check In" jadi "Absen"
+- Ubah "Check Out" jadi "Absen Pulang"
+
+### 3. Sidebar Layout Justify Evenly
+**Files**: `app/admin/page.tsx`, `app/teknisi/page.tsx`, `components/qc/QCSidebar.tsx`, `app/owner/page.tsx`
+- Semua sidebar nav sekarang pake `flex-1 flex flex-col justify-center` agar menu items terpusat vertikal
+- Struktur: logo di atas, nav di tengah, attendance/theme/logout di bawah
+
+### Files Changed
+- `app/globals.css`
+- `app/admin/page.tsx`
+- `app/teknisi/page.tsx`
+- `components/qc/QCSidebar.tsx`
+- `app/owner/page.tsx`
+
+---
+
+## Revisi v.24 - 2026-07-10
+
+### Fitur Baru: Data Customer di Semua Dashboard
+
+**Deskripsi**: Tab "Customer" di semua dashboard (admin, teknisi, QC, owner) yang menampilkan daftar customer dari transaksi dan service orders, lengkap dengan search dan total transaksi.
+
+**Komponen**: `components/admin/CustomerList.tsx` (NEW)
+- Aggregate data dari tabel `layanan` (customer_name, customer_whatsapp) dan `service_orders` (customer_name, customer_phone)
+- Deduplikasi berdasarkan nomor telepon
+- Search by nama atau nomor WhatsApp
+- Tabel: Nama, WhatsApp (klik link langsung WA), jumlah transaksi, jumlah service jam, total
+- Dark mode support
+- Refresh button
+
+**Integrasi**:
+- `app/admin/page.tsx` — menu item sebelum "management-transaction"
+- `app/teknisi/page.tsx` — menu item sebelum "layanan"
+- `app/qc/page.tsx` — menu item di sidebar
+- `app/owner/page.tsx` — menu item di sidebar
+
+### Files Changed
+- `components/admin/CustomerList.tsx` (NEW)
+- `app/admin/page.tsx`
+- `app/teknisi/page.tsx`
+- `app/qc/page.tsx`
+- `app/owner/page.tsx`
+
+### No Database Changes
+
+---
+
+## Revisi v.25 - 2026-07-10
+
+### Fitur: Customer Autocomplete pada Input Transaksi & Service Baru
+
+**Deskripsi**: Saat mengetik nama customer di form transaksi baru (`LayananForm`) atau service baru (`ServiceInput`), muncul dropdown suggestions dari database customer yang sudah ada. Setiap suggestion menampilkan nama + 4 digit terakhir nomor WhatsApp (kode unik customer). Pilih salah satu → nama dan nomor WhatsApp terisi otomatis.
+
+**Komponen**: `components/admin/CustomerAutocomplete.tsx` (NEW)
+- Search customer dari tabel `layanan` dan `service_orders` via `ilike`
+- Debounce 200ms saat mengetik
+- Dropdown dengan avatar, nama, nomor WA, dan kode 4 digit
+- Navigasi keyboard (arrow up/down, enter, escape)
+- Click outside untuk close dropdown
+
+**Integrasi**:
+- `components/layanan/LayananForm.tsx` — nama customer input diganti dengan CustomerAutocomplete (onSelect isi nama + whatsapp)
+- `components/admin/ServiceInput.tsx` — Full Name input diganti dengan CustomerAutocomplete (onSelect isi cs_name + cs_phone)
+
+### Files Changed
+- `components/admin/CustomerAutocomplete.tsx` (NEW)
+- `components/layanan/LayananForm.tsx`
+- `components/admin/ServiceInput.tsx`
+
+---
+
+## Revisi v.26 - 2026-07-10
+
+### Fitur: Customer Database via Telegram
+
+**Deskripsi**: Setiap customer baru (nomor WA baru) yang masuk via transaksi atau service order otomatis dikirim ke Telegram channel "CUSTOMER DATABASE" dengan format:
+```
+CUSTOMER BARU 
+nama cs: Iky
+no. wa: 628123456789
+```
+
+**Perubahan**:
+
+1. **Channel baru**: `TELEGRAM_CHANNEL_CUSTOMER` di `lib/telegram.ts` + `/api/telegram/route.ts`
+2. **API route**: `/api/telegram/customer-new/route.ts` (NEW)
+   - Menerima `{ name, phone }`
+   - Cek apakah nomor sudah ada di tabel `layanan` atau `service_orders` (via service_role)
+   - Jika baru (existingCount === 0), kirim ke Telegram
+   - Jika sudah ada, return `{ status: "existing" }` tanpa notifikasi
+3. **LayananForm.tsx**: Setelah submit sukses, panggil `/api/telegram/customer-new` dengan nama & WA customer
+4. **ServiceInput.tsx**: Setelah submit sukses, panggil `/api/telegram/customer-new` dengan nama & WA customer
+
+**Environment variable baru**: `TELEGRAM_CHANNEL_CUSTOMER` — isi dengan chat_id grup "CUSTOMER DATABASE"
+
+### Files Changed
+- `lib/telegram.ts`
+- `app/api/telegram/route.ts`
+- `app/api/telegram/customer-new/route.ts` (NEW)
+- `components/layanan/LayananForm.tsx`
+- `components/admin/ServiceInput.tsx`
+
+---
+
+## Revisi v.27 - 2026-07-10
+
+### Fitur: Tabel Customers + Auto Code Nama
+
+**Deskripsi**: 
+- Tabel `customers` baru di database untuk menyimpan data customer terpusat
+- Setiap customer baru otomatis mendapat kode 4 digit akhir nomor WA di namanya
+- Contoh: input "iky" + WA "0817236427347234" → tersimpan sebagai "iky 7234"
+
+**Perubahan**:
+
+1. **Database**: `db/supabase-schema.sql`
+   - Tabel `customers` baru: id, name, phone, last_transaction, created_at
+   - Indexes + RLS policies
+
+2. **API Route**: `app/api/telegram/customer-new/route.ts`
+   - Cek `customers` table (bukan layanan/service_orders)
+   - Jika baru: format nama + 4 digit, INSERT ke customers, kirim Telegram
+   - Jika sudah ada: UPDATE last_transaction, return existing name
+
+3. **CustomerAutocomplete**: Query dari `customers` table
+4. **CustomerList**: Query dari `customers` table + hitung transaksi dari layanan/service_orders
+
+### Environment
+- `TELEGRAM_CHANNEL_CUSTOMER` — chat_id grup Telegram untuk data customer
+
+### Database Migration
+```sql
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  last_transaction TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read customers" ON customers FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated users can insert customers" ON customers FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated users can update customers" ON customers FOR UPDATE USING (auth.uid() IS NOT NULL);
+```
+
+### Files Changed
+- `db/supabase-schema.sql`
+- `app/api/telegram/customer-new/route.ts`
+- `components/admin/CustomerAutocomplete.tsx`
+- `components/admin/CustomerList.tsx`
+
+### Database Changes: YES — `customers` table baru
 - Attendance timer & overtime perlu update logic di `components/teknisi/AttendanceModal.tsx`
 - Responsive design perlu review semua dashboard
 

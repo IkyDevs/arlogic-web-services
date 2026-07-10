@@ -75,7 +75,16 @@
 - Responsive sidebar icons-only
 - Top navbar dengan search, notification, profile
 
-### 10. Export & Reporting
+### 10. Data Customer
+- Tab "Customer" di semua dashboard (admin, teknisi, QC, owner)
+- Daftar customer dari transaksi (`layanan`) dan service orders
+- Deduplikasi otomatis berdasarkan nomor telepon
+- Search by nama / nomor WhatsApp
+- Link langsung ke WhatsApp
+- Menampilkan total transaksi & service per customer
+- Autocomplete nama customer di form transaksi & service (search + 4 digit kode unik di akhir WA)
+
+### 11. Export & Reporting
 - Export attendance to Excel
 - Export inventory to Excel
 - Export services/reports

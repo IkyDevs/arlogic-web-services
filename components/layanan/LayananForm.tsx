@@ -24,6 +24,7 @@ import {
   Plus,
   ChevronDown,
 } from "lucide-react";
+import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 
 interface LayananFormProps {
   onSuccess?: () => void;
@@ -289,6 +290,14 @@ ${typeIcon} tipe : ${jenisLayananLabel}
       if (error) throw error;
 
       toast.success("Transaksi berhasil ditambahkan!");
+
+      // Notify Telegram for new customer
+      fetch("/api/telegram/customer-new", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: formData.customer_name, phone: formData.customer_whatsapp }),
+      }).catch(() => {});
+
       onSuccess?.();
       onClose?.();
 
@@ -367,22 +376,13 @@ ${typeIcon} tipe : ${jenisLayananLabel}
               <label className={labelClass}>
                 Nama Customer <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={formData.customer_name}
-                  onChange={(e) =>
-                    setFormData((p) => ({
-                      ...p,
-                      customer_name: e.target.value,
-                    }))
-                  }
-                  className={`${inputClass} pl-9`}
-                  placeholder="Nama lengkap customer"
-                  required
-                />
-              </div>
+              <CustomerAutocomplete
+                value={formData.customer_name}
+                onChange={(val) => setFormData((p) => ({ ...p, customer_name: val }))}
+                onSelect={(name, phone) => setFormData((p) => ({ ...p, customer_name: name, customer_whatsapp: phone }))}
+                placeholder="Nama lengkap customer"
+                autoFocus
+              />
             </div>
             <div>
               <label className={labelClass}>

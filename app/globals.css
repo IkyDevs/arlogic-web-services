@@ -429,6 +429,94 @@
   background-color: #2a2a2a !important;
 }
 
+/* Status badge backgrounds */
+[data-theme="dark"] .bg-blue-50,
+[data-theme="dark"] .bg-sky-50 { background-color: #0c1a3a !important; }
+[data-theme="dark"] .bg-green-50,
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e16 !important; }
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] .bg-rose-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .bg-amber-50,
+[data-theme="dark"] .bg-yellow-50 { background-color: #1c1407 !important; }
+[data-theme="dark"] .bg-purple-50,
+[data-theme="dark"] .bg-indigo-50,
+[data-theme="dark"] .bg-violet-50 { background-color: #1a0a3a !important; }
+[data-theme="dark"] .bg-pink-50,
+[data-theme="dark"] .bg-fuchsia-50 { background-color: #3a0a1a !important; }
+[data-theme="dark"] .bg-teal-50,
+[data-theme="dark"] .bg-cyan-50 { background-color: #0a2e2e !important; }
+[data-theme="dark"] .bg-orange-50 { background-color: #2e1a0a !important; }
+[data-theme="dark"] .bg-lime-50 { background-color: #0a2e0a !important; }
+
+/* Icon & link colors */
+[data-theme="dark"] .text-blue-600,
+[data-theme="dark"] .text-sky-600 { color: #60a5fa !important; }
+[data-theme="dark"] .text-blue-500 { color: #3b82f6 !important; }
+[data-theme="dark"] .text-green-600,
+[data-theme="dark"] .text-emerald-600 { color: #34d399 !important; }
+[data-theme="dark"] .text-red-600 { color: #f87171 !important; }
+[data-theme="dark"] .text-amber-600,
+[data-theme="dark"] .text-yellow-600 { color: #fbbf24 !important; }
+[data-theme="dark"] .text-purple-600 { color: #a78bfa !important; }
+
+/* Status badge text */
+[data-theme="dark"] .text-blue-700,
+[data-theme="dark"] .text-sky-700 { color: #93c5fd !important; }
+[data-theme="dark"] .text-green-700,
+[data-theme="dark"] .text-emerald-700 { color: #86efac !important; }
+[data-theme="dark"] .text-red-700,
+[data-theme="dark"] .text-rose-700 { color: #fca5a5 !important; }
+[data-theme="dark"] .text-amber-700,
+[data-theme="dark"] .text-yellow-700 { color: #fde047 !important; }
+[data-theme="dark"] .text-purple-700,
+[data-theme="dark"] .text-indigo-700,
+[data-theme="dark"] .text-violet-700 { color: #c4b5fd !important; }
+[data-theme="dark"] .text-pink-700 { color: #f9a8d4 !important; }
+[data-theme="dark"] .text-teal-700,
+[data-theme="dark"] .text-cyan-700 { color: #5eead4 !important; }
+[data-theme="dark"] .text-orange-700 { color: #fdba74 !important; }
+
+/* Status badge borders */
+[data-theme="dark"] .border-blue-200,
+[data-theme="dark"] .border-sky-200 { border-color: #1e3a5f !important; }
+[data-theme="dark"] .border-green-200,
+[data-theme="dark"] .border-emerald-200 { border-color: #14532d !important; }
+[data-theme="dark"] .border-red-200,
+[data-theme="dark"] .border-rose-200 { border-color: #5f1a1a !important; }
+[data-theme="dark"] .border-amber-200,
+[data-theme="dark"] .border-yellow-200 { border-color: #5f4a1a !important; }
+[data-theme="dark"] .border-purple-200,
+[data-theme="dark"] .border-indigo-200,
+[data-theme="dark"] .border-violet-200 { border-color: #2a1a5f !important; }
+[data-theme="dark"] .border-pink-200 { border-color: #5f1a3a !important; }
+[data-theme="dark"] .border-teal-200,
+[data-theme="dark"] .border-cyan-200 { border-color: #1a5f5f !important; }
+[data-theme="dark"] .border-orange-200 { border-color: #5f3a1a !important; }
+
+/* Gradient overrides */
+[data-theme="dark"] .bg-gradient-to-r.from-slate-900,
+[data-theme="dark"] .bg-gradient-to-r.from-gray-900 {
+  background-image: linear-gradient(to right, #2a2a2a, #1a1a1a) !important;
+}
+
+/* Stat card gradients (TransactionManagement) */
+[data-theme="dark"] .from-blue-50.to-blue-100\/60 {
+  background-image: linear-gradient(to bottom right, #0c1a3a, #0a1a3a) !important;
+}
+[data-theme="dark"] .from-amber-50.to-amber-100\/60 {
+  background-image: linear-gradient(to bottom right, #1c1407, #1a1407) !important;
+}
+[data-theme="dark"] .from-green-50.to-green-100\/60 {
+  background-image: linear-gradient(to bottom right, #052e16, #042e16) !important;
+}
+[data-theme="dark"] .from-purple-50.to-purple-100\/60 {
+  background-image: linear-gradient(to bottom right, #1a0a3a, #1a0a3a) !important;
+}
+
+[data-theme="dark"] .bg-white\/50 {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
 [data-theme="dark"] .border-gray-100,
 [data-theme="dark"] .border-slate-100,
 [data-theme="dark"] .border-gray-200,

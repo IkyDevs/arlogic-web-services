@@ -809,6 +809,23 @@ CREATE INDEX IF NOT EXISTS idx_service_doc_telegram ON service_documentation(tel
 ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT DEFAULT '';
 ALTER TABLE closings ADD COLUMN IF NOT EXISTS telegram_message_id BIGINT DEFAULT 0;
 
+-- Customer database table
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  last_transaction TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read customers" ON customers FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated users can insert customers" ON customers FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated users can update customers" ON customers FOR UPDATE USING (auth.uid() IS NOT NULL);
+
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================================

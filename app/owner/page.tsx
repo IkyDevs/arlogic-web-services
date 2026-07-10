@@ -42,6 +42,7 @@ import toast from "react-hot-toast";
 import dynamic from "next/dynamic";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import ThemeToggle from "@/components/ThemeToggle";
+import CustomerList from "@/components/admin/CustomerList";
 
 // Dynamic imports
 const RevenueChart = dynamic(() => import("@/components/owner/RevenueChart"), {
@@ -101,7 +102,8 @@ type ActiveTab =
   | "performance"
   | "feedback"
   | "closing"
-  | "watch_db";
+  | "watch_db"
+  | "customer";
 
 interface DashboardData {
   revenue: number;
@@ -372,6 +374,7 @@ export default function OwnerDashboard() {
     { id: "feedback", label: "Feedback", icon: Star },
     { id: "closing", label: "Closing", icon: FileText },
     { id: "watch_db", label: "Watch DB", icon: Database },
+    { id: "customer", label: "Customer", icon: Users },
   ];
 
   const formatRupiah = (nominal: number) => {
@@ -444,7 +447,7 @@ export default function OwnerDashboard() {
           </div>
         </div>
 
-        <nav className="p-2 sm:p-3 md:p-4 space-y-0.5">
+        <nav className="flex-1 flex flex-col justify-center gap-0.5 px-3 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -473,10 +476,6 @@ export default function OwnerDashboard() {
             </button>
           </div>
         </nav>
-
-        <div className="p-4 border-t border-gray-200 text-center">
-          <p className="text-[10px] text-slate-400">Watch Service v2.0</p>
-        </div>
       </div>
 
       {/* Overlay untuk mobile */}
@@ -893,6 +892,12 @@ export default function OwnerDashboard() {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <FeedbackList />
+              </motion.div>
+            )}
+
+            {activeTab === "customer" && (
+              <motion.div key="customer" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <CustomerList />
               </motion.div>
             )}
 

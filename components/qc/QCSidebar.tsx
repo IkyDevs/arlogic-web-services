@@ -73,7 +73,7 @@ export default function QCSidebar({
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col gap-0.5 px-3 overflow-y-auto">
+      <nav className="flex-1 flex flex-col justify-center gap-0.5 px-3 overflow-y-auto">
         {menuItems.map((item) => (
           <button
             key={item.id}
@@ -120,10 +120,10 @@ export default function QCSidebar({
             )}
             <span className="truncate">
               {!todayAttendance
-                ? "Check In"
+                ? "Absen"
                 : todayAttendance.check_out
                   ? "Completed"
-                  : "Check Out"}
+                  : "Absen Pulang"}
             </span>
           </button>
         )}

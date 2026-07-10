@@ -49,6 +49,7 @@ import InventoryCard from "@/components/admin/InventoryCard";
 import POSection from "@/components/admin/POSection";
 import QRCodeGenerator from "@/components/admin/QRCodeGenerator";
 import ThemeToggle from "@/components/ThemeToggle";
+import CustomerList from "@/components/admin/CustomerList";
 import { useTheme } from "@/components/ThemeProvider";
 
 // Dynamic imports
@@ -696,6 +697,7 @@ export default function AdminDashboard() {
 
   const menuItems = [
     { id: "transaction", label: "Dashboard", icon: LayoutDashboard },
+    { id: "customer", label: "Customer", icon: Users },
     {
       id: "management-transaction",
       label: "Management Transaction",
@@ -758,7 +760,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col gap-0.5 px-3 overflow-y-auto">
+        <nav className="flex-1 flex flex-col justify-center gap-0.5 px-3 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -807,10 +809,10 @@ export default function AdminDashboard() {
             )}
             <span className="truncate">
               {!todayAttendance
-                ? "Check In"
+                ? "Absen"
                 : todayAttendance.check_out
                   ? "Completed"
-                  : "Check Out"}
+                  : "Absen Pulang"}
             </span>
           </button>
 
@@ -1110,6 +1112,8 @@ export default function AdminDashboard() {
               onNavigate={(tab) => setActiveTab(tab)}
             />
           )}
+
+          {activeTab === "customer" && <CustomerList />}
 
           {activeTab === "management-transaction" && (
             <div className="space-y-4 md:space-y-6">

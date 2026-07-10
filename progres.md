@@ -36,6 +36,11 @@
 - [x] Simplify caption new service (hapus placeholder, tambah estimasi)
 - [x] QC item restrictions (no delete, JASA add/edit, sparepart edit harga saja)
 - [x] Attendance report di QC/Supervisor dashboard (table + filter harian/mingguan/bulanan)
+- [x] Dark mode: stat card gradients + sidebar justify-evenly + "Check In" → "Absen"
+- [x] Fitur Customer (daftar customer dari transaksi + service orders) di semua dashboard
+- [x] Customer Autocomplete di form transaksi & service baru (search + 4 digit kode)
+- [x] Customer baru otomatis dikirim ke Telegram channel "CUSTOMER DATABASE"
+- [x] Tabel customers + auto code 4 digit di nama customer
 - [ ] Technician service queue & "take service" flow alignment
 - [ ] QC/Supervisor dashboard approve/reject flow refinement
 - [ ] Telegram multi-group support configuration

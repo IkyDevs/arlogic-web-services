@@ -18,6 +18,7 @@ import {
   Search,
   Package,
   Calendar,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
@@ -27,6 +28,7 @@ import QCReviewModal from "@/components/qc/QCReviewModal";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import AttendanceReport from "@/components/qc/AttendanceReport";
 import ThemeToggle from "@/components/ThemeToggle";
+import CustomerList from "@/components/admin/CustomerList";
 
 export default function QCDashboard() {
   const [activeTab, setActiveTab] = useState("all");
@@ -212,6 +214,7 @@ export default function QCDashboard() {
   const menuItems: { id: string; label: string; icon: any }[] = [
     { id: "all", label: "Semua", icon: ClipboardCheck },
     { id: "absensi", label: "Absensi", icon: Calendar },
+    { id: "customer", label: "Customer", icon: Users },
   ];
 
   teknisiList.forEach((name) => {
@@ -330,7 +333,9 @@ export default function QCDashboard() {
 
         {/* Content */}
         <main className="flex-1 p-2 sm:p-3 md:p-4">
-          {activeTab === "absensi" ? (
+          {activeTab === "customer" ? (
+            <CustomerList />
+          ) : activeTab === "absensi" ? (
             <AttendanceReport />
           ) : (
             <>

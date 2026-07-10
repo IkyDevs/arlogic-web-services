@@ -38,6 +38,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
+import CustomerList from "@/components/admin/CustomerList";
 import QueueList from "@/components/teknisi/QueueList";
 import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
@@ -371,6 +372,7 @@ export default function TeknisiDashboard() {
     { id: "queue", label: "Antrean & Proyek", icon: ClipboardList },
     { id: "stats", label: "Performa", icon: TrendingUp },
     { id: "absensi", label: "Absensi", icon: Clock },
+    { id: "customer", label: "Customer", icon: Users },
     { id: "layanan", label: "Transaksi", icon: FileText },
   ];
 
@@ -421,7 +423,7 @@ export default function TeknisiDashboard() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col gap-0.5 px-3 overflow-y-auto">
+        <nav className="flex-1 flex flex-col justify-center gap-0.5 px-3 overflow-y-auto">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -470,10 +472,10 @@ export default function TeknisiDashboard() {
             )}
             <span className="truncate">
               {!todayAttendance
-                ? "Check In"
+                ? "Absen"
                 : todayAttendance.check_out
                   ? "Completed"
-                  : "Check Out"}
+                  : "Absen Pulang"}
             </span>
           </button>
 
@@ -898,6 +900,12 @@ export default function TeknisiDashboard() {
                   todayAttendance={todayAttendance}
                   onAttendanceChange={() => { checkTodayAttendance(); fetchRecentActivities(); }}
                 />
+              </motion.div>
+            )}
+
+            {activeTab === "customer" && (
+              <motion.div key="customer" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <CustomerList />
               </motion.div>
             )}
 
