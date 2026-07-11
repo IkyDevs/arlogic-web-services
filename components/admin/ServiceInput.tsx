@@ -115,8 +115,33 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
     return `WATCH-${y}${m}${day}-${rand}`;
   };
 
-  const generateToken = () =>
-    Math.random().toString(36).substring(2, 15).toUpperCase();
+  const generateToken = async () => {
+    // Generate a 12-character alphanumeric token
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let token = '';
+    
+    // Try up to 5 times to generate a unique token
+    for (let attempt = 0; attempt < 5; attempt++) {
+      token = '';
+      for (let i = 0; i < 12; i++) {
+        token += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      
+      // Check if token already exists
+      const { data: existing } = await supabase
+        .from("service_orders")
+        .select("id")
+        .eq("token", token)
+        .maybeSingle();
+      
+      if (!existing) {
+        return token; // Token is unique
+      }
+    }
+    
+    // If still no unique token after 5 attempts, use timestamp-based fallback
+    return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
+  };
 
   const handleAddPhoto = (files: FileList | null) => {
     if (!files) return;
@@ -169,7 +194,7 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
 
     try {
       const invoiceNumber = generateInvoiceNumber();
-      const token = generateToken();
+      const token = await generateToken();
       const tokenExpiresAt = new Date();
       tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 30);
 
@@ -405,7 +430,12 @@ In : ${now}`;
         toast.error("Gagal simpan customer: " + custErr.message);
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to create order");
+      // Handle unique constraint violation for token
+      if (err.code === '23505' && err.message.includes('token')) {
+        toast.error("Token conflict. Please try again.");
+      } else {
+        toast.error(err.message || "Failed to create order");
+      }
     } finally {
       setLoading(false);
     }

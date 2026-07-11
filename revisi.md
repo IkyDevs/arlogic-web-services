@@ -799,3 +799,75 @@ Saat klik "Kirim ke WhatsApp", pesan sekarang menyertakan QR image via `api.qrse
 **Files**: `components/admin/ServiceList.tsx`, `components/admin/QRCodeGenerator.tsx`, `app/tracking/[id]/page.tsx`
 
 ### No Database Changes
+
+---
+
+## Revisi v.29 - Token Validation & Feedback Notification - 2026-07-11
+
+### Issue 1: Token Validation Error
+**Masalah**: Token tracking tidak valid, customer tidak bisa tracking service.
+
+**Fix**:
+- Improved token generation: fixed 12-character alphanumeric
+- Collision detection: check database sebelum use token
+- Retry mechanism: up to 5 attempts jika collision
+- Error handling: toast notification untuk code 23505 (unique constraint violation)
+- Database schema: tambah UNIQUE constraint pada token column
+
+**Files**: 
+- `components/admin/ServiceInput.tsx`
+- `db/supabase-schema.sql`
+- `db/migration-add-token-unique.sql` (NEW)
+
+### Issue 2: Customer Feedback Tidak Masuk Owner Dashboard
+**Masalah**: Notifikasi feedback tidak muncul di owner dashboard karena tidak ada `user_id`.
+
+**Fix**:
+- Query semua users dengan role 'owner' atau 'admin'
+- Kirim notifikasi individual ke setiap owner/admin dengan `user_id`
+- Notifikasi sekarang muncul di owner dashboard bell icon
+
+**Files**:
+- `app/tracking/[[...slug]]/page.tsx`
+- `app/feedback/[id]/page.tsx`
+
+### Database Migration Required
+```sql
+-- Add UNIQUE constraint to token
+DROP INDEX IF EXISTS idx_service_orders_token;
+ALTER TABLE service_orders 
+  DROP CONSTRAINT IF EXISTS service_orders_token_key,
+  ADD CONSTRAINT service_orders_token_key UNIQUE (token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_service_orders_token_unique ON service_orders(token);
+```
+
+---
+
+## Revisi v.30 - Validasi Kaspin & Feedback Restriction - 2026-07-11
+
+### Issue 1: Validasi Kaspin Update per Teknisi
+
+**Masalah**: Teknisi A bisa lihat dan update kaspin untuk service Teknisi B (tidak sesuai assignment).
+
+**Fix**: 
+- Filter service di KaspinUpdate berdasarkan `assigned_teknisi_id = user.id`
+- Hanya tampilkan service yang assigned ke teknisi yang login
+- Filter tambahan: hanya service dengan status `assigned`, `in_progress`, `waiting_sparepart`
+- Exclude service yang sudah `completed`, `cancelled`, atau `qc_pending`
+- Empty state jika teknisi belum ambil service
+
+**Files**: `components/teknisi/KaspinUpdate.tsx`
+
+### Issue 2: Customer Feedback Restriction
+
+**Masalah**: Customer bisa submit feedback meskipun service belum selesai (in_progress, pending, dll).
+
+**Fix**:
+- Feedback form **hanya muncul** jika `service.status === "completed"`
+- Tampilkan pesan "Feedback dapat diberikan setelah service selesai" untuk status lain
+- UI service detail tetap tampil, hanya feedback section yang conditional
+- Icon dan styling yang user-friendly
+
+**Files**: `app/tracking/[[...slug]]/page.tsx`
+
+### No Database Changes

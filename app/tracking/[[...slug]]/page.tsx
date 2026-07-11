@@ -173,10 +173,24 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
         teknisi_id: service.assigned_teknisi_id || null,
       });
       if (insertError) throw insertError;
-      await supabase.from("notifications").insert({
-        type: "feedback", title: "New Customer Feedback",
-        message: service.customer_name + " rated service " + service.invoice_number + " with " + feedbackRating + " stars",
-      });
+      
+      // Send notification to all owner and admin users
+      const { data: owners } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("role", ["owner", "admin"]);
+      
+      if (owners && owners.length > 0) {
+        const notifications = owners.map(owner => ({
+          user_id: owner.id,
+          type: "feedback",
+          title: "New Customer Feedback",
+          message: service.customer_name + " rated service " + service.invoice_number + " with " + feedbackRating + " stars",
+        }));
+        
+        await supabase.from("notifications").insert(notifications);
+      }
+      
       setFeedbackSubmitted(true);
       toast.success("Terima kasih atas feedback Anda!");
     } catch (err: any) {
@@ -509,7 +523,18 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
           </motion.div>
         )}
 
-        {/* Feedback Section */}
+        {/* Feedback Section - Only when service is completed */}
+        {service.status !== "completed" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+            className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-5 border border-slate-200 text-center">
+            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <Clock className="w-6 h-6 text-slate-400" />
+            </div>
+            <h3 className="font-bold text-slate-700">Feedback Belum Tersedia</h3>
+            <p className="text-sm text-slate-500 mt-1">Feedback dapat diberikan setelah service selesai.</p>
+          </motion.div>
+        )}
+
         {service.status === "completed" && !feedbackAlready && !feedbackSubmitted && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
             className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">

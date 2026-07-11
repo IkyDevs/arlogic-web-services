@@ -20,15 +20,19 @@ export default function KaspinUpdate() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!user?.id) return;
+    
     supabase
       .from("service_orders")
-      .select("id, customer_name, watch_brand, device_brand, invoice_number")
+      .select("id, customer_name, watch_brand, device_brand, invoice_number, assigned_teknisi_id, status")
+      .eq("assigned_teknisi_id", user.id)
+      .in("status", ["assigned", "in_progress", "waiting_sparepart"])
       .order("created_at", { ascending: false })
       .limit(50)
       .then(({ data }) => {
         if (data) setServices(data);
       });
-  }, []);
+  }, [user]);
 
   const selectedService = services.find((s) => s.id === selectedServiceId);
 
@@ -42,6 +46,10 @@ export default function KaspinUpdate() {
   };
 
   const handleSubmit = async () => {
+    if (services.length === 0) { 
+      toast.error("Belum ada service yang diambil. Ambil service dari tab Queue terlebih dahulu."); 
+      return; 
+    }
     if (!selectedServiceId) { toast.error("Pilih service terlebih dahulu"); return; }
     if (!items.trim()) { toast.error("Isi barang sparepart"); return; }
     if (!peruntukkan.trim()) { toast.error("Isi peruntukkan"); return; }
@@ -132,13 +140,20 @@ Teknisi : ${user?.full_name || "-"}`;
         {/* Pilih Service */}
         <div>
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 block">Pilih Service</label>
-          <select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl text-sm bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-gray-100">
-            <option value="">-- Pilih Service --</option>
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>{s.invoice_number} - {s.customer_name}</option>
-            ))}
-          </select>
+          {services.length === 0 ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400">
+              <AlertCircle className="w-4 h-4" />
+              <span>Belum ada service yang diambil. Ambil service terlebih dahulu dari tab Queue.</span>
+            </div>
+          ) : (
+            <select value={selectedServiceId} onChange={(e) => setSelectedServiceId(e.target.value)}
+              className="w-full px-3 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl text-sm bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-gray-100">
+              <option value="">-- Pilih Service --</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>{s.invoice_number} - {s.customer_name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Nama CS (auto) */}
@@ -187,8 +202,8 @@ Teknisi : ${user?.full_name || "-"}`;
         </div>
 
         {/* Submit */}
-        <button onClick={handleSubmit} disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all text-sm disabled:opacity-50">
+        <button onClick={handleSubmit} disabled={submitting || services.length === 0}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed">
           {submitting ? (
             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : (

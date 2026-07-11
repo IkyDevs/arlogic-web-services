@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS service_orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   invoice_number TEXT UNIQUE NOT NULL,
-  token TEXT NOT NULL,
+  token TEXT UNIQUE NOT NULL,
   token_expires_at TIMESTAMPTZ,
   customer_name TEXT NOT NULL,
   customer_phone TEXT NOT NULL,
@@ -357,7 +357,7 @@ CREATE TABLE IF NOT EXISTS sparepart_conversations (
 -- =====================================================
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
-CREATE INDEX IF NOT EXISTS idx_service_orders_token ON service_orders(token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_service_orders_token ON service_orders(token);
 CREATE INDEX IF NOT EXISTS idx_service_orders_status ON service_orders(status);
 CREATE INDEX IF NOT EXISTS idx_service_orders_invoice ON service_orders(invoice_number);
 CREATE INDEX IF NOT EXISTS idx_service_orders_teknisi ON service_orders(assigned_teknisi_id);

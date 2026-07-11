@@ -97,17 +97,27 @@ export default function FeedbackPage() {
 
       if (insertError) throw insertError;
 
-      // Notify owner about new feedback
-      await supabase.from("notifications").insert({
-        type: "feedback",
-        title: "New Customer Feedback",
-        message: `${service.customer_name} rated service ${service.invoice_number} with ${rating} stars`,
-        data: {
-          service_id: service.id,
-          invoice: service.invoice_number,
-          rating,
-        },
-      });
+      // Send notification to all owner and admin users
+      const { data: owners } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("role", ["owner", "admin"]);
+      
+      if (owners && owners.length > 0) {
+        const notifications = owners.map(owner => ({
+          user_id: owner.id,
+          type: "feedback",
+          title: "New Customer Feedback",
+          message: `${service.customer_name} rated service ${service.invoice_number} with ${rating} stars`,
+          data: {
+            service_id: service.id,
+            invoice: service.invoice_number,
+            rating,
+          },
+        }));
+        
+        await supabase.from("notifications").insert(notifications);
+      }
 
       setSubmitted(true);
       toast.success("Thank you for your feedback!");

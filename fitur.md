@@ -55,6 +55,10 @@
 - Statistik attendance, service, inventory
 - Export reports (Excel)
 - Watch database management
+- **Feedback list**: Daftar feedback customer dengan rating, komentar, filter
+- **Tracking visits**: Riwayat kunjungan customer ke tracking page
+- **Closing approval**: Approve/reject closing harian dari admin
+- **Notifikasi feedback**: Setiap feedback customer masuk sebagai notifikasi ke owner/admin
 
 ### 8. Telegram Integration
 - Storage foto via Telegram Bot API

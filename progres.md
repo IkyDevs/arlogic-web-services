@@ -1,6 +1,6 @@
 # Progress
 
-## Current State (2026-07-05)
+## Current State (2026-07-11)
 
 ### Completed
 - [x] Project setup with Next.js, Supabase, Telegram bot integration
@@ -16,8 +16,6 @@
 - [x] Export reports (attendance, inventory, services)
 - [x] Owner dashboard with statistics
 - [x] Superadmin features (role management, user management)
-
-### In Progress / Needs Fix
 - [x] RLS policies fully normalized across all tables
 - [x] Service order permission errors after project recreation
 - [x] Schema cache PostgREST fixes for multiple tables
@@ -41,12 +39,18 @@
 - [x] Customer Autocomplete di form transaksi & service baru (search + 4 digit kode)
 - [x] Customer baru otomatis dikirim ke Telegram channel "CUSTOMER DATABASE"
 - [x] Tabel customers + auto code 4 digit di nama customer
+- [x] Token validation fix (unique constraint + collision detection)
+- [x] Feedback notification ke owner dashboard (with user_id)
+- [x] Kaspin validation: teknisi hanya bisa update kaspin service yang di-assigned ke dia
+- [x] Feedback restriction: customer hanya bisa feedback setelah service completed
+- [x] Documentation files completion
+
+### In Progress / Needs Fix
 - [ ] Technician service queue & "take service" flow alignment
 - [ ] QC/Supervisor dashboard approve/reject flow refinement
 - [ ] Telegram multi-group support configuration
 - [ ] Full responsive design verification (mobile-first) - admin dashboard fixed
 - [ ] Dark mode consistency across all pages
-- [x] Documentation files completion
 
 ### Planned
 - [ ] Pra service module (new pre-service intake form)
