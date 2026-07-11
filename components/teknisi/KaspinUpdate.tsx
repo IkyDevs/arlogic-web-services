@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { motion } from "framer-motion";
-import { Package, Camera, Store, Warehouse, User, Watch, Send, X } from "lucide-react";
+import { Package, Camera, Store, Warehouse, User, Watch, Send, X, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function KaspinUpdate() {

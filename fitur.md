@@ -12,16 +12,18 @@
 - Admin input service order dengan foto, brand, model, keluhan
 - Generate QR code & token tracking untuk customer
 - QR code di popup detail service pakai `NEXT_PUBLIC_APP_URL` (bukan localhost)
-- Tracking page publik (`/tracking/[id]`)
+- Tracking page publik (`/tracking/[[...slug]]`)
 - Status: pending → assigned → in_progress → waiting_sparepart → qc_pending → completed
 - Timeline update & service items (sparepart + jasa)
 - Notifikasi Telegram per status
+- Token validation: unique constraint, collision detection, fixed 12-char format
 
 ### 3. Transaction (Layanan)
 - Input transaksi layanan (service_langsung, order_online, beli jam, dll)
 - Filter by jenis layanan, status, metode pembayaran, tanggal
 - Export to CSV
 - Upload foto bukti transaksi ke Telegram
+- Multiple photo upload support
 
 ### 4. Attendance
 - Check-in & check-out dengan upload foto
@@ -50,23 +52,26 @@
 - QC bisa tambah JASA custom
 - Sparepart hanya bisa edit harga (tidak bisa tambah/hapus)
 - **Laporan Absensi**: Tabel absensi semua staff dengan filter harian/mingguan/bulanan
+- Edit caption Telegram otomatis saat QC revisi item
 
 ### 7. Owner Dashboard
 - Statistik attendance, service, inventory
 - Export reports (Excel)
 - Watch database management
-- **Feedback list**: Daftar feedback customer dengan rating, komentar, filter
-- **Tracking visits**: Riwayat kunjungan customer ke tracking page
-- **Closing approval**: Approve/reject closing harian dari admin
+- **Feedback list**: Daftar feedback customer dengan rating, komentar, filter, sorting
+- **Tracking visits**: Riwayat kunjungan customer ke tracking page (waktu, customer, invoice, link)
+- **Closing approval**: Approve/reject closing harian dari admin dengan edit caption Telegram
 - **Notifikasi feedback**: Setiap feedback customer masuk sebagai notifikasi ke owner/admin
 
 ### 8. Telegram Integration
 - Storage foto via Telegram Bot API
-- Channel mapping: attendance, service, layanan, inventory, stock_transfer
+- Channel mapping: attendance, service, layanan, inventory, stock_transfer, customer, closing
 - Upload multiple photos (media group)
 - Caption dengan metadata form
 - Edit caption otomatis saat QC merevisi item (via `editMessageCaption` API)
 - Setiap upload menyimpan `chat_id` + `message_id` untuk keperluan edit
+- Notifikasi customer baru ke channel dedicated
+- Notifikasi kaspin update dengan foto
 
 ### 9. Theme
 - Light mode & dark mode toggle
@@ -87,6 +92,7 @@
 - Link langsung ke WhatsApp
 - Menampilkan total transaksi & service per customer
 - Autocomplete nama customer di form transaksi & service (search + 4 digit kode unik di akhir WA)
+- Tabel `customers` terpisah dengan auto code 4 digit
 
 ### 11. Export & Reporting
 - Export attendance to Excel
@@ -94,18 +100,32 @@
 - Export services/reports
 - Transaction export to CSV
 
+### 12. Kaspin Update (Sparepart Tracking)
+- Teknisi update kaspin (sparepart diambil dari gudang/toko)
+- Filter service: hanya service yang **assigned ke teknisi yang login**
+- Status filter: hanya `assigned`, `in_progress`, `waiting_sparepart`
+- Upload foto bukti kaspin ke Telegram
+- Notifikasi ke Telegram channel dedicated
+
+### 13. Customer Feedback & Tracking
+- Customer tracking service via token di `/tracking/[token]`
+- Feedback form **hanya muncul** jika service status = `completed`
+- Rating 1-5 star + optional comment
+- Notifikasi feedback ke owner/admin dashboard dengan `user_id`
+- Feedback list di owner dashboard dengan filter & sorting
+- Tracking visits logger: setiap akses tracking tercatat di `tracking_logs`
+- Pesan informatif saat feedback belum tersedia (service belum completed)
+
 ## Fitur yang Akan Datang / Dalam Perbaikan
 
 ### Immediate Fixes
-- Fix permission denied setelah recreate Supabase project
-- Fix schema cache PostgREST untuk tabel `layanan`
-- Normalisasi RLS policies untuk semua tabel
-- Fix upload Telegram error handling & channel configuration
-
-### Planned
 - Pra service module (form intake admin → list teknisi → progress → QC → finish)
 - Overtime calculation & timer di dashboard
-- Stock transfer tracking (warehouse ↔ store)
-- Multi-group Telegram support
+- Stock transfer tracking (warehouse ↔ store) - sudah ada, perlu refinement
+- Multi-group Telegram support - sudah support, perlu config refinement
+
+### Planned
 - WhatsApp template automation
-- Advanced analytics
+- Advanced analytics & real-time dashboard
+- Sparepart request & chat system improvements
+- Mobile app (React Native / Flutter)
