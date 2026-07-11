@@ -103,6 +103,13 @@ export default function QCReviewModal({
     0,
   );
 
+  // Tambah timeline sparepart cost — FIX #2
+  const timelineSparePartCost = timeline
+    .filter(t => t.details?.total_sparepart_cost)
+    .reduce((sum, t) => sum + (t.details?.total_sparepart_cost || 0), 0);
+
+  const totalCostWithTimeline = totalCost + timelineSparePartCost;
+
   const startEditPrice = (index: number, currentPrice: number) => {
     setEditingPrice({ ...editingPrice, [index]: currentPrice });
   };
@@ -334,14 +341,27 @@ export default function QCReviewModal({
             const now = new Date();
             const fmtDate = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} (${String(now.getMonth() + 1).padStart(2, "0")}), ${now.getFullYear()}`;
 
-            const barangList =
-              localItems
+            // GABUNG sparepart dari service_items + timeline — FIX #2
+            const allSpareparts = [
+              ...localItems
                 .filter((i) => i.item_type === "sparepart")
-                .map(
-                  (i) =>
-                    `• ${i.name} (${i.quantity}x) @Rp ${(i.price || 0).toLocaleString()}`,
-                )
-                .join("\n") || "—";
+                .map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+              
+              // Tambah sparepart dari timeline.details.spareparts
+              ...timeline
+                .filter(t => t.details?.spareparts && Array.isArray(t.details.spareparts))
+                .flatMap(t => t.details.spareparts || [])
+            ];
+
+            const barangList =
+              allSpareparts.length > 0
+                ? allSpareparts
+                    .map(
+                      (i: any) =>
+                        `• ${i.name} (${i.qty || i.quantity}x) @Rp ${((i.price || 0) * (i.qty || i.quantity || 1)).toLocaleString("id-ID")}`
+                    )
+                    .join("\n")
+                : "—";
             const jasaList =
               localItems
                 .filter((i) => i.item_type === "jasa")
@@ -369,7 +389,7 @@ export default function QCReviewModal({
             if (dpData && dpData.nominal) {
               const dpNominal = dpData.nominal;
               dpText = `\ndp: Rp ${dpNominal.toLocaleString("id-ID")}`;
-              const selisih = totalCost - dpNominal;
+              const selisih = totalCostWithTimeline - dpNominal;
               if (selisih > 0)
                 kekuranganText = `\nkekurangan: Rp ${selisih.toLocaleString("id-ID")}`;
               else if (selisih < 0)
@@ -378,7 +398,7 @@ export default function QCReviewModal({
 
             const revisiText =
               changes.length > 0 ? `\nrevisi : \n${changes.join(", ")}` : "";
-            const newCaption = `UPDATE QC\nTeknisi : ${service.teknisi_name || service.assigned_teknisi_name || "-"}\nStart : ${startDate}\nDone : ${fmtDate}\npengerjaan :\nbarang:\n${barangList}\njasa:\n${jasaList}\ntotal: Rp ${totalCost.toLocaleString("id-ID")}${dpText}${kekuranganText}${revisiText}\nstatus : QC approve\nketerangan:`;
+            const newCaption = `UPDATE QC\nTeknisi : ${service.teknisi_name || service.assigned_teknisi_name || "-"}\nStart : ${startDate}\nDone : ${fmtDate}\npengerjaan :\nbarang:\n${barangList}\njasa:\n${jasaList}\ntotal: Rp ${totalCostWithTimeline.toLocaleString("id-ID")}${dpText}${kekuranganText}${revisiText}\nstatus : QC approve\nketerangan:`;
 
             const editRes = await fetch("/api/telegram/edit-caption", {
               method: "POST",
@@ -762,8 +782,8 @@ export default function QCReviewModal({
                   })
                 )}
                 <div className="flex justify-between items-center p-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-lg font-bold">
-                  <span>Total</span>
-                  <span className="text-xl">{formatRupiah(totalCost)}</span>
+                  <span>Total (incl. timeline)</span>
+                  <span className="text-xl">{formatRupiah(totalCostWithTimeline)}</span>
                 </div>
 
                 {/* Tambah Jasa Custom */}

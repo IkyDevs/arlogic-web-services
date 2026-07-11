@@ -12,6 +12,8 @@ const CHANNELS = {
   closing: process.env.TELEGRAM_CHANNEL_CLOSING,
   customer: process.env.TELEGRAM_CHANNEL_CUSTOMER,
   kaspin: process.env.TELEGRAM_CHANNEL_KASPIN,
+  teknisi_update: process.env.TELEGRAM_CHANNEL_TEKNISI_UPDATE,
+  qc_update: process.env.TELEGRAM_CHANNEL_QC_UPDATE,
 } as const
 
 export type TelegramChannelType = keyof typeof CHANNELS

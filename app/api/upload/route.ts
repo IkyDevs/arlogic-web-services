@@ -64,12 +64,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Map type ke channel
-    const channelMap: Record<string, 'attendance' | 'service' | 'layanan' | 'inventory' | 'kaspin'> = {
+    const channelMap: Record<string, 'attendance' | 'service' | 'layanan' | 'inventory' | 'kaspin' | 'teknisi_update' | 'qc_update'> = {
       attendance: 'attendance',
       service: 'service',
       layanan: 'layanan',
       inventory: 'inventory',
       kaspin: 'kaspin',
+      teknisi_update: 'teknisi_update',
+      qc_update: 'qc_update',
     }
     const channelType = channelMap[type] || 'service'
     

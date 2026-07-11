@@ -411,7 +411,18 @@ export default function AddSparepartModal({
           message: sparepartMsg,
         details: {
           action: "po_sparepart_taken",
-          sparepart_list: selectedSparepartList.map((s: any) => s.name),
+          sparepart_list: selectedSparepartList.map((s: any) => ({
+            name: s.name,
+            sku: s.sku,
+            qty: s.quantity,
+            price: s.price,
+            total: s.price * s.quantity,
+            source_type: s.source_type,
+            is_po: s.is_po || false
+          })),
+          total_sparepart_cost: selectedSparepartList.reduce(
+            (sum, s) => sum + (s.price * s.quantity), 0
+          ),
         },
       });
 

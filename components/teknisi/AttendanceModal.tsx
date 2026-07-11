@@ -331,6 +331,7 @@ export default function AttendanceModal({
 
     let photoUrl: string | null = null
     if (!isCheckIn) {
+      const defaultCheckOutNotes = checkOutNotes.trim() || "absen pulang";
       let caption = `ABSEN PULANG
 absensi: ${dateStr} ${timeStr}
 role: ${role}
@@ -339,7 +340,7 @@ total jam: ${workDuration}
 lembur: ${lembur}`
 
       if (isOvertime) {
-        caption = caption + `\nlembur: YA\ncatatan: ${checkOutNotes || '-'}`
+        caption = caption + `\nlembur: YA\ncatatan: ${defaultCheckOutNotes}`
       }
 
       photoUrl = (await uploadFile(photoFile, {
@@ -347,11 +348,12 @@ lembur: ${lembur}`
         caption: caption
       }))?.url || null
     } else {
+      const defaultCheckInNotes = checkInNotes.trim() || "absen masuk";
       const caption = `ABSEN MASUK
 absensi: ${dateStr} ${timeStr}
 role: ${role}
 nama: ${user?.full_name}
-catatan: ${checkInNotes || '-'}`
+catatan: ${defaultCheckInNotes}`
 
       photoUrl = (await uploadFile(photoFile, {
         type: 'attendance',
@@ -366,16 +368,16 @@ catatan: ${checkInNotes || '-'}`
 
     try {
       if (isCheckIn) {
-        const { error: dbError } = await supabase
-          .from('attendances')
-          .insert({
-            teknisi_id: user?.id,
-            photo_url: photoUrl!,
-            location: location.address,
-            check_in: new Date().toISOString(),
-            status: 'checked_in',
-            notes: checkInNotes || null
-          })
+         const { error: dbError } = await supabase
+           .from('attendances')
+           .insert({
+             teknisi_id: user?.id,
+             photo_url: photoUrl!,
+             location: location.address,
+             check_in: new Date().toISOString(),
+             status: 'checked_in',
+             notes: checkInNotes.trim() || "absen masuk"
+           })
 
         if (dbError) throw dbError
         toast.success('Check in successful!')
@@ -393,19 +395,19 @@ catatan: ${checkInNotes || '-'}`
         const schemaOvertimeMinutes = getOvertimeMinutesFromSchedule(checkIn, checkOut, dayOfWeek, gender)
         const overtimeMinutes = isOvertime ? Math.max(0, diffMinutes - (overtimeThreshold * 60)) : schemaOvertimeMinutes
 
-        const { error: dbError } = await supabase
-          .from('attendances')
-          .update({
-            check_out: checkOut.toISOString(),
-            status: 'checked_out',
-            work_duration: workDuration,
-            total_minutes: diffMinutes,
-            overtime_minutes: overtimeMinutes,
-            is_overtime: isOvertime,
-            notes: checkOutNotes || null
-          })
-          .eq('id', existingAttendance?.id)
-          .eq('teknisi_id', user?.id)
+         const { error: dbError } = await supabase
+           .from('attendances')
+           .update({
+             check_out: checkOut.toISOString(),
+             status: 'checked_out',
+             work_duration: workDuration,
+             total_minutes: diffMinutes,
+             overtime_minutes: overtimeMinutes,
+             is_overtime: isOvertime,
+             notes: checkOutNotes.trim() || "absen pulang"
+           })
+           .eq('id', existingAttendance?.id)
+           .eq('teknisi_id', user?.id)
 
         if (dbError) throw dbError
         toast.success(`Check out successful! Total: ${workDuration}`)

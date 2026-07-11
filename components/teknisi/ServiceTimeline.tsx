@@ -9,7 +9,7 @@ import {
   Clock, Send, CheckCircle, AlertCircle,
   Wrench, Package, Camera, User, MessageSquare,
   ChevronDown, ChevronUp, Phone,
-  Check, X, Loader, Plus, ExternalLink
+  Check, X, Loader, Plus, ExternalLink, Save, Edit
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -38,6 +38,9 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [spareparts, setSpareparts] = useState<Array<{ name: string; qty: number; price: number }>>([])
+  const [sparepartForm, setSparepartForm] = useState({ name: '', qty: 1, price: 0 })
+  const [editingSparepartIndex, setEditingSparepartIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { user } = useAuthStore()
@@ -64,15 +67,46 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     }
   }
 
-  const removePhoto = () => {
+const removePhoto = () => {
     setSelectedPhoto(null)
     if (photoPreview) URL.revokeObjectURL(photoPreview)
     setPhotoPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // Sparepart functions
+  const addSparepart = () => {
+    if (!sparepartForm.name.trim()) { toast.error('Masukkan nama sparepart'); return }
+    if (sparepartForm.qty <= 0 || sparepartForm.price <= 0) { toast.error('Qty dan harga harus > 0'); return }
+    setSpareparts([...spareparts, { ...sparepartForm }])
+    setSparepartForm({ name: '', qty: 1, price: 0 })
+    setEditingSparepartIndex(null)
+  }
+
+  const editSparepart = (index: number) => {
+    const sp = spareparts[index]
+    setSparepartForm({ name: sp.name, qty: sp.qty, price: sp.price })
+    setEditingSparepartIndex(index)
+  }
+
+  const updateSparepart = (index: number) => {
+    if (!sparepartForm.name.trim()) { toast.error('Masukkan nama sparepart'); return }
+    if (sparepartForm.qty <= 0 || sparepartForm.price <= 0) { toast.error('Qty dan harga harus > 0'); return }
+    setSpareparts(spareparts.map((sp, i) => i === index ? { ...sparepartForm } : sp))
+    setSparepartForm({ name: '', qty: 1, price: 0 })
+    setEditingSparepartIndex(null)
+  }
+
+  const removeSparepart = (index: number) => {
+    setSpareparts(spareparts.filter((_, i) => i !== index))
+    if (editingSparepartIndex === index) {
+      setEditingSparepartIndex(null)
+      setSparepartForm({ name: '', qty: 1, price: 0 })
+    }
+  }
+
   const addTimelineUpdate = async (message: string, status?: string) => {
-    if (!message.trim()) { toast.error('Please enter a message'); return }
+    if (!message.trim() && spareparts.length === 0) { toast.error('Masukkan pesan atau tambah sparepart'); return }
     setLoading(true)
     let photoUrl = null
     try {
@@ -80,19 +114,58 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
       const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
       const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
       const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+      let fullCaption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message || 'Progress service'}\nstatus: ${status || 'in_progress'}`;
+      
+      if (spareparts.length > 0) {
+        const totalSparepart = spareparts.reduce((sum, s) => sum + (s.price * s.qty), 0)
+        fullCaption += `\n\nSPAREPART:`
+        spareparts.forEach((s, i) => {
+          fullCaption += `\n${i+1}. ${s.name} x${s.qty} = Rp${(s.price * s.qty).toLocaleString('id-ID')}`
+        })
+        fullCaption += `\nTotal: Rp${totalSparepart.toLocaleString('id-ID')}`
+      }
+
       if (selectedPhoto) {
-        const uploadResult = await uploadFile(selectedPhoto, { type: 'service', caption: `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message}\nstatus: ${status || 'progress'}` })
+        const uploadResult = await uploadFile(selectedPhoto, { type: 'teknisi_update', caption: fullCaption })
         if (!uploadResult) { toast.error('Failed to upload photo'); return }
         photoUrl = uploadResult.url
       }
-       const { error } = await supabase.from('service_timeline').insert({
-         service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
-         message, photo_url: photoUrl,
-         details: { updated_by: user?.full_name, timestamp: new Date().toISOString(), has_photo: !!photoUrl }
-       })
-      if (error) throw error
+      
+      // 1. Insert ke service_timeline
+      const { error: timelineError } = await supabase.from('service_timeline').insert({
+        service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
+        message: message || `Penambahan sparepart: ${spareparts.map(s => s.name).join(', ')}`,
+        photo_url: photoUrl,
+        details: { 
+          updated_by: user?.full_name, 
+          timestamp: new Date().toISOString(), 
+          has_photo: !!photoUrl,
+          spareparts: spareparts.length > 0 ? spareparts : undefined,
+          total_sparepart_cost: spareparts.length > 0 ? spareparts.reduce((sum, s) => sum + (s.price * s.qty), 0) : undefined
+        }
+      })
+      if (timelineError) throw timelineError
+
+      // 2. INSERT ke service_items jika ada sparepart — FIX #1
+      if (spareparts.length > 0) {
+        const serviceItemsToInsert = spareparts.map(sp => ({
+          service_order_id: serviceId,
+          item_type: 'sparepart',
+          name: sp.name,
+          quantity: sp.qty,
+          price: sp.price,
+        }))
+        
+        const { error: itemsError } = await supabase
+          .from('service_items')
+          .insert(serviceItemsToInsert)
+        if (itemsError) throw itemsError
+        console.log(`✅ Inserted ${spareparts.length} sparepart(s) to service_items`)
+      }
+
       toast.success('Update added!')
       setNewMessage('')
+      setSpareparts([])
       removePhoto()
       if (onUpdate) onUpdate()
     } catch (error: any) { toast.error(error.message) }
@@ -204,6 +277,59 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
             <button onClick={removePhoto} className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"><X className="w-4 h-4" /></button>
           </div>
         )}
+
+        {/* Sparepart List */}
+        {spareparts.length > 0 && (
+          <div className="mb-3 p-2 bg-amber-50 rounded-xl border border-amber-200">
+            <p className="text-[10px] font-semibold text-amber-700 uppercase mb-1.5">Sparepart ditambahkan:</p>
+            {spareparts.map((sp, i) => (
+              <div key={i} className="flex items-center justify-between py-1 text-xs">
+                <span className="text-gray-700">{sp.name} x{sp.qty}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-900">Rp{(sp.price * sp.qty).toLocaleString('id-ID')}</span>
+                  <button onClick={() => editSparepart(i)} className="text-blue-500 hover:text-blue-700"><Edit className="w-3 h-3" /></button>
+                  <button onClick={() => removeSparepart(i)} className="text-red-500 hover:text-red-700"><X className="w-3 h-3" /></button>
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-between text-xs font-bold text-amber-800 pt-1 mt-1 border-t border-amber-200">
+              <span>Total</span>
+              <span>Rp{spareparts.reduce((sum, s) => sum + (s.price * s.qty), 0).toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Sparepart Form */}
+        <div className="mb-3 p-3 bg-white rounded-xl border border-gray-200">
+          <p className="text-[10px] font-semibold text-gray-500 uppercase mb-2">
+            {editingSparepartIndex !== null ? 'Edit Sparepart' : 'Tambah Sparepart'}
+          </p>
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <input value={sparepartForm.name} onChange={(e) => setSparepartForm({ ...sparepartForm, name: e.target.value })}
+              placeholder="Nama barang" className="col-span-3 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-gray-900/10" />
+            <input type="number" min="1" value={sparepartForm.qty} onChange={(e) => setSparepartForm({ ...sparepartForm, qty: parseInt(e.target.value) || 1 })}
+              placeholder="Qty" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-gray-900/10" />
+            <input type="number" min="0" value={sparepartForm.price || ''} onChange={(e) => setSparepartForm({ ...sparepartForm, price: parseInt(e.target.value) || 0 })}
+              placeholder="Harga" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-gray-900/10" />
+            {editingSparepartIndex !== null ? (
+              <button onClick={() => updateSparepart(editingSparepartIndex)}
+                className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-1">
+                <Save className="w-3 h-3" /> Update
+              </button>
+            ) : (
+              <button onClick={addSparepart}
+                className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-medium hover:bg-amber-600 transition-colors flex items-center justify-center gap-1">
+                <Plus className="w-3 h-3" /> Add
+              </button>
+            )}
+            {editingSparepartIndex !== null && (
+              <button onClick={() => { setEditingSparepartIndex(null); setSparepartForm({ name: '', qty: 1, price: 0 }); }}
+                className="px-3 py-1.5 bg-gray-300 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-400 transition-colors flex items-center justify-center gap-1">
+                <X className="w-3 h-3" /> Batal
+              </button>
+            )}
+          </div>
+        </div>
 
         <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Tulis update progress service..." rows={2}

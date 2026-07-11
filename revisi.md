@@ -901,3 +901,111 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_service_orders_token_unique ON service_ord
 ### No Database Changes
 
 ---
+
+## Revisi v.32 - 2026-07-11
+
+### 1. Attendance Default Notes
+
+**Masalah**: Catatan absen masuk/pulang kosong, tidak jelas.
+
+**Fix**: 
+- Absen masuk tanpa catatan → default "absen masuk"
+- Absen pulang tanpa catatan → default "absen pulang"
+
+**File**: `components/teknisi/AttendanceModal.tsx`
+- Line 342, 354: Default notes untuk caption
+- Line 377, 407: Default notes untuk DB insert/update
+
+**Result**: Telegram caption selalu memiliki catatan yang jelas.
+
+### 2. Add Sparepart di Timeline
+
+**Masalah**: Tidak ada cara mencatat sparepart di timeline.
+
+**Fix**: Form custom sparepart (nama, qty, harga) di timeline:
+- Simpan ke `service_timeline.details.spareparts`
+- Display dengan format rupiah
+- Total biaya terhitung
+
+**File**: `components/teknisi/ServiceTimeline.tsx`
+- State: `spareparts` dan `sparepartForm`
+- Functions: `addSparepart()`, `removeSparepart()`
+- Upload: sparepart detail ke Telegram
+- Display: Sparepart list dengan total
+
+### 3. Separate Telegram Channels
+
+**Masalah**: Semua update masuk ke channel yang sama, sulit track per role.
+
+**Fix**: Channel terpisah:
+- `TELEGRAM_CHANNEL_TEKNISI_UPDATE` → `@arlogic_teknisi_update`
+- `TELEGRAM_CHANNEL_QC_UPDATE` → `@arlogic_qc_update`
+
+**Files**:
+- `.env`: Add 2 env var
+- `lib/telegram.ts`: Add channel types
+- `hooks/useUpload.ts`: Type definitions
+- `app/api/upload/route.ts`: Channel mapping
+- `components/teknisi/ServiceTimeline.tsx`: Upload ke `'teknisi_update'`
+
+### No Database Changes
+
+---
+
+## Revisi v.33 - 2026-07-11 (Sparepart Sync & Edit)
+
+### 1. Sparepart Timeline → service_items + Telegram Sync
+
+**Masalah**: 
+- Sparepart di timeline tidak muncul di QC popup
+- Sparepart di timeline tidak masuk ke Telegram caption
+- Data tidak sinkron antar komponen
+
+**Root Cause**:
+- Timeline sparepart hanya disimpan di `service_timeline.details.spareparts`, tidak di `service_items`
+- QCReviewModal hanya merge `localItems` (service_items), mengabaikan timeline sparepart
+
+**Fix**:
+- **ServiceTimeline.tsx**: Insert sparepart ke `service_items` saat submit timeline (FIX #1)
+- **QCReviewModal.tsx**: Merge sparepart dari `service_items` + `timeline.details.spareparts` (FIX #2)
+- **AddSparepartModal.tsx**: Save detail sparepart ke timeline (sku, qty, price, total) (FIX #3)
+
+**Files**:
+- `components/teknisi/ServiceTimeline.tsx` - Line 149-164: Insert ke service_items
+- `components/qc/QCReviewModal.tsx` - Line 350-360: Merge allSpareparts
+- `components/teknisi/AddSparepartModal.tsx` - Line 412-426: Detail sparepart
+
+### 2. Edit/Remove Sparepart di Timeline Form
+
+**Masalah**: Teknisi tidak bisa edit/hapus sparepart yang salah ketik di form timeline
+
+**Fix**: 
+- Add `editSparepart()`, `updateSparepart()` functions
+- Add `editingSparepartIndex` state
+- UI: Edit button (blue), Update button (blue), Cancel button (gray)
+- Remove button (red) sudah ada
+
+**File**: `components/teknisi/ServiceTimeline.tsx`
+- Line 77-98: Functions add/edit/update/remove
+- Line 41-42: State `editingSparepartIndex`
+- Line 274-280: Edit/Update UI buttons
+- Line 294-299: Sparepart list dengan Edit button
+
+### 3. Telegram Caption Sync (QCReviewModal)
+
+**Masalah**: Total cost di Telegram tidak include timeline sparepart
+
+**Fix**:
+- Calculate `totalCostWithTimeline` = `totalCost` + `timelineSparePartCost`
+- Update total display, selisih/return calculation
+- Caption include all spareparts dari service_items + timeline
+
+**File**: `components/qc/QCReviewModal.tsx`
+- Line 350-360: Merge allSpareparts
+- Line 362-370: barangList include timeline sparepart
+- Line 388-390: Total display update
+- Line 392-400: Selisih/return calculation
+
+### No Database Changes
+
+---

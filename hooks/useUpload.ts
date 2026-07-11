@@ -61,7 +61,7 @@ export function useUpload() {
   const uploadFiles = async (
     files: File[],
     options: { 
-      type: 'attendance' | 'service' | 'layanan' | 'inventory'
+      type: 'attendance' | 'service' | 'layanan' | 'inventory' | 'teknisi_update' | 'qc_update'
       caption?: string
       formData?: Record<string, any>
     }
@@ -160,7 +160,7 @@ export function useUpload() {
   const uploadFile = async (
     file: File,
     options: { 
-      type: 'attendance' | 'service' | 'layanan' | 'inventory'
+      type: 'attendance' | 'service' | 'layanan' | 'inventory' | 'teknisi_update' | 'qc_update'
       caption?: string
       formData?: Record<string, any>
     }
