@@ -291,12 +291,40 @@ ${typeIcon} tipe : ${jenisLayananLabel}
 
       toast.success("Transaksi berhasil ditambahkan!");
 
-      // Notify Telegram for new customer
-      fetch("/api/telegram/customer-new", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formData.customer_name, phone: formData.customer_whatsapp }),
-      }).catch(() => {});
+      // Save to customers table + notify Telegram if new
+      try {
+        const custPhone = (formData.customer_whatsapp || "").replace(/\D/g, "");
+        if (formData.customer_name && custPhone) {
+          const last4 = custPhone.slice(-4);
+          const custName = formData.customer_name.trim().endsWith(` ${last4}`)
+            ? formData.customer_name.trim()
+            : `${formData.customer_name.trim()} ${last4}`;
+          const { data: existingCust, error: checkErr } = await supabase
+            .from("customers")
+            .select("id, name")
+            .eq("phone", custPhone)
+            .maybeSingle();
+          if (checkErr) throw checkErr;
+          if (existingCust) {
+            await supabase.from("customers").update({ last_transaction: new Date().toISOString() }).eq("id", existingCust.id);
+          } else {
+            const { error: insertErr } = await supabase.from("customers").insert({ name: custName, phone: custPhone });
+            if (insertErr) throw insertErr;
+            // Only send Telegram for genuinely new customers
+            fetch("/api/telegram", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "customer",
+                message: `CUSTOMER BARU \nnama cs: ${custName}\nno. wa: ${custPhone}`,
+              }),
+            }).catch(() => {});
+          }
+        }
+      } catch (custErr: any) {
+        console.error("Customer save error:", custErr);
+        toast.error("Gagal simpan customer: " + custErr.message);
+      }
 
       onSuccess?.();
       onClose?.();

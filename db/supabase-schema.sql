@@ -826,6 +826,29 @@ CREATE POLICY "Authenticated users can read customers" ON customers FOR SELECT U
 CREATE POLICY "Authenticated users can insert customers" ON customers FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "Authenticated users can update customers" ON customers FOR UPDATE USING (auth.uid() IS NOT NULL);
 
+-- Grant table-level permissions (diperlukan untuk tabel baru setelah GRANT ALL awal)
+GRANT ALL ON TABLE customers TO authenticated;
+GRANT ALL ON TABLE customers TO anon;
+GRANT ALL ON TABLE customers TO service_role;
+
+-- Tracking logs for tracking page visits
+CREATE TABLE IF NOT EXISTS tracking_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_order_id UUID REFERENCES service_orders(id),
+  token TEXT NOT NULL,
+  visited_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tracking_logs_service ON tracking_logs(service_order_id);
+
+ALTER TABLE tracking_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authenticated users can read tracking_logs" ON tracking_logs FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Anyone can insert tracking_logs" ON tracking_logs FOR INSERT WITH CHECK (true);
+
+GRANT ALL ON TABLE tracking_logs TO authenticated;
+GRANT INSERT ON TABLE tracking_logs TO anon;
+GRANT ALL ON TABLE tracking_logs TO service_role;
+
 NOTIFY pgrst, 'reload schema';
 
 -- ============================================================

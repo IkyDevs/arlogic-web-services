@@ -29,7 +29,7 @@ export default function QRCodeGenerator({
   const [copied, setCopied] = useState(false);
   const [whatsappLoading, setWhatsappLoading] = useState(false);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const trackingUrl = `${appUrl}/tracking/${invoiceNumber}?token=${token}`;
+  const trackingUrl = `${appUrl}/tracking/${token}`;
 
   useEffect(() => {
     generateQR();
@@ -135,6 +135,8 @@ ctx.fillStyle = '#0F766E';
         phone = phone.substring(1);
       }
 
+      const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`;
+
       // Create message with QR and token
       const message = `*WATCH SERVICE - TRACKING INFORMATION*
 
@@ -145,8 +147,9 @@ Berikut adalah informasi tracking untuk service Anda:
 📋 *Invoice:* ${invoiceNumber}
 🔑 *Token:* ${token}
 📱 *Link Tracking:* ${trackingUrl}
+📱 *QR:* ${qrImgUrl}
 
-Scan QR Code di bawah atau klik link di atas untuk melihat progress service Anda.
+Scan QR di atas atau gunakan token untuk melihat progress service Anda.
 
 Terima kasih telah menggunakan layanan kami. 🙏
 

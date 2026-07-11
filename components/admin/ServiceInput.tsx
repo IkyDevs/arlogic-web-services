@@ -235,6 +235,8 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
 CS :  ${formData.cs_name}
 WA : ${formData.cs_phone}
 Seri : ${formData.serial_number || "—"}
+Brand : ${formData.watch_brand || "—"}
+Model : ${formData.watch_model || "—"}
 Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : "—"}
 Kendala : ${formData.problem}
 Request : ${formData.request || "—"}
@@ -368,12 +370,40 @@ In : ${now}`;
       setStep(5);
       toast.success("Watch service order created!");
 
-      // Notify Telegram for new customer
-      fetch("/api/telegram/customer-new", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formData.cs_name, phone: formData.cs_phone }),
-      }).catch(() => {});
+      // Save to customers table + notify Telegram if new
+      try {
+        const custPhone = (formData.cs_phone || "").replace(/\D/g, "");
+        if (formData.cs_name && custPhone) {
+          const last4 = custPhone.slice(-4);
+          const custName = formData.cs_name.trim().endsWith(` ${last4}`)
+            ? formData.cs_name.trim()
+            : `${formData.cs_name.trim()} ${last4}`;
+          const { data: existingCust, error: checkErr } = await supabase
+            .from("customers")
+            .select("id, name")
+            .eq("phone", custPhone)
+            .maybeSingle();
+          if (checkErr) throw checkErr;
+          if (existingCust) {
+            await supabase.from("customers").update({ last_transaction: new Date().toISOString() }).eq("id", existingCust.id);
+          } else {
+            const { error: insertErr } = await supabase.from("customers").insert({ name: custName, phone: custPhone });
+            if (insertErr) throw insertErr;
+            // Only send Telegram for genuinely new customers
+            fetch("/api/telegram", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "customer",
+                message: `CUSTOMER BARU \nnama cs: ${custName}\nno. wa: ${custPhone}`,
+              }),
+            }).catch(() => {});
+          }
+        }
+      } catch (custErr: any) {
+        console.error("Customer save error:", custErr);
+        toast.error("Gagal simpan customer: " + custErr.message);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to create order");
     } finally {

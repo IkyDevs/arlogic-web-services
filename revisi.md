@@ -743,3 +743,59 @@ The API should send to TELEGRAM_CHANNEL_TRANSACTION (or similar env var).
 - Semua foto sekarang unified dalam single upload untuk cleaner tracking
 - Telegram integration critical untuk operational visibility
 - Schema fix di RV2-5 required sebelum testing RV2-4
+
+---
+
+## Revisi v.22 - 2026-07-11
+
+### Issue 1: Customer Data Tidak Masuk Database
+- Tambah client-side insert ke tabel `customers` setelah submit service/transaksi (tidak hanya API route)
+- Tambah `GRANT ALL ON TABLE customers` ke schema (error permission denied)
+- Error handling dengan toast jika gagal
+
+### Issue 2: Universal Tracking URL
+- Route diubah dari `/tracking/[id]` → `/tracking/[[...slug]]`
+- `/tracking` → form input token
+- `/tracking/TOKEN` → auto load service
+- Setelah submit token manual, URL berubah via `history.replaceState` tanpa reload
+
+### Issue 3: Tracking Visits Log
+- Tabel `tracking_logs` baru: id, service_order_id, token, visited_at
+- Setiap kunjungan ke tracking page tercatat otomatis
+- Tab "Tracking" di owner dashboard menampilkan riwayat kunjungan (waktu, customer, invoice, link)
+
+### Issue 4: Caption Telegram Brand & Model
+- Tambah `Brand : ...` dan `Model : ...` di caption Telegram saat add new service
+
+### Issue 5: Telegram Customer Baru dari Service
+- Ganti dari `/api/telegram/customer-new` (butuh SERVICE_ROLE_KEY) ke `/api/telegram` langsung (pakai bot token yang sudah jalan)
+- Format pesan: `CUSTOMER BARU \nnama cs: ... \nno. wa: ...`
+
+### Files Changed
+- `app/tracking/[[...slug]]/page.tsx` (renamed from `[id]`)
+- `db/supabase-schema.sql` (tracking_logs table + GRANT customers)
+- `app/owner/page.tsx` (tracking tab)
+- `components/owner/TrackingVisits.tsx` (NEW)
+- `components/admin/ServiceInput.tsx` (caption + customer save + telegram)
+- `components/layanan/LayananForm.tsx` (customer save with error handling)
+
+### Database Changes
+- Tabel `tracking_logs` baru
+- GRANT customers untuk akses
+---
+
+## Revisi v.28 - 2026-07-11
+
+### 1. QR Image di WhatsApp Message
+Saat klik "Kirim ke WhatsApp", pesan sekarang menyertakan QR image via `api.qrserver.com` — WhatsApp preview gambar QR.
+
+**Files**: `components/admin/ServiceList.tsx`, `components/admin/QRCodeGenerator.tsx`
+
+### 2. Token Tidak Lagi di Query String
+- QR code pake `/tracking/{token}` (token di path, bukan query)
+- Tracking page auto-load jika token ada di URL path
+- QR di tracking page hanya link ke `/tracking` (tanpa token)
+
+**Files**: `components/admin/ServiceList.tsx`, `components/admin/QRCodeGenerator.tsx`, `app/tracking/[id]/page.tsx`
+
+### No Database Changes

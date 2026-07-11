@@ -55,7 +55,7 @@ function getMovementIcon(m: string) {
   }
 }
 
-export default function TrackingPage({ params }: { params: { id: string } }) {
+export default function TrackingPage({ params }: { params: { slug?: string[] } }) {
   const [token, setToken] = useState("");
   const [service, setService] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -81,6 +81,46 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
     return idx >= 0 ? idx : 0;
   }, [service]);
 
+  // Auto-load from URL path if token is present
+  useEffect(() => {
+    const urlToken = params.slug?.[0];
+    if (urlToken && urlToken !== "tracking") {
+      setToken(urlToken.toUpperCase());
+      const t = setTimeout(() => {
+        setToken(urlToken.toUpperCase());
+        trackServiceFromUrl(urlToken.toUpperCase());
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const trackServiceFromUrl = async (t: string) => {
+    setLoading(true); setError("");
+    try {
+      const { data, error: fetchError } = await supabase.from("service_orders").select("*").eq("token", t).single();
+      if (fetchError || !data) { setError("Token tidak valid."); setLoading(false); return; }
+      if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
+      setService(data);
+      const [itemsRes, timelineRes, docsRes, feedbackRes] = await Promise.all([
+        supabase.from("service_items").select("*").eq("service_order_id", data.id),
+        supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
+        supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
+        supabase.from("feedbacks").select("id").eq("service_order_id", data.id).maybeSingle(),
+      ]);
+      if (itemsRes.data) setItems(itemsRes.data);
+      if (timelineRes.data) setTimeline(timelineRes.data);
+      if (docsRes.data) setInitialPhotos(docsRes.data);
+      if (feedbackRes.data) setFeedbackAlready(true);
+
+      // Log visit to tracking_logs
+      await supabase.from("tracking_logs").insert({
+        service_order_id: data.id,
+        token: t,
+      });
+    } catch (e) { setError("Gagal mengambil informasi service"); }
+    setLoading(false);
+  };
+
   const trackService = async () => {
     if (!token.trim()) { setError("Masukkan token tracking"); return; }
     setLoading(true); setError(""); setService(null);
@@ -101,6 +141,15 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
       if (timelineRes.data) setTimeline(timelineRes.data);
       if (docsRes.data) setInitialPhotos(docsRes.data);
       if (feedbackRes.data) setFeedbackAlready(true);
+
+      // Log visit
+      await supabase.from("tracking_logs").insert({
+        service_order_id: data.id,
+        token: normalizedToken,
+      });
+
+      // Update URL to include token (without full page reload)
+      window.history.replaceState(null, "", "/tracking/" + normalizedToken);
     } catch (e) { setError("Gagal mengambil informasi service"); }
     setLoading(false);
   };
@@ -215,7 +264,8 @@ export default function TrackingPage({ params }: { params: { id: string } }) {
             </div>
             <div className="flex items-center gap-4">
               <div className="border border-slate-200 p-2 bg-white rounded-xl shadow-sm">
-                <QRCodeSVG value={typeof window !== "undefined" ? window.location.origin + "/tracking/" + service.token : ""} size={72} level="H" />
+                <QRCodeSVG value={typeof window !== "undefined" ? window.location.origin + "/tracking" : ""} size={72} level="H" />
+                <p className="text-[10px] text-slate-400 mt-1">Scan untuk tracking</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Token</p>

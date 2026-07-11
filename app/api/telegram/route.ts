@@ -9,6 +9,7 @@ const CHANNELS = {
   service: process.env.TELEGRAM_CHANNEL_SERVICE,
   attendance: process.env.TELEGRAM_CHANNEL_ATTENDANCE,
   customer: process.env.TELEGRAM_CHANNEL_CUSTOMER,
+  kaspin: process.env.TELEGRAM_CHANNEL_KASPIN,
 } as const
 
 type TelegramChannelType = keyof typeof CHANNELS

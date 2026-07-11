@@ -35,7 +35,7 @@ import {
 import ServiceDetailModal from "./ServiceDetailModal";
 import ServiceTimeline from "./ServiceTimeline";
 import ProgressUpdate from "./ProgressUpdate";
-import AddSparepartModal from "./AddSparepartModal";
+
 import AddJasaModal from "./AddJasaModal";
 import RequestSparepartModal from "./RequestSparepartModal";
 
@@ -67,7 +67,7 @@ export default function QueueList({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [showProgressModal, setShowProgressModal] = useState(false);
-  const [showAddSparepart, setShowAddSparepart] = useState(false);
+
   const [showAddJasa, setShowAddJasa] = useState(false);
   const [showRequestSparepart, setShowRequestSparepart] = useState(false);
   const [requestSparepartQuery, setRequestSparepartQuery] = useState("");
@@ -207,11 +207,6 @@ export default function QueueList({
     } catch (error: any) {
       toast.error(error.message);
     }
-  };
-
-  const openAddSparepart = (service: ExtendedServiceOrder) => {
-    setSelectedService(service);
-    setShowAddSparepart(true);
   };
 
   const openAddJasa = (service: ExtendedServiceOrder) => {
@@ -661,12 +656,6 @@ keterangan:`;
                           <Bell className="w-3.5 h-3.5" /> REMINDER
                         </button>
                       )}
-                      {service.status === "sparepart_ready" && (
-                        <button onClick={(e) => { e.stopPropagation(); openAddSparepart(service); }}
-                          className="px-3 py-1.5 text-xs bg-green-500 text-white font-medium rounded-xl hover:bg-green-600 transition-all flex items-center gap-1">
-                          <Package className="w-3.5 h-3.5" /> AMBIL
-                        </button>
-                      )}
                       {service.status === "qc_pending" && (
                         <span className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 border border-purple-300 rounded-xl flex items-center gap-1 font-medium">
                           <Clock className="w-3.5 h-3.5" /> QC
@@ -794,10 +783,7 @@ keterangan:`;
                       className="flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all text-sm">
                       <Wrench className="w-4 h-4" /> TAMBAH JASA
                     </button>
-                    <button onClick={() => { setShowUpdateModal(false); openAddSparepart(selectedService); }}
-                      className="flex items-center justify-center gap-2 py-3 bg-white dark:bg-[#1c1c1c] text-gray-900 dark:text-gray-100 font-semibold rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-sm">
-                      <Package className="w-4 h-4" /> TAMBAH SPAREPART
-                    </button>
+
                   </div>
                 </div>
               </motion.div>
@@ -826,7 +812,7 @@ keterangan:`;
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
                   <ProgressUpdate service={selectedService} onUpdate={() => fetchQueues()}
-                    onAddSparepart={() => { setShowProgressModal(false); openAddSparepart(selectedService); }}
+
                     onAddJasa={() => { setShowProgressModal(false); openAddJasa(selectedService); }}
                     onSubmitToQC={() => handleSubmitToQC(selectedService)} />
                 </div>
@@ -1085,26 +1071,7 @@ keterangan:`;
             </div>
           )}
 
-          {showAddSparepart && (
-            <AddSparepartModal
-              isOpen={showAddSparepart}
-              onClose={() => {
-                setShowAddSparepart(false);
-                setSelectedService(null);
-              }}
-              service={selectedService}
-              onSuccess={() => {
-                setShowAddSparepart(false);
-                setSelectedService(null);
-                fetchQueues();
-                toast.success("Sparepart berhasil ditambahkan ke service");
-              }}
-              onRequestSparepart={(query: string) => {
-                setShowAddSparepart(false);
-                openRequestSparepart(selectedService, query);
-              }}
-            />
-          )}
+
 
           {showAddJasa && (
             <AddJasaModal

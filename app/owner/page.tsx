@@ -26,6 +26,7 @@ import {
   Activity,
   CheckCircle,
   AlertCircle,
+  Search,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
@@ -43,6 +44,7 @@ import dynamic from "next/dynamic";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
+import TrackingVisits from "@/components/owner/TrackingVisits";
 
 // Dynamic imports
 const RevenueChart = dynamic(() => import("@/components/owner/RevenueChart"), {
@@ -103,7 +105,8 @@ type ActiveTab =
   | "feedback"
   | "closing"
   | "watch_db"
-  | "customer";
+  | "customer"
+  | "tracking";
 
 interface DashboardData {
   revenue: number;
@@ -375,6 +378,7 @@ export default function OwnerDashboard() {
     { id: "closing", label: "Closing", icon: FileText },
     { id: "watch_db", label: "Watch DB", icon: Database },
     { id: "customer", label: "Customer", icon: Users },
+    { id: "tracking", label: "Tracking", icon: Search },
   ];
 
   const formatRupiah = (nominal: number) => {
@@ -898,6 +902,12 @@ export default function OwnerDashboard() {
             {activeTab === "customer" && (
               <motion.div key="customer" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
                 <CustomerList />
+              </motion.div>
+            )}
+
+            {activeTab === "tracking" && (
+              <motion.div key="tracking" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <TrackingVisits />
               </motion.div>
             )}
 

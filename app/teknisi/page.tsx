@@ -43,6 +43,7 @@ import QueueList from "@/components/teknisi/QueueList";
 import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
 import LayananList from "@/components/layanan/LayananList";
+import KaspinUpdate from "@/components/teknisi/KaspinUpdate";
 import ThemeToggle from "@/components/ThemeToggle";
 import toast from "react-hot-toast";
 
@@ -373,6 +374,7 @@ export default function TeknisiDashboard() {
     { id: "stats", label: "Performa", icon: TrendingUp },
     { id: "absensi", label: "Absensi", icon: Clock },
     { id: "customer", label: "Customer", icon: Users },
+    { id: "kaspin", label: "Kaspin", icon: Package },
     { id: "layanan", label: "Transaksi", icon: FileText },
   ];
 
@@ -906,6 +908,12 @@ export default function TeknisiDashboard() {
             {activeTab === "customer" && (
               <motion.div key="customer" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
                 <CustomerList />
+              </motion.div>
+            )}
+
+            {activeTab === "kaspin" && (
+              <motion.div key="kaspin" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <KaspinUpdate />
               </motion.div>
             )}
 

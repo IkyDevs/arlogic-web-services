@@ -273,7 +273,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
               {/* QR + Token */}
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
-                  <QRCodeSVG value={typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + selectedService.invoice_number + "?token=" + selectedService.token : ""} size={72} level="H" />
+                  <QRCodeSVG value={typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + selectedService.token : ""} size={72} level="H" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Token Tracking</p>
@@ -283,7 +283,10 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                       {copiedToken ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Scan QR atau gunakan token untuk tracking</p>
+                  <a href={typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + selectedService.token : "#"} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] text-blue-600 hover:underline mt-0.5 inline-flex items-center gap-1">
+                    Buka Tracking Page →
+                  </a>
                 </div>
               </div>
 
@@ -292,14 +295,16 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 const phone = selectedService.customer_phone?.replace(/\D/g, "");
                 const p = phone?.startsWith("0") ? "62" + phone.substring(1) : phone;
                 const appUrl = (typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) : "");
-                const trackingUrl = appUrl + "/tracking/" + selectedService.invoice_number + "?token=" + selectedService.token;
+                const trackingUrl = appUrl + "/tracking/" + selectedService.token;
+                const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`;
                 const msg = encodeURIComponent(
                   `Halo ${selectedService.customer_name},\n\n` +
                   `Berikut adalah informasi tracking untuk service anda:\n\n` +
                   `📋 Invoice: ${selectedService.invoice_number}\n` +
                   `🔗 Link Tracking: ${trackingUrl}\n` +
-                  `🔑 Token: ${selectedService.token}\n\n` +
-                  `Scan QR code pada struk atau gunakan link/token di atas untuk memantau status service anda.\n\n` +
+                  `🔑 Token: ${selectedService.token}\n` +
+                  `📱 QR: ${qrImgUrl}\n\n` +
+                  `Gunakan token atau scan QR code di atas untuk memantau status service anda.\n\n` +
                   `Terima kasih.\n- Arlogic Watch Service`
                 );
                 window.open(`https://wa.me/${p}?text=${msg}`, "_blank");

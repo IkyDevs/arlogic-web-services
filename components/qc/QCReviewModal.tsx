@@ -53,6 +53,8 @@ export default function QCReviewModal({
   const [localItems, setLocalItems] = useState<any[]>([]);
   const [customJasa, setCustomJasa] = useState({ name: "", price: 0 });
   const [showAddJasa, setShowAddJasa] = useState(false);
+  const [customSparepart, setCustomSparepart] = useState({ name: "", price: 0 });
+  const [showAddSparepart, setShowAddSparepart] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     items: true,
     timeline: true,
@@ -130,6 +132,23 @@ export default function QCReviewModal({
     ]);
     setCustomJasa({ name: "", price: 0 });
     setShowAddJasa(false);
+  };
+
+  const addCustomSparepart = () => {
+    if (!customSparepart.name.trim() || customSparepart.price <= 0) return;
+    setLocalItems([
+      ...localItems,
+      {
+        id: `custom_sp_${Date.now()}`,
+        name: customSparepart.name.trim(),
+        price: customSparepart.price,
+        quantity: 1,
+        item_type: "sparepart",
+        notes: reviewNotes || null,
+      },
+    ]);
+    setCustomSparepart({ name: "", price: 0 });
+    setShowAddSparepart(false);
   };
 
   const handleReview = async (status: "approved" | "rejected") => {
@@ -800,67 +819,30 @@ export default function QCReviewModal({
                     + Tambah Jasa Custom
                   </button>
                 )}
+
+                {/* Tambah Sparepart Custom */}
+                {showAddSparepart ? (
+                  <div className="p-3 bg-white rounded border border-purple-200 space-y-2">
+                    <p className="text-xs font-semibold text-purple-700">Tambah Sparepart Custom</p>
+                    <div className="flex flex-wrap gap-2">
+                      <input type="text" value={customSparepart.name} onChange={(e) => setCustomSparepart({ ...customSparepart, name: e.target.value })}
+                        placeholder="Nama sparepart..." className="min-w-[140px] flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500/20" />
+                      <input type="number" value={customSparepart.price || ''} onChange={(e) => setCustomSparepart({ ...customSparepart, price: parseInt(e.target.value) || 0 })}
+                        placeholder="Harga" className="w-24 px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-purple-500/20 [appearance:textfield]" />
+                      <button onClick={addCustomSparepart} disabled={!customSparepart.name.trim() || customSparepart.price <= 0}
+                        className="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded hover:bg-purple-700 disabled:opacity-50 transition-all">Tambah</button>
+                      <button onClick={() => setShowAddSparepart(false)} className="px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded">Batal</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowAddSparepart(true)}
+                    className="w-full py-2 text-xs font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg border border-dashed border-purple-200 transition-all">
+                    + Tambah Sparepart Custom
+                  </button>
+                )}
               </div>
             )}
           </div>
-
-          {/* Timeline */}
-          {timeline.length > 0 && (
-            <div className="bg-[#F8F9FA] rounded-lg p-4 border border-slate-200">
-              <button
-                onClick={() => toggleSection("timeline")}
-                className="w-full flex items-center justify-between mb-3"
-              >
-                <div className="flex items-center gap-2">
-                  <ClockIcon className="w-4 h-4 text-blue-600" />
-                  <h4 className="text-sm font-semibold">Timeline</h4>
-                </div>
-                {expandedSections.timeline ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-              </button>
-
-              {expandedSections.timeline && (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {timeline.map((item, index) => (
-                    <div key={item.id} className="relative pl-6 pb-3 last:pb-0">
-                      {index < timeline.length - 1 && (
-                        <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-slate-200" />
-                      )}
-                      <div className="absolute left-0 top-1 w-3 h-3 rounded-full bg-blue-600" />
-                      <div className="bg-white p-3 rounded-lg border border-slate-200 ml-2">
-                        <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
-                          <span className="text-xs text-slate-500">
-                            {formatDate(item.created_at)}
-                          </span>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadge(item.status).color}`}
-                          >
-                            {getStatusBadge(item.status).label}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-800">{item.message}</p>
-                        {item.photo_url && (
-                          <div className="mt-2">
-                            <img
-                              src={item.photo_url}
-                              alt="Timeline"
-                              className="max-h-32 rounded border border-slate-200 object-cover cursor-pointer"
-                              onClick={() =>
-                                window.open(item.photo_url, "_blank")
-                              }
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Photos */}
           {documentations.length > 0 && (
