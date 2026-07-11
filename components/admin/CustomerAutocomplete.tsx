@@ -35,7 +35,7 @@ export default function CustomerAutocomplete({
   const [highlightIdx, setHighlightIdx] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const searchCustomers = useCallback(async (q: string) => {
     if (!q.trim()) { setSuggestions([]); setShowDropdown(false); return; }
