@@ -242,7 +242,7 @@ ${typeIcon} tipe : ${jenisLayananLabel}
           caption: transactionDescription,
         });
         if (urls && urls.length > 0) {
-          photoUrls = urls;
+          photoUrls = urls.map((r) => r.url);
           telegramSent = true;
         } else {
           toast.error("Gagal upload foto");

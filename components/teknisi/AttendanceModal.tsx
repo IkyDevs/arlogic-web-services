@@ -342,10 +342,10 @@ lembur: ${lembur}`
         caption = caption + `\nlembur: YA\ncatatan: ${checkOutNotes || '-'}`
       }
 
-      photoUrl = await uploadFile(photoFile, {
+      photoUrl = (await uploadFile(photoFile, {
         type: 'attendance',
         caption: caption
-      })
+      }))?.url || null
     } else {
       const caption = `ABSEN MASUK
 absensi: ${dateStr} ${timeStr}
@@ -353,10 +353,10 @@ role: ${role}
 nama: ${user?.full_name}
 catatan: ${checkInNotes || '-'}`
 
-      photoUrl = await uploadFile(photoFile, {
+      photoUrl = (await uploadFile(photoFile, {
         type: 'attendance',
         caption: caption
-      })
+      }))?.url || null
     }
 
     if (!photoUrl) {

@@ -252,7 +252,7 @@ export default function InventoryManagement({
           (await uploadFile(transferPhotoFile, {
             type: "inventory",
             caption: caption,
-          })) || "";
+          }))?.url || "";
       }
 
       const { error: transferError } = await supabase
@@ -339,7 +339,7 @@ export default function InventoryManagement({
           (await uploadFile(photoFile, {
             type: "inventory",
             caption: itemCaption,
-          })) || "";
+          }))?.url || "";
         setUploadingPhoto(false);
       }
 
