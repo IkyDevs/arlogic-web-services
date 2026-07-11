@@ -871,3 +871,55 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_service_orders_token_unique ON service_ord
 **Files**: `app/tracking/[[...slug]]/page.tsx`
 
 ### No Database Changes
+
+---
+
+## Revisi v.31 - Timeline Photos Not Displaying - 2026-07-11
+
+### Issue: Foto Progress Update Tidak Muncul di Timeline Tracking
+
+**Masalah**: 
+- Teknisi upload foto + deskripsi di timeline
+- Foto tidak muncul di tracking page
+- Foto juga tidak muncul saat buka timeline di teknisi dashboard
+
+**Root Cause**:
+- ProgressUpdate.tsx menyimpan foto ke `service_documentation` dengan `stage='progress'` (line 79-86)
+- Tracking page query filter `service_documentation` hanya dengan `stage='initial_condition'` → progress photos tidak di-query
+- Service timeline photos harus disimpan ke `service_timeline.photo_url`, bukan `service_documentation`
+
+**Fix**:
+- Tambahkan `photo_url` ke `service_timeline` saat insert timeline entry (line 101-105)
+- Foto pertama disimpan di `photo_url` untuk display di timeline
+- Array semua foto disimpan di `details.all_photo_urls` untuk referensi
+- Query tracking page sudah benar (sudah fetch `service_timeline` dengan `photo_url`)
+
+**Files Changed**: `components/teknisi/ProgressUpdate.tsx`
+
+**Changes Detail**:
+```typescript
+// BEFORE (❌ WRONG)
+await supabase.from('service_timeline').insert({
+  service_order_id: service.id, teknisi_id: user?.id, status: 'in_progress',
+  message: `Service dalam pengerjaan. ${completionNotes ? 'Catatan: ' + completionNotes : ''}`,
+  details: { items_count: items.length, photos_count: newPhotoUrls.length, final_cost: finalCost }
+})
+
+// AFTER (✅ CORRECT)
+await supabase.from('service_timeline').insert({
+  service_order_id: service.id,
+  teknisi_id: user?.id,
+  status: 'in_progress',
+  message: `Service dalam pengerjaan. ${completionNotes ? 'Catatan: ' + completionNotes : ''}`,
+  photo_url: newPhotoUrls[0] || null,  // ← ADD THIS LINE
+  details: { items_count: items.length, photos_count: newPhotoUrls.length, all_photo_urls: newPhotoUrls, final_cost: finalCost }
+})
+```
+
+**Impact**:
+- ✅ Foto progress update sekarang muncul di timeline tracking page
+- ✅ Foto ditampilkan dengan klik buka di tab baru (existing feature)
+- ✅ Timeline update lebih informatif dengan visual evidence
+- ✅ Single source of truth untuk timeline photos
+
+### No Database Changes

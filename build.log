@@ -1,0 +1,45 @@
+
+> arlogic-web-services@0.1.0 build
+> next build
+
+▲ Next.js 16.2.9 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.6s
+  Running TypeScript ...
+  Finished TypeScript in 9.6s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/18) ...
+  Generating static pages using 11 workers (4/18) 
+  Generating static pages using 11 workers (8/18) 
+  Generating static pages using 11 workers (13/18) 
+✓ Generating static pages using 11 workers (18/18) in 416ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin
+├ ƒ /api/admin/closing
+├ ƒ /api/admin/create-user
+├ ƒ /api/admin/delete-user
+├ ƒ /api/layanan
+├ ƒ /api/telegram
+├ ƒ /api/telegram/customer-new
+├ ƒ /api/telegram/edit-caption
+├ ƒ /api/test-r2
+├ ƒ /api/upload
+├ ƒ /feedback/[id]
+├ ○ /login
+├ ○ /owner
+├ ○ /qc
+├ ○ /teknisi
+└ ƒ /tracking/[[...slug]]
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

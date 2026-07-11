@@ -99,9 +99,12 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
         work_duration: workDuration, completion_notes: completionNotes, final_cost: finalCost,
       }).eq('id', service.id)
       await supabase.from('service_timeline').insert({
-        service_order_id: service.id, teknisi_id: user?.id, status: 'in_progress',
+        service_order_id: service.id,
+        teknisi_id: user?.id,
+        status: 'in_progress',
         message: `Service dalam pengerjaan. ${completionNotes ? 'Catatan: ' + completionNotes : ''}`,
-        details: { items_count: items.length, photos_count: newPhotoUrls.length, final_cost: finalCost }
+        photo_url: newPhotoUrls[0] || null,
+        details: { items_count: items.length, photos_count: newPhotoUrls.length, all_photo_urls: newPhotoUrls, final_cost: finalCost }
       })
       toast.success('Progress saved!')
       onUpdate()
