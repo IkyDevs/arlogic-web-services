@@ -81,14 +81,15 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
       const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
       const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
       if (selectedPhoto) {
-        photoUrl = await uploadFile(selectedPhoto, { type: 'service', caption: `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message}\nstatus: ${status || 'progress'}` })
-        if (!photoUrl) { toast.error('Failed to upload photo'); return }
+        const uploadResult = await uploadFile(selectedPhoto, { type: 'service', caption: `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message}\nstatus: ${status || 'progress'}` })
+        if (!uploadResult) { toast.error('Failed to upload photo'); return }
+        photoUrl = uploadResult.url
       }
-      const { error } = await supabase.from('service_timeline').insert({
-        service_order_id: serviceId, teknisi_id: user?.id, status: status || 'progress',
-        message, photo_url: photoUrl,
-        details: { updated_by: user?.full_name, timestamp: new Date().toISOString(), has_photo: !!photoUrl }
-      })
+       const { error } = await supabase.from('service_timeline').insert({
+         service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
+         message, photo_url: photoUrl,
+         details: { updated_by: user?.full_name, timestamp: new Date().toISOString(), has_photo: !!photoUrl }
+       })
       if (error) throw error
       toast.success('Update added!')
       setNewMessage('')

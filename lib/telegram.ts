@@ -162,9 +162,11 @@ export async function uploadMultipleToTelegram(
         { method: 'POST', body: formData }
       )
       const raw = await res.text()
+      console.log(`📸 Telegram sendMediaGroup response (chunk ${Math.floor(i / CHUNK_SIZE) + 1}):`, raw.slice(0, 200))
       const data = JSON.parse(raw)
 
       if (data.ok && Array.isArray(data.result)) {
+        console.log(`✅ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} success: ${data.result.length} photos`);
         const processed = await Promise.allSettled(
           data.result.map(async (r: any) => {
             const chat_id = String(r.chat.id)
@@ -172,6 +174,7 @@ export async function uploadMultipleToTelegram(
             const photoArray = r.photo
             const fileId = photoArray[photoArray.length - 1].file_id
             const url = await getFileUrl(fileId)
+            console.log(`  📷 Photo URL generated: ${url ? '✅' : '❌'} ${url ? url.slice(0, 80) : 'null'}`)
             return { url: url || '', chat_id, message_id }
           })
         )
@@ -179,6 +182,8 @@ export async function uploadMultipleToTelegram(
           if (r.status === 'fulfilled' && r.value.url) results.push(r.value)
         }
         chunkOk = true
+      } else {
+        console.error(`❌ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} failed:`, data.description || 'unknown error')
       }
     } catch (e: any) {
       console.warn(`⚠️ sendMediaGroup chunk ${i / CHUNK_SIZE + 1} failed: ${e.message}`)

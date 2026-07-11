@@ -62,55 +62,68 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
 
   const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index))
 
-  const submitProgress = async () => {
-    setLoading(true); setUploading(true)
-    try {
-      const newPhotoUrls: string[] = []
-      for (let i = 0; i < photos.length; i++) {
-        setProgress(Math.round((i / photos.length) * 100))
-        const d = new Date();
-        const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-        const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-        const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
-        const caption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${completionNotes || 'Progress service'}\nstatus: ${service?.status || 'in_progress'}`;
-        const result = await uploadFile(photos[i], { type: 'service', caption })
-        if (result) {
-          newPhotoUrls.push(result.url);
-          await supabase.from('service_documentation').insert({
-            service_order_id: service.id,
-            photo_url: result.url,
-            stage: 'progress',
-            uploaded_by: user?.id,
-            telegram_chat_id: result.chat_id,
-            telegram_message_id: result.message_id,
-          });
-        }
-      }
-      setProgress(100)
-      if (items.length > 0) {
-        await supabase.from('service_items').insert(items)
-      }
-      const done = doneDate || new Date()
-      const start = startDate
-      const diffMs = done.getTime() - start.getTime()
-      const workDuration = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-      await supabase.from('service_orders').update({
-        status: 'in_progress', start_date: start.toISOString(), done_date: done.toISOString(),
-        work_duration: workDuration, completion_notes: completionNotes, final_cost: finalCost,
-      }).eq('id', service.id)
-      await supabase.from('service_timeline').insert({
-        service_order_id: service.id,
-        teknisi_id: user?.id,
-        status: 'in_progress',
-        message: `Service dalam pengerjaan. ${completionNotes ? 'Catatan: ' + completionNotes : ''}`,
-        photo_url: newPhotoUrls[0] || null,
-        details: { items_count: items.length, photos_count: newPhotoUrls.length, all_photo_urls: newPhotoUrls, final_cost: finalCost }
-      })
-      toast.success('Progress saved!')
-      onUpdate()
-    } catch (error: any) { toast.error(error.message) }
-    finally { setLoading(false); setUploading(false); setProgress(0) }
-  }
+   const submitProgress = async () => {
+     setLoading(true); setUploading(true)
+     try {
+       const newPhotoUrls: string[] = []
+       for (let i = 0; i < photos.length; i++) {
+         setProgress(Math.round((i / photos.length) * 100))
+         const d = new Date();
+         const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+         const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+         const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+         const caption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${completionNotes || 'Progress service'}\nstatus: ${service?.status || 'in_progress'}`;
+         const result = await uploadFile(photos[i], { type: 'service', caption })
+         if (result) {
+           newPhotoUrls.push(result.url);
+           await supabase.from('service_documentation').insert({
+             service_order_id: service.id,
+             photo_url: result.url,
+             stage: 'progress',
+             uploaded_by: user?.id,
+             telegram_chat_id: result.chat_id,
+             telegram_message_id: result.message_id,
+           });
+         } else {
+           console.warn(`⚠️ Upload foto ${i+1} gagal, skip...`);
+         }
+       }
+       setProgress(100)
+       if (newPhotoUrls.length === 0 && photos.length > 0) {
+         toast.error(`Gagal upload ${photos.length} foto. Cek koneksi dan coba lagi.`);
+         setLoading(false);
+         setUploading(false);
+         return;
+       }
+       if (items.length > 0) {
+         await supabase.from('service_items').insert(items)
+       }
+       const done = doneDate || new Date()
+       const start = startDate
+       const diffMs = done.getTime() - start.getTime()
+       const workDuration = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+       await supabase.from('service_orders').update({
+         status: 'in_progress', start_date: start.toISOString(), done_date: done.toISOString(),
+         work_duration: workDuration, completion_notes: completionNotes, final_cost: finalCost,
+       }).eq('id', service.id)
+       await supabase.from('service_timeline').insert({
+         service_order_id: service.id,
+         teknisi_id: user?.id,
+         status: 'in_progress',
+         message: `Service dalam pengerjaan. ${completionNotes ? 'Catatan: ' + completionNotes : ''}`,
+         photo_url: newPhotoUrls[0] || null,
+         details: { items_count: items.length, photos_count: newPhotoUrls.length, all_photo_urls: newPhotoUrls, final_cost: finalCost }
+       })
+       console.log(`✅ Timeline entry created:`, {
+         photo_url: newPhotoUrls[0] || null,
+         total_photos: newPhotoUrls.length,
+         photos: newPhotoUrls
+       })
+       toast.success('Progress saved!')
+       onUpdate()
+     } catch (error: any) { toast.error(error.message) }
+     finally { setLoading(false); setUploading(false); setProgress(0) }
+   }
 
   return (
     <div className="space-y-5">

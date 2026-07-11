@@ -106,13 +106,22 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
         supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
         supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
         supabase.from("feedbacks").select("id").eq("service_order_id", data.id).maybeSingle(),
-      ]);
-      if (itemsRes.data) setItems(itemsRes.data);
-      if (timelineRes.data) setTimeline(timelineRes.data);
-      if (docsRes.data) setInitialPhotos(docsRes.data);
-      if (feedbackRes.data) setFeedbackAlready(true);
+       ]);
+       if (itemsRes.data) setItems(itemsRes.data);
+       if (timelineRes.data) {
+         console.log(`📋 Timeline fetched (${timelineRes.data.length} items):`, timelineRes.data.map((t: any) => ({
+           id: t.id,
+           status: t.status,
+           message: t.message?.slice(0, 50),
+           photo_url: t.photo_url ? '✅ ' + t.photo_url.slice(0, 50) : '❌ null/undefined',
+           details_photos: t.details?.all_photo_urls?.length || 0
+         })));
+         setTimeline(timelineRes.data);
+       }
+       if (docsRes.data) setInitialPhotos(docsRes.data);
+       if (feedbackRes.data) setFeedbackAlready(true);
 
-      // Log visit to tracking_logs
+       // Log visit to tracking_logs
       await supabase.from("tracking_logs").insert({
         service_order_id: data.id,
         token: t,
