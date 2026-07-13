@@ -182,7 +182,18 @@ export default memo(function PengeluaranForm({
     setShowConfirmation(false);
     setLoading(true);
     try {
-      const selectedUser = users.find((u) => u.id === formData.handled_by);
+      // Find selected user from cached list, or fetch from DB if not found
+      let selectedUser = users.find((u) => u.id === formData.handled_by);
+      if (!selectedUser && formData.handled_by) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", formData.handled_by)
+          .single();
+        selectedUser = profile || null;
+      }
+      // When editing, use initialData's handled_by_name as fallback
+      const handlerName = selectedUser?.full_name || initialData?.handled_by_name || user?.full_name;
 
       const now = new Date();
       const dayNames = [
@@ -219,7 +230,7 @@ tanggal : ${fmtDateTime}
 nama barang: ${formData.item_name}
 nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
 jenis pembayaran: ${metodeLabel}
-operator: ${selectedUser?.full_name || user?.full_name}`;
+operator: ${handlerName}`;
 
       // Get existing photo URLs from initialData
       const existingPhotoUrls: string[] =
@@ -266,7 +277,7 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
         customer_whatsapp: "",
         jenis_layanan: "pengeluaran",
         handled_by: formData.handled_by,
-        handled_by_name: selectedUser?.full_name || user?.full_name,
+        handled_by_name: handlerName,
         metode_pembayaran: formData.metode_pembayaran,
         lead_source: "pengeluaran",
         detail_sku: formData.notes || null,
@@ -597,7 +608,7 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
             </div>
           )}
 
-          {photoFiles.length === 0 && photoPreviews.length === 0 && (
+          {photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id && (
             <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
               <AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib
               diupload
@@ -608,7 +619,7 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
         <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
           <button
             type="submit"
-            disabled={loading || uploading || photoFiles.length === 0}
+            disabled={loading || uploading || (photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id)}
             className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
             {loading || uploading ? (
