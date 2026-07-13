@@ -135,7 +135,7 @@ export default function LayananList({
       jenisCount[j] = (jenisCount[j] || 0) + 1;
       const nominal = item.nominal || 0;
       total += nominal;
-      if (j === "pengeluaran") totalExpenses += nominal;
+      if ((item.jenis_layanan as string) === "pengeluaran") totalExpenses += nominal;
       else totalRevenue += nominal;
       const m = item.metode_pembayaran || "unknown";
       metodeRevenue[m] = (metodeRevenue[m] || 0) + nominal;
@@ -329,7 +329,6 @@ export default function LayananList({
     { value: "ambil_jam_service", label: "Ambil Jam Service" },
     { value: "order_online", label: "Order Online" },
     { value: "beli_jam", label: "Beli Jam" },
-    { value: "pengeluaran", label: "Pengeluaran" },
     { value: "dp_service", label: "DP Service" },
     { value: "service_langsung", label: "Service Langsung" },
 
@@ -716,6 +715,13 @@ export default function LayananList({
                             </button>
                           </>
                         )}
+                        <button
+                          onClick={() => onEdit?.(item)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Edit"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   )}

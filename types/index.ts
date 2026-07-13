@@ -285,7 +285,6 @@ export type JenisLayanan =
   | "ambil_jam_service"
   | "order_online"
   | "beli_jam"
-  | "pengeluaran"
   | "dp_service"
   | "service_langsung"
   | "analog_digital";
@@ -332,6 +331,8 @@ export interface Layanan {
   created_at: string;
   updated_at: string;
   notes?: string;
+  telegram_chat_id?: string;
+  telegram_message_id?: number;
 }
 
 // =====================================================
@@ -372,7 +373,6 @@ export const jenisLayananLabels: Record<JenisLayanan, string> = {
   ambil_jam_service: "Ambil Jam Service",
   order_online: "Order Online",
   beli_jam: "Beli Jam",
-  pengeluaran: "Pengeluaran",
   dp_service: "DP Service",
   service_langsung: "Service Langsung",
   analog_digital: "ANALOG-DIGITAL",

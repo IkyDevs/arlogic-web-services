@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, memo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
-import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
+import { MetodePembayaran } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,22 +24,6 @@ import {
   Plus,
   ChevronDown,
 } from "lucide-react";
-import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
-
-interface LayananFormProps {
-  onSuccess?: () => void;
-  onClose?: () => void;
-  initialData?: any;
-}
-
-// Semua jenis layanan yang valid di DB (tidak null)
-const jenisLayananOptions = [
-  { value: "service_langsung", label: "Service Langsung" },
-  { value: "dp_service", label: "DP Service" },
-  { value: "ambil_jam_service", label: "Ambil Jam Service" },
-  { value: "order_online", label: "Order Online" },
-  { value: "beli_jam", label: "Beli Jam" },
-];
 
 const metodePembayaranOptions = [
   { value: "cash", label: "Cash" },
@@ -52,41 +36,25 @@ const metodePembayaranOptions = [
   { value: "kudus", label: "Kudus" },
 ];
 
-const leadSourceOptions = [
-  { value: "instagram", label: "Instagram" },
-  { value: "wom", label: "WOM (Word of Mouth)" },
-  { value: "dekat_lewat", label: "Dekat / Lewat" },
-  { value: "google", label: "Google" },
-  { value: "facebook", label: "Facebook" },
-  { value: "old", label: "Old Customer" },
-  { value: "tiktok", label: "TikTok" },
-  { value: "dash", label: "-" },
-  { value: "tulis_sendiri", label: "Tulis Sendiri" },
-];
+interface PengeluaranFormProps {
+  onSuccess?: () => void;
+  onClose?: () => void;
+}
 
-export default memo(function LayananForm({
+export default memo(function PengeluaranForm({
   onSuccess,
   onClose,
-  initialData,
-}: LayananFormProps) {
+}: PengeluaranFormProps) {
   const { user } = useAuthStore();
   const supabase = createClient();
-  const { uploadFile, uploadFiles, uploading, progress } = useUpload();
+  const { uploadFiles, uploading, progress } = useUpload();
 
-  // Form state
   const [formData, setFormData] = useState({
-    customer_name: initialData?.customer_name || "",
-    customer_whatsapp: initialData?.customer_whatsapp || "",
-    jenis_layanan: (initialData?.jenis_layanan ||
-      "service_langsung") as JenisLayanan,
-    handled_by: initialData?.handled_by || user?.id || "",
-    metode_pembayaran: (initialData?.metode_pembayaran ||
-      "cash") as MetodePembayaran,
-    lead_source: (initialData?.lead_source || "instagram") as LeadSource,
-    lead_source_custom: initialData?.lead_source_custom || "",
-    detail_sku: initialData?.detail_sku || "",
-    nominal: initialData?.nominal?.toString() || "",
-    notes: initialData?.notes || "",
+    item_name: "",
+    handled_by: user?.id || "",
+    metode_pembayaran: "cash" as MetodePembayaran,
+    nominal: "",
+    notes: "",
   });
 
   const [users, setUsers] = useState<any[]>([]);
@@ -94,23 +62,14 @@ export default memo(function LayananForm({
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // Multiple photos
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const showCustomLeadSource = formData.lead_source === "tulis_sendiri";
-
-  // ── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      fetchUsers();
-    }, 0);
-
-    return () => clearTimeout(debounceTimer);
+    fetchUsers();
   }, []);
 
-  // Set default handled_by ke current user setelah mount
   useEffect(() => {
     if (user?.id && !formData.handled_by) {
       setFormData((p) => ({ ...p, handled_by: user.id }));
@@ -126,7 +85,6 @@ export default memo(function LayananForm({
     if (data) setUsers(data);
   };
 
-  // ── Photo helpers ─────────────────────────────────────────────────────────
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -148,7 +106,6 @@ export default memo(function LayananForm({
       setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]),
     );
 
-    // reset input so same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -158,36 +115,30 @@ export default memo(function LayananForm({
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.customer_name.trim()) {
-      toast.error("Nama customer wajib diisi");
-      return;
-    }
-    if (!formData.customer_whatsapp.trim()) {
-      toast.error("Nomor WhatsApp wajib diisi");
+    if (!formData.item_name.trim()) {
+      toast.error("Nama barang wajib diisi");
       return;
     }
     if (!formData.handled_by) {
-      toast.error("Pilih yang melayani");
+      toast.error("Pilih yang menangani");
       return;
     }
     if (!formData.nominal) {
       toast.error("Nominal wajib diisi");
       return;
     }
-    if (!formData.jenis_layanan) {
-      toast.error("Jenis layanan wajib dipilih");
+    if (!formData.metode_pembayaran) {
+      toast.error("Metode pembayaran wajib dipilih");
       return;
     }
-    if (photoFiles.length === 0 && !initialData?.photo_url) {
-      toast.error("Wajib upload minimal 1 foto");
+    if (photoFiles.length === 0) {
+      toast.error("Wajib upload minimal 1 foto bukti");
       return;
     }
 
-    // Show confirmation modal instead of submitting directly
     setShowConfirmation(true);
   };
 
@@ -197,209 +148,91 @@ export default memo(function LayananForm({
     try {
       const selectedUser = users.find((u) => u.id === formData.handled_by);
 
-      // Ensure jenis_layanan is always set (never null/undefined)
-      const jenisLayananValue = formData.jenis_layanan || "service_langsung";
-
-      // Prepare transaction description early for photo captions
-      const jenisLayananLabel =
-        jenisLayananOptions.find((opt) => opt.value === jenisLayananValue)
-          ?.label || jenisLayananValue;
-      const metodeLabel =
-        metodePembayaranOptions.find(
-          (opt) => opt.value === formData.metode_pembayaran,
-        )?.label || formData.metode_pembayaran;
-
       const now = new Date();
       const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
       const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
       const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
 
-      const typeIcon = jenisLayananValue === "dp_service" ? "💳" : "🔧";
-      const isEdit = !!initialData?.id;
-      const headerTitle = isEdit ? "📝 EDIT TRANSAKSI" : "📊 TRANSAKSI";
-      const transactionDescription = `${headerTitle}
+      const metodeLabel = metodePembayaranOptions.find((opt) => opt.value === formData.metode_pembayaran)?.label || formData.metode_pembayaran;
+      const transactionDescription = `(foto bukti pengeluaran)
+tanggal : ${fmtDateTime}
+nama barang: ${formData.item_name}
+nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
+jenis pembayaran: ${metodeLabel}
+operator: ${selectedUser?.full_name || user?.full_name}`;
 
-━━━━━━━━━━━━━━━━━━━━━━━━
-${typeIcon} tipe : ${jenisLayananLabel}
-📱 Customer: ${formData.customer_name}
-📞 WA: ${formData.customer_whatsapp}
-💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
-💳 Metode: ${metodeLabel}
-📋 Invoice: ${formData.detail_sku || "-"}
-📝 Keterangan: ${formData.notes || "-"}
-👤 Operator: ${user?.full_name}
-⏰ ${fmtDateTime}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
-
-      let photoUrls: string[] = initialData?.photo_url
-        ? [initialData.photo_url]
-        : [];
-
+      let photoUrls: string[] = [];
       let telegramSent = false;
-      let tgChatId: string | undefined = undefined;
-      let tgMessageId: number | undefined = undefined;
-
       if (photoFiles.length > 0) {
-        const results = await uploadFiles(photoFiles, {
+        const urls = await uploadFiles(photoFiles, {
           type: "layanan",
           caption: transactionDescription,
         });
-        if (results && results.length > 0) {
-          photoUrls = results.map((r) => r.url);
+        if (urls && urls.length > 0) {
+          photoUrls = urls.map((r) => r.url);
           telegramSent = true;
-          if (results[0].chat_id && results[0].message_id) {
-            tgChatId = results[0].chat_id;
-            tgMessageId = results[0].message_id;
-          }
         } else {
           toast.error("Gagal upload foto");
           return;
         }
       }
 
-      if (!telegramSent) {
-        if (initialData?.id && initialData.telegram_chat_id && initialData.telegram_message_id) {
-          try {
-            await fetch("/api/telegram/edit-message", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: initialData.telegram_chat_id,
-                message_id: initialData.telegram_message_id,
-                text: transactionDescription,
-                is_caption: (initialData.photo_urls && initialData.photo_urls.length > 0) || !!initialData.photo_url
-              }),
-            });
-            telegramSent = true;
-          } catch (telegramErr) {
-            console.error("Failed to edit telegram message:", telegramErr);
-          }
-        } else {
-          try {
-            const res = await fetch("/api/telegram", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ type: "transaction", message: transactionDescription }),
-            });
-            const data = await res.json();
-            if (data.success && data.chat_id && data.message_id) {
-              tgChatId = data.chat_id;
-              tgMessageId = data.message_id;
-            }
-          } catch (telegramErr) {
-            console.error("Failed to send transaction to telegram:", telegramErr);
-          }
+      if (!telegramSent && photoFiles.length === 0) {
+        try {
+          await fetch("/api/telegram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "layanan", message: transactionDescription }),
+          });
+        } catch (telegramErr) {
+          console.error("Failed to send expense to telegram:", telegramErr);
         }
       }
 
-      const payload: any = {
-        customer_name: formData.customer_name.trim(),
-        customer_whatsapp: formData.customer_whatsapp.trim(),
-        jenis_layanan: jenisLayananValue,
-        handled_by: formData.handled_by,
-        handled_by_name: selectedUser?.full_name || user?.full_name,
-        metode_pembayaran: formData.metode_pembayaran,
-        lead_source: formData.lead_source,
-        lead_source_custom:
-          formData.lead_source === "tulis_sendiri"
-            ? formData.lead_source_custom
-            : null,
-        detail_sku: formData.detail_sku || null,
-        nominal: parseInt(formData.nominal) || 0,
-        notes: formData.notes || null,
-      };
+      const { error } = await supabase.from("layanan").insert([
+        {
+          customer_name: formData.item_name.trim(),
+          customer_whatsapp: "",
+          jenis_layanan: "pengeluaran",
+          handled_by: formData.handled_by,
+          handled_by_name: selectedUser?.full_name || user?.full_name,
+          metode_pembayaran: formData.metode_pembayaran,
+          lead_source: "pengeluaran",
+          detail_sku: formData.notes || null,
+          nominal: parseInt(formData.nominal) || 0,
+          notes: formData.notes || null,
+          photo_url: photoUrls[0] || null,
+          photo_urls: photoUrls,
+          created_by: user?.id,
+          created_by_name: user?.full_name,
+          status: "completed",
+        },
+      ]);
 
-      if (initialData?.id) {
-        if (photoUrls.length > 0) {
-          payload.photo_url = photoUrls[0];
-          payload.photo_urls = photoUrls;
-        }
-        if (tgChatId && tgMessageId) {
-          payload.telegram_chat_id = tgChatId;
-          payload.telegram_message_id = tgMessageId;
-        }
-        const { error } = await supabase.from("layanan").update(payload).eq("id", initialData.id);
-        if (error) throw error;
-        toast.success("Transaksi berhasil diubah!");
-      } else {
-        const { error } = await supabase.from("layanan").insert([
-          {
-            ...payload,
-            photo_url: photoUrls[0] || null,
-            photo_urls: photoUrls,
-            telegram_chat_id: tgChatId,
-            telegram_message_id: tgMessageId,
-            created_by: user?.id,
-            created_by_name: user?.full_name,
-            status: "active",
-          },
-        ]);
-        if (error) throw error;
-        toast.success("Transaksi berhasil ditambahkan!");
-      }
+      if (error) throw error;
 
-      // Save to customers table + notify Telegram if new
-      try {
-        const custPhone = (formData.customer_whatsapp || "").replace(/\D/g, "");
-        if (formData.customer_name && custPhone) {
-          const last4 = custPhone.slice(-4);
-          const custName = formData.customer_name.trim().endsWith(` ${last4}`)
-            ? formData.customer_name.trim()
-            : `${formData.customer_name.trim()} ${last4}`;
-          const { data: existingCust, error: checkErr } = await supabase
-            .from("customers")
-            .select("id, name")
-            .eq("phone", custPhone)
-            .maybeSingle();
-          if (checkErr) throw checkErr;
-          if (existingCust) {
-            await supabase.from("customers").update({ last_transaction: new Date().toISOString() }).eq("id", existingCust.id);
-          } else {
-            const { error: insertErr } = await supabase.from("customers").insert({ name: custName, phone: custPhone });
-            if (insertErr) throw insertErr;
-            // Only send Telegram for genuinely new customers
-            fetch("/api/telegram", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "customer",
-                message: `CUSTOMER BARU \nnama cs: ${custName}\nno. wa: ${custPhone}`,
-              }),
-            }).catch(() => {});
-          }
-        }
-      } catch (custErr: any) {
-        console.error("Customer save error:", custErr);
-        toast.error("Gagal simpan customer: " + custErr.message);
-      }
+      toast.success("Pengeluaran berhasil dicatat!");
 
-      onSuccess?.();
-      onClose?.();
-
-      // Reset
       photoPreviews.forEach((u) => URL.revokeObjectURL(u));
       setFormData({
-        customer_name: "",
-        customer_whatsapp: "",
-        jenis_layanan: "service_langsung",
+        item_name: "",
         handled_by: user?.id || "",
         metode_pembayaran: "cash",
-        lead_source: "instagram",
-        lead_source_custom: "",
-        detail_sku: "",
         nominal: "",
         notes: "",
       });
       setPhotoFiles([]);
       setPhotoPreviews([]);
+
+      onSuccess?.();
+      onClose?.();
     } catch (err: any) {
-      toast.error(err.message || "Gagal menyimpan transaksi");
+      toast.error(err.message || "Gagal menyimpan pengeluaran");
     } finally {
       setLoading(false);
     }
   };
 
-  // ── UI ────────────────────────────────────────────────────────────────────
   const inputClass =
     "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition-all text-sm dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100 dark:focus:border-white";
   const labelClass =
@@ -417,19 +250,16 @@ ${typeIcon} tipe : ${jenisLayananLabel}
       exit={{ opacity: 0, scale: 0.97 }}
       className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
     >
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-10 flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-            <FileText className="w-4 h-4 text-white dark:text-gray-900" />
+          <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center">
+            <FileText className="w-4 h-4 text-white" />
           </div>
           <div>
             <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-              {initialData ? "Edit Transaction" : "New Transaction"}
+              Pengeluaran Baru
             </h2>
-            <p className="text-xs text-gray-500">
-              {initialData ? "Edit data transaksi customer" : "Input transaksi customer"}
-            </p>
+            <p className="text-xs text-gray-500">Input pengeluaran operasional</p>
           </div>
         </div>
         {onClose && (
@@ -443,44 +273,26 @@ ${typeIcon} tipe : ${jenisLayananLabel}
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
-        {/* ── Customer Data ────────────────────────────────────────────────── */}
         <div className={sectionClass}>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <User className="w-3.5 h-3.5" /> Customer Data
+            <Wrench className="w-3.5 h-3.5" /> Detail Pengeluaran
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>
-                Nama Customer <span className="text-red-500">*</span>
+                Nama Barang <span className="text-red-500">*</span>
               </label>
-              <CustomerAutocomplete
-                value={formData.customer_name}
-                onChange={(val) => setFormData((p) => ({ ...p, customer_name: val }))}
-                onSelect={(name, phone) => setFormData((p) => ({ ...p, customer_name: name, customer_whatsapp: phone }))}
-                placeholder="Nama lengkap customer"
+              <input
+                type="text"
+                value={formData.item_name}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, item_name: e.target.value }))
+                }
+                className={inputClass}
+                placeholder="Nama barang / jasa"
+                required
                 autoFocus
               />
-            </div>
-            <div>
-              <label className={labelClass}>
-                WhatsApp <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="tel"
-                  value={formData.customer_whatsapp}
-                  onChange={(e) =>
-                    setFormData((p) => ({
-                      ...p,
-                      customer_whatsapp: e.target.value,
-                    }))
-                  }
-                  className={`${inputClass} pl-9`}
-                  placeholder="081234567890"
-                  required
-                />
-              </div>
             </div>
             <div>
               <label className={labelClass}>Tanggal</label>
@@ -493,45 +305,11 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                 })}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* ── Service Details ──────────────────────────────────────────────── */}
-        <div className={sectionClass}>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <Wrench className="w-3.5 h-3.5" /> Service Details
-          </p>
-          <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>
-                Jenis Layanan <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.jenis_layanan}
-                onChange={(e) =>
-                  setFormData((p) => ({
-                    ...p,
-                    jenis_layanan: e.target.value as JenisLayanan,
-                  }))
-                }
-                className={inputClass}
-                required
-              >
-                {jenisLayananOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* ── Handled By — default current user, toggle untuk pilih lain ── */}
-            <div>
-              <label className={labelClass}>
-                Handled By <span className="text-red-500">*</span>
+                Handle By <span className="text-red-500">*</span>
               </label>
 
-              {/* Toggle: by me / someone else */}
               <div className="flex gap-2 mb-2">
                 <button
                   type="button"
@@ -581,33 +359,10 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                 </select>
               )}
             </div>
-
-            <div className="md:col-span-2">
-              <label className={labelClass}>SKU / Keterangan Barang</label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={formData.detail_sku}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, detail_sku: e.target.value }))
-                  }
-                  className={`${inputClass} pl-9`}
-                  placeholder="Deskripsi item / SKU…"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Transaction ──────────────────────────────────────────────────── */}
-        <div className={sectionClass}>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <DollarSign className="w-3.5 h-3.5" /> Transaksi
-          </p>
-          <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Metode Pembayaran</label>
+              <label className={labelClass}>
+                Metode Pembayaran <span className="text-red-500">*</span>
+              </label>
               <select
                 value={formData.metode_pembayaran}
                 onChange={(e) =>
@@ -617,6 +372,7 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                   }))
                 }
                 className={inputClass}
+                required
               >
                 {metodePembayaranOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -644,42 +400,6 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                 />
               </div>
             </div>
-            <div>
-              <label className={labelClass}>Lead Source</label>
-              <select
-                value={formData.lead_source}
-                onChange={(e) =>
-                  setFormData((p) => ({
-                    ...p,
-                    lead_source: e.target.value as LeadSource,
-                  }))
-                }
-                className={inputClass}
-              >
-                {leadSourceOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {showCustomLeadSource && (
-              <div>
-                <label className={labelClass}>Custom Lead Source</label>
-                <input
-                  type="text"
-                  value={formData.lead_source_custom}
-                  onChange={(e) =>
-                    setFormData((p) => ({
-                      ...p,
-                      lead_source_custom: e.target.value,
-                    }))
-                  }
-                  className={inputClass}
-                  placeholder="Tulis sumber…"
-                />
-              </div>
-            )}
             <div className="md:col-span-2">
               <label className={labelClass}>Catatan</label>
               <textarea
@@ -695,7 +415,6 @@ ${typeIcon} tipe : ${jenisLayananLabel}
           </div>
         </div>
 
-        {/* ── Multiple Photo Upload ─────────────────────────────────────────── */}
         <div className={sectionClass}>
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
@@ -720,7 +439,6 @@ ${typeIcon} tipe : ${jenisLayananLabel}
             className="hidden"
           />
 
-          {/* Preview grid */}
           {photoPreviews.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {photoPreviews.map((src, i) => (
@@ -745,7 +463,6 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                   </div>
                 </div>
               ))}
-              {/* Add more tile */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -770,7 +487,6 @@ ${typeIcon} tipe : ${jenisLayananLabel}
             </div>
           )}
 
-          {/* Upload progress */}
           {uploading && progress > 0 && (
             <div className="mt-2">
               <div className="flex justify-between text-xs mb-1 text-gray-500">
@@ -788,7 +504,7 @@ ${typeIcon} tipe : ${jenisLayananLabel}
             </div>
           )}
 
-          {photoFiles.length === 0 && !initialData?.photo_url && (
+          {photoFiles.length === 0 && (
             <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
               <AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib
               diupload
@@ -796,14 +512,13 @@ ${typeIcon} tipe : ${jenisLayananLabel}
           )}
         </div>
 
-        {/* ── Actions ──────────────────────────────────────────────────────── */}
         <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
           <button
             type="submit"
             disabled={
               loading ||
               uploading ||
-              (photoFiles.length === 0 && !initialData?.photo_url)
+              photoFiles.length === 0
             }
             className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
@@ -815,7 +530,7 @@ ${typeIcon} tipe : ${jenisLayananLabel}
             ) : (
               <>
                 <Send className="w-4 h-4" />
-                Simpan Transaksi
+                Simpan Pengeluaran
               </>
             )}
           </button>
@@ -831,7 +546,6 @@ ${typeIcon} tipe : ${jenisLayananLabel}
         </div>
       </form>
 
-      {/* ── Confirmation Modal ─────────────────────────────────────────── */}
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div
@@ -840,36 +554,30 @@ ${typeIcon} tipe : ${jenisLayananLabel}
             exit={{ scale: 0.95, opacity: 0 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-sm md:max-w-md border border-gray-200 dark:border-white/10"
           >
-            {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-red-600" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                Konfirmasi Transaksi
+                Konfirmasi Pengeluaran
               </h3>
             </div>
 
-            {/* Content */}
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex gap-2">
-                <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-xs sm:text-sm text-blue-700 dark:text-blue-300">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-red-700 dark:text-red-300">
                   Periksa kembali semua data di bawah sebelum menyimpan
                 </p>
               </div>
 
-              {/* Summary Items */}
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Customer
+                    Nama Barang
                   </p>
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {formData.customer_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formData.customer_whatsapp}
+                    {formData.item_name}
                   </p>
                 </div>
 
@@ -878,47 +586,19 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Nominal
                     </p>
-                    <p className="text-sm font-bold text-blue-600">
-                      Rp {parseInt(formData.nominal).toLocaleString("id-ID")}
+                    <p className="text-sm font-bold text-red-600">
+                      Rp {parseInt(formData.nominal || "0").toLocaleString("id-ID")}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Jenis Layanan
+                      Metode Pembayaran
                     </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {
-                        jenisLayananOptions.find(
-                          (opt) => opt.value === formData.jenis_layanan,
-                        )?.label
-                      }
+                      {metodePembayaranOptions.find((opt) => opt.value === formData.metode_pembayaran)?.label}
                     </p>
                   </div>
                 </div>
-
-                <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Metode Pembayaran
-                  </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {
-                      metodePembayaranOptions.find(
-                        (opt) => opt.value === formData.metode_pembayaran,
-                      )?.label
-                    }
-                  </p>
-                </div>
-
-                {formData.detail_sku && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      SKU / Detail
-                    </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {formData.detail_sku}
-                    </p>
-                  </div>
-                )}
 
                 {formData.notes && (
                   <div>
@@ -942,7 +622,6 @@ ${typeIcon} tipe : ${jenisLayananLabel}
               </div>
             </div>
 
-            {/* Actions */}
             <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex gap-3">
               <button
                 type="button"

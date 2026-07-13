@@ -68,7 +68,14 @@ export default function ClosingDashboard() {
     for (const tx of transactions) {
       const m = tx.metode_pembayaran || "unknown";
       if (!groups[m]) groups[m] = { expected: 0, count: 0, items: [] };
-      groups[m].expected += tx.nominal || 0;
+      
+      const nominal = tx.nominal || 0;
+      if (tx.jenis_layanan === "pengeluaran") {
+        groups[m].expected -= nominal;
+      } else {
+        groups[m].expected += nominal;
+      }
+      
       groups[m].count++;
       groups[m].items.push(tx);
     }

@@ -65,6 +65,14 @@ const AttendanceDashboard = dynamic(
     ),
   },
 );
+const ServiceInput = dynamic(
+  () => import("@/components/admin/ServiceInput"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
 
 export default function TeknisiDashboard() {
   const [activeTab, setActiveTab] = useState("queue");
@@ -76,6 +84,7 @@ export default function TeknisiDashboard() {
     "check_in" | "check_out"
   >("check_in");
   const [showLayananForm, setShowLayananForm] = useState(false);
+  const [showServiceForm, setShowServiceForm] = useState(false);
   const [refreshLayanan, setRefreshLayanan] = useState(0);
   const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun" | undefined>("hari");
   const [layananDate, setLayananDate] = useState(new Date().toISOString().split("T")[0]);
@@ -522,6 +531,15 @@ export default function TeknisiDashboard() {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
+              {/* Add New Service Button */}
+              <button
+                onClick={() => setShowServiceForm(true)}
+                className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all shadow-sm active:scale-95 flex-shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">New Service</span>
+              </button>
+
               {/* Refresh */}
               <button
                 onClick={() => fetchAllData(true)}
@@ -985,13 +1003,51 @@ export default function TeknisiDashboard() {
       )}
 
       {/* Attendance Modal */}
-      <AttendanceModal
-        isOpen={showAttendance}
-        onClose={() => setShowAttendance(false)}
-        onSuccess={handleAttendanceSuccess}
-        type={attendanceType}
-        existingAttendance={todayAttendance}
-      />
+      {showAttendance && (
+        <AttendanceModal
+          isOpen={showAttendance}
+          onClose={() => {
+            if (todayAttendance || user?.role === "owner") setShowAttendance(false);
+          }}
+          type={attendanceType}
+          onSuccess={() => {
+            setShowAttendance(false);
+            checkTodayAttendance();
+            fetchStats();
+          }}
+          existingData={todayAttendance}
+        />
+      )}
+
+      {/* Service Input Modal */}
+      {showServiceForm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowServiceForm(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                  <Watch className="w-4 h-4 text-white dark:text-gray-900" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">New Watch Service</h2>
+                  <p className="text-xs text-gray-500">Create service order for timepiece</p>
+                </div>
+              </div>
+              <button onClick={() => setShowServiceForm(false)}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            {/* Modal Content */}
+            <div className="p-6">
+              <ServiceInput variant="modal" />
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Layanan Form Modal */}
       {showLayananForm && (

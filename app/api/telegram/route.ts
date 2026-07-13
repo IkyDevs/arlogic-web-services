@@ -17,10 +17,10 @@ type TelegramChannelType = keyof typeof CHANNELS
 async function sendMessage(
   channelId: string,
   message: string,
-): Promise<boolean> {
+): Promise<{ success: boolean; chat_id?: string; message_id?: number }> {
   if (!TELEGRAM_BOT_TOKEN) {
     console.error('❌ TELEGRAM_BOT_TOKEN not configured')
-    return false
+    return { success: false }
   }
 
   try {
@@ -41,14 +41,18 @@ async function sendMessage(
 
     if (!data.ok) {
       console.error('❌ Telegram API error:', data.description)
-      return false
+      return { success: false }
     }
 
     console.log('✅ Message sent to Telegram successfully')
-    return true
+    return {
+      success: true,
+      chat_id: String(data.result.chat.id),
+      message_id: data.result.message_id,
+    }
   } catch (error: any) {
     console.error('❌ Failed to send message to Telegram:', error.message)
-    return false
+    return { success: false }
   }
 }
 
@@ -78,14 +82,16 @@ export async function POST(request: NextRequest) {
     console.log(`📤 Sending Telegram message to channel: ${channelType}`)
     console.log(`📝 Message: ${message.substring(0, 100)}...`)
 
-    const success = await sendMessage(channelId, message)
+    const result = await sendMessage(channelId, message)
 
-    if (success) {
+    if (result.success) {
       return NextResponse.json(
         {
           success: true,
           message: 'Message sent to Telegram',
           channel: channelType,
+          chat_id: result.chat_id,
+          message_id: result.message_id,
         },
         { status: 200 }
       )

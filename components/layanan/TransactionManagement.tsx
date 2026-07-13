@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { DollarSign, ShoppingCart, TrendingUp, BarChart3, PieChartIcon, Users, Wallet, Target, Activity, X, Search, Phone, Clock as ClockIcon, CheckCircle } from "lucide-react";
+import { DollarSign, ShoppingCart, TrendingUp, BarChart3, PieChartIcon, Users, Wallet, Target, Activity, X, Search, Phone, Clock as ClockIcon, CheckCircle, Plus, FileText, Receipt, Edit } from "lucide-react";
 import LayananList from "./LayananList";
+import PengeluaranForm from "./PengeluaranForm";
+import LayananForm from "./LayananForm";
 
 const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", transfer: "#6B7280", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444" };
 const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" };
@@ -28,6 +30,10 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [stats, setStats] = useState({ total: 0, totalNominal: 0, active: 0, completed: 0, jenisCount: {} as Record<string, number>, metodeRevenue: {} as Record<string, number> });
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[] } | null>(null);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editData, setEditData] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const fetchAll = async () => {
     const { data } = await supabase.from("layanan").select("*").order("created_at", { ascending: false });
@@ -53,6 +59,22 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const openFilterModal = useCallback((title: string, filterFn: (item: any) => boolean) => {
     setFilterModal({ title, filtered: filteredData.filter(filterFn) });
   }, [filteredData]);
+
+  const handleEdit = useCallback((item: any) => {
+    setEditData(item);
+    setShowEditForm(true);
+  }, []);
+
+  const handleEditSuccess = async () => {
+    setShowEditForm(false);
+    setEditData(null);
+    await fetchAll();
+  };
+
+  const handleEditClose = () => {
+    setShowEditForm(false);
+    setEditData(null);
+  };
 
   const analytics = useMemo(() => {
     const data = filteredData;
@@ -204,6 +226,11 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
             <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
               className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
           )}
+          <button onClick={() => setShowExpenseForm(true)}
+            className="ml-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm">
+            <Receipt className="w-3.5 h-3.5" />
+            Pengeluaran
+          </button>
         </div>
       </motion.div>
 
@@ -405,7 +432,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
                 <span className="text-[10px] font-medium text-slate-400">{analytics.total} total</span>
               </div>
               <div className="flex-1 overflow-y-auto min-h-[600px] lg:min-h-0 lg:max-h-[1120px]">
-                <LayananList isAdmin={true} compact={true} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} />
+                <LayananList isAdmin={true} compact={true} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} onEdit={handleEdit} />
               </div>
             </motion.div>
           </motion.div>
@@ -419,12 +446,32 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
               </div>
               <span className="text-xs text-slate-400">{analytics.total} total</span>
             </div>
-            <LayananList isAdmin={true} compact={false} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} />
+            <LayananList isAdmin={true} compact={false} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} onEdit={handleEdit} />
           </motion.div>
         )}
       </AnimatePresence>
 
       <FilterModal />
+      {showExpenseForm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <PengeluaranForm
+            onSuccess={() => {
+              setShowExpenseForm(false);
+              fetchAll();
+            }}
+            onClose={() => setShowExpenseForm(false)}
+          />
+        </div>
+      )}
+      {showEditForm && editData && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <LayananForm
+            initialData={editData}
+            onSuccess={handleEditSuccess}
+            onClose={handleEditClose}
+          />
+        </div>
+      )}
     </div>
   );
 }
