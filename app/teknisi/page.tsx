@@ -65,14 +65,11 @@ const AttendanceDashboard = dynamic(
     ),
   },
 );
-const ServiceInput = dynamic(
-  () => import("@/components/admin/ServiceInput"),
-  {
-    loading: () => (
-      <div className="text-center py-8 text-slate-500">Loading...</div>
-    ),
-  },
-);
+const ServiceInput = dynamic(() => import("@/components/admin/ServiceInput"), {
+  loading: () => (
+    <div className="text-center py-8 text-slate-500">Loading...</div>
+  ),
+});
 
 export default function TeknisiDashboard() {
   const [activeTab, setActiveTab] = useState("queue");
@@ -86,8 +83,12 @@ export default function TeknisiDashboard() {
   const [showLayananForm, setShowLayananForm] = useState(false);
   const [showServiceForm, setShowServiceForm] = useState(false);
   const [refreshLayanan, setRefreshLayanan] = useState(0);
-  const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun" | undefined>("hari");
-  const [layananDate, setLayananDate] = useState(new Date().toISOString().split("T")[0]);
+  const [filterPeriod, setFilterPeriod] = useState<
+    "hari" | "bulan" | "tahun" | undefined
+  >("hari");
+  const [layananDate, setLayananDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [stats, setStats] = useState({
     completedToday: 0,
     completedThisMonth: 0,
@@ -130,7 +131,11 @@ export default function TeknisiDashboard() {
     if (!user || loading) return;
     if (!todayAttendance) {
       const checkRole = async () => {
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
         if (profile && profile.role !== "owner") {
           setAttendanceType("check_in");
           setShowAttendance(true);
@@ -183,12 +188,17 @@ export default function TeknisiDashboard() {
 
     // Get service items for these orders
     const orderIds = completedOrders?.map((o) => o.id) || [];
-    const { data: items } = orderIds.length > 0
-      ? await supabase.from("service_items").select("price, quantity, item_type, service_order_id").in("service_order_id", orderIds)
-      : { data: [] };
+    const { data: items } =
+      orderIds.length > 0
+        ? await supabase
+            .from("service_items")
+            .select("price, quantity, item_type, service_order_id")
+            .in("service_order_id", orderIds)
+        : { data: [] };
 
     const totalEarnings = (items || []).reduce(
-      (sum: number, item: any) => sum + (item.price || 0) * (item.quantity || 1),
+      (sum: number, item: any) =>
+        sum + (item.price || 0) * (item.quantity || 1),
       0,
     );
 
@@ -198,7 +208,13 @@ export default function TeknisiDashboard() {
       return true; // already filtered by status=completed
     }).length;
 
-    const [completedTodayCount, inProgressCount, pendingQueueCount, ratingData, attendanceData] = await Promise.all([
+    const [
+      completedTodayCount,
+      inProgressCount,
+      pendingQueueCount,
+      ratingData,
+      attendanceData,
+    ] = await Promise.all([
       supabase
         .from("service_orders")
         .select("*", { count: "exact", head: true })
@@ -214,10 +230,7 @@ export default function TeknisiDashboard() {
         .from("service_orders")
         .select("*", { count: "exact", head: true })
         .eq("status", "pending"),
-      supabase
-        .from("feedbacks")
-        .select("rating")
-        .eq("teknisi_id", user?.id),
+      supabase.from("feedbacks").select("rating").eq("teknisi_id", user?.id),
       supabase
         .from("attendances")
         .select("*", { count: "exact", head: true })
@@ -227,18 +240,28 @@ export default function TeknisiDashboard() {
 
     // Compute real rating
     const ratings = ratingData.data || [];
-    const avgRating = ratings.length > 0
-      ? ratings.reduce((s: number, r: any) => s + (r.rating || 0), 0) / ratings.length
-      : 0;
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce((s: number, r: any) => s + (r.rating || 0), 0) /
+          ratings.length
+        : 0;
 
     // Compute real attendance (days with check_in this month / total work days)
     const attendanceDays = attendanceData.count || 0;
-    const workDaysThisMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-    const attendancePct = workDaysThisMonth > 0 ? Math.round(attendanceDays / workDaysThisMonth * 100) : 0;
+    const workDaysThisMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth() + 1,
+      0,
+    ).getDate();
+    const attendancePct =
+      workDaysThisMonth > 0
+        ? Math.round((attendanceDays / workDaysThisMonth) * 100)
+        : 0;
 
     // Completion rate
     const totalJobs = thisMonthCompleted + (inProgressCount.count || 0);
-    const completionRate = totalJobs > 0 ? Math.round(thisMonthCompleted / totalJobs * 100) : 0;
+    const completionRate =
+      totalJobs > 0 ? Math.round((thisMonthCompleted / totalJobs) * 100) : 0;
 
     setStats({
       completedToday: completedTodayCount.count || 0,
@@ -272,19 +295,26 @@ export default function TeknisiDashboard() {
     }
   };
 
-  const fetchAllData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    try {
-      await Promise.all([checkTodayAttendance(), fetchStats(), fetchRecentActivities()]);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      if (!silent) toast.error("Gagal memuat data");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user]);
+  const fetchAllData = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
+      try {
+        await Promise.all([
+          checkTodayAttendance(),
+          fetchStats(),
+          fetchRecentActivities(),
+        ]);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        if (!silent) toast.error("Gagal memuat data");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [user],
+  );
 
   useEffect(() => {
     fetchAllData();
@@ -663,7 +693,9 @@ export default function TeknisiDashboard() {
                           }
                         }}
                         className={`flex items-center gap-3 p-2 border-b border-gray-100 dark:border-white/5 last:border-0 ${
-                          activity.details ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors rounded-lg" : ""
+                          activity.details
+                            ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors rounded-lg"
+                            : ""
                         }`}
                       >
                         <div className="w-2 h-2 bg-gray-900 dark:bg-white rounded-full flex-shrink-0" />
@@ -692,116 +724,214 @@ export default function TeknisiDashboard() {
                   </div>
                 </motion.div>
 
-              {/* Activity Detail Modal */}
-              {showActivityModal && selectedActivity && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowActivityModal(false)}>
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
-                    onClick={(e) => e.stopPropagation()}>
-                    <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
-                      <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">Detail Aktivitas</h2>
-                      <button onClick={() => setShowActivityModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
-                        <X className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                    <div className="p-5 space-y-3">
-                      <p className="text-xs text-gray-500">{selectedActivity.time}</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">{selectedActivity.message}</p>
+                {/* Activity Detail Modal */}
+                {showActivityModal && selectedActivity && (
+                  <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    onClick={() => setShowActivityModal(false)}
+                  >
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                          Detail Aktivitas
+                        </h2>
+                        <button
+                          onClick={() => setShowActivityModal(false)}
+                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                        >
+                          <X className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </div>
+                      <div className="p-5 space-y-3">
+                        <p className="text-xs text-gray-500">
+                          {selectedActivity.time}
+                        </p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
+                          {selectedActivity.message}
+                        </p>
 
-                      {/* Customer Info */}
-                      {selectedActivity.details?.customer_name && (
-                        <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-800 p-3 space-y-1.5">
-                          <div className="flex items-center gap-2 text-sm">
-                            <User className="w-4 h-4 text-blue-600" />
-                            <span className="font-medium text-gray-900 dark:text-gray-100">{selectedActivity.details.customer_name}</span>
+                        {/* Customer Info */}
+                        {selectedActivity.details?.customer_name && (
+                          <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-800 p-3 space-y-1.5">
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="w-4 h-4 text-blue-600" />
+                              <span className="font-medium text-gray-900 dark:text-gray-100">
+                                {selectedActivity.details.customer_name}
+                              </span>
+                            </div>
+                            {selectedActivity.details.customer_phone && (
+                              <p className="text-xs text-gray-500 pl-6">
+                                WA: {selectedActivity.details.customer_phone}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-3 pl-6 text-xs text-gray-500 flex-wrap">
+                              {selectedActivity.details.watch_brand && (
+                                <span>
+                                  Brand: {selectedActivity.details.watch_brand}
+                                </span>
+                              )}
+                              {selectedActivity.details.serial_number && (
+                                <span>
+                                  Serial:{" "}
+                                  {selectedActivity.details.serial_number}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          {selectedActivity.details.customer_phone && (
-                            <p className="text-xs text-gray-500 pl-6">WA: {selectedActivity.details.customer_phone}</p>
+                        )}
+
+                        {/* Invoice */}
+                        {selectedActivity.details?.invoice && (
+                          <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-3">
+                            <p className="text-xs text-gray-500">Invoice</p>
+                            <p className="text-sm font-mono font-semibold text-gray-900 dark:text-gray-100">
+                              {selectedActivity.details.invoice}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Photos */}
+                        {selectedActivity.details?.photo_urls &&
+                          Array.isArray(selectedActivity.details.photo_urls) &&
+                          selectedActivity.details.photo_urls.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                Foto Jam
+                              </p>
+                              <div className="grid grid-cols-3 gap-2">
+                                {selectedActivity.details.photo_urls
+                                  .slice(0, 6)
+                                  .map((url: string, i: number) => (
+                                    <img
+                                      key={i}
+                                      src={url}
+                                      alt={"foto-" + i}
+                                      className="rounded-lg border border-gray-200 dark:border-white/10 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={() => window.open(url, "_blank")}
+                                    />
+                                  ))}
+                              </div>
+                            </div>
                           )}
-                          <div className="flex items-center gap-3 pl-6 text-xs text-gray-500 flex-wrap">
-                            {selectedActivity.details.watch_brand && <span>Brand: {selectedActivity.details.watch_brand}</span>}
-                            {selectedActivity.details.serial_number && <span>Serial: {selectedActivity.details.serial_number}</span>}
-                          </div>
-                        </div>
-                      )}
 
-                      {/* Invoice */}
-                      {selectedActivity.details?.invoice && (
-                        <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-3">
-                          <p className="text-xs text-gray-500">Invoice</p>
-                          <p className="text-sm font-mono font-semibold text-gray-900 dark:text-gray-100">{selectedActivity.details.invoice}</p>
-                        </div>
-                      )}
-
-                      {/* Photos */}
-                      {selectedActivity.details?.photo_urls && Array.isArray(selectedActivity.details.photo_urls) && selectedActivity.details.photo_urls.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Foto Jam</p>
-                          <div className="grid grid-cols-3 gap-2">
-                            {selectedActivity.details.photo_urls.slice(0, 6).map((url: string, i: number) => (
-                              <img key={i} src={url} alt={"foto-" + i}
-                                className="rounded-lg border border-gray-200 dark:border-white/10 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => window.open(url, "_blank")} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Items Before */}
-                      {selectedActivity.details?.items_before && Array.isArray(selectedActivity.details.items_before) && selectedActivity.details.items_before.length > 0 && (
-                        <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-3 space-y-1.5">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Sebelum Revisi</p>
-                          {selectedActivity.details.items_before.map((item: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className={`px-1 py-0.5 text-[10px] font-medium rounded ${item.item_type === 'jasa' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
-                                  {item.item_type === 'jasa' ? 'JASA' : 'SPR'}
-                                </span>
-                                <span className="truncate text-gray-700 dark:text-gray-300">{item.name}</span>
-                                <span className="text-xs text-gray-400">x{item.quantity}</span>
-                              </div>
-                              <span className="font-semibold text-gray-900 dark:text-gray-100">Rp {Number(item.price).toLocaleString('id-ID')}</span>
+                        {/* Items Before */}
+                        {selectedActivity.details?.items_before &&
+                          Array.isArray(
+                            selectedActivity.details.items_before,
+                          ) &&
+                          selectedActivity.details.items_before.length > 0 && (
+                            <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-3 space-y-1.5">
+                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Item Sebelum Revisi
+                              </p>
+                              {selectedActivity.details.items_before.map(
+                                (item: any, i: number) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center justify-between text-sm"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span
+                                        className={`px-1 py-0.5 text-[10px] font-medium rounded ${item.item_type === "jasa" ? "bg-pink-100 text-pink-700" : "bg-purple-100 text-purple-700"}`}
+                                      >
+                                        {item.item_type === "jasa"
+                                          ? "JASA"
+                                          : "SPR"}
+                                      </span>
+                                      <span className="truncate text-gray-700 dark:text-gray-300">
+                                        {item.name}
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        x{item.quantity}
+                                      </span>
+                                    </div>
+                                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                      Rp{" "}
+                                      {Number(item.price).toLocaleString(
+                                        "id-ID",
+                                      )}
+                                    </span>
+                                  </div>
+                                ),
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          )}
 
-                      {/* Items After */}
-                      {selectedActivity.details?.items_after && Array.isArray(selectedActivity.details.items_after) && selectedActivity.details.items_after.length > 0 && (
-                        <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-800 p-3 space-y-1.5">
-                          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Item Setelah Revisi</p>
-                          {selectedActivity.details.items_after.map((item: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className={`px-1 py-0.5 text-[10px] font-medium rounded ${item.item_type === 'jasa' ? 'bg-pink-100 text-pink-700' : 'bg-purple-100 text-purple-700'}`}>
-                                  {item.item_type === 'jasa' ? 'JASA' : 'SPR'}
-                                </span>
-                                <span className="truncate text-gray-700 dark:text-gray-300">{item.name}</span>
-                                <span className="text-xs text-gray-400">x{item.quantity}</span>
-                              </div>
-                              <span className="font-semibold text-emerald-700">Rp {Number(item.price).toLocaleString('id-ID')}</span>
+                        {/* Items After */}
+                        {selectedActivity.details?.items_after &&
+                          Array.isArray(selectedActivity.details.items_after) &&
+                          selectedActivity.details.items_after.length > 0 && (
+                            <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-800 p-3 space-y-1.5">
+                              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
+                                Item Setelah Revisi
+                              </p>
+                              {selectedActivity.details.items_after.map(
+                                (item: any, i: number) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center justify-between text-sm"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span
+                                        className={`px-1 py-0.5 text-[10px] font-medium rounded ${item.item_type === "jasa" ? "bg-pink-100 text-pink-700" : "bg-purple-100 text-purple-700"}`}
+                                      >
+                                        {item.item_type === "jasa"
+                                          ? "JASA"
+                                          : "SPR"}
+                                      </span>
+                                      <span className="truncate text-gray-700 dark:text-gray-300">
+                                        {item.name}
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        x{item.quantity}
+                                      </span>
+                                    </div>
+                                    <span className="font-semibold text-emerald-700">
+                                      Rp{" "}
+                                      {Number(item.price).toLocaleString(
+                                        "id-ID",
+                                      )}
+                                    </span>
+                                  </div>
+                                ),
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          )}
 
-                      {/* Changes Summary */}
-                      {selectedActivity.details?.changes && Array.isArray(selectedActivity.details.changes) && (
-                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800 p-3 space-y-1.5">
-                          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Perubahan oleh QC:</p>
-                          {selectedActivity.details.changes.map((change: string, i: number) => (
-                            <div key={i} className="flex items-start gap-2 text-sm">
-                              <span className="text-amber-500 mt-0.5">•</span>
-                              <span className="text-gray-700 dark:text-gray-300">{change}</span>
+                        {/* Changes Summary */}
+                        {selectedActivity.details?.changes &&
+                          Array.isArray(selectedActivity.details.changes) && (
+                            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-800 p-3 space-y-1.5">
+                              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                                Perubahan oleh QC:
+                              </p>
+                              {selectedActivity.details.changes.map(
+                                (change: string, i: number) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-start gap-2 text-sm"
+                                  >
+                                    <span className="text-amber-500 mt-0.5">
+                                      •
+                                    </span>
+                                    <span className="text-gray-700 dark:text-gray-300">
+                                      {change}
+                                    </span>
+                                  </div>
+                                ),
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                </div>
-              )}
-            </motion.div>
+                          )}
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </motion.div>
             )}
 
             {activeTab === "stats" && (
@@ -819,41 +949,67 @@ export default function TeknisiDashboard() {
                     <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Metrik Performa</h3>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                      Metrik Performa
+                    </h3>
                   </div>
 
                   <div className="space-y-4">
                     {/* Completion Rate */}
                     <div>
                       <div className="flex justify-between text-sm font-medium mb-1">
-                        <span className="text-gray-600 dark:text-gray-400">Completion Rate</span>
-                        <span className="text-gray-900 dark:text-gray-100">{stats.completionRate}%</span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Completion Rate
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-100">
+                          {stats.completionRate}%
+                        </span>
                       </div>
                       <div className="h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-gray-900 rounded-full" style={{ width: stats.completionRate + "%" }} />
+                        <div
+                          className="h-full bg-gray-900 rounded-full"
+                          style={{ width: stats.completionRate + "%" }}
+                        />
                       </div>
                     </div>
 
                     {/* Average Service Time */}
                     <div>
                       <div className="flex justify-between text-sm font-medium mb-1">
-                        <span className="text-gray-600 dark:text-gray-400">Rata-rata Waktu Service</span>
-                        <span className="text-gray-900 dark:text-gray-100">{stats.averageTime} hari</span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Rata-rata Waktu Service
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-100">
+                          {stats.averageTime} hari
+                        </span>
                       </div>
                       <div className="h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-gray-900 rounded-full" style={{ width: Math.min(stats.averageTime * 25, 100) + "%" }} />
+                        <div
+                          className="h-full bg-gray-900 rounded-full"
+                          style={{
+                            width: Math.min(stats.averageTime * 25, 100) + "%",
+                          }}
+                        />
                       </div>
                     </div>
 
                     {/* Customer Rating */}
                     <div>
                       <div className="flex justify-between text-sm font-medium mb-1">
-                        <span className="text-gray-600 dark:text-gray-400">Rating Customer</span>
-                        <span className="text-gray-900 dark:text-gray-100">{stats.rating > 0 ? stats.rating.toFixed(1) : "-"} / 5.0</span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Rating Customer
+                        </span>
+                        <span className="text-gray-900 dark:text-gray-100">
+                          {stats.rating > 0 ? stats.rating.toFixed(1) : "-"} /
+                          5.0
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <Star key={star} className={`w-5 h-5 ${star <= Math.round(stats.rating) ? "fill-amber-400 text-amber-500" : "text-gray-300 dark:text-gray-600"}`} />
+                          <Star
+                            key={star}
+                            className={`w-5 h-5 ${star <= Math.round(stats.rating) ? "fill-amber-400 text-amber-500" : "text-gray-300 dark:text-gray-600"}`}
+                          />
                         ))}
                       </div>
                     </div>
@@ -862,16 +1018,28 @@ export default function TeknisiDashboard() {
                     <div className="pt-3 border-t border-gray-200 dark:border-white/10">
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
-                          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.completedThisMonth}</p>
-                          <p className="text-[10px] text-gray-400 uppercase">Selesai</p>
+                          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                            {stats.completedThisMonth}
+                          </p>
+                          <p className="text-[10px] text-gray-400 uppercase">
+                            Selesai
+                          </p>
                         </div>
                         <div>
-                          <p className="text-xl font-bold text-emerald-600">{formatRupiah(stats.totalEarnings)}</p>
-                          <p className="text-[10px] text-gray-400 uppercase">Pendapatan</p>
+                          <p className="text-xl font-bold text-emerald-600">
+                            {formatRupiah(stats.totalEarnings)}
+                          </p>
+                          <p className="text-[10px] text-gray-400 uppercase">
+                            Pendapatan
+                          </p>
                         </div>
                         <div>
-                          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{stats.attendance}%</p>
-                          <p className="text-[10px] text-gray-400 uppercase">Kehadiran</p>
+                          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                            {stats.attendance}%
+                          </p>
+                          <p className="text-[10px] text-gray-400 uppercase">
+                            Kehadiran
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -884,29 +1052,66 @@ export default function TeknisiDashboard() {
                     <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-lg flex items-center justify-center">
                       <Award className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Pencapaian</h3>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                      Pencapaian
+                    </h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className={`text-center p-3 rounded-xl border ${stats.completedThisMonth >= 1 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
-                      <Zap className={`w-8 h-8 mx-auto mb-1.5 ${stats.completedThisMonth >= 1 ? "text-emerald-600" : "text-gray-400"}`} />
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">First Service</p>
-                      <p className="text-[10px] text-gray-500">Selesaikan 1 service</p>
+                    <div
+                      className={`text-center p-3 rounded-xl border ${stats.completedThisMonth >= 1 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}
+                    >
+                      <Zap
+                        className={`w-8 h-8 mx-auto mb-1.5 ${stats.completedThisMonth >= 1 ? "text-emerald-600" : "text-gray-400"}`}
+                      />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                        First Service
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        Selesaikan 1 service
+                      </p>
                     </div>
-                    <div className={`text-center p-3 rounded-xl border ${stats.completedThisMonth >= 10 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
-                      <Shield className={`w-8 h-8 mx-auto mb-1.5 ${stats.completedThisMonth >= 10 ? "text-emerald-600" : "text-gray-400"}`} />
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Quality Expert</p>
-                      <p className="text-[10px] text-gray-500">{stats.completedThisMonth}/10 service</p>
+                    <div
+                      className={`text-center p-3 rounded-xl border ${stats.completedThisMonth >= 10 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}
+                    >
+                      <Shield
+                        className={`w-8 h-8 mx-auto mb-1.5 ${stats.completedThisMonth >= 10 ? "text-emerald-600" : "text-gray-400"}`}
+                      />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                        Quality Expert
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        {stats.completedThisMonth}/10 service
+                      </p>
                     </div>
-                    <div className={`text-center p-3 rounded-xl border ${stats.rating >= 4.5 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
-                      <Star className={`w-8 h-8 mx-auto mb-1.5 ${stats.rating >= 4.5 ? "text-amber-500 fill-amber-500" : "text-gray-400"}`} />
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Top Rated</p>
-                      <p className="text-[10px] text-gray-500">{stats.rating > 0 ? stats.rating.toFixed(1) : "-"} / 5.0 rating</p>
+                    <div
+                      className={`text-center p-3 rounded-xl border ${stats.rating >= 4.5 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}
+                    >
+                      <Star
+                        className={`w-8 h-8 mx-auto mb-1.5 ${stats.rating >= 4.5 ? "text-amber-500 fill-amber-500" : "text-gray-400"}`}
+                      />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                        Top Rated
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        {stats.rating > 0 ? stats.rating.toFixed(1) : "-"} / 5.0
+                        rating
+                      </p>
                     </div>
-                    <div className={`text-center p-3 rounded-xl border ${stats.totalEarnings >= 1000000 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}>
-                      <Award className={`w-8 h-8 mx-auto mb-1.5 ${stats.totalEarnings >= 1000000 ? "text-amber-500" : "text-gray-400"}`} />
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">Earned Rp 1jt</p>
-                      <p className="text-[10px] text-gray-500">{stats.totalEarnings >= 1000000 ? "Tercapai!" : formatRupiah(stats.totalEarnings)}</p>
+                    <div
+                      className={`text-center p-3 rounded-xl border ${stats.totalEarnings >= 1000000 ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-200 dark:bg-white/5 dark:border-white/10"}`}
+                    >
+                      <Award
+                        className={`w-8 h-8 mx-auto mb-1.5 ${stats.totalEarnings >= 1000000 ? "text-amber-500" : "text-gray-400"}`}
+                      />
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                        Earned Rp 1jt
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        {stats.totalEarnings >= 1000000
+                          ? "Tercapai!"
+                          : formatRupiah(stats.totalEarnings)}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -914,54 +1119,109 @@ export default function TeknisiDashboard() {
             )}
 
             {activeTab === "absensi" && (
-              <motion.div key="absensi" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <motion.div
+                key="absensi"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
                 <AttendanceDashboard
                   user={user}
                   todayAttendance={todayAttendance}
-                  onAttendanceChange={() => { checkTodayAttendance(); fetchRecentActivities(); }}
+                  onAttendanceChange={() => {
+                    checkTodayAttendance();
+                    fetchRecentActivities();
+                  }}
                 />
               </motion.div>
             )}
 
             {activeTab === "customer" && (
-              <motion.div key="customer" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <motion.div
+                key="customer"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
                 <CustomerList />
               </motion.div>
             )}
 
             {activeTab === "kaspin" && (
-              <motion.div key="kaspin" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <motion.div
+                key="kaspin"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
                 <KaspinUpdate />
               </motion.div>
             )}
 
             {activeTab === "layanan" && (
-              <motion.div key="layanan" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <motion.div
+                key="layanan"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
                 <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">Manajemen Transaksi</h3>
-                    <p className="text-xs sm:text-sm text-slate-500">Input transaksi layanan customer</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">
+                      Manajemen Transaksi
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500">
+                      Input transaksi layanan customer
+                    </p>
                   </div>
-                  <button onClick={() => setShowLayananForm(true)}
-                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto">
+                  <button
+                    onClick={() => setShowLayananForm(true)}
+                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                  >
                     + Tambah Transaksi
                   </button>
                 </div>
                 {/* Date filter */}
                 <div className="flex items-center gap-2 mb-4 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1 shadow-sm">
                   {(["hari", "bulan", "tahun"] as const).map((p) => (
-                    <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setLayananDate(new Date().toISOString().split("T")[0]); }}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${(filterPeriod || "hari") === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}>
-                      {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
+                    <button
+                      key={p}
+                      onClick={() => {
+                        setFilterPeriod(p);
+                        if (p === "hari")
+                          setLayananDate(
+                            new Date().toISOString().split("T")[0],
+                          );
+                      }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${(filterPeriod || "hari") === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}
+                    >
+                      {p === "hari"
+                        ? "Harian"
+                        : p === "bulan"
+                          ? "Bulanan"
+                          : "Tahunan"}
                     </button>
                   ))}
                   {(!filterPeriod || filterPeriod === "hari") && (
-                    <input type="date" value={layananDate || new Date().toISOString().split("T")[0]}
+                    <input
+                      type="date"
+                      value={
+                        layananDate || new Date().toISOString().split("T")[0]
+                      }
                       onChange={(e) => setLayananDate(e.target.value)}
-                      className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
+                      className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    />
                   )}
                 </div>
-                <LayananList isAdmin={false} key={refreshLayanan} dateFilter={(!filterPeriod || filterPeriod === "hari") ? (layananDate || new Date().toISOString().split("T")[0]) : undefined} />
+                <LayananList
+                  isAdmin={false}
+                  key={refreshLayanan}
+                  dateFilter={
+                    !filterPeriod || filterPeriod === "hari"
+                      ? layananDate || new Date().toISOString().split("T")[0]
+                      : undefined
+                  }
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -970,22 +1230,34 @@ export default function TeknisiDashboard() {
 
       {/* Progress Update Modal */}
       {selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedService(null)}>
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedService(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-white/10"
-            onClick={(e) => e.stopPropagation()}>
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
                   <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Update Service</h2>
-                  <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                    Update Service
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {selectedService.invoice_number}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setSelectedService(null)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+              <button
+                onClick={() => setSelectedService(null)}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+              >
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
@@ -1007,7 +1279,8 @@ export default function TeknisiDashboard() {
         <AttendanceModal
           isOpen={showAttendance}
           onClose={() => {
-            if (todayAttendance || user?.role === "owner") setShowAttendance(false);
+            if (todayAttendance || user?.role === "owner")
+              setShowAttendance(false);
           }}
           type={attendanceType}
           onSuccess={() => {
@@ -1015,16 +1288,22 @@ export default function TeknisiDashboard() {
             checkTodayAttendance();
             fetchStats();
           }}
-          existingData={todayAttendance}
+          existingAttendance={todayAttendance}
         />
       )}
 
       {/* Service Input Modal */}
       {showServiceForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowServiceForm(false)}>
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setShowServiceForm(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
-            onClick={(e) => e.stopPropagation()}>
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
               <div className="flex items-center gap-3">
@@ -1032,12 +1311,18 @@ export default function TeknisiDashboard() {
                   <Watch className="w-4 h-4 text-white dark:text-gray-900" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">New Watch Service</h2>
-                  <p className="text-xs text-gray-500">Create service order for timepiece</p>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                    New Watch Service
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Create service order for timepiece
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setShowServiceForm(false)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+              <button
+                onClick={() => setShowServiceForm(false)}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+              >
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
