@@ -39,22 +39,25 @@ const metodePembayaranOptions = [
 interface PengeluaranFormProps {
   onSuccess?: () => void;
   onClose?: () => void;
+  initialData?: any;
 }
 
 export default memo(function PengeluaranForm({
   onSuccess,
   onClose,
+  initialData,
 }: PengeluaranFormProps) {
   const { user } = useAuthStore();
   const supabase = createClient();
   const { uploadFiles, uploading, progress } = useUpload();
 
   const [formData, setFormData] = useState({
-    item_name: "",
-    handled_by: user?.id || "",
-    metode_pembayaran: "cash" as MetodePembayaran,
-    nominal: "",
-    notes: "",
+    item_name: initialData?.item_name || initialData?.customer_name || "",
+    handled_by: initialData?.handled_by || user?.id || "",
+    metode_pembayaran: (initialData?.metode_pembayaran ||
+      "cash") as MetodePembayaran,
+    nominal: initialData?.nominal?.toString() || "",
+    notes: initialData?.notes || initialData?.detail_sku || "",
   });
 
   const [users, setUsers] = useState<any[]>([]);
@@ -63,7 +66,24 @@ export default memo(function PengeluaranForm({
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>(() => {
+    if (initialData?.photo_urls && Array.isArray(initialData.photo_urls)) {
+      return initialData.photo_urls;
+    }
+    if (initialData?.photo_url) {
+      return [initialData.photo_url];
+    }
+    return [];
+  });
+  const [existingPhotoCount, setExistingPhotoCount] = useState(() => {
+    if (initialData?.photo_urls && Array.isArray(initialData.photo_urls)) {
+      return initialData.photo_urls.length;
+    }
+    if (initialData?.photo_url) {
+      return 1;
+    }
+    return 0;
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -71,10 +91,18 @@ export default memo(function PengeluaranForm({
   }, []);
 
   useEffect(() => {
-    if (user?.id && !formData.handled_by) {
+    if (initialData?.handled_by && initialData.handled_by !== user?.id) {
+      setShowOtherHandler(true);
+    } else {
+      setShowOtherHandler(false);
+    }
+  }, [initialData?.handled_by, user?.id]);
+
+  useEffect(() => {
+    if (user?.id && !formData.handled_by && !initialData) {
       setFormData((p) => ({ ...p, handled_by: user.id }));
     }
-  }, [user?.id]);
+  }, [user?.id, initialData]);
 
   const fetchUsers = async () => {
     const { data } = await supabase
@@ -110,9 +138,17 @@ export default memo(function PengeluaranForm({
   };
 
   const removePhoto = (idx: number) => {
-    URL.revokeObjectURL(photoPreviews[idx]);
-    setPhotoFiles((prev) => prev.filter((_, i) => i !== idx));
+    // Only revoke blob URLs for new photos, not existing server URLs
+    if (idx >= existingPhotoCount) {
+      URL.revokeObjectURL(photoPreviews[idx]);
+    }
+    setPhotoFiles((prev) =>
+      prev.filter((_, i) => i !== idx - existingPhotoCount),
+    );
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== idx));
+    if (idx < existingPhotoCount) {
+      setExistingPhotoCount((c: number) => c - 1);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,7 +170,7 @@ export default memo(function PengeluaranForm({
       toast.error("Metode pembayaran wajib dipilih");
       return;
     }
-    if (photoFiles.length === 0) {
+    if (photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id) {
       toast.error("Wajib upload minimal 1 foto bukti");
       return;
     }
@@ -149,19 +185,51 @@ export default memo(function PengeluaranForm({
       const selectedUser = users.find((u) => u.id === formData.handled_by);
 
       const now = new Date();
-      const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const dayNames = [
+        "Minggu",
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat",
+        "Sabtu",
+      ];
+      const monthNames = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
       const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
 
-      const metodeLabel = metodePembayaranOptions.find((opt) => opt.value === formData.metode_pembayaran)?.label || formData.metode_pembayaran;
-      const transactionDescription = `(foto bukti pengeluaran)
+      const metodeLabel =
+        metodePembayaranOptions.find(
+          (opt) => opt.value === formData.metode_pembayaran,
+        )?.label || formData.metode_pembayaran;
+      const transactionDescription = `
 tanggal : ${fmtDateTime}
 nama barang: ${formData.item_name}
 nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
 jenis pembayaran: ${metodeLabel}
 operator: ${selectedUser?.full_name || user?.full_name}`;
 
-      let photoUrls: string[] = [];
+      // Get existing photo URLs from initialData
+      const existingPhotoUrls: string[] =
+        initialData?.photo_urls && Array.isArray(initialData.photo_urls)
+          ? initialData.photo_urls
+          : initialData?.photo_url
+            ? [initialData.photo_url]
+            : [];
+
+      let photoUrls: string[] = [...existingPhotoUrls];
       let telegramSent = false;
       if (photoFiles.length > 0) {
         const urls = await uploadFiles(photoFiles, {
@@ -169,7 +237,7 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
           caption: transactionDescription,
         });
         if (urls && urls.length > 0) {
-          photoUrls = urls.map((r) => r.url);
+          photoUrls = [...existingPhotoUrls, ...urls.map((r) => r.url)];
           telegramSent = true;
         } else {
           toast.error("Gagal upload foto");
@@ -182,36 +250,59 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
           await fetch("/api/telegram", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: "layanan", message: transactionDescription }),
+            body: JSON.stringify({
+              type: "layanan",
+              message: transactionDescription,
+            }),
           });
         } catch (telegramErr) {
           console.error("Failed to send expense to telegram:", telegramErr);
         }
       }
 
-      const { error } = await supabase.from("layanan").insert([
-        {
-          customer_name: formData.item_name.trim(),
-          customer_whatsapp: "",
-          jenis_layanan: "pengeluaran",
-          handled_by: formData.handled_by,
-          handled_by_name: selectedUser?.full_name || user?.full_name,
-          metode_pembayaran: formData.metode_pembayaran,
-          lead_source: "pengeluaran",
-          detail_sku: formData.notes || null,
-          nominal: parseInt(formData.nominal) || 0,
-          notes: formData.notes || null,
-          photo_url: photoUrls[0] || null,
-          photo_urls: photoUrls,
-          created_by: user?.id,
-          created_by_name: user?.full_name,
-          status: "completed",
-        },
-      ]);
+      const isEditing = !!initialData?.id;
+      const payload = {
+        customer_name: formData.item_name.trim(),
+        customer_whatsapp: "",
+        jenis_layanan: "pengeluaran",
+        handled_by: formData.handled_by,
+        handled_by_name: selectedUser?.full_name || user?.full_name,
+        metode_pembayaran: formData.metode_pembayaran,
+        lead_source: "pengeluaran",
+        detail_sku: formData.notes || null,
+        nominal: parseInt(formData.nominal) || 0,
+        notes: formData.notes || null,
+        photo_url: photoUrls[0] || null,
+        photo_urls: photoUrls,
+        updated_at: new Date().toISOString(),
+      };
+
+      let error: any = null;
+      if (isEditing) {
+        const result = await supabase
+          .from("layanan")
+          .update(payload)
+          .eq("id", initialData.id);
+        error = result.error;
+      } else {
+        const result = await supabase.from("layanan").insert([
+          {
+            ...payload,
+            created_by: user?.id,
+            created_by_name: user?.full_name,
+            status: "completed",
+          },
+        ]);
+        error = result.error;
+      }
 
       if (error) throw error;
 
-      toast.success("Pengeluaran berhasil dicatat!");
+      toast.success(
+        isEditing
+          ? "Pengeluaran berhasil diperbarui!"
+          : "Pengeluaran berhasil dicatat!",
+      );
 
       photoPreviews.forEach((u) => URL.revokeObjectURL(u));
       setFormData({
@@ -259,7 +350,9 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
             <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
               Pengeluaran Baru
             </h2>
-            <p className="text-xs text-gray-500">Input pengeluaran operasional</p>
+            <p className="text-xs text-gray-500">
+              Input pengeluaran operasional
+            </p>
           </div>
         </div>
         {onClose && (
@@ -504,7 +597,7 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
             </div>
           )}
 
-          {photoFiles.length === 0 && (
+          {photoFiles.length === 0 && photoPreviews.length === 0 && (
             <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
               <AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib
               diupload
@@ -515,11 +608,7 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
         <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
           <button
             type="submit"
-            disabled={
-              loading ||
-              uploading ||
-              photoFiles.length === 0
-            }
+            disabled={loading || uploading || photoFiles.length === 0}
             className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
             {loading || uploading ? (
@@ -587,7 +676,10 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
                       Nominal
                     </p>
                     <p className="text-sm font-bold text-red-600">
-                      Rp {parseInt(formData.nominal || "0").toLocaleString("id-ID")}
+                      Rp{" "}
+                      {parseInt(formData.nominal || "0").toLocaleString(
+                        "id-ID",
+                      )}
                     </p>
                   </div>
                   <div>
@@ -595,7 +687,11 @@ operator: ${selectedUser?.full_name || user?.full_name}`;
                       Metode Pembayaran
                     </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {metodePembayaranOptions.find((opt) => opt.value === formData.metode_pembayaran)?.label}
+                      {
+                        metodePembayaranOptions.find(
+                          (opt) => opt.value === formData.metode_pembayaran,
+                        )?.label
+                      }
                     </p>
                   </div>
                 </div>

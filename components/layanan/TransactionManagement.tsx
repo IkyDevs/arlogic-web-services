@@ -465,11 +465,19 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
       )}
       {showEditForm && editData && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-          <LayananForm
-            initialData={editData}
-            onSuccess={handleEditSuccess}
-            onClose={handleEditClose}
-          />
+          {editData.jenis_layanan === "pengeluaran" ? (
+            <PengeluaranForm
+              initialData={editData}
+              onSuccess={handleEditSuccess}
+              onClose={handleEditClose}
+            />
+          ) : (
+            <LayananForm
+              initialData={editData}
+              onSuccess={handleEditSuccess}
+              onClose={handleEditClose}
+            />
+          )}
         </div>
       )}
     </div>

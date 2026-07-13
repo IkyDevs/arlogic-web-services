@@ -12,6 +12,7 @@ const CHANNELS = {
   closing: process.env.TELEGRAM_CHANNEL_CLOSING,
   customer: process.env.TELEGRAM_CHANNEL_CUSTOMER,
   kaspin: process.env.TELEGRAM_CHANNEL_KASPIN,
+  buku_kas: process.env.TELEGRAM_CHANNEL_BUKU_KAS,
   teknisi_update: process.env.TELEGRAM_CHANNEL_TEKNISI_UPDATE,
   qc_update: process.env.TELEGRAM_CHANNEL_QC_UPDATE,
 } as const;
@@ -314,14 +315,14 @@ export interface ExpenseNotificationData {
 export async function sendExpenseTelegramNotification(
   data: ExpenseNotificationData,
 ): Promise<{ messageId: number; chatId: string }> {
-  const chatId = process.env.TELEGRAM_CHAT_ID || CHANNELS.layanan;
+  const chatId = process.env.TELEGRAM_CHANNEL_BUKU_KAS || CHANNELS.buku_kas || CHANNELS.layanan;
 
   if (!TELEGRAM_BOT_TOKEN) {
     throw new Error("TELEGRAM_BOT_TOKEN not configured");
   }
 
   if (!chatId) {
-    throw new Error("Telegram chat ID not configured");
+    throw new Error("Telegram chat ID for Buku Kas not configured");
   }
 
   const formattedDate = new Date(data.createdAt).toLocaleDateString("id-ID", {
