@@ -50,6 +50,7 @@ export default function LayananList({
 }: LayananListProps) {
   const { user } = useAuthStore();
   const [layanan, setLayanan] = useState<LayananWithPhoto[]>([]);
+  const [displayRows, setDisplayRows] = useState<any[]>([]);
   const [filteredLayanan, setFilteredLayanan] = useState<LayananWithPhoto[]>(
     [],
   );
@@ -100,18 +101,49 @@ export default function LayananList({
     if (data) setStaffList(data);
   };
 
+  const buildDisplayRows = (data: any[]) => {
+    const rows: any[] = [];
+    for (const tx of data) {
+      const extraItems = tx.layanan_items;
+      if (extraItems && Array.isArray(extraItems) && extraItems.length > 0) {
+        // Row pertama: main item (dari field layanan itu sendiri)
+        rows.push({ ...tx, _isItem: false });
+        // Row berikutnya: extra items
+        for (const it of extraItems) {
+          rows.push({ ...tx, ...it, _isItem: true, jenis_layanan: it.jenis_layanan, detail_sku: it.detail_sku || "", notes: it.notes || "", nominal: it.nominal || 0 });
+        }
+      } else {
+        rows.push({ ...tx, _isItem: false });
+      }
+    }
+    return rows;
+  };
+
   const fetchLayanan = async () => {
     setLoading(true);
-    let query = supabase.from("layanan").select("*");
-    if (dateFilter) {
-      query = query.gte("created_at", dateFilter + "T00:00:00").lte("created_at", dateFilter + "T23:59:59");
-    }
-    const { data } = await query.order("created_at", { ascending: false });
-
-    if (data) {
-      setLayanan(data);
-      setFilteredLayanan(data);
-      calculateTotal(data);
+    try {
+      let query = supabase.from("layanan");
+      // Coba dengan join layanan_items (jika tabel sudah ada)
+      const res = await query.select("*, layanan_items(*)").order("created_at", { ascending: false });
+      const data = res.error ? (await supabase.from("layanan").select("*").order("created_at", { ascending: false })).data : res.data;
+      if (dateFilter && data) {
+        const start = dateFilter + "T00:00:00";
+        const end = dateFilter + "T23:59:59";
+        const filtered = data.filter((d: any) => d.created_at >= start && d.created_at <= end);
+        setLayanan(filtered);
+        const rows = buildDisplayRows(filtered);
+        setDisplayRows(rows);
+        setFilteredLayanan(rows);
+        calculateTotal(rows);
+      } else if (data) {
+        setLayanan(data);
+        const rows = buildDisplayRows(data);
+        setDisplayRows(rows);
+        setFilteredLayanan(rows);
+        calculateTotal(rows);
+      }
+    } catch (err) {
+      console.error("Gagal fetch layanan:", err);
     }
     setLoading(false);
   };
@@ -123,7 +155,7 @@ export default function LayananList({
     toast.success("Data refreshed");
   };
 
-  const emitStats = (data: LayananWithPhoto[]) => {
+  const emitStats = (data: any[]) => {
     let total = 0, totalRevenue = 0, totalExpenses = 0;
     const jenisCount: Record<string, number> = {};
     const metodeRevenue: Record<string, number> = {};
@@ -150,7 +182,7 @@ export default function LayananList({
   };
 
   const filterLayanan = () => {
-    let filtered = [...layanan];
+    let filtered = [...displayRows];
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -237,6 +269,7 @@ export default function LayananList({
       pengeluaran: "badge-danger",
       dp_service: "badge-primary",
       service_langsung: "badge-neutral",
+      cashdraw: "badge-success",
     };
     return styles[jenis] || "badge-neutral";
   };
@@ -330,9 +363,9 @@ export default function LayananList({
     { value: "ambil_jam_service", label: "Ambil Jam Service" },
     { value: "order_online", label: "Order Online" },
     { value: "beli_jam", label: "Beli Jam" },
-    { value: "dp_service", label: "DP Service" },
     { value: "service_langsung", label: "Service Langsung" },
     { value: "pengeluaran", label: "Pengeluaran" },
+    { value: "cashdraw", label: "Cashdraw" },
   ];
 
   const metodePembayaranOptions = [
@@ -359,66 +392,7 @@ export default function LayananList({
 
   return (
     <div className="space-y-5">
-      {/* ==================== STATS CARDS ==================== */}
-      {!compact && (
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-        {/* Card 1: Total Transaksi */}
-        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-              Total
-            </span>
-            <FileText className="w-4 h-4 text-slate-900 opacity-50" />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900">
-            {filteredLayanan.length}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">Transaksi</p>
-        </div>
 
-        {/* Card 2: Total Amount (Full Width di Mobile) */}
-        <div className="bg-gradient-to-br from-blue-600/5 to-blue-600/10 rounded-xl border border-blue-600/20 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all col-span-1 sm:col-span-1 md:col-span-1">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-blue-600 uppercase tracking-wider">
-              Total Amount
-            </span>
-            <DollarSign className="w-4 h-4 text-blue-600" />
-          </div>
-          <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 truncate">
-            {formatRupiah(totalNominal)}
-          </p>
-          <p className="text-xs text-blue-600/60 mt-1">Keseluruhan</p>
-        </div>
-
-        {/* Card 3: Active */}
-        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-              Active
-            </span>
-            <Clock className="w-4 h-4 text-[#F1C40F] opacity-50" />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900">
-            {layanan.filter((l) => l.status === "active").length}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">Sedang berjalan</p>
-        </div>
-
-        {/* Card 4: Completed */}
-        <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
-              Completed
-            </span>
-            <CheckCircle className="w-4 h-4 text-[#2ECC71] opacity-50" />
-          </div>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900">
-            {layanan.filter((l) => l.status === "completed").length}
-          </p>
-          <p className="text-xs text-slate-400 mt-1">Selesai</p>
-        </div>
-      </div>
-      )}
 
       {/* ==================== SEARCH & FILTER ==================== */}
       <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 md:p-5 shadow-sm">
@@ -744,27 +718,7 @@ export default function LayananList({
         )}
       </div>
 
-      {/* ==================== FOOTER ==================== */}
-      {filteredLayanan.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3">
-          <div className="text-center sm:text-left">
-            <p className="text-xs text-slate-400 uppercase tracking-wider">
-              Showing
-            </p>
-            <p className="font-medium text-slate-900">
-              {filteredLayanan.length} of {layanan.length} transactions
-            </p>
-          </div>
-          <div className="text-center sm:text-right w-full sm:w-auto">
-            <p className="text-xs text-slate-400 uppercase tracking-wider">
-              Total Amount
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-blue-600">
-              {formatRupiah(totalNominal)}
-            </p>
-          </div>
-        </div>
-      )}
+
 
       {/* ==================== MODAL PREVIEW PHOTO GALLERY ==================== */}
       {selectedPhotos.length > 0 && (

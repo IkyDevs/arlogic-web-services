@@ -36,7 +36,6 @@ interface LayananFormProps {
 // Semua jenis layanan yang valid di DB (tidak null)
 const jenisLayananOptions = [
   { value: "service_langsung", label: "Service Langsung" },
-  { value: "dp_service", label: "DP Service" },
   { value: "ambil_jam_service", label: "Ambil Jam Service" },
   { value: "order_online", label: "Order Online" },
   { value: "beli_jam", label: "Beli Jam" },
@@ -91,6 +90,12 @@ export default memo(function LayananForm({
     notes: initialData?.notes || "",
   });
 
+  // ── Extra items (multi-jenis) ────────────────────────────────────────
+  const [extraItems, setExtraItems] = useState<{ jenis_layanan: string; detail_sku: string; notes: string; nominal: string }[]>([]);
+  const addExtraItem = () => setExtraItems(p => [...p, { jenis_layanan: "service_langsung", detail_sku: "", notes: "", nominal: "" }]);
+  const removeExtraItem = (idx: number) => setExtraItems(p => p.filter((_, i) => i !== idx));
+  const updateExtraItem = (idx: number, field: string, value: string) => setExtraItems(p => p.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
@@ -125,9 +130,11 @@ export default memo(function LayananForm({
           setPhotoFiles(draft.photoFiles);
           setPhotoPreviews(draft.photoFiles.map((f) => URL.createObjectURL(f)));
         }
+        // Restore extra items
+        if (draft.data?.extraItems) {
+          try { setExtraItems(JSON.parse(draft.data.extraItems)); } catch {}
+        }
         toast.success("Draft transaksi ditemukan dan dipulihkan", { duration: 3000 });
-        // Simpan ulang draft setelah restore (sync foto ke IndexedDB)
-        saveDraft("layanan", user.id, draft.data, draft.photoFiles || undefined);
       }
     };
     checkDraft();
@@ -138,9 +145,10 @@ export default memo(function LayananForm({
     if (initialData || !user?.id) return;
     const d = formData;
     if (d.customer_name || d.nominal || d.customer_whatsapp) {
-      saveDraftTextSync("layanan", user.id, d);
+      const dataWithItems = { ...d, extraItems: JSON.stringify(extraItems) };
+      localStorage.setItem(`draft_layanan_${user.id}`, JSON.stringify({ data: dataWithItems, timestamp: Date.now(), userId: user.id, photos: [], extraPhoto: null }));
     }
-  }, [formData, user?.id]);
+  }, [formData, extraItems, user?.id]);
 
   // ── Auto-save foto (debounce 2s, hanya saat photos berubah) ────────────
   const photoTimer = useRef<any>(null);
@@ -266,19 +274,48 @@ export default memo(function LayananForm({
       const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
       const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
 
-      const typeIcon = jenisLayananValue === "dp_service" ? "💳" : "🔧";
       const isEdit = !!initialData?.id;
-      const headerTitle = isEdit ? "📝 EDIT TRANSAKSI" : "📊 TRANSAKSI";
+      const isMulti = extraItems.length > 0;
+      const allItems = [{ jenis: jenisLayananValue as string, sku: formData.detail_sku, notes: formData.notes, nominal: formData.nominal }]
+        .concat(extraItems.map(it => ({ jenis: it.jenis_layanan, sku: it.detail_sku, notes: it.notes, nominal: it.nominal })));
+      const typeIcons = allItems.map(it => jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis);
+      const headerTitle = isEdit ? "📝 EDIT TRANSAKSI" : isMulti ? "📊 TRANSAKSI MULTIPLE LAYANAN" : "📊 TRANSAKSI";
+      const typeIcon = jenisLayananValue === "dp_service" ? "💳" : "🔧";
+      const totalNominal = allItems.reduce((s, it) => s + (parseInt(it.nominal) || 0), 0);
+
+      const typeLine = isMulti
+        ? `${typeIcon} tipe : ${typeIcons.join(" & ")}`
+        : `${typeIcon} tipe : ${jenisLayananLabel}`;
+
+      const nominalLines = isMulti
+        ? allItems.map(it => {
+            const lbl = jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis;
+            return `💰 Nominal ${lbl}: Rp ${parseInt(it.nominal || "0").toLocaleString("id-ID")}`;
+          }).join("\n")
+        : `💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}`;
+
+      const invoiceLines = isMulti
+        ? allItems.map(it => {
+            const lbl = jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis;
+            return it.sku ? `📋 Invoice ${lbl}: ${it.sku}` : null;
+          }).filter(Boolean).join("\n")
+        : formData.detail_sku ? `📋 Invoice: ${formData.detail_sku}` : "";
+
+      const notesLines = isMulti
+        ? allItems.map(it => {
+            const lbl = jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis;
+            return it.notes ? `📝 Keterangan ${lbl}: ${it.notes}` : null;
+          }).filter(Boolean).join("\n")
+        : formData.notes ? `📝 Keterangan: ${formData.notes}` : "";
+
       const transactionDescription = `${headerTitle}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
-${typeIcon} tipe : ${jenisLayananLabel}
+${typeLine}
 📱 Customer: ${formData.customer_name}
 📞 WA: ${formData.customer_whatsapp}
-💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
-💳 Metode: ${metodeLabel}
-📋 Invoice: ${formData.detail_sku || "-"}
-📝 Keterangan: ${formData.notes || "-"}
+${nominalLines}
+💳 Metode: ${metodeLabel}${invoiceLines ? "\n" + invoiceLines : ""}${notesLines ? "\n" + notesLines : ""}
 👤 Operator: ${selectedUser?.full_name || user?.full_name}
 ⏰ ${fmtDateTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
@@ -373,8 +410,22 @@ ${typeIcon} tipe : ${jenisLayananLabel}
         const { error } = await supabase.from("layanan").update(payload).eq("id", initialData.id);
         if (error) throw error;
         toast.success("Transaksi berhasil diubah!");
+
+        if (initialData.id) {
+          await supabase.from("layanan_items").delete().eq("layanan_id", initialData.id);
+          if (extraItems.length > 0) {
+            const itemRows = extraItems.map(it => ({
+              layanan_id: initialData.id,
+              jenis_layanan: it.jenis_layanan,
+              detail_sku: it.detail_sku || "",
+              notes: it.notes || "",
+              nominal: parseInt(it.nominal) || 0,
+            }));
+            await supabase.from("layanan_items").insert(itemRows);
+          }
+        }
       } else {
-        const { error } = await supabase.from("layanan").insert([
+        const { data: newLayanan, error } = await supabase.from("layanan").insert([
           {
             ...payload,
             photo_url: photoUrls[0] || null,
@@ -385,9 +436,21 @@ ${typeIcon} tipe : ${jenisLayananLabel}
             created_by_name: user?.full_name,
             status: "active",
           },
-        ]);
+        ]).select("id");
         if (error) throw error;
         toast.success("Transaksi berhasil ditambahkan!");
+
+        if (extraItems.length > 0 && newLayanan?.[0]?.id) {
+          const itemRows = extraItems.map(it => ({
+            layanan_id: newLayanan[0].id,
+            jenis_layanan: it.jenis_layanan,
+            detail_sku: it.detail_sku || "",
+            notes: it.notes || "",
+            nominal: parseInt(it.nominal) || 0,
+          }));
+          const { error: itemErr } = await supabase.from("layanan_items").insert(itemRows);
+          if (itemErr) console.error("Gagal simpan extra items:", JSON.stringify(itemErr));
+        }
       }
 
       // Save to customers table + notify Telegram if new
@@ -749,11 +812,54 @@ ${typeIcon} tipe : ${jenisLayananLabel}
           </div>
         </div>
 
-        {/* ── Multiple Photo Upload ─────────────────────────────────────────── */}
+        {/* ── Extra Items (multi-jenis) ──────────────────────────────────── */}
         <div className={sectionClass}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-              <Camera className="w-3.5 h-3.5" /> Foto Bukti
+              <Plus className="w-3.5 h-3.5" /> Layanan Tambahan
+            </p>
+            <button type="button" onClick={addExtraItem}
+              className="flex items-center gap-1 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 transition-all">
+              <Plus className="w-3 h-3" /> Tambah
+            </button>
+          </div>
+          {extraItems.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Tambahkan layanan lain dalam 1 transaksi (misal: beli jam + service jam)</p>
+          ) : (
+            <div className="space-y-2">
+              {extraItems.map((item, idx) => (
+                <div key={idx} className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase">Item #{idx + 1}</span>
+                    <button type="button" onClick={() => removeExtraItem(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded-lg">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select value={item.jenis_layanan} onChange={(e) => updateExtraItem(idx, "jenis_layanan", e.target.value)}
+                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">
+                      {jenisLayananOptions.filter(o => o.value !== "pengeluaran" && o.value !== "cashdraw").map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    <input type="text" value={item.detail_sku} onChange={(e) => updateExtraItem(idx, "detail_sku", e.target.value)}
+                      placeholder="SKU / Invoice" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" value={item.nominal} onChange={(e) => updateExtraItem(idx, "nominal", e.target.value.replace(/\D/g, ""))}
+                      placeholder="Nominal" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none" />
+                    <input type="text" value={item.notes} onChange={(e) => updateExtraItem(idx, "notes", e.target.value)}
+                      placeholder="Catatan" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Photos ────────────────────────────────────────────────────────── */}
+        <div className={sectionClass}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <Camera className="w-3.5 h-3.5" /> Foto Bukti Transaksi
               <span className="text-red-500">*Wajib min. 1</span>
             </p>
             <button
@@ -928,10 +1034,10 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Nominal
+                      {extraItems.length > 0 ? "Total Nominal" : "Nominal"}
                     </p>
                     <p className="text-sm font-bold text-blue-600">
-                      Rp {parseInt(formData.nominal).toLocaleString("id-ID")}
+                      Rp {(parseInt(formData.nominal) + extraItems.reduce((s, it) => s + (parseInt(it.nominal) || 0), 0)).toLocaleString("id-ID")}
                     </p>
                   </div>
                   <div>
@@ -980,6 +1086,24 @@ ${typeIcon} tipe : ${jenisLayananLabel}
                     <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
                       {formData.notes}
                     </p>
+                  </div>
+                )}
+
+                {extraItems.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                      Layanan Tambahan ({extraItems.length})
+                    </p>
+                    <div className="space-y-1">
+                      {extraItems.map((it, i) => (
+                        <div key={i} className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 text-xs text-gray-700">
+                          <span className="font-semibold">{jenisLayananOptions.find(o => o.value === it.jenis_layanan)?.label || it.jenis_layanan}</span>
+                          {it.detail_sku && <span className="ml-2 text-gray-400">SKU: {it.detail_sku}</span>}
+                          {it.nominal && <span className="ml-2 font-semibold text-blue-600">Rp {parseInt(it.nominal).toLocaleString("id-ID")}</span>}
+                          {it.notes && <p className="text-gray-400 mt-0.5">{it.notes}</p>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

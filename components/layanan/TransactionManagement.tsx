@@ -3,38 +3,31 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { DollarSign, ShoppingCart, TrendingUp, BarChart3, PieChartIcon, Users, Wallet, Target, Activity, X, Search, Phone, Clock as ClockIcon, CheckCircle, Plus, FileText, Receipt, Edit } from "lucide-react";
+import { DollarSign, ShoppingCart, TrendingUp, BarChart3, PieChartIcon, Users, Wallet, X, Search, Phone, FileText, Receipt, Edit, Banknote } from "lucide-react";
 import LayananList from "./LayananList";
 import PengeluaranForm from "./PengeluaranForm";
+import CashdrawForm from "./CashdrawForm";
 import LayananForm from "./LayananForm";
 
 const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", edc: "#F59E0B", transfer: "#6B7280", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444" };
 const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" };
-const jenisColors = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#F97316"];
-const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
 }
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
 export default function TransactionManagement({ isDark = false }: { isDark?: boolean }) {
   const supabase = createClient();
-  const [expanded, setExpanded] = useState(false);
   const [allData, setAllData] = useState<any[]>([]);
   const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun">("hari");
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [stats, setStats] = useState({ total: 0, totalNominal: 0, active: 0, completed: 0, jenisCount: {} as Record<string, number>, metodeRevenue: {} as Record<string, number> });
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[] } | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [showCashdrawForm, setShowCashdrawForm] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editData, setEditData] = useState<any>(null);
-  const [isEditing, setIsEditing] = useState(false);
 
   const fetchAll = async () => {
     const { data } = await supabase.from("layanan").select("*").order("created_at", { ascending: false });
@@ -43,123 +36,52 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
 
   useEffect(() => { fetchAll(); }, []);
 
-  // Filter data by period
   const filteredData = useMemo(() => {
-    if (filterPeriod === "hari") {
-      return allData.filter((d) => d.created_at?.startsWith(selectedDate));
-    }
+    if (filterPeriod === "hari") return allData.filter((d) => d.created_at?.startsWith(selectedDate));
     const now = new Date();
     if (filterPeriod === "bulan") {
       const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
       return allData.filter((d) => d.created_at?.startsWith(month));
     }
-    const year = String(now.getFullYear());
-    return allData.filter((d) => d.created_at?.startsWith(year));
+    return allData.filter((d) => d.created_at?.startsWith(String(now.getFullYear())));
   }, [allData, filterPeriod, selectedDate]);
 
   const openFilterModal = useCallback((title: string, filterFn: (item: any) => boolean) => {
     setFilterModal({ title, filtered: filteredData.filter(filterFn) });
   }, [filteredData]);
 
-  const handleEdit = useCallback((item: any) => {
-    setEditData(item);
-    setShowEditForm(true);
-  }, []);
-
-  const handleEditSuccess = async () => {
-    setShowEditForm(false);
-    setEditData(null);
-    await fetchAll();
-  };
-
-  const handleEditClose = () => {
-    setShowEditForm(false);
-    setEditData(null);
-  };
+  const handleEdit = useCallback((item: any) => { setEditData(item); setShowEditForm(true); }, []);
 
   const analytics = useMemo(() => {
     const data = filteredData;
-    const total = data.length;
-    const totalNominal = data.reduce((s, i) => s + (i.nominal || 0), 0);
-    const active = data.filter((i) => i.status === "active").length;
-    const completed = data.filter((i) => i.status === "completed").length;
     let totalRevenue = 0, totalExpenses = 0;
     const jenisCount: Record<string, number> = {};
     const metodeRevenue: Record<string, number> = {};
-    const metodeCount: Record<string, number> = {};
     const staffStats: Record<string, { count: number; revenue: number }> = {};
-    const leadSource: Record<string, number> = {};
-    const monthlyRevenue: Record<string, number> = {};
-    const dailyTx: Record<string, number> = {};
-    const monthlyRev: Record<string, number> = {};
-    const today = new Date().toISOString().split("T")[0];
-    let todayCount = 0;
-
     for (const item of data) {
       const j = item.jenis_layanan || "Lainnya";
       jenisCount[j] = (jenisCount[j] || 0) + 1;
-      const m = item.metode_pembayaran || "unknown";
       const nominal = item.nominal || 0;
       const isExpense = j === "pengeluaran";
-      if (isExpense) totalExpenses += nominal;
-      else totalRevenue += nominal;
+      if (isExpense) totalExpenses += nominal; else totalRevenue += nominal;
+      const m = item.metode_pembayaran || "unknown";
       metodeRevenue[m] = (metodeRevenue[m] || 0) + (isExpense ? -nominal : nominal);
-      metodeCount[m] = (metodeCount[m] || 0) + 1;
       const staff = item.handled_by_name || "Unknown";
       if (!staffStats[staff]) staffStats[staff] = { count: 0, revenue: 0 };
       staffStats[staff].count++;
       staffStats[staff].revenue += isExpense ? 0 : nominal;
-      const ls = item.lead_source || "Lainnya";
-      leadSource[ls] = (leadSource[ls] || 0) + 1;
-      const date = new Date(item.created_at);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      monthlyRevenue[monthKey] = (monthlyRevenue[monthKey] || 0) + (isExpense ? -nominal : nominal);
-      monthlyRev[monthKey] = (monthlyRev[monthKey] || 0) + (isExpense ? -nominal : nominal);
-      const dayKey = item.created_at?.split("T")[0];
-      if (dayKey) dailyTx[dayKey] = (dailyTx[dayKey] || 0) + 1;
-      if (dayKey === today) todayCount++;
     }
-
-    const netRevenue = totalRevenue - totalExpenses;
-    const avgValue = total > 0 ? totalNominal / total : 0;
-
-    return {
-      total, totalNominal, totalRevenue, totalExpenses, netRevenue, active, completed, avgValue,
-      jenisCount, metodeRevenue, metodeCount, staffStats, leadSource,
-      monthlyRevenue, dailyTx, todayCount, monthlyRev,
-    };
+    return { total: data.length, totalRevenue, totalExpenses, netRevenue: totalRevenue - totalExpenses, active: data.filter(i => i.status === "active").length, completed: data.filter(i => i.status === "completed").length, jenisCount, metodeRevenue, staffStats };
   }, [filteredData]);
 
-  const topStaff = useMemo(() =>
-    Object.entries(analytics.staffStats).sort(([, a], [, b]) => b.count - a.count).slice(0, 5),
-  [analytics.staffStats]);
-
-  const monthlyChartData = useMemo(() => {
-    const entries = Object.entries(analytics.monthlyRevenue).sort(([a], [b]) => a.localeCompare(b));
-    return entries.slice(-12).map(([key, val]) => {
-      const parts = key.split("-");
-      return { month: monthNames[parseInt(parts[1]) - 1] + " " + parts[0].slice(2), revenue: val };
-    });
-  }, [analytics.monthlyRevenue]);
-
-  const dailyChartData = useMemo(() => {
-    const entries = Object.entries(analytics.dailyTx).sort(([a], [b]) => a.localeCompare(b));
-    const days = filterPeriod === "hari" ? 1 : filterPeriod === "bulan" ? 30 : 365;
-    return entries.slice(-Math.min(days, entries.length)).map(([key, val]) => {
-      const d = new Date(key + "T00:00:00");
-      return { date: d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" }), count: val };
-    });
-  }, [analytics.dailyTx, filterPeriod]);
-
-  const gridColor = isDark ? "#334155" : "#E2E8F0";
-  const tooltipBg = isDark ? "#0F172A" : "#FFFFFF";
+  const topStaff = useMemo(() => Object.entries(analytics.staffStats).sort(([, a], [, b]) => b.count - a.count).slice(0, 5), [analytics.staffStats]);
 
   const BarItem = ({ label, value, pct, onClick }: { label: string; value: string | number; pct: number; onClick?: () => void }) => (
-    <div className={`flex items-center gap-2 ${onClick ? "cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg px-1.5 -mx-1.5 transition-colors" : ""}`} onClick={onClick}>
-      {onClick && <Search className="w-3 h-3 text-slate-300 flex-shrink-0" />}
-      <span className="text-[11px] text-slate-600 dark:text-slate-300 truncate flex-1">{label}</span>
-      <span className="text-[11px] font-semibold text-slate-900 dark:text-white flex-shrink-0">{value}</span>
-      <span className="text-[10px] text-slate-400 w-8 text-right flex-shrink-0">{pct}%</span>
+    <div className={`flex items-center gap-1.5 md:gap-2 ${onClick ? "cursor-pointer hover:bg-slate-100 rounded px-1 md:px-1.5 -mx-1 transition-colors" : ""}`} onClick={onClick}>
+      {onClick && <Search className="w-2.5 h-2.5 md:w-3 md:h-3 text-slate-300 flex-shrink-0" />}
+      <span className="text-[10px] md:text-sm text-slate-600 truncate flex-1">{label}</span>
+      <span className="text-[10px] md:text-sm font-semibold text-slate-900 flex-shrink-0">{value}</span>
+      <span className="text-[9px] md:text-xs text-slate-400 w-7 md:w-8 text-right flex-shrink-0">{pct}%</span>
     </div>
   );
 
@@ -168,11 +90,11 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setFilterModal(null)}>
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/10"
+          className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl border border-slate-200"
           onClick={(e) => e.stopPropagation()}>
-          <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-white/10 rounded-t-2xl">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">{filterModal.title}</h2>
-            <button onClick={() => setFilterModal(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+          <div className="sticky top-0 bg-white z-20 flex items-center justify-between px-5 py-4 border-b border-slate-200 rounded-t-2xl">
+            <h2 className="text-sm font-bold text-slate-900">{filterModal.title}</h2>
+            <button onClick={() => setFilterModal(null)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
               <X className="w-4 h-4 text-slate-400" />
             </button>
           </div>
@@ -182,18 +104,17 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
             ) : filterModal.filtered.map((tx, i) => {
               const isExpense = tx.jenis_layanan === "pengeluaran";
               return (
-                <div key={tx.id || i} className={`p-3 rounded-xl border ${isExpense ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20" : "border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5"}`}>
+                <div key={tx.id || i} className={`p-3 rounded-xl border ${isExpense ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className={`font-semibold text-sm ${isExpense ? "text-red-700 dark:text-red-300" : "text-slate-900 dark:text-white"}`}>
-                      {isExpense ? <Receipt className="w-3.5 h-3.5 inline mr-1" /> : null}
-                      {tx.customer_name}
+                    <span className={`font-semibold text-sm ${isExpense ? "text-red-700" : "text-slate-900"}`}>
+                      {isExpense ? <Receipt className="w-3.5 h-3.5 inline mr-1" /> : null}{tx.customer_name}
                     </span>
                     <span className={`text-xs font-medium ${isExpense ? "text-red-600" : "text-emerald-600"}`}>{fmtRupiah(tx.nominal || 0)}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 flex-wrap">
                     {!isExpense && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tx.customer_whatsapp || "-"}</span>}
                     <span>{tx.jenis_layanan}</span>
-                    <span>{fmtDate(tx.created_at)}</span>
+                    <span>{new Date(tx.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                     {tx.handled_by_name && <span>{tx.handled_by_name}</span>}
                   </div>
                 </div>
@@ -206,307 +127,190 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   };
 
   return (
-    <div className="space-y-4 md:space-y-5">
-      {/* Top: Total Pendapatan + Filter Hari/Bulan/Tahun */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
-        {/* Kiri: Total Pendapatan */}
-        <div>
-          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Pendapatan</p>
-          <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{fmtRupiah(analytics.totalRevenue)}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className={`text-xs font-medium ${analytics.netRevenue >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-              Net: {fmtRupiah(analytics.netRevenue)}
-            </span>
-            <span className="text-[10px] text-slate-400">| Pengeluaran: {fmtRupiah(analytics.totalExpenses)}</span>
+    <div className="flex-1 flex flex-col gap-2 overflow-hidden min-h-0">
+      {/* ── Desktop top: Total Pendapatan (kiri) + Buttons + Filter (kanan) ── */}
+      <div className="hidden sm:flex items-start justify-between gap-4 flex-shrink-0">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Total Pendapatan</p>
+          <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">{fmtRupiah(analytics.totalRevenue)}</p>
+          <div className="flex items-center gap-2 text-xs mt-0.5">
+            <span className={`font-semibold ${analytics.netRevenue >= 0 ? "text-emerald-600" : "text-red-600"}`}>Net: {fmtRupiah(analytics.netRevenue)}</span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-500">Peng: {fmtRupiah(analytics.totalExpenses)}</span>
           </div>
         </div>
-        {/* Tengah: Tombol aksi */}
-        <div className="flex flex-row sm:flex-col gap-2 sm:items-end sm:justify-start">
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setShowAddForm(true)}
+              className="px-3 py-2 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center gap-1.5 shadow-sm transition-all">
+              <FileText className="w-3.5 h-3.5" />+ Transaksi
+            </button>
+            <button onClick={() => setShowExpenseForm(true)}
+              className="px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm transition-all">
+              <Receipt className="w-3.5 h-3.5" />Pengeluaran
+            </button>
+            <button onClick={() => setShowCashdrawForm(true)}
+              className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 shadow-sm transition-all">
+              <Banknote className="w-3.5 h-3.5" />Cashdraw
+            </button>
+          </div>
+          <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
+            {(["hari", "bulan", "tahun"] as const).map((p) => (
+              <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
+                className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"}`}>
+                {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
+              </button>
+            ))}
+            {filterPeriod === "hari" && (
+              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+                className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[110px]" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mobile top ── */}
+      <div className="sm:hidden space-y-2 flex-shrink-0">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase">Total Pendapatan</p>
+        <p className="text-xl font-bold text-slate-900">{fmtRupiah(analytics.totalRevenue)}</p>
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className={`font-semibold ${analytics.netRevenue >= 0 ? "text-emerald-600" : "text-red-600"}`}>Net: {fmtRupiah(analytics.netRevenue)}</span>
+          <span className="text-slate-300">|</span>
+          <span className="text-slate-500">Peng: {fmtRupiah(analytics.totalExpenses)}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
           <button onClick={() => setShowAddForm(true)}
-            className="flex-1 sm:flex-none px-4 py-2 text-xs font-medium rounded-lg transition-all bg-gray-900 text-white hover:bg-gray-700 flex items-center justify-center gap-1.5 shadow-sm">
-            <FileText className="w-3.5 h-3.5" />
-            Tambah Transaksi
+            className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center justify-center gap-1.5 shadow-sm">
+            <FileText className="w-3.5 h-3.5" />Transaksi
           </button>
           <button onClick={() => setShowExpenseForm(true)}
-            className="flex-1 sm:flex-none px-4 py-2 text-xs font-medium rounded-lg transition-all bg-red-600 text-white hover:bg-red-700 flex items-center justify-center gap-1.5 shadow-sm">
-            <Receipt className="w-3.5 h-3.5" />
-            Pengeluaran
+            className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center justify-center gap-1.5 shadow-sm">
+            <Receipt className="w-3.5 h-3.5" />Pengeluaran
+          </button>
+          <button onClick={() => setShowCashdrawForm(true)}
+            className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-sm">
+            <Banknote className="w-3.5 h-3.5" />Cashdraw
           </button>
         </div>
-        {/* Kanan: Filter periode */}
-        <div className="flex items-center gap-2 bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 p-1 shadow-sm sm:justify-self-end">
+        <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm w-fit">
           {(["hari", "bulan", "tahun"] as const).map((p) => (
             <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}>
+              className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"}`}>
               {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
             </button>
           ))}
           {filterPeriod === "hari" && (
             <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-              className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
+              className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10" />
           )}
         </div>
-      </motion.div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        {[
-          { label: "Pemasukan", value: fmtRupiah(analytics.totalRevenue), icon: TrendingUp, color: "green" },
-          { label: "Pengeluaran", value: fmtRupiah(analytics.totalExpenses), icon: Receipt, color: "red" },
-          { label: "Transaksi", value: analytics.total, icon: ShoppingCart, color: "blue" },
-          { label: "Net", value: fmtRupiah(analytics.netRevenue), icon: DollarSign, color: analytics.netRevenue >= 0 ? "green" : "red" },
-        ].map((card, i) => {
-          const gradients: Record<string, string> = {
-            blue: "from-blue-50 to-blue-100/60", amber: "from-amber-50 to-amber-100/60",
-            green: "from-emerald-50 to-emerald-100/60", purple: "from-purple-50 to-purple-100/60",
-            red: "from-red-50 to-red-100/60",
-          };
-          const colors: Record<string, string> = { blue: "#2563EB", amber: "#D97706", green: "#16A34A", purple: "#9333EA", red: "#EF4444" };
-          const gradient = gradients[card.color] || gradients.blue;
-          const color = colors[card.color] || colors.blue;
-          return (
-            <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className={`bg-gradient-to-br ${gradient} rounded-xl p-4 border border-slate-200 shadow-sm`}>
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-medium text-slate-500 truncate">{card.label}</p>
-                  <p className={`text-lg font-bold mt-0.5 ${card.color === "red" ? "text-red-600" : "text-slate-900"}`}>{card.value}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-white/50 flex-shrink-0 ml-2">
-                  <card.icon className="w-4 h-4" style={{ color }} />
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
       </div>
 
-      {/* Main Content */}
-      <AnimatePresence mode="wait">
-        {!expanded ? (
-          <motion.div key="split" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* LEFT: Charts & Analysis — 2/3 */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Revenue + Daily charts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white mb-2">Revenue Bulanan</h3>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <AreaChart data={monthlyChartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                      <defs><linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} /><stop offset="95%" stopColor="#3B82F6" stopOpacity={0} /></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                      <XAxis dataKey="month" stroke="#94A3B8" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} interval={0} />
-                      <YAxis stroke="#94A3B8" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(v) => v >= 1000000 ? (v / 1000000).toFixed(1) + "jt" : v >= 1000 ? (v / 1000).toFixed(0) + "rb" : v} />
-                      <Tooltip contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: "8px", fontSize: 11 }} formatter={(v: any) => fmtRupiah(Number(v))} />
-                      <Area type="monotone" dataKey="revenue" stroke="#3B82F6" fillOpacity={1} fill="url(#revGrad)" strokeWidth={2} dot={{ r: 3, fill: "#3B82F6" }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </motion.div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white mb-2">
-                    Aktivitas {filterPeriod === "hari" ? `Harian (${new Date(selectedDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })})` : filterPeriod === "bulan" ? "30 Hari" : "Tahunan"}
-                  </h3>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <AreaChart data={dailyChartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                      <defs><linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10B981" stopOpacity={0.8} /><stop offset="95%" stopColor="#10B981" stopOpacity={0} /></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                      <XAxis dataKey="date" stroke="#94A3B8" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} interval={Math.max(0, Math.floor(dailyChartData.length / 7) - 1)} />
-                      <YAxis stroke="#94A3B8" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                      <Tooltip contentStyle={{ backgroundColor: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: "8px", fontSize: 11 }} />
-                      <Area type="monotone" dataKey="count" stroke="#10B981" fillOpacity={1} fill="url(#actGrad)" strokeWidth={2} dot={{ r: 2, fill: "#10B981" }} name="Transaksi" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </motion.div>
-              </div>
+      {/* ── Stats row ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 flex-shrink-0">
+        {[
+          { label: "Pemasukan", value: fmtRupiah(analytics.totalRevenue), color: "green" },
+          { label: "Pengeluaran", value: fmtRupiah(analytics.totalExpenses), color: "red" },
+          { label: "Transaksi", value: analytics.total, color: "blue" },
+          { label: "Net", value: fmtRupiah(analytics.netRevenue), color: analytics.netRevenue >= 0 ? "green" : "red" },
+        ].map((card) => (
+          <div key={card.label} className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
+            <p className="text-[10px] md:text-xs font-medium text-slate-400 uppercase">{card.label}</p>
+            <p className={`text-sm md:text-lg font-bold ${card.color === "red" ? "text-red-600" : "text-slate-900"}`}>{card.value}</p>
+          </div>
+        ))}
+      </div>
 
-              {/* 5 clickable category cards with mini charts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* JENIS LAYANAN */}
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 className="w-4 h-4 text-blue-600" />
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Jenis Layanan</h3>
-                  </div>
-                  <div className="space-y-1">
-                    {Object.entries(analytics.jenisCount).sort(([, a], [, b]) => b - a).slice(0, 6).map(([key, val]) => {
-                      const pct = analytics.total > 0 ? Math.round(val / analytics.total * 100) : 0;
-                      return (
-                        <BarItem key={key} label={key} value={val} pct={pct}
-                          onClick={() => openFilterModal(`Jenis Layanan: ${key}`, (item) => (item.jenis_layanan || "Lainnya") === key)} />
-                      );
-                    })}
-                  </div>
-                </motion.div>
-
-                {/* STATUS TRANSAKSI */}
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <PieChartIcon className="w-4 h-4 text-indigo-600" />
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Status Transaksi</h3>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 text-center">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white">{analytics.total}</p>
-                      <p className="text-[10px] text-slate-500">Total</p>
-                    </div>
-                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 text-center cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-                      onClick={() => openFilterModal("Waiting (Aktif)", (item) => item.status === "active")}>
-                      <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{analytics.active}</p>
-                      <p className="text-[10px] text-amber-600 dark:text-amber-400">Waiting</p>
-                    </div>
-                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800 text-center cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                      onClick={() => openFilterModal("Done (Selesai)", (item) => item.status === "completed")}>
-                      <p className="text-lg font-bold text-green-700 dark:text-green-300">{analytics.completed}</p>
-                      <p className="text-[10px] text-green-600 dark:text-green-400">Done</p>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 flex">
-                    {(() => {
-                      const total = analytics.total || 1;
-                      return <>
-                        <div className="bg-amber-500 h-2 rounded-l-full transition-all" style={{ width: `${analytics.active / total * 100}%` }} />
-                        <div className="bg-green-500 h-2 rounded-r-full transition-all" style={{ width: `${analytics.completed / total * 100}%` }} />
-                      </>;
-                    })()}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 text-center">
-                    {analytics.active} waiting &middot; {analytics.completed} done &middot; klik untuk detail
-                  </p>
-                </motion.div>
-
-                {/* HANDLE (Staff) */}
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Users className="w-4 h-4 text-purple-600" />
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Handle (Staff)</h3>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    {topStaff.map(([name, data]) => (
-                      <BarItem key={name} label={name} value={`${data.count} tx`} pct={Math.round(data.count / (topStaff[0]?.[1].count || 1) * 100)}
-                        onClick={() => openFilterModal(`Staff: ${name}`, (item) => (item.handled_by_name || "Unknown") === name)} />
-                    ))}
-                  </div>
-                </motion.div>
-
-                {/* METHOD PEMBAYARAN */}
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Wallet className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Method Pembayaran</h3>
-                  </div>
-                  <div className="space-y-1">
-                    {Object.entries(analytics.metodeRevenue).sort(([, a], [, b]) => b - a).slice(0, 6).map(([key, val]) => {
-                      const pct = analytics.totalNominal > 0 ? Math.round(val / analytics.totalNominal * 100) : 0;
-                      return (
-                        <BarItem key={key} label={paymentLabels[key] || key} value={fmtRupiah(val)} pct={pct}
-                          onClick={() => openFilterModal(`Method: ${paymentLabels[key] || key}`, (item) => (item.metode_pembayaran || "unknown") === key)} />
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* LEAD SOURCE */}
-              {Object.keys(analytics.leadSource).length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl p-4 border border-slate-200 dark:border-white/10 shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Target className="w-4 h-4 text-rose-600" />
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Lead Source</h3>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-1">
-                    {Object.entries(analytics.leadSource).sort(([, a], [, b]) => b - a).slice(0, 8).map(([key, val]) => {
-                      const pct = analytics.total > 0 ? Math.round(val / analytics.total * 100) : 0;
-                      return (
-                        <div key={key} className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                          onClick={() => openFilterModal(`Lead Source: ${key}`, (item) => (item.lead_source || "Lainnya") === key)}>
-                          <p className="text-base font-bold text-slate-900 dark:text-white">{val}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{key}</p>
-                          <p className="text-[10px] text-slate-400">{pct}%</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
+      {/* ── Category cards row ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 flex-shrink-0">
+        <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
+          <p className="text-[10px] md:text-sm font-bold text-blue-600 uppercase mb-1 md:mb-2">Jenis Layanan</p>
+          <div className="space-y-0.5 md:space-y-1">
+            {Object.entries(analytics.jenisCount).sort(([, a], [, b]) => b - a).slice(0, 4).map(([key, val]) => {
+              const pct = analytics.total > 0 ? Math.round(val / analytics.total * 100) : 0;
+              return <BarItem key={key} label={key} value={val} pct={pct} onClick={() => openFilterModal(`Jenis Layanan: ${key}`, (item) => (item.jenis_layanan || "Lainnya") === key)} />;
+            })}
+          </div>
+        </div>
+        <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
+          <p className="text-[10px] md:text-sm font-bold text-indigo-600 uppercase mb-1 md:mb-2">Status</p>
+          <div className="grid grid-cols-3 gap-1.5 md:gap-2">
+            <div className="text-center md:text-left py-1.5 md:py-3 px-1 md:px-2 bg-slate-50 rounded border border-slate-200">
+              <p className="text-sm md:text-lg font-bold text-slate-900">{analytics.total}</p>
+              <p className="text-[9px] md:text-xs text-slate-400">Total</p>
             </div>
-
-            {/* RIGHT: Transaction List */}
-            <motion.div layout className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col h-full" transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-white/10 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4 text-slate-500" />
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">Daftar Transaksi</h3>
-                </div>
-                <span className="text-[10px] font-medium text-slate-400">{analytics.total} total</span>
-              </div>
-              <div className="flex-1 overflow-y-auto min-h-[400px] lg:min-h-0 lg:max-h-[800px]">
-                <LayananList isAdmin={true} compact={true} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} onEdit={handleEdit} />
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : (
-          <motion.div key="full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
-            <div className="flex items-center justify-between px-4 md:px-5 py-4 border-b border-slate-200 dark:border-white/10">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-slate-500" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Semua Transaksi</h3>
-              </div>
-              <span className="text-xs text-slate-400">{analytics.total} total</span>
+            <div className="text-center md:text-left py-1.5 md:py-3 px-1 md:px-2 bg-amber-50 rounded border border-amber-200 cursor-pointer hover:bg-amber-100"
+              onClick={() => openFilterModal("Waiting (Aktif)", (item) => item.status === "active")}>
+              <p className="text-sm md:text-lg font-bold text-amber-700">{analytics.active}</p>
+              <p className="text-[9px] md:text-xs text-amber-600">Active</p>
             </div>
+            <div className="text-center md:text-left py-1.5 md:py-3 px-1 md:px-2 bg-green-50 rounded border border-green-200 cursor-pointer hover:bg-green-100"
+              onClick={() => openFilterModal("Done (Selesai)", (item) => item.status === "completed")}>
+              <p className="text-sm md:text-lg font-bold text-green-700">{analytics.completed}</p>
+              <p className="text-[9px] md:text-xs text-green-600">Done</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
+          <p className="text-[10px] md:text-sm font-bold text-purple-600 uppercase mb-1 md:mb-2">Staff</p>
+          <div className="space-y-0.5 md:space-y-1">
+            {topStaff.map(([name, data]) => (
+              <BarItem key={name} label={name} value={`${data.count}`} pct={Math.round(data.count / (topStaff[0]?.[1].count || 1) * 100)}
+                onClick={() => openFilterModal(`Staff: ${name}`, (item) => (item.handled_by_name || "Unknown") === name)} />
+            ))}
+          </div>
+        </div>
+        <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
+          <p className="text-[10px] md:text-sm font-bold text-emerald-600 uppercase mb-1 md:mb-2">Method</p>
+          <div className="space-y-0.5 md:space-y-1">
+            {Object.entries(analytics.metodeRevenue).sort(([, a], [, b]) => b - a).slice(0, 4).map(([key, val]) => {
+              const pct = analytics.total > 0 ? Math.round(Math.abs(Number(val)) / Math.max(...Object.values(analytics.metodeRevenue).map(v => Math.abs(Number(v)))) * 100) : 0;
+              return <BarItem key={key} label={paymentLabels[key] || key} value={fmtRupiah(Number(val))} pct={pct}
+                onClick={() => openFilterModal(`Method: ${paymentLabels[key] || key}`, (item) => (item.metode_pembayaran || "unknown") === key)} />;
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Daftar Transaksi (fills remaining space, scrolls internally) ── */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-slate-500" />
+              <h3 className="text-xs font-bold text-slate-900">Daftar Transaksi</h3>
+            </div>
+            <span className="text-[10px] font-medium text-slate-400">{analytics.total} total</span>
+          </div>
+          <div className="flex-1 overflow-y-auto min-h-0">
             <LayananList isAdmin={true} compact={false} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} onEdit={handleEdit} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
 
       <FilterModal />
       {showAddForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-          <LayananForm
-            onSuccess={() => {
-              setShowAddForm(false);
-              fetchAll();
-            }}
-            onClose={() => setShowAddForm(false)}
-          />
+          <LayananForm onSuccess={() => { setShowAddForm(false); fetchAll(); }} onClose={() => setShowAddForm(false)} />
         </div>
       )}
       {showExpenseForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
-          <PengeluaranForm
-            onSuccess={() => {
-              setShowExpenseForm(false);
-              fetchAll();
-            }}
-            onClose={() => setShowExpenseForm(false)}
-          />
+          <PengeluaranForm onSuccess={() => { setShowExpenseForm(false); fetchAll(); }} onClose={() => setShowExpenseForm(false)} />
         </div>
       )}
       {showEditForm && editData && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
           {editData.jenis_layanan === "pengeluaran" ? (
-            <PengeluaranForm
-              initialData={editData}
-              onSuccess={handleEditSuccess}
-              onClose={handleEditClose}
-            />
+            <PengeluaranForm initialData={editData} onSuccess={() => { setShowEditForm(false); setEditData(null); fetchAll(); }} onClose={() => { setShowEditForm(false); setEditData(null); }} />
           ) : (
-            <LayananForm
-              initialData={editData}
-              onSuccess={handleEditSuccess}
-              onClose={handleEditClose}
-            />
+            <LayananForm initialData={editData} onSuccess={() => { setShowEditForm(false); setEditData(null); fetchAll(); }} onClose={() => { setShowEditForm(false); setEditData(null); }} />
           )}
+        </div>
+      )}
+      {showCashdrawForm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <CashdrawForm onSuccess={() => { setShowCashdrawForm(false); fetchAll(); }} onClose={() => setShowCashdrawForm(false)} />
         </div>
       )}
     </div>

@@ -1,5 +1,45 @@
 # Revisi
 
+## Revisi Akhir v.24 - 2026-07-14
+
+### Issue 1: Fitur Cashdraw (Semua Dashboard Kecuali Owner)
+
+**Deskripsi**: Staff ingin tuker saldo digital ke cash. Staff scan QR/tf ke toko, upload bukti, sistem catat. Admin bisa approve. QRIS/TF bertambah, Cash berkurang.
+
+**Implementasi**:
+1. `types/index.ts`: Tambah `"cashdraw"` ke `JenisLayanan`
+2. **Form baru** `CashdrawForm.tsx`: Staff name, nominal, metode (qris/tf), upload foto bukti
+3. **Submit**: Buat 2 entri di `layanan`:
+   - Entry A: `cashdraw` + qris/tf → QRIS/TF total naik
+   - Entry B: `pengeluaran` + cash → Cash total turun
+4. **Telegram**: Kirim ke grup buku kas
+5. **Tombol Cashdraw**: Di TransactionManagement (admin, supervisor, teknisi)
+6. **List transaksi**: Filter "Cashdraw" tampilkan entri cashdraw
+7. **Detail transaksi**: Staff name, nominal, metode, foto bukti
+
+### Issue 2: Default Filter Customer Bertransaksi
+
+**Deskripsi**: List customer default hanya tampilkan yang pernah transaksi/service. Filter minggu/bulan = transaksi dalam periode tersebut.
+
+**Implementasi**: `CustomerList.tsx` — filter default `hasTransactions`, query `layanan` + `service_orders`.
+
+### Issue 3: Multi Jenis Layanan dalam 1 Transaksi
+
+**Deskripsi**: 1 transaksi bisa punya beberapa jenis layanan (beli jam + service jam). Masing-masing punya SKU/catatan.
+
+**Implementasi**:
+1. **Tabel baru** `layanan_items`
+2. **Form**: LayananForm support multiple items (Add Item)
+3. **Submit**: 1 `layanan` + N `layanan_items`
+4. **List**: Output N baris per transaksi
+5. **Stats**: Semua diselaraskan
+
+### Database Changes
+- Tabel baru: `layanan_items`
+- `layanan_items` FK ke `layanan(id)` ON DELETE CASCADE
+
+---
+
 ## Revisi v.24 - 2026-07-14
 
 ### Issue 1: Selaraskan Semua Komponen Management Transaksi dengan Fitur Pengeluaran

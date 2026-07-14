@@ -36,6 +36,7 @@ export default function CustomerList() {
   const [importing, setImporting] = useState(false);
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [customerFilter, setCustomerFilter] = useState<string>("pernah_transaksi");
   const [pointMin, setPointMin] = useState("");
   const [pointMax, setPointMax] = useState("");
   const [periodFilter, setPeriodFilter] = useState("all");
@@ -355,10 +356,18 @@ export default function CustomerList() {
   const filteredSorted = useMemo(() => {
     if (!search.trim()) {
       let list = [...customers];
+      // Default filter: pernah transaksi
+      if (customerFilter === "pernah_transaksi") list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
+      else if (customerFilter === "minggu_ini") {
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
+      }
+      else if (customerFilter === "bulan_ini") {
+        const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
+      }
       if (pointMin) list = list.filter(c => (c.point || 0) >= parseInt(pointMin));
       if (pointMax) list = list.filter(c => (c.point || 0) <= parseInt(pointMax));
-      if (periodFilter === "week") list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
-      if (periodFilter === "month") list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
       list.sort((a, b) => {
         let cmp = 0;
         if (sortBy === "name") cmp = a.name.localeCompare(b.name);
@@ -369,7 +378,7 @@ export default function CustomerList() {
       return list;
     }
     return customers;
-  }, [customers, sortBy, sortDir, pointMin, pointMax, periodFilter, search]);
+  }, [customers, sortBy, sortDir, pointMin, pointMax, periodFilter, search, customerFilter]);
 
   return (
     <div className="space-y-4">
@@ -410,6 +419,13 @@ export default function CustomerList() {
               className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-white/10 rounded-xl text-sm bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10" />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <select value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)}
+              className="px-2.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">
+              <option value="pernah_transaksi">Pernah Transaksi</option>
+              <option value="semua">Semua Customer</option>
+              <option value="minggu_ini">Minggu Ini</option>
+              <option value="bulan_ini">Bulan Ini</option>
+            </select>
             <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)}
               className="px-2.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">
               <option value="all">Semua Waktu</option>

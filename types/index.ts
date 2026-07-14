@@ -289,7 +289,8 @@ export type JenisLayanan =
   | "dp_service"
   | "service_langsung"
   | "analog_digital"
-  | "pengeluaran";
+  | "pengeluaran"
+  | "cashdraw";
 
 export type MetodePembayaran =
   | "cash"
@@ -380,6 +381,7 @@ export const jenisLayananLabels: Record<JenisLayanan, string> = {
   service_langsung: "Service Langsung",
   analog_digital: "ANALOG-DIGITAL",
   pengeluaran: "Pengeluaran",
+  cashdraw: "Cashdraw",
 };
 
 export const metodePembayaranLabels: Record<MetodePembayaran, string> = {
