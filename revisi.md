@@ -1143,5 +1143,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_service_orders_token_unique ON service_ord
 - `components/admin/ClosingDashboard.tsx`
 - `app/admin/page.tsx`
 - `components/Providers.tsx`
+- `components/admin/CustomerList.tsx`
+- `components/admin/DoneService.tsx`
+- `db/supabase-schema.sql`
 
-### No Database Changes
+### Database Migration
+Jalankan SQL berikut di Supabase SQL Editor:
+```sql
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS point INTEGER DEFAULT 0;
+NOTIFY pgrst, 'reload schema';
+```
