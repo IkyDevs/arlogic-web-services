@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
@@ -21,6 +21,7 @@ import {
   Calendar,
   Users,
   ShoppingCart,
+  Shield,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
@@ -39,6 +40,9 @@ const ServiceList = dynamic(() => import("@/components/admin/ServiceList"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
 });
 const ServiceInput = dynamic(() => import("@/components/admin/ServiceInput"), {
+  loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
+});
+const RoleManagement = dynamic(() => import("@/components/admin/RoleManagement"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
 });
 
@@ -226,19 +230,32 @@ export default function QCDashboard() {
 
   // ==================== END ATTENDANCE ====================
 
-  const menuItems: { id: string; label: string; icon: any }[] = [
+  // Hitung jumlah service qc_pending per teknisi
+  const teknisiPendingCount = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const svc of services) {
+      const name = svc.teknisi_name;
+      counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [services]);
+
+  const menuItems: { id: string; label: string; icon: any; count?: number }[] = [
     { id: "all", label: "Semua", icon: ClipboardCheck },
     { id: "absensi", label: "Absensi", icon: Calendar },
     { id: "customer", label: "Customer", icon: Users },
     { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
     { id: "service", label: "Service", icon: ClipboardCheck },
+    { id: "users", label: "Users", icon: Shield },
   ];
 
   teknisiList.forEach((name) => {
+    const count = teknisiPendingCount[name] || 0;
     menuItems.push({
       id: name,
-      label: name,
+      label: count > 0 ? `${name} (${count})` : name,
       icon: User,
+      count,
     });
   });
 
@@ -272,7 +289,7 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service") {
+          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "users") {
             setActiveTab(tabId);
           } else if (tabId === "all") {
             filterByTeknisi("all");
@@ -358,6 +375,8 @@ export default function QCDashboard() {
             <TransactionManagement isDark={false} />
           ) : activeTab === "service" ? (
             <ServiceList onAdd={() => setShowServiceForm(true)} />
+          ) : activeTab === "users" ? (
+            <RoleManagement />
           ) : (
             <>
               <QCStats

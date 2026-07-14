@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, memo } from "react";
+import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
 import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
 import {
   User,
   Phone,
@@ -99,8 +100,58 @@ export default memo(function LayananForm({
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const restoredRef = useRef(false);
+  const clearingDraft = useRef(false);
 
   const showCustomLeadSource = formData.lead_source === "tulis_sendiri";
+
+  const handleCancel = useCallback(() => {
+    if (!initialData && user?.id) { clearingDraft.current = true; clearDraft("layanan", user.id); }
+    restoredRef.current = false;
+    onClose?.();
+  }, [initialData, user?.id, onClose]);
+
+  // ── Draft restore ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (initialData || !user?.id || restoredRef.current) return;
+    const checkDraft = async () => {
+      if (!hasDraft("layanan", user.id)) return;
+      const draft = await loadDraft("layanan", user.id);
+      if (draft.data && !restoredRef.current) {
+        if (photoTimer.current) clearTimeout(photoTimer.current);
+        restoredRef.current = true;
+        setFormData((p) => ({ ...p, ...draft.data }));
+        if (draft.photoFiles && draft.photoFiles.length > 0) {
+          setPhotoFiles(draft.photoFiles);
+          setPhotoPreviews(draft.photoFiles.map((f) => URL.createObjectURL(f)));
+        }
+        toast.success("Draft transaksi ditemukan dan dipulihkan", { duration: 3000 });
+        // Simpan ulang draft setelah restore (sync foto ke IndexedDB)
+        saveDraft("layanan", user.id, draft.data, draft.photoFiles || undefined);
+      }
+    };
+    checkDraft();
+  }, [user?.id]);
+
+  // ── Auto-save text segera (sync) ─────────────────────────────────────────
+  useEffect(() => {
+    if (initialData || !user?.id) return;
+    const d = formData;
+    if (d.customer_name || d.nominal || d.customer_whatsapp) {
+      saveDraftTextSync("layanan", user.id, d);
+    }
+  }, [formData, user?.id]);
+
+  // ── Auto-save foto (debounce 2s, hanya saat photos berubah) ────────────
+  const photoTimer = useRef<any>(null);
+  useEffect(() => {
+    if (initialData || !user?.id || photoFiles.length === 0) return;
+    if (photoTimer.current) clearTimeout(photoTimer.current);
+    photoTimer.current = setTimeout(() => {
+      saveDraft("layanan", user.id, formData, photoFiles).catch(() => {});
+    }, 2000);
+    return () => { if (photoTimer.current) clearTimeout(photoTimer.current); };
+  }, [photoFiles, user?.id]);
 
   // ── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -374,6 +425,8 @@ ${typeIcon} tipe : ${jenisLayananLabel}
         toast.error("Gagal simpan customer: " + custErr.message);
       }
 
+      if (user?.id) { clearingDraft.current = true; clearDraft("layanan", user.id); }
+      restoredRef.current = false;
       onSuccess?.();
       onClose?.();
 
@@ -820,15 +873,13 @@ ${typeIcon} tipe : ${jenisLayananLabel}
               </>
             )}
           </button>
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm"
-            >
-              Batal
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm"
+          >
+            Batal
+          </button>
         </div>
       </form>
 

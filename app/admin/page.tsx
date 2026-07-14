@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
+import { hasDraft } from "@/lib/draftStorage";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -37,6 +38,7 @@ import {
   Camera,
   ChevronRight,
   Receipt,
+  MessageSquare,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -130,6 +132,14 @@ const ClosingDashboard = dynamic(
 );
 const DoneService = dynamic(
   () => import("@/components/admin/DoneService"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
+const TemplateManager = dynamic(
+  () => import("@/components/admin/TemplateManager"),
   {
     loading: () => (
       <div className="text-center py-8 text-slate-500">Loading...</div>
@@ -680,6 +690,25 @@ export default function AdminDashboard() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [sidebarOpen]);
 
+  // ── Auto-open draft modal ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    const check = async () => {
+      if (hasDraft("layanan", user.id)) {
+        setActiveTab("management-transaction");
+        setTimeout(() => setShowLayananForm(true), 300);
+      } else if (hasDraft("pengeluaran", user.id)) {
+        setActiveTab("management-transaction");
+        // TransactionManagement handles showExpenseForm internally
+        toast("Ada draft pengeluaran yang tersimpan. Buka halaman transaksi untuk melanjutkan.", { icon: "📝", duration: 4000 });
+      } else if (hasDraft("service", user.id)) {
+        setActiveTab("services");
+        setTimeout(() => setShowServiceForm(true), 300);
+      }
+    };
+    check();
+  }, [user?.id]);
+
   const formatRupiah = (nominal: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -711,6 +740,7 @@ export default function AdminDashboard() {
     { id: "inventory", label: "Inventory", icon: Package },
     { id: "closing", label: "Closing", icon: FileText },
     { id: "done", label: "Done", icon: CheckCircle },
+    { id: "template", label: "Template", icon: MessageSquare },
     { id: "export", label: "Export", icon: Download },
   ];
 
@@ -1146,6 +1176,8 @@ export default function AdminDashboard() {
           {activeTab === "closing" && <ClosingDashboard />}
 
           {activeTab === "done" && <DoneService />}
+
+          {activeTab === "template" && <TemplateManager />}
 
           {activeTab === "export" && <ExportReports />}
         </main>

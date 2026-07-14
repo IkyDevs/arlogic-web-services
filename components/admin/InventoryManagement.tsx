@@ -249,10 +249,12 @@ export default function InventoryManagement({
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
 
         photoUrl =
-          (await uploadFile(transferPhotoFile, {
-            type: "inventory",
-            caption: caption,
-          }))?.url || "";
+          (
+            await uploadFile(transferPhotoFile, {
+              type: "inventory",
+              caption: caption,
+            })
+          )?.url || "";
       }
 
       const { error: transferError } = await supabase
@@ -336,10 +338,12 @@ export default function InventoryManagement({
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
 
         photoUrl =
-          (await uploadFile(photoFile, {
-            type: "inventory",
-            caption: itemCaption,
-          }))?.url || "";
+          (
+            await uploadFile(photoFile, {
+              type: "inventory",
+              caption: itemCaption,
+            })
+          )?.url || "";
         setUploadingPhoto(false);
       }
 

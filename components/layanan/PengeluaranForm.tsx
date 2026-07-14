@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, memo } from "react";
+import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
 import { MetodePembayaran } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
 import {
   User,
   Phone,
@@ -86,6 +87,50 @@ export default memo(function PengeluaranForm({
     return 0;
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const restoredRef = useRef(false);
+  const clearingDraft = useRef(false);
+  const handleCancel = useCallback(() => {
+    if (!initialData && user?.id) { clearingDraft.current = true; clearDraft("pengeluaran", user.id); }
+    restoredRef.current = false;
+    onClose?.();
+  }, [initialData, user?.id, onClose]);
+
+  // ── Draft restore ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (initialData || !user?.id || restoredRef.current) return;
+    (async () => {
+      if (!hasDraft("pengeluaran", user.id)) return;
+      const draft = await loadDraft("pengeluaran", user.id);
+      if (draft.data && !restoredRef.current) {
+        restoredRef.current = true;
+        setFormData((p) => ({ ...p, ...draft.data }));
+        if (draft.photoFiles && draft.photoFiles.length > 0) {
+          setPhotoFiles(draft.photoFiles);
+          setPhotoPreviews(draft.photoFiles.map((f) => URL.createObjectURL(f)));
+        }
+        toast.success("Draft pengeluaran ditemukan dan dipulihkan", { duration: 3000 });
+        saveDraft("pengeluaran", user.id, draft.data, draft.photoFiles || undefined);
+      }
+    })();
+  }, [user?.id]);
+
+  // ── Auto-save text segera (sync) ─────────────────────────────────────────
+  useEffect(() => {
+    if (initialData || !user?.id) return;
+    const d = formData;
+    if (d.item_name || d.nominal) saveDraftTextSync("pengeluaran", user.id, d);
+  }, [formData, user?.id]);
+
+  // ── Auto-save foto (debounce 2s) ────────────────────────────────────────
+  const photoTimer = useRef<any>(null);
+  useEffect(() => {
+    if (initialData || !user?.id || photoFiles.length === 0) return;
+    if (photoTimer.current) clearTimeout(photoTimer.current);
+    photoTimer.current = setTimeout(() => {
+      saveDraft("pengeluaran", user.id, formData, photoFiles).catch(() => {});
+    }, 2000);
+    return () => { if (photoTimer.current) clearTimeout(photoTimer.current); };
+  }, [photoFiles, user?.id]);
 
   useEffect(() => {
     fetchUsers();
@@ -327,6 +372,8 @@ operator: ${handlerName}`;
       setPhotoFiles([]);
       setPhotoPreviews([]);
 
+      if (user?.id) { clearingDraft.current = true; clearDraft("pengeluaran", user.id); }
+      restoredRef.current = false;
       onSuccess?.();
       onClose?.();
     } catch (err: any) {
@@ -367,16 +414,13 @@ operator: ${handlerName}`;
             </p>
           </div>
         </div>
-        {onClose && (
           <button
-            onClick={onClose}
+            onClick={handleCancel}
             className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
           >
             <X className="w-4 h-4 text-gray-400" />
           </button>
-        )}
       </div>
-
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         <div className={sectionClass}>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
@@ -635,15 +679,13 @@ operator: ${handlerName}`;
               </>
             )}
           </button>
-          {onClose && (
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCancel}
               className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm"
             >
               Batal
             </button>
-          )}
         </div>
       </form>
 

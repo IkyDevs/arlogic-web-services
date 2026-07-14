@@ -36,6 +36,7 @@ export default function AttendanceDashboard({
   const [allAttendances, setAllAttendances] = useState<any[]>([]);
   const [staffCount, setStaffCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<any>(null);
   const checkInRef = useRef<number>(0);
@@ -55,7 +56,7 @@ export default function AttendanceDashboard({
   const fetchAttendances = async () => {
     setLoading(true);
     const [attRes, staffRes] = await Promise.all([
-      supabase.from("attendances").select("*, profiles:teknisi_id(full_name)").order("check_in", { ascending: false }).limit(50),
+      supabase.from("attendances").select("*, profiles:teknisi_id(full_name, role)").order("check_in", { ascending: false }).limit(50),
       supabase.from("profiles").select("id", { count: "exact", head: true }).in("role", ["admin", "teknisi", "supervisor", "owner"]),
     ]);
     if (attRes.data) setAllAttendances(attRes.data);
@@ -66,6 +67,10 @@ export default function AttendanceDashboard({
   useEffect(() => {
     fetchAttendances();
   }, []);
+
+  const filteredAttendances = useMemo(() =>
+    roleFilter ? allAttendances.filter((a: any) => a.profiles?.role === roleFilter) : allAttendances,
+  [allAttendances, roleFilter]);
 
   const handleAttendance = (type: "check_in" | "check_out") => {
     if (type === "check_in" && todayAttendance) { toast.error("Sudah check in hari ini!"); return; }
@@ -209,9 +214,19 @@ export default function AttendanceDashboard({
         {/* Attendance List */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
           className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm lg:col-span-2">
-          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-blue-600" /> Riwayat Absensi
-          </h3>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-blue-600" /> Riwayat Absensi
+            </h3>
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+              className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 bg-white">
+              <option value="">Semua Role</option>
+              <option value="admin">Admin</option>
+              <option value="teknisi">Teknisi</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="owner">Owner</option>
+            </select>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -227,9 +242,9 @@ export default function AttendanceDashboard({
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr><td colSpan={6} className="text-center py-8 text-slate-400">Loading...</td></tr>
-                ) : allAttendances.length === 0 ? (
+                ) : filteredAttendances.length === 0 ? (
                   <tr><td colSpan={6} className="text-center py-8 text-slate-400">Belum ada absensi</td></tr>
-                ) : allAttendances.slice(0, 20).map((att, i) => {
+                ) : filteredAttendances.slice(0, 20).map((att, i) => {
                   const duration = att.check_in && att.check_out
                     ? Math.floor((new Date(att.check_out).getTime() - new Date(att.check_in).getTime()) / 60000)
                     : 0;

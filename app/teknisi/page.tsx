@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
+import { hasDraft } from "@/lib/draftStorage";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -326,6 +327,21 @@ export default function TeknisiDashboard() {
     const interval = setInterval(() => fetchAllData(true), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // ── Auto-open draft modal ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    const check = async () => {
+      if (hasDraft("layanan", user.id)) {
+        setActiveTab("layanan");
+        setTimeout(() => setShowLayananForm(true), 300);
+      } else if (hasDraft("service", user.id)) {
+        setActiveTab("service");
+        setTimeout(() => setShowServiceForm(true), 300);
+      }
+    };
+    check();
+  }, [user?.id]);
 
   const getRelativeTime = (date: string) => {
     const now = new Date();

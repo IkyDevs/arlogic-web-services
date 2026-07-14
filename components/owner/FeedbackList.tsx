@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Star, Search, TrendingUp, MessageSquare, User, Calendar, Filter, X, AlertCircle } from 'lucide-react'
+import { Star, Search, TrendingUp, MessageSquare, User, Calendar, Filter, X, AlertCircle, Watch, Clock, CheckCircle, Wrench, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
@@ -31,6 +31,9 @@ export default function FeedbackList() {
   const [search, setSearch] = useState('')
   const [filterRating, setFilterRating] = useState<number | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [showServiceDetail, setShowServiceDetail] = useState(false)
+  const [selectedService, setSelectedService] = useState<any>(null)
+  const [serviceLoading, setServiceLoading] = useState(false)
   const [stats, setStats] = useState({ avg: 0, total: 0, distribution: [0, 0, 0, 0, 0] })
 
   useEffect(() => {
@@ -95,6 +98,24 @@ export default function FeedbackList() {
       setLoading(false)
     }
   }
+
+  const openServiceDetail = async (fb: Feedback) => {
+    setShowServiceDetail(true);
+    setServiceLoading(true);
+    try {
+      const { data } = await supabase
+        .from("service_orders")
+        .select("*, items:service_items(*), feedbacks!inner(*)")
+        .eq("id", fb.service_order_id)
+        .single();
+      setSelectedService(data);
+    } catch (e) {
+      console.error("Failed to fetch service detail:", e);
+      setSelectedService(null);
+    } finally {
+      setServiceLoading(false);
+    }
+  };
 
   const filtered = feedbacks.filter(f => {
     const matchSearch = !search ||
@@ -293,7 +314,8 @@ export default function FeedbackList() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.02 }}
-              className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md transition-all"
+              className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all cursor-pointer"
+              onClick={() => openServiceDetail(fb)}
             >
               <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                 {/* Avatar */}
@@ -347,6 +369,101 @@ export default function FeedbackList() {
       {filtered.length > 0 && (
         <div className="text-center text-xs text-slate-400 pt-2">
           Showing {filtered.length} of {feedbacks.length} reviews
+        </div>
+      )}
+
+      {/* Service Detail Modal */}
+      {showServiceDetail && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowServiceDetail(false)}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center">
+                  <Watch className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Detail Service</h2>
+                  <p className="text-xs text-gray-500">{selectedService?.invoice_number || "Loading..."}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowServiceDetail(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {serviceLoading ? (
+                <div className="text-center py-8 text-slate-400">Memuat...</div>
+              ) : selectedService ? (
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <User className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Customer</p>
+                      <p className="font-semibold text-gray-900">{selectedService.customer_name}</p>
+                      <p className="text-sm text-gray-600">{selectedService.customer_phone}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Brand</p>
+                      <p className="font-semibold text-gray-900 text-sm">{selectedService.watch_brand || "-"}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Model</p>
+                      <p className="font-semibold text-gray-900 text-sm">{selectedService.watch_model || "-"}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Estimasi</p>
+                      <p className="font-semibold text-gray-900 text-sm">{selectedService.estimated_cost ? `Rp ${Number(selectedService.estimated_cost).toLocaleString()}` : "-"}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Status</p>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                        {selectedService.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {selectedService.items?.length > 0 && (
+                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Items Service</p>
+                      <div className="space-y-1.5">
+                        {selectedService.items.map((item: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-1"><Package className="w-3 h-3 text-gray-400" />{item.name} x{item.quantity}</span>
+                            <span className="font-semibold">Rp {Number(item.price).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Feedback</p>
+                    <p className="text-sm text-gray-700">{selectedService.feedbacks?.[0]?.comment || "Tidak ada komentar"}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star key={s} size={14}
+                          className={s <= (selectedService.feedbacks?.[0]?.rating || 0) ? "text-[#F59E0B] fill-[#F59E0B]" : "text-gray-300"} />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Waktu</p>
+                    <p className="text-sm text-gray-700">{new Date(selectedService.created_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8 text-slate-400">Gagal memuat detail service</div>
+              )}
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

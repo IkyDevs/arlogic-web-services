@@ -683,7 +683,7 @@ export default function OwnerDashboard() {
                     <div className="flex items-center gap-1 mt-0.5">
                       <TrendingUp className="w-3 h-3 text-green-600" />
                       <span className="text-[10px] sm:text-xs text-green-600 font-medium">
-                        +12.5%
+                        {dashboardData?.monthlyComparison.profit.toFixed(1)}%
                       </span>
                     </div>
                   </div>

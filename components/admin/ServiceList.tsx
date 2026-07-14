@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText } from "lucide-react";
+import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn } from "lucide-react";
 import toast from "react-hot-toast";
 
 const serviceStatusLabels: Record<string, string> = {
@@ -72,6 +72,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [copiedToken, setCopiedToken] = useState(false);
   const [servicePhotos, setServicePhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
   const fetchServices = async () => {
     setLoading(true);
@@ -351,7 +352,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                     {servicePhotos.map((url, i) => (
                       <img key={i} src={url} alt={"foto-" + i}
                         className="rounded-xl border border-slate-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => window.open(url, "_blank")} />
+                        onClick={() => setPreviewPhoto(url)} />
                     ))}
                   </div>
                 </div>
@@ -384,6 +385,23 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 </div>
               </div>
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Photo Preview Modal */}
+      {previewPhoto && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          onClick={() => setPreviewPhoto(null)}>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="relative max-w-3xl w-full max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreviewPhoto(null)}
+              className="absolute -top-3 -right-3 z-10 p-1.5 bg-gray-900 text-white rounded-full hover:bg-gray-700 transition-colors shadow-lg">
+              <X className="w-4 h-4" />
+            </button>
+            <img src={previewPhoto} alt="Preview"
+              className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain bg-black/40" />
           </motion.div>
         </div>
       )}

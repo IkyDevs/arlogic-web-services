@@ -85,7 +85,12 @@ export default function QCSidebar({
             }`}
           >
             <item.icon className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">{item.label}</span>
+            <span className="truncate flex-1">{item.label}</span>
+            {item.count > 0 && (
+              <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full min-w-[18px] text-center leading-tight">
+                {item.count}
+              </span>
+            )}
           </button>
         ))}
       </nav>

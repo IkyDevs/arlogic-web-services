@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore } from "@/stores/authStore";
+import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
 import {
   User,
   Watch,
@@ -77,6 +79,7 @@ export default function ServiceInput({
   variant?: "page" | "modal";
 }) {
   const supabase = createClient();
+  const { user } = useAuthStore();
   const { uploadFile, uploadFiles, uploading, progress } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +110,50 @@ export default function ServiceInput({
   } | null>(null);
   const [step, setStep] = useState(1);
   const [estimatedCost, setEstimatedCost] = useState("");
+  const restoredRef = useRef(false);
+  const clearingDraft = useRef(false);
+
+  // ── Draft restore ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user?.id || restoredRef.current) return;
+    (async () => {
+      if (!hasDraft("service", user.id)) return;
+      const draft = await loadDraft("service", user.id, 1);
+      if (draft.data && !restoredRef.current) {
+        restoredRef.current = true;
+        setFormData((p) => ({ ...p, ...draft.data }));
+        if (draft.photoFiles && draft.photoFiles.length > 0) {
+          setPhotos(draft.photoFiles);
+          setPhotoPreviews(draft.photoFiles.map((f) => URL.createObjectURL(f)));
+        }
+        if (draft.extraPhotoFiles && draft.extraPhotoFiles.length > 0 && draft.data?.qris_photo !== null) {
+          setFormData((p) => ({ ...p, qris_photo: draft.extraPhotoFiles![0] }));
+        }
+        toast.success("Draft service ditemukan dan dipulihkan", { duration: 3000 });
+        saveDraft("service", user.id, draft.data, draft.photoFiles || undefined, draft.extraPhotoFiles || undefined);
+      }
+    })();
+  }, [user?.id]);
+
+  // ── Auto-save text segera (sync) ─────────────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    const d = formData;
+    if (d.cs_name || d.cs_phone) saveDraftTextSync("service", user.id, d);
+  }, [formData, user?.id]);
+
+  // ── Auto-save foto (debounce 2s) ────────────────────────────────────────
+  const photoTimer = useRef<any>(null);
+  const latestPhotos = useRef(photos);
+  latestPhotos.current = photos;
+  useEffect(() => {
+    if (!user?.id || photos.length === 0) return;
+    if (photoTimer.current) clearTimeout(photoTimer.current);
+    photoTimer.current = setTimeout(() => {
+      saveDraft("service", user.id, formData, photos, formData.qris_photo ? [formData.qris_photo] : undefined).catch(() => {});
+    }, 2000);
+    return () => { if (photoTimer.current) clearTimeout(photoTimer.current); };
+  }, [photos, user?.id]);
 
   const generateInvoiceNumber = () => {
     const d = new Date();
@@ -431,9 +478,10 @@ In : ${now}`;
         }
       }
 
+      if (user?.id) { clearingDraft.current = true; clearDraft("service", user.id); }
+      restoredRef.current = false;
       setLastInvoice({ invoice: invoiceNumber, token, serviceId });
       setSuccess(true);
-      setStep(5);
       toast.success("Watch service order created!");
 
       // Save to customers table + notify Telegram if new

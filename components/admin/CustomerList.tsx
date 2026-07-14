@@ -1,11 +1,25 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
-import { Users, Search, Phone, ShoppingCart, Watch, Upload, X, CheckCircle, AlertCircle, Loader2, Download, FileSpreadsheet, Edit, Mail, MapPin, Briefcase } from "lucide-react";
+import { Users, Search, Phone, ShoppingCart, Watch, Upload, X, CheckCircle, AlertCircle, Loader2, Download, FileSpreadsheet, Edit, Mail, MapPin, Briefcase, FileText, Clock, CreditCard, Hash } from "lucide-react";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
+import { getStatusColor } from "@/types";
+
+const paymentLabels: Record<string, string> = {
+  cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri",
+  edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus",
+};
+
+function fmtRupiah(n: number) {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
+}
+
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 export default function CustomerList() {
   const supabase = createClient();
@@ -20,10 +34,21 @@ export default function CustomerList() {
   const searchTimer = useRef<any>(null);
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [pointMin, setPointMin] = useState("");
+  const [pointMax, setPointMax] = useState("");
+  const [periodFilter, setPeriodFilter] = useState("all");
   const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; phase: string } | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editData, setEditData] = useState<any>(null);
+  const [showCustomerDetail, setShowCustomerDetail] = useState(false);
+  const [customerDetailMode, setCustomerDetailMode] = useState<"transaksi" | "service">("transaksi");
+  const [customerDetailData, setCustomerDetailData] = useState<any[]>([]);
+  const [customerDetailLoading, setCustomerDetailLoading] = useState(false);
+  const [customerDetailPhone, setCustomerDetailPhone] = useState("");
+  const [selectedDetailItem, setSelectedDetailItem] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const PAGE_SIZE = 100;
 
@@ -161,6 +186,28 @@ export default function CustomerList() {
   const handleEdit = (c: any) => {
     setEditData({ ...c });
     setShowEdit(true);
+  };
+
+  const openCustomerDetail = async (phone: string, mode: "transaksi" | "service") => {
+    setCustomerDetailPhone(phone);
+    setCustomerDetailMode(mode);
+    setShowCustomerDetail(true);
+    setCustomerDetailLoading(true);
+    setSelectedDetailItem(null);
+    try {
+      if (mode === "transaksi") {
+        const { data } = await supabase.from("layanan").select("*").eq("customer_whatsapp", phone).order("created_at", { ascending: false });
+        setCustomerDetailData(data || []);
+      } else {
+        const { data } = await supabase.from("service_orders").select("*").eq("customer_phone", phone).order("created_at", { ascending: false });
+        setCustomerDetailData(data || []);
+      }
+    } catch (e: any) {
+      console.error("Fetch customer detail error:", e);
+      setCustomerDetailData([]);
+    } finally {
+      setCustomerDetailLoading(false);
+    }
   };
 
   const handleEditSave = async () => {
@@ -305,6 +352,25 @@ export default function CustomerList() {
     }
   }
 
+  const filteredSorted = useMemo(() => {
+    if (!search.trim()) {
+      let list = [...customers];
+      if (pointMin) list = list.filter(c => (c.point || 0) >= parseInt(pointMin));
+      if (pointMax) list = list.filter(c => (c.point || 0) <= parseInt(pointMax));
+      if (periodFilter === "week") list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
+      if (periodFilter === "month") list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
+      list.sort((a, b) => {
+        let cmp = 0;
+        if (sortBy === "name") cmp = a.name.localeCompare(b.name);
+        else if (sortBy === "point") cmp = (a.point || 0) - (b.point || 0);
+        else if (sortBy === "total") cmp = (a.layananCount + a.serviceCount) - (b.layananCount + b.serviceCount);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+      return list;
+    }
+    return customers;
+  }, [customers, sortBy, sortDir, pointMin, pointMax, periodFilter, search]);
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -334,13 +400,37 @@ export default function CustomerList() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm">
-        <div className="relative max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama atau nomor WhatsApp..." autoFocus
-            className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-white/10 rounded-xl text-sm bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10" />
+      {/* Search + Filter */}
+      <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 p-4 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama atau nomor WhatsApp..." autoFocus
+              className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-white/10 rounded-xl text-sm bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10" />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)}
+              className="px-2.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">
+              <option value="all">Semua Waktu</option>
+              <option value="week">Minggu Ini</option>
+              <option value="month">Bulan Ini</option>
+            </select>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+              className="px-2.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">
+              <option value="name">Nama</option>
+              <option value="point">Point</option>
+              <option value="total">Total Transaksi</option>
+            </select>
+            <button onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
+              className="px-2.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-all bg-white">
+              {sortDir === "asc" ? "↑ Asc" : "↓ Desc"}
+            </button>
+            <input type="number" placeholder="Point min" value={pointMin} onChange={(e) => setPointMin(e.target.value)}
+              className="w-20 px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10" />
+            <input type="number" placeholder="Point max" value={pointMax} onChange={(e) => setPointMax(e.target.value)}
+              className="w-20 px-2.5 py-2 border border-slate-200 rounded-lg text-xs text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10" />
+          </div>
         </div>
       </div>
 
@@ -367,7 +457,7 @@ export default function CustomerList() {
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p>Tidak ada customer</p>
                 </td></tr>
-              ) : customers.map((c, i) => (
+              ) : filteredSorted.map((c, i) => (
                 <motion.tr key={c.phone + c.name + i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
                   className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3">
@@ -395,14 +485,16 @@ export default function CustomerList() {
                   </td>
                   <td className="px-4 py-3 text-center font-bold text-amber-600">{c.point || 0}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    <button onClick={() => openCustomerDetail(c.phone, "transaksi")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-all cursor-pointer">
                       <ShoppingCart className="w-3 h-3" />{c.layananCount}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    <button onClick={() => openCustomerDetail(c.phone, "service")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-all cursor-pointer">
                       <Watch className="w-3 h-3" />{c.serviceCount}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-center font-bold text-slate-900 dark:text-gray-100">{c.layananCount + c.serviceCount}</td>
                   <td className="px-4 py-3 text-center">
@@ -524,6 +616,187 @@ export default function CustomerList() {
                   </>
                 )}
               </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Customer Detail Modal */}
+      {showCustomerDetail && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowCustomerDetail(false)}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${customerDetailMode === "transaksi" ? "bg-blue-600" : "bg-amber-600"}`}>
+                  {customerDetailMode === "transaksi" ? <ShoppingCart className="w-4 h-4 text-white" /> : <Watch className="w-4 h-4 text-white" />}
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                    {customerDetailMode === "transaksi" ? "Riwayat Transaksi" : "Riwayat Service"}
+                  </h2>
+                  <p className="text-xs text-gray-500">{customerDetailPhone}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowCustomerDetail(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-2">
+              {customerDetailLoading ? (
+                <div className="text-center py-8 text-slate-400">Memuat...</div>
+              ) : customerDetailData.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <p>Tidak ada {customerDetailMode === "transaksi" ? "transaksi" : "service"}</p>
+                </div>
+              ) : customerDetailData.map((item, i) => (
+                <motion.div key={item.id || i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                  onClick={() => setSelectedDetailItem(item)}
+                  className="p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-all">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-slate-900 dark:text-gray-100">
+                          {customerDetailMode === "transaksi" ? (item as any).customer_name : (item as any).invoice_number}
+                        </span>
+                        {customerDetailMode === "service" && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${getStatusColor((item as any).status)}`}>
+                            {(item as any).status}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 flex-wrap">
+                        <span>{fmtDate((item as any).created_at)}</span>
+                        {customerDetailMode === "transaksi" && (
+                          <span className="font-semibold text-blue-600">{fmtRupiah((item as any).nominal || 0)}</span>
+                        )}
+                        {customerDetailMode === "service" && (
+                          <span className="font-semibold text-blue-600">{fmtRupiah((item as any).estimated_cost || (item as any).final_cost || 0)}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Detail Item Modal */}
+      {selectedDetailItem && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[55] p-4" onClick={() => setSelectedDetailItem(null)}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-white dark:text-gray-900" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail</h2>
+                  <p className="text-xs text-gray-500">{(selectedDetailItem as any).id?.slice(0, 8) || "-"}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedDetailItem(null)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-5 space-y-3">
+              {customerDetailMode === "transaksi" ? (
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-100 dark:border-blue-800">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-xl flex items-center justify-center">
+                      <Users className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Customer</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{(selectedDetailItem as any).customer_name}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{(selectedDetailItem as any).customer_whatsapp}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Nominal</p>
+                      <p className="font-bold text-emerald-600 text-lg">{fmtRupiah((selectedDetailItem as any).nominal || 0)}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Jenis</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{(selectedDetailItem as any).jenis_layanan}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Pembayaran</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{paymentLabels[(selectedDetailItem as any).metode_pembayaran] || (selectedDetailItem as any).metode_pembayaran}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Staff</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{(selectedDetailItem as any).handled_by_name || "-"}</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-xl border border-amber-100 dark:border-amber-800">
+                    <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900 rounded-xl flex items-center justify-center">
+                      <Watch className="w-5 h-5 text-amber-600 dark:text-amber-300" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Invoice</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{(selectedDetailItem as any).invoice_number}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{(selectedDetailItem as any).customer_name} - {(selectedDetailItem as any).customer_phone}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Estimasi</p>
+                      <p className="font-bold text-emerald-600 text-lg">{fmtRupiah((selectedDetailItem as any).estimated_cost || 0)}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Brand</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{(selectedDetailItem as any).watch_brand || "-"}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Model</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{(selectedDetailItem as any).watch_model || "-"}</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Teknisi</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{(selectedDetailItem as any).assigned_teknisi_name || "-"}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Waktu</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{fmtDate((selectedDetailItem as any).created_at)}</p>
+              </div>
+              {(() => {
+                const item = selectedDetailItem as any;
+                let urls: string[] = [];
+                if (item.photo_urls && Array.isArray(item.photo_urls)) urls = item.photo_urls;
+                else if (typeof item.photo_urls === "string") { try { urls = JSON.parse(item.photo_urls); } catch { urls = item.photo_urls ? [item.photo_urls] : []; } }
+                else if (item.photo_url) urls = [item.photo_url];
+                return urls.length > 0 ? (
+                  <div>
+                    <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-2">Foto</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {urls.map((url: string, i: number) => (
+                        <img key={i} src={url} alt={"foto-" + i}
+                          className="rounded-lg border border-gray-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => window.open(url, "_blank")} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+              {(selectedDetailItem as any).notes && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-100 dark:border-amber-800">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Catatan</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{(selectedDetailItem as any).notes}</p>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
