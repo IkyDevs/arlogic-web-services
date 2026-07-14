@@ -76,7 +76,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
   const fetchServices = async () => {
     setLoading(true);
-    let q = supabase.from("service_orders").select("*").order(sortField, { ascending: sortDir === "asc" });
+    let q = supabase.from("service_orders").select("*").neq("status", "done").order(sortField, { ascending: sortDir === "asc" });
     if (movementFilter) q = q.eq("watch_movement", movementFilter);
     if (categoryFilter) q = q.eq("category", categoryFilter);
     if (search.trim()) {
