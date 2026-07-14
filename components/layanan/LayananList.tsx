@@ -138,10 +138,11 @@ export default function LayananList({
       if (item.jenis_layanan === "pengeluaran") totalExpenses += nominal;
       else totalRevenue += nominal;
       const m = item.metode_pembayaran || "unknown";
-      metodeRevenue[m] = (metodeRevenue[m] || 0) + nominal;
+      metodeRevenue[m] = (metodeRevenue[m] || 0) + (item.jenis_layanan === "pengeluaran" ? -nominal : nominal);
     }
-    onStatsUpdate?.({ total: data.length, totalNominal: totalRevenue, active, completed, jenisCount, metodeRevenue });
-    setTotalNominal(totalRevenue);
+    const netTotal = totalRevenue - totalExpenses;
+    onStatsUpdate?.({ total: data.length, totalNominal: netTotal, active, completed, jenisCount, metodeRevenue });
+    setTotalNominal(netTotal);
   };
 
   const calculateTotal = (data: LayananWithPhoto[]) => {

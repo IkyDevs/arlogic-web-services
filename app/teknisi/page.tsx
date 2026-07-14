@@ -42,7 +42,7 @@ import CustomerList from "@/components/admin/CustomerList";
 import QueueList from "@/components/teknisi/QueueList";
 import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
-import LayananList from "@/components/layanan/LayananList";
+import TransactionManagement from "@/components/layanan/TransactionManagement";
 import KaspinUpdate from "@/components/teknisi/KaspinUpdate";
 import ThemeToggle from "@/components/ThemeToggle";
 import toast from "react-hot-toast";
@@ -1186,63 +1186,7 @@ export default function TeknisiDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900">
-                      Manajemen Transaksi
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-500">
-                      Input transaksi layanan customer
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowLayananForm(true)}
-                    className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-full hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
-                  >
-                    + Tambah Transaksi
-                  </button>
-                </div>
-                {/* Date filter */}
-                <div className="flex items-center gap-2 mb-4 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1 shadow-sm">
-                  {(["hari", "bulan", "tahun"] as const).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => {
-                        setFilterPeriod(p);
-                        if (p === "hari")
-                          setLayananDate(
-                            new Date().toISOString().split("T")[0],
-                          );
-                      }}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${(filterPeriod || "hari") === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}
-                    >
-                      {p === "hari"
-                        ? "Harian"
-                        : p === "bulan"
-                          ? "Bulanan"
-                          : "Tahunan"}
-                    </button>
-                  ))}
-                  {(!filterPeriod || filterPeriod === "hari") && (
-                    <input
-                      type="date"
-                      value={
-                        layananDate || new Date().toISOString().split("T")[0]
-                      }
-                      onChange={(e) => setLayananDate(e.target.value)}
-                      className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                    />
-                  )}
-                </div>
-                <LayananList
-                  isAdmin={false}
-                  key={refreshLayanan}
-                  dateFilter={
-                    !filterPeriod || filterPeriod === "hari"
-                      ? layananDate || new Date().toISOString().split("T")[0]
-                      : undefined
-                  }
-                />
+                <TransactionManagement key={refreshLayanan} />
               </motion.div>
             )}
           </AnimatePresence>
