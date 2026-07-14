@@ -71,7 +71,11 @@ const watchBrands = [
 
 const STEP_LABELS = ["Customer", "Watch", "Photos", "Issue"];
 
-export default function ServiceInput({ variant = "page" }: { variant?: "page" | "modal" }) {
+export default function ServiceInput({
+  variant = "page",
+}: {
+  variant?: "page" | "modal";
+}) {
   const supabase = createClient();
   const { uploadFile, uploadFiles, uploading, progress } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,28 +121,28 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
 
   const generateToken = async () => {
     // Generate a 12-character alphanumeric token
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let token = '';
-    
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let token = "";
+
     // Try up to 5 times to generate a unique token
     for (let attempt = 0; attempt < 5; attempt++) {
-      token = '';
+      token = "";
       for (let i = 0; i < 12; i++) {
         token += chars.charAt(Math.floor(Math.random() * chars.length));
       }
-      
+
       // Check if token already exists
       const { data: existing } = await supabase
         .from("service_orders")
         .select("id")
         .eq("token", token)
         .maybeSingle();
-      
+
       if (!existing) {
         return token; // Token is unique
       }
     }
-    
+
     // If still no unique token after 5 attempts, use timestamp-based fallback
     return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
   };
@@ -167,10 +171,7 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
       toast.error("Fill customer name and phone!");
       return;
     }
-    if (
-      step === 2 &&
-      !formData.watch_brand
-    ) {
+    if (step === 2 && !formData.watch_brand) {
       toast.error("Fill watch brand!");
       return;
     }
@@ -240,11 +241,17 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
 
       const serviceId = orderData.id;
 
-      // All photos (initial condition + qris/transfer proof) grouped as one album
+      cons All photos (initial condition + qris/transfer proof) grouped as one album
       let allPhotosToUpload = [...photos];
-      if (formData.qris_photo && (formData.payment_method === "qris" || formData.payment_method === "transfer")) {
+      if (
+        formData.qris_photo &&
+        (formData.payment_method === "qris" ||
+          formData.payment_method === "transfer")
+      ) {
         const alreadyInPhotos = photos.some(
-          (f) => f.name === formData.qris_photo?.name && f.size === formData.qris_photo?.size
+          (f) =>
+            f.name === formData.qris_photo?.name &&
+            f.size === formData.qris_photo?.size,
         );
         if (!alreadyInPhotos) {
           allPhotosToUpload.push(formData.qris_photo);
@@ -253,7 +260,11 @@ export default function ServiceInput({ variant = "page" }: { variant?: "page" | 
 
       if (allPhotosToUpload.length > 0) {
         const now = new Date().toLocaleString("id-ID", {
-          day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         });
 
         let formattedCaption = `Kategori : ${formData.category || "—"}
@@ -315,13 +326,33 @@ In : ${now}`;
         let dpPhotoUrl = null;
         let dpTelegramSent = false;
         const now = new Date();
-        const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const dayNames = [
+          "Minggu",
+          "Senin",
+          "Selasa",
+          "Rabu",
+          "Kamis",
+          "Jumat",
+          "Sabtu",
+        ];
+        const monthNames = [
+          "Januari",
+          "Februari",
+          "Maret",
+          "April",
+          "Mei",
+          "Juni",
+          "Juli",
+          "Agustus",
+          "September",
+          "Oktober",
+          "November",
+          "Desember",
+        ];
         const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
 
         const dpDescription = `📊 TRANSAKSI
 
-━━━━━━━━━━━━━━━━━━━━━━━━
 💳 tipe : dp service
 📱 Customer: ${formData.cs_name}
 📞 WA: ${formData.cs_phone}
@@ -331,9 +362,13 @@ In : ${now}`;
 📝 Keterangan: Down Payment
 👤 Operator: ${userProfile?.full_name || "System"}
 ⏰ ${fmtDateTime}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
+`;
 
-        if (formData.qris_photo && (formData.payment_method === "qris" || formData.payment_method === "transfer")) {
+        if (
+          formData.qris_photo &&
+          (formData.payment_method === "qris" ||
+            formData.payment_method === "transfer")
+        ) {
           try {
             const dpPhotoUrls = await uploadFiles([formData.qris_photo], {
               type: "layanan",
@@ -342,7 +377,10 @@ In : ${now}`;
             dpPhotoUrl = dpPhotoUrls?.[0] || null;
             dpTelegramSent = true;
           } catch (photoErr) {
-            console.error("Failed to upload DP photo to transaction:", photoErr);
+            console.error(
+              "Failed to upload DP photo to transaction:",
+              photoErr,
+            );
           }
         }
 
@@ -352,7 +390,10 @@ In : ${now}`;
             await fetch("/api/telegram", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ type: "transaction", message: dpDescription }),
+              body: JSON.stringify({
+                type: "transaction",
+                message: dpDescription,
+              }),
             });
           } catch (telegramErr) {
             console.error("Failed to send DP text to telegram:", telegramErr);
@@ -410,9 +451,14 @@ In : ${now}`;
             .maybeSingle();
           if (checkErr) throw checkErr;
           if (existingCust) {
-            await supabase.from("customers").update({ last_transaction: new Date().toISOString() }).eq("id", existingCust.id);
+            await supabase
+              .from("customers")
+              .update({ last_transaction: new Date().toISOString() })
+              .eq("id", existingCust.id);
           } else {
-            const { error: insertErr } = await supabase.from("customers").insert({ name: custName, phone: custPhone });
+            const { error: insertErr } = await supabase
+              .from("customers")
+              .insert({ name: custName, phone: custPhone });
             if (insertErr) throw insertErr;
             // Only send Telegram for genuinely new customers
             fetch("/api/telegram", {
@@ -431,7 +477,7 @@ In : ${now}`;
       }
     } catch (err: any) {
       // Handle unique constraint violation for token
-      if (err.code === '23505' && err.message.includes('token')) {
+      if (err.code === "23505" && err.message.includes("token")) {
         toast.error("Token conflict. Please try again.");
       } else {
         toast.error(err.message || "Failed to create order");
@@ -466,21 +512,23 @@ In : ${now}`;
   };
 
   return (
-    <div className={`overflow-x-hidden ${variant === "modal" ? "" : "max-w-3xl mx-auto py-3 sm:py-4 px-0 sm:px-4"}`}>
+    <div
+      className={`overflow-x-hidden ${variant === "modal" ? "" : "max-w-3xl mx-auto py-3 sm:py-4 px-0 sm:px-4"}`}
+    >
       {variant === "page" && (
         <div className="flex items-center gap-3 mb-4 sm:mb-6 px-4 sm:px-0">
-        <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
-          <Watch className="w-5 h-5 text-white dark:text-gray-900" />
+          <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+            <Watch className="w-5 h-5 text-white dark:text-gray-900" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+              New Watch Service
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 truncate">
+              Create service order for timepiece
+            </p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
-            New Watch Service
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 truncate">
-            Create service order for timepiece
-          </p>
-        </div>
-      </div>
       )}
 
       <AnimatePresence mode="wait">
@@ -510,8 +558,16 @@ In : ${now}`;
                 </label>
                 <CustomerAutocomplete
                   value={formData.cs_name}
-                  onChange={(val) => setFormData((p) => ({ ...p, cs_name: val }))}
-                  onSelect={(name, phone) => setFormData((p) => ({ ...p, cs_name: name, cs_phone: phone }))}
+                  onChange={(val) =>
+                    setFormData((p) => ({ ...p, cs_name: val }))
+                  }
+                  onSelect={(name, phone) =>
+                    setFormData((p) => ({
+                      ...p,
+                      cs_name: name,
+                      cs_phone: phone,
+                    }))
+                  }
                   placeholder="John Doe"
                   autoFocus
                 />
@@ -860,11 +916,15 @@ In : ${now}`;
                   Estimasi Biaya (opsional)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">Rp</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-400">
+                    Rp
+                  </span>
                   <input
                     type="text"
                     value={estimatedCost}
-                    onChange={(e) => setEstimatedCost(e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) =>
+                      setEstimatedCost(e.target.value.replace(/\D/g, ""))
+                    }
                     placeholder="0"
                     className="w-full pl-10 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
