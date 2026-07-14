@@ -241,7 +241,7 @@ export default function ServiceInput({
 
       const serviceId = orderData.id;
 
-      cons All photos (initial condition + qris/transfer proof) grouped as one album
+      // All photos (initial condition + qris/transfer proof) grouped as one album
       let allPhotosToUpload = [...photos];
       if (
         formData.qris_photo &&
