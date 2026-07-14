@@ -1117,17 +1117,7 @@ export default function AdminDashboard() {
           {activeTab === "customer" && <CustomerList />}
 
           {activeTab === "management-transaction" && (
-            <div className="space-y-4 md:space-y-6">
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => setShowLayananForm(true)}
-                  className="bg-gray-900 text-white font-medium px-4 py-2.5 rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-sm"
-                >
-                  + Tambah Transaksi
-                </button>
-              </div>
-              <TransactionManagement isDark={isDark} key={refreshLayanan} />
-            </div>
+            <TransactionManagement isDark={isDark} key={refreshLayanan} />
           )}
 
           {activeTab === "services" && (

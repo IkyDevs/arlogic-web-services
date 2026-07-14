@@ -40,6 +40,7 @@ export type ServiceStatus =
   | "qc_pending"
   | "revision_required"
   | "completed"
+  | "done"
   | "cancelled";
 
 export type WatchMovement =
@@ -415,7 +416,8 @@ export const serviceStatusLabels: Record<ServiceStatus, string> = {
   sparepart_ready: "Sparepart Ready",
   qc_pending: "Quality Check",
   revision_required: "Perlu Revisi",
-  completed: "Selesai",
+  completed: "Selesai QC",
+  done: "Sudah Diambil",
   cancelled: "Dibatalkan",
 };
 
@@ -504,6 +506,7 @@ export const getStatusColor = (status: ServiceStatus): string => {
     qc_pending: "bg-indigo-100 text-indigo-700 border-indigo-200",
     revision_required: "bg-yellow-100 text-yellow-700 border-yellow-200",
     completed: "bg-green-100 text-green-700 border-green-200",
+    done: "bg-slate-100 text-slate-700 border-slate-200",
     cancelled: "bg-red-100 text-red-700 border-red-200",
   };
   return colors[status];

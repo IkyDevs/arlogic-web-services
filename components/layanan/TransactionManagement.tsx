@@ -31,6 +31,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const [stats, setStats] = useState({ total: 0, totalNominal: 0, active: 0, completed: 0, jenisCount: {} as Record<string, number>, metodeRevenue: {} as Record<string, number> });
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[] } | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editData, setEditData] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -208,20 +209,33 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
     <div className="space-y-4 md:space-y-5">
       {/* Top: Total Pendapatan + Filter Hari/Bulan/Tahun */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div>
-            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Pendapatan</p>
-            <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{fmtRupiah(analytics.totalRevenue)}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className={`text-xs font-medium ${analytics.netRevenue >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                Net: {fmtRupiah(analytics.netRevenue)}
-              </span>
-              <span className="text-[10px] text-slate-400">| Pengeluaran: {fmtRupiah(analytics.totalExpenses)}</span>
-            </div>
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+        {/* Kiri: Total Pendapatan */}
+        <div>
+          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Pendapatan</p>
+          <p className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">{fmtRupiah(analytics.totalRevenue)}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className={`text-xs font-medium ${analytics.netRevenue >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              Net: {fmtRupiah(analytics.netRevenue)}
+            </span>
+            <span className="text-[10px] text-slate-400">| Pengeluaran: {fmtRupiah(analytics.totalExpenses)}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 p-1 shadow-sm">
+        {/* Tengah: Tombol aksi */}
+        <div className="flex flex-row sm:flex-col gap-2 sm:items-end sm:justify-start">
+          <button onClick={() => setShowAddForm(true)}
+            className="flex-1 sm:flex-none px-4 py-2 text-xs font-medium rounded-lg transition-all bg-gray-900 text-white hover:bg-gray-700 flex items-center justify-center gap-1.5 shadow-sm">
+            <FileText className="w-3.5 h-3.5" />
+            Tambah Transaksi
+          </button>
+          <button onClick={() => setShowExpenseForm(true)}
+            className="flex-1 sm:flex-none px-4 py-2 text-xs font-medium rounded-lg transition-all bg-red-600 text-white hover:bg-red-700 flex items-center justify-center gap-1.5 shadow-sm">
+            <Receipt className="w-3.5 h-3.5" />
+            Pengeluaran
+          </button>
+        </div>
+        {/* Kanan: Filter periode */}
+        <div className="flex items-center gap-2 bg-white dark:bg-[#1c1c1c] rounded-xl border border-slate-200 dark:border-white/10 p-1 shadow-sm sm:justify-self-end">
           {(["hari", "bulan", "tahun"] as const).map((p) => (
             <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}>
@@ -232,11 +246,6 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
             <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
               className="ml-1 px-2 py-1.5 text-xs border border-slate-200 dark:border-white/10 rounded-lg bg-white dark:bg-[#1c1c1c] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10" />
           )}
-          <button onClick={() => setShowExpenseForm(true)}
-            className="ml-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm">
-            <Receipt className="w-3.5 h-3.5" />
-            Pengeluaran
-          </button>
         </div>
       </motion.div>
 
@@ -461,6 +470,17 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
       </AnimatePresence>
 
       <FilterModal />
+      {showAddForm && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+          <LayananForm
+            onSuccess={() => {
+              setShowAddForm(false);
+              fetchAll();
+            }}
+            onClose={() => setShowAddForm(false)}
+          />
+        </div>
+      )}
       {showExpenseForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
           <PengeluaranForm

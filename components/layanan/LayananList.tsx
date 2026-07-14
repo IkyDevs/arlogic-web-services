@@ -589,22 +589,22 @@ export default function LayananList({
                 <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">
+                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   Customer
                 </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   Type
                 </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">
-                  Handled By
+                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                  Handled
                 </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden lg:table-cell">
+                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   Payment
                 </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   Amount
                 </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">
+                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   Photo
                 </th>
                 <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
@@ -637,9 +637,9 @@ export default function LayananList({
                       })}
                     </p>
                   </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 hidden sm:table-cell">
-                    <p className="font-medium text-sm">{item.customer_name}</p>
-                    <p className="text-xs text-slate-400">
+                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
+                    <p className="font-medium text-xs sm:text-sm">{item.customer_name}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400">
                       {item.customer_whatsapp}
                     </p>
                     {item.detail_sku && (
@@ -648,23 +648,23 @@ export default function LayananList({
                       </p>
                     )}
                   </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3">
+                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
                     <span
-                      className={`badge text-xs ${getJenisLayananStyle(item.jenis_layanan)}`}
+                      className={`badge text-[10px] sm:text-xs ${getJenisLayananStyle(item.jenis_layanan)}`}
                     >
                       {jenisLayananLabels[item.jenis_layanan]}
                     </span>
                   </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-sm hidden md:table-cell">
+                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                     {item.handled_by_name || "-"}
                   </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-sm hidden lg:table-cell">
+                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                     {metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran}
                   </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 font-bold text-blue-600 whitespace-nowrap text-sm sm:text-base">
+                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 font-bold text-blue-600 whitespace-nowrap text-xs sm:text-sm md:text-base">
                     {formatRupiah(item.nominal)}
                   </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 hidden md:table-cell">
+                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
                     {(item as any).photo_urls &&
                     (item as any).photo_urls.length > 0 ? (
                       <button
