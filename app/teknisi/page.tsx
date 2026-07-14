@@ -414,6 +414,7 @@ export default function TeknisiDashboard() {
     { id: "absensi", label: "Absensi", icon: Clock },
     { id: "customer", label: "Customer", icon: Users },
     { id: "kaspin", label: "Kaspin", icon: Package },
+    { id: "service", label: "Service Baru", icon: Wrench },
     { id: "layanan", label: "Transaksi", icon: FileText },
   ];
 
@@ -1158,6 +1159,26 @@ export default function TeknisiDashboard() {
               </motion.div>
             )}
 
+            {activeTab === "service" && (
+              <motion.div key="service" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                        <Watch className="w-4 h-4 text-white dark:text-gray-900" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">New Watch Service</h2>
+                        <p className="text-xs text-gray-500">Create service order for timepiece</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <ServiceInput variant="modal" />
+                  </div>
+                </div>
+              </motion.div>
+            )}
             {activeTab === "layanan" && (
               <motion.div
                 key="layanan"

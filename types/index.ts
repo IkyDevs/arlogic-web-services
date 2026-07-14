@@ -287,10 +287,12 @@ export type JenisLayanan =
   | "beli_jam"
   | "dp_service"
   | "service_langsung"
-  | "analog_digital";
+  | "analog_digital"
+  | "pengeluaran";
 
 export type MetodePembayaran =
   | "cash"
+  | "edc"
   | "edc_mandiri"
   | "tf_bca"
   | "bri"
@@ -376,10 +378,12 @@ export const jenisLayananLabels: Record<JenisLayanan, string> = {
   dp_service: "DP Service",
   service_langsung: "Service Langsung",
   analog_digital: "ANALOG-DIGITAL",
+  pengeluaran: "Pengeluaran",
 };
 
 export const metodePembayaranLabels: Record<MetodePembayaran, string> = {
   cash: "Cash",
+  edc: "EDC",
   edc_mandiri: "EDC Mandiri",
   tf_bca: "Transfer BCA",
   bri: "BRI",

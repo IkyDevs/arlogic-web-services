@@ -46,6 +46,8 @@
 - [x] Documentation files completion
 
 ### In Progress / Needs Fix
+- [x] **v.24**: Selaraskan komponen management transaksi dengan fitur pengeluaran
+- [x] **v.24**: Scrollable daftar transaksi di dashboard
 - [ ] Technician service queue & "take service" flow alignment
 - [ ] QC/Supervisor dashboard approve/reject flow refinement
 - [ ] Telegram multi-group support configuration

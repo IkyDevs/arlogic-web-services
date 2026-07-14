@@ -135,7 +135,7 @@ export default function LayananList({
       jenisCount[j] = (jenisCount[j] || 0) + 1;
       const nominal = item.nominal || 0;
       total += nominal;
-      if ((item.jenis_layanan as string) === "pengeluaran") totalExpenses += nominal;
+      if (item.jenis_layanan === "pengeluaran") totalExpenses += nominal;
       else totalRevenue += nominal;
       const m = item.metode_pembayaran || "unknown";
       metodeRevenue[m] = (metodeRevenue[m] || 0) + nominal;
@@ -331,12 +331,13 @@ export default function LayananList({
     { value: "beli_jam", label: "Beli Jam" },
     { value: "dp_service", label: "DP Service" },
     { value: "service_langsung", label: "Service Langsung" },
-
+    { value: "pengeluaran", label: "Pengeluaran" },
   ];
 
   const metodePembayaranOptions = [
     { value: "cash", label: "Cash" },
     { value: "qris", label: "QRIS" },
+    { value: "edc", label: "EDC" },
     { value: "transfer", label: "Transfer" },
     { value: "edc_mandiri", label: "EDC Mandiri" },
     { value: "tf_bca", label: "Transfer BCA" },

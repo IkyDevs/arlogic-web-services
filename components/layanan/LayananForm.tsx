@@ -44,6 +44,7 @@ const jenisLayananOptions = [
 const metodePembayaranOptions = [
   { value: "cash", label: "Cash" },
   { value: "qris", label: "QRIS" },
+  { value: "edc", label: "EDC" },
   { value: "tf_bca", label: "Transfer BCA" },
   { value: "tf_mandiri", label: "Transfer Mandiri" },
   { value: "edc_bca", label: "EDC BCA" },
@@ -227,7 +228,7 @@ ${typeIcon} tipe : ${jenisLayananLabel}
 💳 Metode: ${metodeLabel}
 📋 Invoice: ${formData.detail_sku || "-"}
 📝 Keterangan: ${formData.notes || "-"}
-👤 Operator: ${user?.full_name}
+👤 Operator: ${selectedUser?.full_name || user?.full_name}
 ⏰ ${fmtDateTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━`;
 

@@ -9,8 +9,8 @@ import LayananList from "./LayananList";
 import PengeluaranForm from "./PengeluaranForm";
 import LayananForm from "./LayananForm";
 
-const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", transfer: "#6B7280", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444" };
-const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" };
+const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", edc: "#F59E0B", transfer: "#6B7280", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444" };
+const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" };
 const jenisColors = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#F97316"];
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
@@ -102,7 +102,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
       const isExpense = j === "pengeluaran";
       if (isExpense) totalExpenses += nominal;
       else totalRevenue += nominal;
-      metodeRevenue[m] = (metodeRevenue[m] || 0) + nominal;
+      metodeRevenue[m] = (metodeRevenue[m] || 0) + (isExpense ? -nominal : nominal);
       metodeCount[m] = (metodeCount[m] || 0) + 1;
       const staff = item.handled_by_name || "Unknown";
       if (!staffStats[staff]) staffStats[staff] = { count: 0, revenue: 0 };
@@ -178,20 +178,26 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           <div className="p-5 space-y-2 max-h-[calc(85vh-70px)] overflow-y-auto">
             {filterModal.filtered.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">Tidak ada transaksi</p>
-            ) : filterModal.filtered.map((tx, i) => (
-              <div key={tx.id || i} className="p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-slate-900 dark:text-white">{tx.customer_name}</span>
-                  <span className="text-xs font-medium text-emerald-600">{fmtRupiah(tx.nominal || 0)}</span>
+            ) : filterModal.filtered.map((tx, i) => {
+              const isExpense = tx.jenis_layanan === "pengeluaran";
+              return (
+                <div key={tx.id || i} className={`p-3 rounded-xl border ${isExpense ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20" : "border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5"}`}>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className={`font-semibold text-sm ${isExpense ? "text-red-700 dark:text-red-300" : "text-slate-900 dark:text-white"}`}>
+                      {isExpense ? <Receipt className="w-3.5 h-3.5 inline mr-1" /> : null}
+                      {tx.customer_name}
+                    </span>
+                    <span className={`text-xs font-medium ${isExpense ? "text-red-600" : "text-emerald-600"}`}>{fmtRupiah(tx.nominal || 0)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 flex-wrap">
+                    {!isExpense && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tx.customer_whatsapp || "-"}</span>}
+                    <span>{tx.jenis_layanan}</span>
+                    <span>{fmtDate(tx.created_at)}</span>
+                    {tx.handled_by_name && <span>{tx.handled_by_name}</span>}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 flex-wrap">
-                  <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tx.customer_whatsapp || "-"}</span>
-                  <span>{tx.jenis_layanan}</span>
-                  <span>{fmtDate(tx.created_at)}</span>
-                  {tx.handled_by_name && <span>{tx.handled_by_name}</span>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
       </div>
@@ -237,26 +243,29 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {[
-          { label: "Total Transaksi", value: analytics.total, icon: ShoppingCart, color: "blue" },
-          { label: "Transaksi Aktif", value: analytics.active, icon: ClockIcon, color: "amber" },
-          { label: "Transaksi Selesai", value: analytics.completed, icon: CheckCircle, color: "green" },
-          { label: "Rata-rata", value: fmtRupiah(Math.round(analytics.avgValue)), icon: DollarSign, color: "purple" },
+          { label: "Pemasukan", value: fmtRupiah(analytics.totalRevenue), icon: TrendingUp, color: "green" },
+          { label: "Pengeluaran", value: fmtRupiah(analytics.totalExpenses), icon: Receipt, color: "red" },
+          { label: "Transaksi", value: analytics.total, icon: ShoppingCart, color: "blue" },
+          { label: "Net", value: fmtRupiah(analytics.netRevenue), icon: DollarSign, color: analytics.netRevenue >= 0 ? "green" : "red" },
         ].map((card, i) => {
           const gradients: Record<string, string> = {
             blue: "from-blue-50 to-blue-100/60", amber: "from-amber-50 to-amber-100/60",
-            green: "from-green-50 to-green-100/60", purple: "from-purple-50 to-purple-100/60",
+            green: "from-emerald-50 to-emerald-100/60", purple: "from-purple-50 to-purple-100/60",
+            red: "from-red-50 to-red-100/60",
           };
-          const colors: Record<string, string> = { blue: "#2563EB", amber: "#D97706", green: "#16A34A", purple: "#9333EA" };
+          const colors: Record<string, string> = { blue: "#2563EB", amber: "#D97706", green: "#16A34A", purple: "#9333EA", red: "#EF4444" };
+          const gradient = gradients[card.color] || gradients.blue;
+          const color = colors[card.color] || colors.blue;
           return (
             <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className={`bg-gradient-to-br ${gradients[card.color]} rounded-xl p-4 border border-slate-200 shadow-sm`}>
+              className={`bg-gradient-to-br ${gradient} rounded-xl p-4 border border-slate-200 shadow-sm`}>
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-medium text-slate-500 truncate">{card.label}</p>
-                  <p className="text-lg font-bold text-slate-900 mt-0.5">{card.value}</p>
+                  <p className={`text-lg font-bold mt-0.5 ${card.color === "red" ? "text-red-600" : "text-slate-900"}`}>{card.value}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-white/50 flex-shrink-0 ml-2">
-                  <card.icon className="w-4 h-4" style={{ color: colors[card.color] }} />
+                  <card.icon className="w-4 h-4" style={{ color }} />
                 </div>
               </div>
             </motion.div>
@@ -431,7 +440,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
                 </div>
                 <span className="text-[10px] font-medium text-slate-400">{analytics.total} total</span>
               </div>
-              <div className="flex-1 overflow-y-auto min-h-[600px] lg:min-h-0 lg:max-h-[1120px]">
+              <div className="flex-1 overflow-y-auto min-h-[400px] lg:min-h-0 lg:max-h-[800px]">
                 <LayananList isAdmin={true} compact={true} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onStatsUpdate={(s) => setStats(s)} onEdit={handleEdit} />
               </div>
             </motion.div>

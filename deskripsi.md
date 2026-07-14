@@ -42,7 +42,11 @@ Sistem manajemen service jam tangan berbasis web yang terintegrasi dengan Supaba
 
 ## Revisi Terakhir
 
-### v.30 - Validasi Kaspin & Feedback Restriction (2026-07-11)
+### v.24 - Selaraskan Komponen dengan Fitur Pengeluaran (2026-07-14)
 
-1. **Kaspin Validation**: Teknisi hanya bisa update kaspin untuk service yang di-assigned ke dia
-2. **Feedback Restriction**: Customer hanya bisa feedback setelah service status = completed
+1. **TypeScript types**: `JenisLayanan` sekarang include `"pengeluaran"`, labels updated
+2. **LayananList filter**: Opsi "Pengeluaran" di dropdown filter Service Type
+3. **TransactionManagement**: Stats card pecah jadi Pemasukan/Pengeluaran, FilterModal tampil merah untuk expense
+4. **AdminDashboardAnalytics**: Transaksi expense tampil dengan indikator merah, list scrollable
+5. **Detail Transaksi modal**: Layout khusus untuk pengeluaran (header merah, nama barang, dll)
+6. **Scrollable list**: Daftar transaksi di dashboard dan management transaction bisa scroll internal

@@ -11,12 +11,12 @@ function fmtRupiah(n: number) {
 }
 
 const paymentLabels: Record<string, string> = {
-  cash: "Cash / Kasir", qris: "QRIS", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri",
+  cash: "Cash / Kasir", qris: "QRIS", edc: "EDC", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri",
   edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus",
 };
 
 const paymentIcons: Record<string, any> = {
-  cash: Banknote, qris: Wallet, tf_bca: Phone, tf_mandiri: Phone,
+  cash: Banknote, qris: Wallet, edc: CreditCard, tf_bca: Phone, tf_mandiri: Phone,
   edc_bca: CreditCard, edc_mandiri: CreditCard, bri: Banknote, kudus: Wallet,
 };
 

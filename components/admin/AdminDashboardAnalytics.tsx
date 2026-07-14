@@ -3,18 +3,18 @@
 import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
-import { TrendingUp, Users, ShoppingCart, Clock, ArrowUp, ArrowDown, Box, Phone, Wallet, User as UserIcon, Banknote } from "lucide-react";
+import { TrendingUp, Users, ShoppingCart, Clock, ArrowUp, ArrowDown, Box, Phone, Wallet, User as UserIcon, Banknote, Receipt, CreditCard } from "lucide-react";
 
 const COLORS_LIGHT = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#F97316"];
 const COLORS_DARK = ["#60A5FA", "#34D399", "#A78BFA", "#FBBF24", "#F87171", "#F472B6", "#2DD4BF", "#FB923C"];
 
 const paymentLabels: Record<string, string> = {
-  cash: "Cash", qris: "QRIS", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri",
+  cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri",
   edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus",
 };
 
 const paymentIcons: Record<string, any> = {
-  cash: Banknote, qris: Wallet, transfer: Phone, tf_bca: Phone, tf_mandiri: Phone,
+  cash: Banknote, qris: Wallet, edc: CreditCard, transfer: Phone, tf_bca: Phone, tf_mandiri: Phone,
   edc_bca: ShoppingCart, edc_mandiri: ShoppingCart, bri: Banknote, kudus: Banknote,
 };
 
@@ -43,8 +43,8 @@ function formatTime(d: string) {
 
 function getPaymentColor(method: string, isDark: boolean) {
   const map: Record<string, string> = isDark
-    ? { cash: "bg-emerald-900/40 text-emerald-300 border-emerald-700/50", qris: "bg-blue-900/40 text-blue-300 border-blue-700/50", transfer: "bg-slate-600 text-slate-300 border-slate-500", tf_bca: "bg-purple-900/40 text-purple-300 border-purple-700/50", tf_mandiri: "bg-purple-900/40 text-purple-300 border-purple-700/50", edc_bca: "bg-amber-900/40 text-amber-300 border-amber-700/50", edc_mandiri: "bg-amber-900/40 text-amber-300 border-amber-700/50", bri: "bg-cyan-900/40 text-cyan-300 border-cyan-700/50", kudus: "bg-pink-900/40 text-pink-300 border-pink-700/50" }
-    : { cash: "bg-emerald-100 text-emerald-700 border-emerald-200", qris: "bg-blue-100 text-blue-700 border-blue-200", transfer: "bg-slate-200 text-slate-700 border-slate-300", tf_bca: "bg-purple-100 text-purple-700 border-purple-200", tf_mandiri: "bg-purple-100 text-purple-700 border-purple-200", edc_bca: "bg-amber-100 text-amber-700 border-amber-200", edc_mandiri: "bg-amber-100 text-amber-700 border-amber-200", bri: "bg-cyan-100 text-cyan-700 border-cyan-200", kudus: "bg-pink-100 text-pink-700 border-pink-200" };
+    ? { cash: "bg-emerald-900/40 text-emerald-300 border-emerald-700/50", qris: "bg-blue-900/40 text-blue-300 border-blue-700/50", edc: "bg-amber-900/40 text-amber-300 border-amber-700/50", transfer: "bg-slate-600 text-slate-300 border-slate-500", tf_bca: "bg-purple-900/40 text-purple-300 border-purple-700/50", tf_mandiri: "bg-purple-900/40 text-purple-300 border-purple-700/50", edc_bca: "bg-amber-900/40 text-amber-300 border-amber-700/50", edc_mandiri: "bg-amber-900/40 text-amber-300 border-amber-700/50", bri: "bg-cyan-900/40 text-cyan-300 border-cyan-700/50", kudus: "bg-pink-900/40 text-pink-300 border-pink-700/50" }
+    : { cash: "bg-emerald-100 text-emerald-700 border-emerald-200", qris: "bg-blue-100 text-blue-700 border-blue-200", edc: "bg-amber-100 text-amber-700 border-amber-200", transfer: "bg-slate-200 text-slate-700 border-slate-300", tf_bca: "bg-purple-100 text-purple-700 border-purple-200", tf_mandiri: "bg-purple-100 text-purple-700 border-purple-200", edc_bca: "bg-amber-100 text-amber-700 border-amber-200", edc_mandiri: "bg-amber-100 text-amber-700 border-amber-200", bri: "bg-cyan-100 text-cyan-700 border-cyan-200", kudus: "bg-pink-100 text-pink-700 border-pink-200" };
   return map[method] || (isDark ? "bg-slate-700 text-slate-300 border-slate-600" : "bg-slate-100 text-slate-600 border-slate-200");
 }
 
@@ -211,30 +211,34 @@ export default function AdminDashboardAnalytics({
           <h3 className={`text-sm md:text-base font-bold mb-3 ${isDark ? "text-white" : "text-slate-900"}`}>
             Transaksi Terbaru
           </h3>
-          <div className="space-y-2 max-h-[420px] overflow-y-auto">
-            {recentTransactions.length > 0 ? recentTransactions.slice(0, 12).map((tx: any, i: number) => {
+          <div className="space-y-2 max-h-[580px] overflow-y-auto">
+            {recentTransactions.length > 0 ? recentTransactions.slice(0, 20).map((tx: any, i: number) => {
+              const isExpense = tx.jenis_layanan === "pengeluaran";
               const PaymentIcon = paymentIcons[tx.metode_pembayaran] || Banknote;
               return (
-                <motion.div key={tx.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
-                  className={`p-3 rounded-lg border transition-all hover:shadow-sm cursor-pointer ${isDark ? "bg-slate-700/40 border-slate-600/50 hover:border-slate-500" : "bg-slate-50 border-slate-200 hover:border-slate-300"}`}
+                <motion.div key={tx.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.02 }}
+                  className={`p-3 rounded-lg border transition-all hover:shadow-sm cursor-pointer ${isExpense
+                    ? (isDark ? "bg-red-950/20 border-red-800/50 hover:border-red-600" : "bg-red-50 border-red-200 hover:border-red-300")
+                    : (isDark ? "bg-slate-700/40 border-slate-600/50 hover:border-slate-500" : "bg-slate-50 border-slate-200 hover:border-slate-300")}`}
                   onClick={() => onTransactionClick?.(tx)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`font-semibold text-sm truncate ${isDark ? "text-white" : "text-slate-900"}`}>{tx.customer_name}</span>
+                        {isExpense && <Receipt className={`w-3.5 h-3.5 ${isDark ? "text-red-400" : "text-red-500"}`} />}
+                        <span className={`font-semibold text-sm truncate ${isExpense ? (isDark ? "text-red-300" : "text-red-700") : (isDark ? "text-white" : "text-slate-900")}`}>{tx.customer_name}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${getPaymentColor(tx.metode_pembayaran, isDark)}`}>
                           {paymentLabels[tx.metode_pembayaran] || tx.metode_pembayaran}
                         </span>
                       </div>
                       <div className={`flex items-center gap-3 mt-1 text-[11px] flex-wrap ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                        <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tx.customer_whatsapp || "-"}</span>
+                        {!isExpense && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tx.customer_whatsapp || "-"}</span>}
                         <span>{formatTime(tx.created_at)}</span>
                         {tx.handled_by_name && <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" />{tx.handled_by_name}</span>}
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className={`font-bold text-sm ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>{formatRupiah(tx.nominal || 0)}</p>
-                      <p className={`text-[10px] mt-0.5 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{jenisLabels[tx.jenis_layanan] || tx.jenis_layanan || ""}</p>
+                      <p className={`font-bold text-sm ${isExpense ? (isDark ? "text-red-400" : "text-red-600") : (isDark ? "text-emerald-400" : "text-emerald-600")}`}>{formatRupiah(tx.nominal || 0)}</p>
+                      <p className={`text-[10px] mt-0.5 ${isExpense ? (isDark ? "text-red-400" : "text-red-500") : (isDark ? "text-slate-500" : "text-slate-400")}`}>{jenisLabels[tx.jenis_layanan] || tx.jenis_layanan || ""}</p>
                     </div>
                   </div>
                 </motion.div>

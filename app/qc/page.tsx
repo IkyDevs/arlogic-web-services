@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ import {
   Package,
   Calendar,
   Users,
+  ShoppingCart,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
@@ -29,6 +31,10 @@ import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import AttendanceReport from "@/components/qc/AttendanceReport";
 import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
+
+const TransactionManagement = dynamic(() => import("@/components/layanan/TransactionManagement"), {
+  loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
+});
 
 export default function QCDashboard() {
   const [activeTab, setActiveTab] = useState("all");
@@ -215,6 +221,7 @@ export default function QCDashboard() {
     { id: "all", label: "Semua", icon: ClipboardCheck },
     { id: "absensi", label: "Absensi", icon: Calendar },
     { id: "customer", label: "Customer", icon: Users },
+    { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
   ];
 
   teknisiList.forEach((name) => {
@@ -255,8 +262,8 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === "absensi") {
-            setActiveTab("absensi");
+          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction") {
+            setActiveTab(tabId);
           } else if (tabId === "all") {
             filterByTeknisi("all");
           } else {
@@ -337,6 +344,8 @@ export default function QCDashboard() {
             <CustomerList />
           ) : activeTab === "absensi" ? (
             <AttendanceReport />
+          ) : activeTab === "management-transaction" ? (
+            <TransactionManagement isDark={false} />
           ) : (
             <>
               <QCStats

@@ -28,6 +28,7 @@ import {
 const metodePembayaranOptions = [
   { value: "cash", label: "Cash" },
   { value: "qris", label: "QRIS" },
+  { value: "edc", label: "EDC" },
   { value: "tf_bca", label: "Transfer BCA" },
   { value: "tf_mandiri", label: "Transfer Mandiri" },
   { value: "edc_bca", label: "EDC BCA" },

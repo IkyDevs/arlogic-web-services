@@ -1,5 +1,75 @@
 # Revisi
 
+## Revisi v.24 - 2026-07-14
+
+### Issue 1: Selaraskan Semua Komponen Management Transaksi dengan Fitur Pengeluaran
+
+**Masalah**: Fitur pengeluaran (`jenis_layanan = "pengeluaran"`) sudah ada di `PengeluaranForm.tsx` dan disimpan ke tabel `layanan`, tetapi banyak komponen transaksi yang belum selaras:
+
+1. **TypeScript types** (`types/index.ts`): `JenisLayanan` type tidak menyertakan `"pengeluaran"`, dan `jenisLayananLabels` tidak punya entry untuk `"pengeluaran"`. Semua kode selama ini pakai `as string` cast untuk akses `"pengeluaran"`.
+
+2. **LayananList.tsx filter options**: Dropdown filter "Service Type" tidak punya opsi "Pengeluaran", sehingga expense tidak bisa difilter.
+
+3. **TransactionManagement.tsx analytics**: Stat card, chart, dan filter modal belum membedakan expense secara visual (warna merah/miring).
+
+4. **AdminDashboardAnalytics.tsx**: "Transaksi Terbaru" di dashboard utama tidak menampilkan badge/indikator bahwa suatu transaksi adalah pengeluaran.
+
+5. **app/admin/page.tsx**: Modal "Detail Transaksi" tidak menampilkan layout khusus untuk pengeluaran (nama barang bukan customer, warna merah, dll).
+
+6. **AdminDashboardAnalytics.tsx**: Revenue/pendapatan chart tidak memisahkan pemasukan dan pengeluaran secara jelas.
+
+### Fix Detail
+
+1. **`types/index.ts`**:
+   - Tambah `"pengeluaran"` ke union type `JenisLayanan`
+   - Tambah `"pengeluaran": "Pengeluaran"` ke `jenisLayananLabels`
+
+2. **`components/layanan/LayananList.tsx`**:
+   - Tambah `{ value: "pengeluaran", label: "Pengeluaran" }` ke `jenisLayananOptions` (filter dropdown)
+
+3. **`components/layanan/TransactionManagement.tsx`**:
+   - FilterModal: item dengan `jenis_layanan === "pengeluaran"` tampil dengan latar merah/red border
+   - Stat card "Total Transaksi" dipisah: "Pemasukan" (hijau) dan "Pengeluaran" (merah)
+   - Method Pembayaran chart: expense transactions dihitung terpisah
+
+4. **`components/admin/AdminDashboardAnalytics.tsx`**:
+   - "Transaksi Terbaru": item `pengeluaran` tampil dengan border/icon merah
+   - Revenue breakdown memisahkan pemasukan vs pengeluaran
+
+5. **`app/admin/page.tsx`**:
+   - Modal "Detail Transaksi": jika `jenis_layanan === "pengeluaran"`, tampilkan layout berbeda:
+     - Header merah (bukan abu-abu)
+     - "Nama Barang" sebagai title utama (bukan "Customer")
+     - Nominal merah (bukan hijau)
+     - Label "Pengeluaran" dengan icon Receipt
+
+6. **`ClosingDashboard.tsx`**:
+   - Sudah handle expense dengan benar (subtract dari expected) — tidak perlu perubahan
+
+### Issue 2: Scrollable Daftar Transaksi di Dashboard
+
+**Masalah**: List transaksi di dashboard utama (`AdminDashboardAnalytics.tsx`) dan di panel kanan `TransactionManagement.tsx` memakan banyak ruang vertikal, menyebabkan UI perlu scroll ke bawah untuk melihat konten lain.
+
+**Fix**:
+1. **`components/admin/AdminDashboardAnalytics.tsx`**:
+   - `max-h-[420px]` → `max-h-[580px]` agar muat lebih banyak transaksi
+   - Pastikan `overflow-y-auto` bekerja dengan baik
+
+2. **`components/layanan/TransactionManagement.tsx`**:
+   - "Daftar Transaksi" panel kanan: `min-h-[600px] lg:max-h-[1120px]` → `lg:max-h-[800px]`
+   - Pastikan scroll internal tidak mempengaruhi scroll halaman
+
+### Files Changed
+- `types/index.ts` (type + labels)
+- `components/layanan/LayananList.tsx` (filter options)
+- `components/layanan/TransactionManagement.tsx` (stats, filter modal)
+- `components/admin/AdminDashboardAnalytics.tsx` (transaksi list + expense display)
+- `app/admin/page.tsx` (detail modal expense layout)
+
+### No Database Changes
+
+---
+
 ## Revisi yang Sudah Dilakukan
 
 ### 2026-07-05
@@ -1009,3 +1079,69 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_service_orders_token_unique ON service_ord
 ### No Database Changes
 
 ---
+
+---
+
+## Revisi Tambahan v.24 - 2026-07-14
+
+### Issue 3: Operator Telegram Caption Tidak Sesuai Handle By
+
+**Masalah**: Di `LayananForm.tsx`, Telegram caption selalu menampilkan `user?.full_name` sebagai operator, tidak peduli siapa yang dipilih di "Handled By". Jika admin memilih "Orang Lain", caption tetap menampilkan admin.
+
+**Fix**: `components/layanan/LayananForm.tsx` — ganti `user?.full_name` dengan `selectedUser?.full_name || user?.full_name` di template caption.
+
+### Issue 4: Management Transaksi untuk Dashboard Supervisor (QC)
+
+**Masalah**: Dashboard QC/Supervisor tidak memiliki fitur manajemen transaksi seperti admin.
+
+**Fix**: `app/qc/page.tsx`
+- Import `TransactionManagement` (dynamic import)
+- Import `LayananForm`
+- Tambah menu item "Transaksi" di sidebar
+- Render `TransactionManagement` saat tab aktif
+
+### Issue 5: Add New Service di Dashboard Teknisi
+
+**Masalah**: Dashboard teknisi sudah punya tombol "New Service" di header, tapi tidak ada di sidebar menu. Membuat teknisi sulit menemukan fitur ini.
+
+**Fix**: `app/teknisi/page.tsx`
+- Tambah menu item "Service" di sidebar (sebelum Transaksi)
+- Sudah ada `ServiceInput` + modal, hanya perlu navigasi sidebar
+
+### Issue 6: Tambah Payment Method EDC + Selaraskan Caption Telegram
+
+**Masalah**: Belum ada metode pembayaran generik "EDC" (hanya `edc_bca` dan `edc_mandiri`). Telegram caption juga perlu diselaraskan.
+
+**Fix**:
+- `types/index.ts`: Tambah `"edc"` ke `MetodePembayaran` + `metodePembayaranLabels`
+- `components/layanan/LayananForm.tsx`: Tambah opsi "EDC"
+- `components/layanan/PengeluaranForm.tsx`: Tambah opsi "EDC"
+- `components/layanan/LayananList.tsx`: Tambah opsi filter "EDC"
+- `components/layanan/TransactionManagement.tsx`: Tambah `paymentColors` + `paymentLabels` entry untuk "edc"
+- `components/admin/AdminDashboardAnalytics.tsx`: Tambah label, icon, color untuk "edc"
+- `components/admin/ClosingDashboard.tsx`: Tambah label, icon untuk "edc"
+- `app/admin/page.tsx`: Tambah label mapping untuk "edc" di detail modal
+
+### Issue 7: Session Sering Logout (Keluar Sendiri)
+
+**Masalah**: Web sering keluar ke halaman login tanpa aksi user. Penyebab: `onAuthStateChange` terlalu agresif — event `SIGNED_OUT` dipicu saat token refresh gagal sementara.
+
+**Fix**: `components/Providers.tsx`
+- Ubah handler `SIGNED_OUT`: jangan langsung redirect ke `/login` jika masih ada session di localStorage
+- Tambah pengecekan `session` di `getUser()`: jika `getUser()` gagal, coba `getSession()` sebagai fallback
+- Tambah retry logic untuk token refresh
+
+### Files Changed
+- `components/layanan/LayananForm.tsx`
+- `types/index.ts`
+- `app/qc/page.tsx`
+- `app/teknisi/page.tsx`
+- `components/layanan/PengeluaranForm.tsx`
+- `components/layanan/LayananList.tsx`
+- `components/layanan/TransactionManagement.tsx`
+- `components/admin/AdminDashboardAnalytics.tsx`
+- `components/admin/ClosingDashboard.tsx`
+- `app/admin/page.tsx`
+- `components/Providers.tsx`
+
+### No Database Changes

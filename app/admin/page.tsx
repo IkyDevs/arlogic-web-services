@@ -36,6 +36,7 @@ import {
   LogOut as LogOutIcon,
   Camera,
   ChevronRight,
+  Receipt,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -1181,87 +1182,109 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowTransactionDetail(false)}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                  <ShoppingCart className="w-4 h-4 text-white dark:text-gray-900" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail Transaksi</h2>
-                  <p className="text-xs text-gray-500">ID: {selectedTransaction.id?.slice(0, 8) || "-"}</p>
-                </div>
-              </div>
-              <button onClick={() => setShowTransactionDetail(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-100 dark:border-blue-800">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-xl flex items-center justify-center">
-                  <User className="w-5 h-5 text-blue-600 dark:text-blue-300" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Customer</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedTransaction.customer_name}</p>
-                  {selectedTransaction.customer_whatsapp && <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTransaction.customer_whatsapp}</p>}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Nominal</p>
-                  <p className="font-bold text-emerald-600 text-lg">{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(selectedTransaction.nominal || 0)}</p>
-                </div>
-                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Jenis</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm capitalize">{({ service_langsung: "Service Langsung", dp_service: "DP Service", ambil_jam_service: "Ambil Jam", order_online: "Order Online", beli_jam: "Beli Jam", pengeluaran: "Pengeluaran" } as Record<string, string>)[selectedTransaction.jenis_layanan] || selectedTransaction.jenis_layanan}</p>
-                </div>
-                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Pembayaran</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{({ cash: "Cash", qris: "QRIS", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" } as Record<string, string>)[selectedTransaction.metode_pembayaran] || selectedTransaction.metode_pembayaran}</p>
-                </div>
-                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Staff</p>
-                  <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{selectedTransaction.handled_by_name || "-"}</p>
-                </div>
-              </div>
-              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Waktu</p>
-                <p className="text-sm text-gray-700 dark:text-gray-300">{new Date(selectedTransaction.created_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-              </div>
-              {selectedTransaction.detail_sku && (
-                <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">SKU / Detail</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTransaction.detail_sku}</p>
-                </div>
-              )}
-              {selectedTransaction.notes && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-100 dark:border-amber-800">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Catatan</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTransaction.notes}</p>
-                </div>
-              )}
-              {(() => {
-                let urls: string[] = [];
-                if (selectedTransaction.photo_urls) {
-                  if (Array.isArray(selectedTransaction.photo_urls)) {
-                    urls = selectedTransaction.photo_urls;
-                  } else if (typeof selectedTransaction.photo_urls === "string") {
-                    try { urls = JSON.parse(selectedTransaction.photo_urls); } catch { urls = []; }
-                  }
-                }
-                return urls.length > 0 ? (
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Foto Bukti</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {urls.map((url: string, i: number) => (
-                        <img key={i} src={url} alt={"foto-" + i} className="rounded-lg border border-gray-200 dark:border-white/10 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => window.open(url, "_blank")} />
-                      ))}
+            {(() => {
+              const isExpense = selectedTransaction.jenis_layanan === "pengeluaran";
+              return (
+                <>
+                  <div className={`sticky top-0 z-20 flex items-center justify-between px-6 py-4 border-b rounded-t-2xl ${isExpense ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" : "bg-white dark:bg-[#1c1c1c] border-gray-200 dark:border-white/10"}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isExpense ? "bg-red-600" : "bg-gray-900 dark:bg-white"}`}>
+                        {isExpense ? <Receipt className="w-4 h-4 text-white" /> : <ShoppingCart className="w-4 h-4 text-white dark:text-gray-900" />}
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">{isExpense ? "Detail Pengeluaran" : "Detail Transaksi"}</h2>
+                        <p className="text-xs text-gray-500">ID: {selectedTransaction.id?.slice(0, 8) || "-"}</p>
+                      </div>
                     </div>
+                    <button onClick={() => setShowTransactionDetail(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                      <X className="w-4 h-4 text-gray-400" />
+                    </button>
                   </div>
-                ) : null;
-              })()}
-            </div>
+                  <div className="p-6 space-y-4">
+                    {isExpense ? (
+                      <>
+                        <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30 rounded-xl border border-red-100 dark:border-red-800">
+                          <div className="w-10 h-10 bg-red-100 dark:bg-red-900 rounded-xl flex items-center justify-center">
+                            <Package className="w-5 h-5 text-red-600 dark:text-red-300" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Nama Barang</p>
+                            <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedTransaction.customer_name}</p>
+                            {selectedTransaction.detail_sku && <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTransaction.detail_sku}</p>}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-100 dark:border-blue-800">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-xl flex items-center justify-center">
+                          <User className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Customer</p>
+                          <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedTransaction.customer_name}</p>
+                          {selectedTransaction.customer_whatsapp && <p className="text-sm text-gray-600 dark:text-gray-400">{selectedTransaction.customer_whatsapp}</p>}
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={`p-3 rounded-xl border ${isExpense ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800" : "bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10"}`}>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">Nominal</p>
+                        <p className={`font-bold text-lg ${isExpense ? "text-red-600" : "text-emerald-600"}`}>{new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(selectedTransaction.nominal || 0)}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">Jenis</p>
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm capitalize">{({ service_langsung: "Service Langsung", dp_service: "DP Service", ambil_jam_service: "Ambil Jam", order_online: "Order Online", beli_jam: "Beli Jam", pengeluaran: "Pengeluaran" } as Record<string, string>)[selectedTransaction.jenis_layanan] || selectedTransaction.jenis_layanan}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">Pembayaran</p>
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{({ cash: "Cash", qris: "QRIS", edc: "EDC", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" } as Record<string, string>)[selectedTransaction.metode_pembayaran] || selectedTransaction.metode_pembayaran}</p>
+                      </div>
+                      <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">Staff</p>
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{selectedTransaction.handled_by_name || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Waktu</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{new Date(selectedTransaction.created_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                    </div>
+                    {!isExpense && selectedTransaction.detail_sku && (
+                      <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">SKU / Detail</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTransaction.detail_sku}</p>
+                      </div>
+                    )}
+                    {selectedTransaction.notes && (
+                      <div className={`p-3 rounded-xl border ${isExpense ? "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-800" : "bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-800"}`}>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Catatan</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">{selectedTransaction.notes}</p>
+                      </div>
+                    )}
+                    {(() => {
+                      let urls: string[] = [];
+                      if (selectedTransaction.photo_urls) {
+                        if (Array.isArray(selectedTransaction.photo_urls)) {
+                          urls = selectedTransaction.photo_urls;
+                        } else if (typeof selectedTransaction.photo_urls === "string") {
+                          try { urls = JSON.parse(selectedTransaction.photo_urls); } catch { urls = []; }
+                        }
+                      }
+                      return urls.length > 0 ? (
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Foto Bukti</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {urls.map((url: string, i: number) => (
+                              <img key={i} src={url} alt={"foto-" + i} className="rounded-lg border border-gray-200 dark:border-white/10 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => window.open(url, "_blank")} />
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                </>
+              );
+            })()}
           </motion.div>
         </div>
       )}

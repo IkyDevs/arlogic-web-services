@@ -129,3 +129,13 @@
 - Advanced analytics & real-time dashboard
 - Sparepart request & chat system improvements
 - Mobile app (React Native / Flutter)
+
+## Yang Sudah Diselaraskan (v.24)
+- [x] `JenisLayanan` type include `"pengeluaran"`
+- [x] `jenisLayananLabels` include `"Pengeluaran"`
+- [x] Filter "Pengeluaran" di dropdown Service Type LayananList
+- [x] Stats card Pemasukan/Pengeluaran terpisah di TransactionManagement
+- [x] FilterModal merah untuk item expense
+- [x] AdminDashboardAnalytics: expense badge merah + icon Receipt
+- [x] Detail Transaksi modal: layout khusus expense (header merah, nama barang)
+- [x] Scrollable daftar transaksi di dashboard & management transaction
