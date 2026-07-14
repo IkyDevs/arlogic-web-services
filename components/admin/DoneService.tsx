@@ -33,7 +33,7 @@ export default function DoneService() {
 
   const markDone = async (id: string) => {
     const { error } = await supabase.from("service_orders").update({ status: "done" }).eq("id", id);
-    if (error) { toast.error("Gagal update status"); return; }
+    if (error) { toast.error("Gagal update status: " + error.message); return; }
     toast.success("Service dipindahkan ke riwayat");
     fetchData();
   };

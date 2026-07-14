@@ -441,9 +441,9 @@ In : ${now}`;
         const custPhone = (formData.cs_phone || "").replace(/\D/g, "");
         if (formData.cs_name && custPhone) {
           const last4 = custPhone.slice(-4);
-          const custName = formData.cs_name.trim().endsWith(` ${last4}`)
-            ? formData.cs_name.trim()
-            : `${formData.cs_name.trim()} ${last4}`;
+          const rawName = formData.cs_name.trim().replace(/^CS\s*/i, "");
+          const baseName = rawName.endsWith(` ${last4}`) ? rawName : `${rawName} ${last4}`;
+          const custName = baseName.startsWith("CS ") ? baseName : `CS ${baseName}`;
           const { data: existingCust, error: checkErr } = await supabase
             .from("customers")
             .select("id, name")

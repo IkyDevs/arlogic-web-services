@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS service_orders (
   issue_description TEXT NOT NULL,
   request TEXT,
   notes TEXT,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending','assigned','in_progress','req_sparepart_admin','po_pending','sparepart_ready','qc_pending','revision_required','completed','cancelled')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending','assigned','in_progress','req_sparepart_admin','po_pending','sparepart_ready','qc_pending','revision_required','completed','done','cancelled')),
   assigned_teknisi_id UUID REFERENCES profiles(id),
   po_status TEXT,
   po_sparepart TEXT,
@@ -815,11 +815,14 @@ CREATE TABLE IF NOT EXISTS customers (
   name TEXT NOT NULL,
   phone TEXT NOT NULL,
   point INTEGER DEFAULT 0,
+  profesi TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  alamat TEXT DEFAULT '',
   last_transaction TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
 CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
 
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;

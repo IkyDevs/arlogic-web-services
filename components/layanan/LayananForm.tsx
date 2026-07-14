@@ -344,9 +344,9 @@ ${typeIcon} tipe : ${jenisLayananLabel}
         const custPhone = (formData.customer_whatsapp || "").replace(/\D/g, "");
         if (formData.customer_name && custPhone) {
           const last4 = custPhone.slice(-4);
-          const custName = formData.customer_name.trim().endsWith(` ${last4}`)
-            ? formData.customer_name.trim()
-            : `${formData.customer_name.trim()} ${last4}`;
+          const rawName = formData.customer_name.trim().replace(/^CS\s*/i, "");
+          const baseName = rawName.endsWith(` ${last4}`) ? rawName : `${rawName} ${last4}`;
+          const custName = baseName.startsWith("CS ") ? baseName : `CS ${baseName}`;
           const { data: existingCust, error: checkErr } = await supabase
             .from("customers")
             .select("id, name")

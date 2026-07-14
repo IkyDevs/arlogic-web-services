@@ -3,30 +3,51 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
-import { Users, Search, Phone, ShoppingCart, Watch, Upload, X, CheckCircle, AlertCircle, Loader2, Download, FileSpreadsheet } from "lucide-react";
+import { Users, Search, Phone, ShoppingCart, Watch, Upload, X, CheckCircle, AlertCircle, Loader2, Download, FileSpreadsheet, Edit, Mail, MapPin, Briefcase } from "lucide-react";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
 
 export default function CustomerList() {
   const supabase = createClient();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<any>(null);
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; skipped: number; errors: string[] } | null>(null);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; phase: string } | null>(null);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editData, setEditData] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const PAGE_SIZE = 100;
 
-  const fetchCustomers = async () => {
-    setLoading(true);
+  const fetchCustomers = async (append = false, searchQuery = "") => {
+    if (!append && !searchQuery) setLoading(true);
+    else setLoadingMore(true);
     try {
-      const { data } = await supabase
-        .from("customers")
-        .select("name, phone, point")
-        .order("created_at", { ascending: false })
-        .limit(200);
+      const from = append ? page * PAGE_SIZE : 0;
+      const to = from + PAGE_SIZE - 1;
 
-      // Count transactions & services for each customer
+      let query = supabase
+        .from("customers")
+        .select("id, name, phone, point", { count: "exact" })
+        .order("created_at", { ascending: false });
+
+      if (searchQuery) {
+        const q = searchQuery.replace(/\D/g, "");
+        query = query.or(`name.ilike.%${searchQuery}%,phone.ilike.%${q}%`);
+      }
+
+      if (!searchQuery) query = query.range(from, to);
+
+      const { data, count } = await query;
+
       const phones = (data || []).map((c) => c.phone).filter(Boolean);
       let layananCounts: Record<string, number> = {};
       let serviceCounts: Record<string, number> = {};
@@ -47,44 +68,133 @@ export default function CustomerList() {
         }
       }
 
-      const list = (data || []).map((c) => ({
+      const list = (data || []).map((c: any) => ({
+        id: c.id,
         name: c.name,
         phone: c.phone,
         point: c.point || 0,
+        profesi: c.profesi || "",
+        email: c.email || "",
+        alamat: c.alamat || "",
         layananCount: layananCounts[c.phone] || 0,
         serviceCount: serviceCounts[c.phone] || 0,
       }));
 
-      setCustomers(list);
+      if (append) {
+        setCustomers(prev => [...prev, ...list]);
+      } else {
+        setCustomers(list);
+      }
+      if (count != null) setTotalCount(count);
+      if (!searchQuery) {
+        setHasMore(count != null ? from + PAGE_SIZE < count : (data?.length || 0) === PAGE_SIZE);
+      } else {
+        setHasMore(false);
+      }
     } catch (e: any) {
       console.error("Fetch customers error:", e);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  useEffect(() => { fetchCustomers(); }, []);
+  const loadMore = () => {
+    setPage(p => p + 1);
+    fetchCustomers(true, "");
+  };
 
-  const filtered = search.trim()
-    ? customers.filter((c) =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.phone.includes(search.replace(/\D/g, ""))
-      )
-    : customers;
+  useEffect(() => { fetchCustomers(false, ""); }, []);
+
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!search.trim()) {
+      if (customers.length === 0) fetchCustomers(false, "");
+      return;
+    }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      const q = search.trim();
+      const qDigits = q.replace(/\D/g, "");
+      let query = supabase
+        .from("customers")
+        .select("id, name, phone, point, profesi, email, alamat");
+      if (qDigits) {
+        query = query.or(`name.ilike.%${q}%,phone.ilike.%${qDigits}%`);
+      } else {
+        query = query.ilike("name", `%${q}%`);
+      }
+      const { data } = await query.limit(50);
+      const phones = (data || []).map((c: any) => c.phone).filter(Boolean);
+      let layananCounts: Record<string, number> = {};
+      let serviceCounts: Record<string, number> = {};
+      if (phones.length > 0) {
+        const [layananRes, serviceRes] = await Promise.all([
+          supabase.from("layanan").select("customer_whatsapp").in("customer_whatsapp", phones),
+          supabase.from("service_orders").select("customer_phone").in("customer_phone", phones),
+        ]);
+        for (const r of layananRes.data || []) {
+          const p = r.customer_whatsapp || "";
+          layananCounts[p] = (layananCounts[p] || 0) + 1;
+        }
+        for (const r of serviceRes.data || []) {
+          const p = r.customer_phone || "";
+          serviceCounts[p] = (serviceCounts[p] || 0) + 1;
+        }
+      }
+      setCustomers((data || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        point: c.point || 0,
+        profesi: c.profesi || "",
+        email: c.email || "",
+        alamat: c.alamat || "",
+        layananCount: layananCounts[c.phone] || 0,
+        serviceCount: serviceCounts[c.phone] || 0,
+      })));
+      setSearching(false);
+    }, 400);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [search]);
+
+  const handleEdit = (c: any) => {
+    setEditData({ ...c });
+    setShowEdit(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editData?.id) return;
+    const payload: any = {};
+    if (editData.name?.trim()) payload.name = editData.name.trim();
+    if (editData.phone?.trim()) payload.phone = editData.phone.trim().replace(/\D/g, "");
+    if (editData.point != null) payload.point = parseInt(editData.point) || 0;
+    payload.profesi = editData.profesi?.trim() || null;
+    payload.email = editData.email?.trim() || null;
+    payload.alamat = editData.alamat?.trim() || null;
+    const { error } = await supabase.from("customers").update(payload).eq("id", editData.id);
+    if (error) { toast.error("Gagal update: " + error.message); return; }
+    toast.success("Customer diperbarui");
+    setShowEdit(false);
+    setEditData(null);
+    fetchCustomers(false, "");
+  };
 
   function parseRows(data: (string | number)[][]): { name: string; phone: string; point: number }[] {
     if (data.length === 0) return [];
     const rows: { name: string; phone: string; point: number }[] = [];
     let start = 0;
-    // Lewati baris instruksi (baris 1 = petunjuk kolom, bukan header)
     if (data.length > 1 && data[1] && String(data[1][0]).includes("Abaikan kolom")) start = 2;
     for (let i = start; i < data.length; i++) {
       const row = data[i];
       if (row.length < 4) continue;
-      const name = String(row[2] || "").trim();
+      let name = String(row[2] || "").trim().replace(/^CS\s*/i, "");
       let phone = String(row[3] || "").replace(/\D/g, "");
       const point = parseInt(String(row[7] || "0")) || 0;
       if (!phone.startsWith("62") && phone.startsWith("0")) phone = "62" + phone.substring(1);
+      const last4 = phone.slice(-4);
+      const baseName = name.endsWith(` ${last4}`) ? name : `${name} ${last4}`;
+      name = baseName.startsWith("CS ") ? baseName : `CS ${baseName}`;
       if (name && phone.length >= 10) rows.push({ name, phone, point });
     }
     return rows;
@@ -113,6 +223,7 @@ export default function CustomerList() {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportResult(null);
+    setImportProgress(null);
     setImporting(true);
     try {
       let rows: { name: string; phone: string; point: number }[] = [];
@@ -130,20 +241,61 @@ export default function CustomerList() {
         rows = parseRows(data);
       }
       if (rows.length === 0) { toast.error("Tidak ada data valid di file"); setImporting(false); return; }
+
+      setImportProgress({ current: 0, total: rows.length, phase: "Mengambil data pelanggan..." });
+
+      const phones = rows.map(r => r.phone);
+      const { data: existingCustomers } = await supabase.from("customers").select("phone, id, point").in("phone", phones);
+      const existingMap = new Map((existingCustomers || []).map(c => [c.phone, c]));
+
+      const BATCH_SIZE = 50;
       let added = 0, skipped = 0;
       const errors: string[] = [];
+      const toInsert: { name: string; phone: string; point: number }[] = [];
+      const toUpdate: { id: string; point: number }[] = [];
+
+      setImportProgress({ current: 0, total: rows.length, phase: "Menyortir data..." });
+
       for (const row of rows) {
-        const { data: existing } = await supabase.from("customers").select("id").eq("phone", row.phone).maybeSingle();
+        const existing = existingMap.get(row.phone);
         if (existing) {
-          if (row.point > 0) {
-            await supabase.from("customers").update({ point: row.point }).eq("id", existing.id);
-          }
-          skipped++; continue;
+          if (row.point > 0) toUpdate.push({ id: existing.id, point: row.point });
+          skipped++;
+        } else {
+          toInsert.push(row);
         }
-        const { error } = await supabase.from("customers").insert({ name: row.name, phone: row.phone, point: row.point });
-        if (error) { errors.push(`${row.name}: ${error.message}`); }
-        else added++;
       }
+
+      for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+        const batch = toInsert.slice(i, i + BATCH_SIZE);
+        const { error } = await supabase.from("customers").insert(batch);
+        if (error) {
+          if (error.code === "23505") {
+            let insertedCount = 0;
+            for (const row of batch) {
+              const { error: insertErr } = await supabase.from("customers").insert(row);
+              if (insertErr && insertErr.code !== "23505") errors.push(`${row.name}: ${insertErr.message}`);
+              else insertedCount++;
+            }
+            added += insertedCount;
+          } else {
+            errors.push(`Batch ${i}-${i + batch.length}: ${error.message}`);
+          }
+        } else {
+          added += batch.length;
+        }
+        setImportProgress({ current: i + batch.length, total: rows.length, phase: "Menyimpan pelanggan baru..." });
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+        const batch = toUpdate.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(u =>
+          supabase.from("customers").update({ point: u.point }).eq("id", u.id)
+        ));
+      }
+
+      setImportProgress({ current: rows.length, total: rows.length, phase: "Selesai" });
       setImportResult({ added, skipped, errors });
     } catch (err: any) {
       toast.error("Gagal membaca file: " + err.message);
@@ -163,7 +315,11 @@ export default function CustomerList() {
           </div>
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-gray-100">Data Customer</h1>
-            <p className="text-sm text-slate-500 dark:text-gray-400">{customers.length} customer terdaftar</p>
+            <p className="text-sm text-slate-500 dark:text-gray-400">
+              {search.trim()
+                ? `${customers.length} hasil ditemukan`
+                : `${totalCount.toLocaleString("id-ID")} customer terdaftar`}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -171,7 +327,7 @@ export default function CustomerList() {
             className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-slate-600 dark:text-gray-400">
             <Upload className="w-4 h-4" /> Import CSV
           </button>
-          <button onClick={fetchCustomers}
+          <button onClick={() => fetchCustomers(false, search)}
             className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 dark:border-white/10 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-slate-600 dark:text-gray-400">
             <Search className="w-4 h-4" /> Refresh
           </button>
@@ -198,64 +354,79 @@ export default function CustomerList() {
                 <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">WhatsApp</th>
                 <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Point</th>
                 <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Transaksi</th>
-                <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Service Jam</th>
+                <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Service</th>
                 <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
+                <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {loading ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-400 dark:text-gray-500">Memuat data...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-400 dark:text-gray-500">
+                <tr><td colSpan={7} className="text-center py-12 text-slate-400 dark:text-gray-500">Memuat data...</td></tr>
+              ) : customers.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-12 text-slate-400 dark:text-gray-500">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p>Tidak ada customer</p>
                 </td></tr>
-              ) : filtered.map((c, i) => (
-                <motion.tr key={c.phone || c.name} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+              ) : customers.map((c, i) => (
+                <motion.tr key={c.phone + c.name + i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
                   className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-gray-900 dark:bg-white rounded-full flex items-center justify-center text-white dark:text-gray-900 font-bold text-xs">
-                        {c.name.charAt(0).toUpperCase()}
+                        {(c.name || "?").charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium text-slate-900 dark:text-gray-100">{c.name}</span>
+                      <div>
+                        <span className="font-medium text-slate-900 dark:text-gray-100">{c.name}</span>
+                        {c.profesi && <p className="text-[10px] text-slate-400">{c.profesi}</p>}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     {c.phone ? (
-                      <a href={`https://wa.me/${c.phone.replace(/^0/, "62")}`} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline">
-                        <Phone className="w-3.5 h-3.5" />
-                        <span className="font-mono text-sm">{c.phone}</span>
-                      </a>
+                      <div>
+                        <a href={`https://wa.me/${c.phone.replace(/^0/, "62")}`} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 hover:underline">
+                          <Phone className="w-3.5 h-3.5" />
+                          <span className="font-mono text-sm">{c.phone}</span>
+                        </a>
+                        {c.email && <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5"><Mail className="w-3 h-3" />{c.email}</p>}
+                      </div>
                     ) : <span className="text-slate-400 dark:text-gray-500">-</span>}
                   </td>
-                  <td className="px-4 py-3 text-center font-bold text-amber-600">
-                    {c.point || 0}
-                  </td>
+                  <td className="px-4 py-3 text-center font-bold text-amber-600">{c.point || 0}</td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      <ShoppingCart className="w-3 h-3" />
-                      {c.layananCount}
+                      <ShoppingCart className="w-3 h-3" />{c.layananCount}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                      <Watch className="w-3 h-3" />
-                      {c.serviceCount}
+                      <Watch className="w-3 h-3" />{c.serviceCount}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center font-bold text-slate-900 dark:text-gray-100">
-                    {c.layananCount + c.serviceCount}
+                  <td className="px-4 py-3 text-center font-bold text-slate-900 dark:text-gray-100">{c.layananCount + c.serviceCount}</td>
+                  <td className="px-4 py-3 text-center">
+                    <button onClick={() => handleEdit(c)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-all" title="Edit">
+                      <Edit className="w-4 h-4" />
+                    </button>
                   </td>
                 </motion.tr>
               ))}
             </tbody>
           </table>
         </div>
-        {!loading && filtered.length > 0 && (
-          <div className="px-4 py-3 border-t border-slate-100 dark:border-white/5 text-xs text-slate-400 dark:text-gray-500">
-            Menampilkan {filtered.length} dari {customers.length} customer
+        {!loading && (
+          <div className="px-4 py-3 border-t border-slate-100 dark:border-white/5">
+            <div className="flex items-center justify-between text-xs text-slate-400 dark:text-gray-500">
+              <span>Menampilkan {customers.length} customer</span>
+              {hasMore && !search.trim() && (
+                <button onClick={loadMore} disabled={loadingMore}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg hover:bg-slate-700 transition-all disabled:opacity-50">
+                  {loadingMore ? "Memuat..." : "Muat lebih banyak"}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -273,7 +444,7 @@ export default function CustomerList() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Import Customer</h2>
-                  <p className="text-xs text-gray-500">Upload file CSV</p>
+                  <p className="text-xs text-gray-500">Upload file .csv / .xls / .xlsx</p>
                 </div>
               </div>
               <button onClick={() => { if (!importing) setShowImport(false); }} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
@@ -282,8 +453,7 @@ export default function CustomerList() {
             </div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Format file: <code className="bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded text-xs">.csv</code> atau <code className="bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded text-xs">.xls / .xlsx</code><br />
-                Kolom: <code className="bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded text-xs">nama</code> dan <code className="bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded text-xs">nomor_wa</code> (dengan atau tanpa header).<br />
+                Kolom: <code className="bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded text-xs">nama</code>, <code className="bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded text-xs">nomor_wa</code>, <code className="bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded text-xs">point</code>.
                 Nomor WhatsApp bisa dengan awalan 0 atau 62.
               </p>
               <div className="border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl p-6 text-center">
@@ -309,7 +479,7 @@ export default function CustomerList() {
                         {importResult.errors.map((e, i) => <p key={i}>{e}</p>)}
                       </div>
                     )}
-                    <button onClick={() => { setShowImport(false); setImportResult(null); fetchCustomers(); }}
+                    <button onClick={() => { setShowImport(false); setImportResult(null); fetchCustomers(false, ""); }}
                       className="w-full py-2.5 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-700 transition-all text-sm">
                       Selesai
                     </button>
@@ -317,14 +487,26 @@ export default function CustomerList() {
                 ) : (
                   <>
                     {importing ? (
-                      <div className="py-4">
+                      <div className="py-4 space-y-3">
                         <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin text-gray-400" />
-                        <p className="text-sm text-gray-500">Mengimpor data...</p>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{importProgress?.phase || "Mengimpor data..."}</p>
+                        {importProgress && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{importProgress.current} / {importProgress.total}</span>
+                              <span>{Math.round(importProgress.current / importProgress.total * 100)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-white/10 rounded-full h-2 overflow-hidden">
+                              <div className="bg-gray-900 dark:bg-white h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${importProgress.current / importProgress.total * 100}%` }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div>
                         <Upload className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Klik untuk pilih file CSV</p>
+                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Klik untuk pilih file</p>
                         <button onClick={() => fileInputRef.current?.click()}
                           className="px-4 py-2 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-700 transition-all text-sm">
                           Pilih File
@@ -342,6 +524,75 @@ export default function CustomerList() {
                   </>
                 )}
               </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Edit Customer Modal */}
+      {showEdit && editData && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEdit(false)}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                  <Edit className="w-4 h-4 text-white dark:text-gray-900" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Edit Customer</h2>
+                  <p className="text-xs text-gray-500">Perbarui data customer</p>
+                </div>
+              </div>
+              <button onClick={() => setShowEdit(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Nama</label>
+                <input type="text" value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">WhatsApp</label>
+                <input type="text" value={editData.phone} onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Point</label>
+                <input type="number" min="0" value={editData.point} onChange={(e) => setEditData({ ...editData, point: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Briefcase className="w-3 h-3" /> Profesi <span className="text-gray-400 font-normal lowercase">(opsional)</span>
+                </label>
+                <input type="text" value={editData.profesi || ""} onChange={(e) => setEditData({ ...editData, profesi: e.target.value })}
+                  placeholder="Karyawan, Wirausaha, dll"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Mail className="w-3 h-3" /> Email <span className="text-gray-400 font-normal lowercase">(opsional)</span>
+                </label>
+                <input type="email" value={editData.email || ""} onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                  placeholder="customer@email.com"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Alamat <span className="text-gray-400 font-normal lowercase">(opsional)</span>
+                </label>
+                <textarea value={editData.alamat || ""} onChange={(e) => setEditData({ ...editData, alamat: e.target.value })}
+                  placeholder="Jl. contoh no. 123"
+                  rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 resize-none dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100" />
+              </div>
+              <button onClick={handleEditSave}
+                className="w-full py-2.5 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-700 transition-all text-sm">
+                Simpan Perubahan
+              </button>
             </div>
           </motion.div>
         </div>
