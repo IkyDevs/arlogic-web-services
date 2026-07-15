@@ -58,9 +58,16 @@ const paymentLabels: Record<string, string> = {
   cash: "Cash",
   qris: "QRIS",
   transfer: "Transfer",
-  edc_mandiri: "EDC Mandiri",
+  edc: "EDC",
   edc_bca: "EDC BCA",
+  edc_mandiri: "EDC Mandiri",
+  tf_bca: "Transfer BCA",
+  tf_mandiri: "Transfer Mandiri",
+  bri: "BRI",
+  kudus: "Kudus",
 };
+
+const paymentOptions = Object.entries(paymentLabels).map(([value, label]) => ({ value, label }));
 
 const watchBrands = [
   "ROLEX",
@@ -483,7 +490,7 @@ In : ${now}`;
 📱 Customer: ${formData.cs_name}
 📞 WA: ${formData.cs_phone}
 💰 Nominal: Rp ${dpValue.toLocaleString("id-ID")}
-💳 Metode: ${formData.payment_method === "qris" ? "QRIS" : formData.payment_method === "transfer" ? "Transfer" : "Cash"}
+💳 Metode: ${paymentLabels[formData.payment_method] || formData.payment_method}
 📋 Invoice: ${invoiceNumber}
 📝 Keterangan: Down Payment
 👤 Operator: ${userProfile?.full_name || "System"}
@@ -1178,73 +1185,19 @@ In : ${now}`;
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Metode Pembayaran
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((p) => ({ ...p, payment_method: "cash" }))
-                    }
-                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      formData.payment_method === "cash"
-                        ? "bg-slate-900 text-white"
-                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Cash
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((p) => ({ ...p, payment_method: "qris" }))
-                    }
-                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      formData.payment_method === "qris"
-                        ? "bg-slate-900 text-white"
-                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    QRIS
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((p) => ({ ...p, payment_method: "transfer" }))
-                    }
-                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      formData.payment_method === "transfer"
-                        ? "bg-slate-900 text-white"
-                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    Transfer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((p) => ({ ...p, payment_method: "edc_mandiri" }))
-                    }
-                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      formData.payment_method === "edc_mandiri"
-                        ? "bg-slate-900 text-white"
-                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    EDC Mandiri
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFormData((p) => ({ ...p, payment_method: "edc_bca" }))
-                    }
-                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      formData.payment_method === "edc_bca"
-                        ? "bg-slate-900 text-white"
-                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    EDC BCA
-                  </button>
-                </div>
+                <select
+                  value={formData.payment_method}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, payment_method: e.target.value }))
+                  }
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                >
+                  {paymentOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {(formData.payment_method === "qris" ||
