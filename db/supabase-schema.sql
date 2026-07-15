@@ -295,6 +295,9 @@ ALTER TABLE layanan_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all for authenticated" ON layanan_items
   FOR ALL USING (true) WITH CHECK (true);
 
+GRANT ALL ON TABLE layanan_items TO authenticated;
+GRANT ALL ON TABLE layanan_items TO service_role;
+
 -- =====================================================
 -- NOTIFICATIONS
 -- =====================================================

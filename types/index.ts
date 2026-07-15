@@ -46,7 +46,7 @@ export type ServiceStatus =
 export type WatchMovement =
   | "automatic"
   | "quartz"
-  | "mechanical"
+  | "digital"
   | "smartwatch"
   | "other";
 export type WatchCondition = "new" | "excellent" | "good" | "fair" | "poor";
@@ -426,7 +426,7 @@ export const serviceStatusLabels: Record<ServiceStatus, string> = {
 export const watchMovementLabels: Record<WatchMovement, string> = {
   automatic: "Automatic",
   quartz: "Quartz",
-  mechanical: "Mechanical",
+  digital: "Digital",
   smartwatch: "Smartwatch",
   other: "Other",
 };

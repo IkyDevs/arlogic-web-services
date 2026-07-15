@@ -48,10 +48,18 @@ const QRCodeGenerator = dynamic(
 const watchMovements = [
   { value: "automatic", label: "AUTOMATIC", icon: Settings },
   { value: "quartz", label: "QUARTZ", icon: Battery },
-  { value: "mechanical", label: "MECHANICAL", icon: Settings },
+  { value: "digital", label: "DIGITAL", icon: Settings },
   { value: "analog_digital", label: "ANALOG-DIGITAL", icon: RotateCw },
   { value: "smartwatch", label: "SMARTWATCH", icon: Smartphone },
 ];
+
+const paymentLabels: Record<string, string> = {
+  cash: "Cash",
+  qris: "QRIS",
+  transfer: "Transfer",
+  edc_mandiri: "EDC Mandiri",
+  edc_bca: "EDC BCA",
+};
 
 const watchBrands = [
   "ROLEX",
@@ -293,7 +301,9 @@ export default function ServiceInput({
       if (
         formData.qris_photo &&
         (formData.payment_method === "qris" ||
-          formData.payment_method === "transfer")
+          formData.payment_method === "transfer" ||
+          formData.payment_method === "edc_mandiri" ||
+          formData.payment_method === "edc_bca")
       ) {
         const alreadyInPhotos = photos.some(
           (f) =>
@@ -333,7 +343,7 @@ dp : Rp ${dpValue.toLocaleString("id-ID")}`;
 estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
           }
           formattedCaption += `
-Pembayaran : ${formData.payment_method === "qris" ? "QRIS" : formData.payment_method === "transfer" ? "Transfer" : "Cash"}`;
+Pembayaran : ${paymentLabels[formData.payment_method] || formData.payment_method}`;
         } else if (estimatedCost) {
           formattedCaption += `
 estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
@@ -414,7 +424,9 @@ In : ${now}`;
         if (
           formData.qris_photo &&
           (formData.payment_method === "qris" ||
-            formData.payment_method === "transfer")
+            formData.payment_method === "transfer" ||
+            formData.payment_method === "edc_mandiri" ||
+            formData.payment_method === "edc_bca")
         ) {
           try {
             const dpPhotoUrls = await uploadFiles([formData.qris_photo], {
@@ -1043,11 +1055,39 @@ In : ${now}`;
                   >
                     Transfer
                   </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((p) => ({ ...p, payment_method: "edc_mandiri" }))
+                    }
+                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      formData.payment_method === "edc_mandiri"
+                        ? "bg-slate-900 text-white"
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    EDC Mandiri
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((p) => ({ ...p, payment_method: "edc_bca" }))
+                    }
+                    className={`w-full sm:w-auto flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      formData.payment_method === "edc_bca"
+                        ? "bg-slate-900 text-white"
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    EDC BCA
+                  </button>
                 </div>
               </div>
 
               {(formData.payment_method === "qris" ||
-                formData.payment_method === "transfer") && (
+                formData.payment_method === "transfer" ||
+                formData.payment_method === "edc_mandiri" ||
+                formData.payment_method === "edc_bca") && (
                 <div>
                   <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                     Foto Bukti Pembayaran{" "}
@@ -1075,10 +1115,7 @@ In : ${now}`;
                       <div>
                         <Camera className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                         <p className="text-sm text-slate-500">
-                          Klik untuk upload bukti{" "}
-                          {formData.payment_method === "qris"
-                            ? "QRIS"
-                            : "Transfer"}
+                          Klik untuk upload bukti {paymentLabels[formData.payment_method] || formData.payment_method}
                         </p>
                       </div>
                     )}
@@ -1131,7 +1168,7 @@ In : ${now}`;
                       </span>
                       <span className="text-slate-500">Pembayaran:</span>
                       <span className="font-medium text-slate-900">
-                        {formData.payment_method === "qris" ? "QRIS" : "Cash"}
+                        {paymentLabels[formData.payment_method] || formData.payment_method}
                       </span>
                     </>
                   )}

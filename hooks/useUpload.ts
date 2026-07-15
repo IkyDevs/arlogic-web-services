@@ -136,7 +136,9 @@ export function useUpload() {
       }
 
       if (!data.urls || data.urls.length === 0) {
-        throw new Error('No URLs returned from server')
+        console.error('❌ Upload returned 0 URLs — Telegram upload may have failed silently')
+        toast.error('Foto gagal dikirim ke Telegram. Service tetap tersimpan tanpa foto.')
+        return []
       }
 
       const results: UploadFileResult[] = (data.urls || []).map((url: string, i: number) => ({

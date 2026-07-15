@@ -237,7 +237,7 @@ export default function InventoryManagement({
     try {
       if (transferPhotoFile) {
         const caption = `📦 STOCK TRANSFER
-━━━━━━━━━━━━━━━━━━━━━━━━
+
 📝 Item: ${selectedItem.item_name}
 🏷️ SKU: ${selectedItem.sku}
 📍 Dari: ${transferFrom === "warehouse" ? "Gudang" : "Toko"}
@@ -246,7 +246,7 @@ export default function InventoryManagement({
 📝 Catatan: ${transferNotes || "-"}
 👤 Admin: ${user?.full_name || "Admin"}
 ⏰ ${new Date().toLocaleString("id-ID")}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
+ `;
 
         photoUrl =
           (
@@ -325,7 +325,7 @@ export default function InventoryManagement({
 
         // Create caption with inventory details
         const itemCaption = `📦 INVENTORY ITEM
-━━━━━━━━━━━━━━━━━━━━━━━━
+
 📝 Nama: ${formData.item_name}
 🏷️ SKU: ${formData.sku}
 📂 Kategori: ${formData.category || "Uncategorized"}
@@ -335,7 +335,7 @@ export default function InventoryManagement({
 💰 Harga: Rp ${(parseInt(formData.price) || 0).toLocaleString("id-ID")}
 👤 Admin: ${user?.full_name || "Admin"}
 ⏰ ${new Date().toLocaleString("id-ID")}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
+ `;
 
         photoUrl =
           (

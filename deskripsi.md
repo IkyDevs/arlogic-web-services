@@ -42,11 +42,12 @@ Sistem manajemen service jam tangan berbasis web yang terintegrasi dengan Supaba
 
 ## Revisi Terakhir
 
-### v.24 - Selaraskan Komponen dengan Fitur Pengeluaran (2026-07-14)
+### v.25 - Multiple Fixes: Upload, DP, Multi Jenis Layanan (2026-07-15)
 
-1. **TypeScript types**: `JenisLayanan` sekarang include `"pengeluaran"`, labels updated
-2. **LayananList filter**: Opsi "Pengeluaran" di dropdown filter Service Type
-3. **TransactionManagement**: Stats card pecah jadi Pemasukan/Pengeluaran, FilterModal tampil merah untuk expense
-4. **AdminDashboardAnalytics**: Transaksi expense tampil dengan indikator merah, list scrollable
-5. **Detail Transaksi modal**: Layout khusus untuk pengeluaran (header merah, nama barang, dll)
-6. **Scrollable list**: Daftar transaksi di dashboard dan management transaction bisa scroll internal
+1. **Bug fix upload**: `sendMediaGroup` hanya dipanggil jika foto >= 2, fallback per-photo jika `getFileUrl` gagal
+2. **Error handling**: "No URLs returned from server" diganti toast informatif — service tetap tersimpan
+3. **Tipe jam**: "MECHANICAL" diganti "DIGITAL" di form dan list filter
+4. **Metode bayar DP**: Tambah EDC Mandiri & EDC BCA, perbaiki semua label caption/summary pakai `paymentLabels`
+5. **Down Payment**: Sekarang tampil di modal detail service (admin, teknisi, owner)
+6. **Multi jenis layanan**: Setiap extra item dikirim sebagai pesan Telegram terpisah (bukan digabung)
+7. **List transaksi per-item**: `layanan_items` di-expand jadi rows terpisah di stats & filter

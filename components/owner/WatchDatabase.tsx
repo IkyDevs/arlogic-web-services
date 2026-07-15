@@ -29,7 +29,7 @@ interface WatchEntry {
 const MOVEMENTS = [
   "automatic",
   "quartz",
-  "mechanical",
+  "digital",
   "analog_digital",
   "smartwatch",
 ];
@@ -163,7 +163,7 @@ export default function WatchDatabase() {
         return "bg-[#3B82F6] text-white";
       case "quartz":
         return "bg-[#F59E0B] text-black";
-      case "mechanical":
+      case "digital":
         return "bg-blue-600 text-white";
       case "analog_digital":
         return "bg-purple-600 text-white";
@@ -180,8 +180,8 @@ export default function WatchDatabase() {
         return "Automatic";
       case "quartz":
         return "Quartz";
-      case "mechanical":
-        return "Mechanical";
+      case "digital":
+        return "Digital";
       case "analog_digital":
         return "Analog-Digital";
       case "smartwatch":

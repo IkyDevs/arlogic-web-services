@@ -15,7 +15,7 @@ const serviceStatusLabels: Record<string, string> = {
 };
 
 const movementLabels: Record<string, string> = {
-  automatic: "Automatic", quartz: "Quartz", mechanical: "Mechanical",
+  automatic: "Automatic", quartz: "Quartz", digital: "Digital",
   analog_digital: "Analog Digital", smartwatch: "Smartwatch", other: "Other",
 };
 
@@ -23,13 +23,13 @@ const moveOptions = [
   { value: "", label: "Semua Tipe" },
   { value: "automatic", label: "Automatic" },
   { value: "quartz", label: "Quartz" },
-  { value: "mechanical", label: "Mechanical" },
+  { value: "digital", label: "Digital" },
   { value: "analog_digital", label: "Analog Digital" },
   { value: "smartwatch", label: "Smartwatch" },
 ];
 
 const movementIcons: Record<string, any> = {
-  automatic: Settings, quartz: Battery, mechanical: Settings,
+  automatic: Settings, quartz: Battery, digital: Settings,
   analog_digital: Watch, smartwatch: Smartphone,
 };
 
@@ -378,6 +378,10 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-[10px] text-slate-500">Estimasi Biaya</p>
                   <p className="text-sm font-bold text-slate-900">{selectedService.estimated_cost ? fmtRupiah(selectedService.estimated_cost) : "-"}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-emerald-100">
+                  <p className="text-[10px] text-slate-500">Down Payment</p>
+                  <p className="text-sm font-bold text-emerald-600">{selectedService.down_payment ? fmtRupiah(selectedService.down_payment) : "-"}</p>
                 </div>
                 <div className="col-span-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-[10px] text-slate-500">Dibuat pada</p>

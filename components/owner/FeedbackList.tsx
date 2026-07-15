@@ -421,6 +421,10 @@ export default function FeedbackList() {
                       <p className="text-[10px] text-gray-500 uppercase tracking-wider">Estimasi</p>
                       <p className="font-semibold text-gray-900 text-sm">{selectedService.estimated_cost ? `Rp ${Number(selectedService.estimated_cost).toLocaleString()}` : "-"}</p>
                     </div>
+                    <div className="p-3 bg-gray-50 rounded-xl border border-emerald-100">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">Down Payment</p>
+                      <p className="font-semibold text-emerald-600 text-sm">{selectedService.down_payment ? `Rp ${Number(selectedService.down_payment).toLocaleString()}` : "-"}</p>
+                    </div>
                     <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
                       <p className="text-[10px] text-gray-500 uppercase tracking-wider">Status</p>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">

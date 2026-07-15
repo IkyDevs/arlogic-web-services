@@ -1,5 +1,117 @@
 # Revisi
 
+## Revisi v.25 - 2026-07-15
+
+### Issue 1: Add New Service Error "No URLs returned from server" — Foto Tidak Terkirim ke Telegram
+
+**Masalah**: Saat add new service, muncul error "No URLs returned from server" di toast. Data service berhasil tersimpan ke Supabase, tapi foto tidak terkirim ke Telegram dan tidak ada URL foto di `service_documentation`.
+
+**Root Cause** (2 masalah):
+
+1. **`lib/telegram.ts` — `uploadMultipleToTelegram()`**: `sendMediaGroup` selalu dicoba meskipun hanya 1 foto. Telegram API mewajibkan minimal 2 item untuk `sendMediaGroup`, sehingga selalu gagal (error 400) untuk single photo. Setelah gagal, fallback `sendSinglePhoto` dipanggil, tapi jika gagal juga (misal `getFile` return null), hasilnya array kosong.
+
+2. **`hooks/useUpload.ts` — `uploadFiles()`**: Jika `data.urls` kosong, throw `new Error('No URLs returned from server')` yang misleading karena sebenarnya upload ke Telegram yang gagal, bukan server yang tidak return URL.
+
+**Fix**:
+
+1. **`lib/telegram.ts`**: 
+   - `sendMediaGroup` hanya dicoba jika `chunk.length >= 2` (minimal 2 foto)
+   - Jika 1 foto, langsung ke fallback individual (`sendSinglePhoto`)
+   - Di path `sendMediaGroup`, jika `getFileUrl` return null untuk suatu foto, fallback per-photo dengan `sendSinglePhoto` (bukan skip seluruh foto)
+   - Error handling per-item dengan try/catch agar satu foto gagal tidak menggagalkan seluruh chunk
+
+2. **`hooks/useUpload.ts`**:
+   - Ganti throw error menjadi return `[]` dengan toast "Foto gagal dikirim ke Telegram. Service tetap tersimpan tanpa foto."
+   - Log error ke console dengan pesan yang lebih deskriptif
+
+### Issue 2: Tipe Jam "MECHANICAL" → "DIGITAL"
+
+**Masalah**: Opsi tipe jam "MECHANICAL" sudah tidak relevan, diganti "DIGITAL".
+
+**Fix** — semua referensi `"mechanical"` diubah ke `"digital"`:
+- `types/index.ts`: WatchMovement type
+- `components/admin/ServiceInput.tsx`: watchMovements array
+- `components/admin/ServiceList.tsx`: movementLabels, moveOptions, movementIcons
+- `components/owner/WatchDatabase.tsx`: MOVEMENTS array, color switch, label switch
+- `app/tracking/[[...slug]]/page.tsx`: getMovementIcon switch
+
+### Issue 3: Tambah Metode Pembayaran EDC Mandiri & EDC BCA di DP
+
+**Masalah**: DP hanya support Cash, QRIS, Transfer. Tidak ada EDC Mandiri dan EDC BCA.
+
+**Fix** (semua di `components/admin/ServiceInput.tsx`):
+1. Tambah `paymentLabels` map lokal untuk label payment method yang konsisten
+2. Tambah 2 tombol "EDC Mandiri" dan "EDC BCA" di section metode pembayaran
+3. Update kondisi foto bukti: sekarang muncul juga untuk `edc_mandiri` dan `edc_bca`
+4. Update caption "Klik untuk upload bukti ..." pakai `paymentLabels`
+5. Update caption Telegram pakai `paymentLabels[formData.payment_method]`
+6. Update summary "Pembayaran" pakai `paymentLabels`
+
+### Issue 4: Down Payment Tidak Muncul di Detail Service
+
+**Masalah**: DP tersimpan di database (`service_orders.down_payment`) tapi tidak ditampilkan di modal detail service.
+
+**Fix** — Tambah display `down_payment` di:
+1. **`components/admin/ServiceList.tsx`**: Card "Down Payment" hijau di grid Status & Info
+2. **`components/teknisi/ServiceDetailModal.tsx`**: Gradient card hijau setelah Estimasi Biaya
+3. **`components/owner/FeedbackList.tsx`**: Card "Down Payment" di grid informasi
+
+### Issue 5: Multi Jenis Layanan — Kirim Telegram Terpisah + List Per-Item
+
+**Masalah**: Transaksi dengan multiple jenis layanan (extra items) caption Telegram digabung jadi 1 pesan dengan format "MULTIPLE LAYANAN". Di list transaksi, extra items tidak dihitung di stats dan tidak muncul di filter.
+
+**Fix**:
+
+1. **`components/layanan/LayananForm.tsx`** — Ganti format caption Telegram:
+   - Hapus semua logika `isMulti` yang menggabung caption
+   - Tambah `buildItemCaption()` helper yang format 1 pesan per item
+   - Item utama (index 0): upload foto + caption seperti biasa
+   - Extra items (index 1..N): kirim text-only via `/api/telegram` dengan caption masing-masing
+   - Setiap item jadi pesan terpisah di Telegram
+
+2. **`components/layanan/TransactionManagement.tsx`** — Expand per-item rows:
+   - `fetchAll()`: SELECT `*, layanan_items(*)` dan expand jadi per-item rows
+   - Extra items override `jenis_layanan`, `nominal`, `detail_sku`, `notes` dari `layanan_items`
+   - Stats, filter modal otomatis hitung per-item (bukan per-transaksi induk)
+
+**Format caption per item**:
+```
+📊 TRANSAKSI
+
+🔧 tipe : Ambil Jam Service
+📱 Customer: CS Suci Wulandari 5356
+📞 WA: 82132815356
+💰 Nominal: Rp 100.000
+💳 Metode: Cash
+📋 Invoice: 626 vinnic 626 murata
+👤 Operator: iky
+⏰ Rabu, 15 Juli 2026, 12.45.13
+```
+
+### Files Changed
+- `lib/telegram.ts` — skip sendMediaGroup jika < 2 foto, fallback per-photo jika getFileUrl gagal
+- `hooks/useUpload.ts` — better error handling untuk empty URLs
+- `components/admin/ServiceInput.tsx` — MECHANICAL→DIGITAL, EDC methods, payment labels
+- `components/admin/ServiceList.tsx` — DIGITAL movement, Down Payment display
+- `components/teknisi/ServiceDetailModal.tsx` — Down Payment display
+- `components/owner/FeedbackList.tsx` — Down Payment display
+- `components/layanan/LayananForm.tsx` — caption per-item, kirim N pesan terpisah
+- `components/layanan/TransactionManagement.tsx` — expand layanan_items per-item rows
+- `types/index.ts` — WatchMovement: mechanical → digital
+- `components/admin/ServiceInput.tsx` — MECHANICAL→DIGITAL
+- `components/owner/WatchDatabase.tsx` — MECHANICAL→DIGITAL
+- `app/tracking/[[...slug]]/page.tsx` — MECHANICAL→DIGITAL
+
+### Database Migration
+Jalankan SQL berikut di Supabase SQL Editor:
+```sql
+GRANT ALL ON TABLE layanan_items TO authenticated;
+GRANT ALL ON TABLE layanan_items TO service_role;
+NOTIFY pgrst, 'reload schema';
+```
+
+---
+
 ## Revisi Akhir v.24 - 2026-07-14
 
 ### Issue 1: Fitur Cashdraw (Semua Dashboard Kecuali Owner)

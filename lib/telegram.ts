@@ -155,68 +155,77 @@ export async function uploadMultipleToTelegram(
     const chunk = files.slice(i, i + CHUNK_SIZE);
     let chunkOk = false;
 
-    // Try sendMediaGroup first (groups photos into one album)
-    try {
-      const media = chunk.map((f, idx) => ({
-        type: "photo" as const,
-        media: `attach://photo_${idx}`,
-        ...(idx === 0 ? { caption } : {}),
-      }));
+    // Try sendMediaGroup only if 2+ photos (Telegram requires min 2 items)
+    if (chunk.length >= 2) {
+      try {
+        const media = chunk.map((f, idx) => ({
+          type: "photo" as const,
+          media: `attach://photo_${idx}`,
+          ...(idx === 0 ? { caption } : {}),
+        }));
 
-      const formData = new FormData();
-      formData.append("chat_id", channelId);
-      formData.append("media", JSON.stringify(media));
-      chunk.forEach((f, idx) => {
-        formData.append(`photo_${idx}`, toBlob(f.buffer), `photo_${idx}.jpg`);
-      });
+        const formData = new FormData();
+        formData.append("chat_id", channelId);
+        formData.append("media", JSON.stringify(media));
+        chunk.forEach((f, idx) => {
+          formData.append(`photo_${idx}`, toBlob(f.buffer), `photo_${idx}.jpg`);
+        });
 
-      const res = await fetch(
-        `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`,
-        { method: "POST", body: formData },
-      );
-      const raw = await res.text();
-      console.log(
-        `📸 Telegram sendMediaGroup response (chunk ${Math.floor(i / CHUNK_SIZE) + 1}):`,
-        raw.slice(0, 200),
-      );
-      const data = JSON.parse(raw);
-
-      if (data.ok && Array.isArray(data.result)) {
+        const res = await fetch(
+          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`,
+          { method: "POST", body: formData },
+        );
+        const raw = await res.text();
         console.log(
-          `✅ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} success: ${data.result.length} photos`,
+          `📸 Telegram sendMediaGroup response (chunk ${Math.floor(i / CHUNK_SIZE) + 1}):`,
+          raw.slice(0, 200),
         );
-        const processed = await Promise.allSettled(
-          data.result.map(async (r: any) => {
-            const chat_id = String(r.chat.id);
-            const message_id = r.message_id;
-            const photoArray = r.photo;
-            const fileId = photoArray[photoArray.length - 1].file_id;
-            const url = await getFileUrl(fileId);
-            console.log(
-              `  📷 Photo URL generated: ${url ? "✅" : "❌"} ${url ? url.slice(0, 80) : "null"}`,
-            );
-            return { url: url || "", chat_id, message_id };
-          }),
-        );
-        for (const r of processed) {
-          if (r.status === "fulfilled" && r.value.url) results.push(r.value);
+        const data = JSON.parse(raw);
+
+        if (data.ok && Array.isArray(data.result)) {
+          console.log(
+            `✅ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} success: ${data.result.length} photos`,
+          );
+          for (let pi = 0; pi < data.result.length; pi++) {
+            const r = data.result[pi];
+            try {
+              const chat_id = String(r.chat.id);
+              const message_id = r.message_id;
+              const photoArray = r.photo;
+              const fileId = photoArray[photoArray.length - 1].file_id;
+              const url = await getFileUrl(fileId);
+              if (url) {
+                results.push({ url, chat_id, message_id });
+              } else {
+                // Fallback per-photo: send individually if getFileUrl failed
+                const blob = toBlob(chunk[pi].buffer);
+                const singleResult = await sendSinglePhoto(channelId, blob, chunk[pi].name, undefined);
+                if (singleResult) results.push(singleResult);
+              }
+            } catch (e: any) {
+              console.warn(`  ⚠️ sendMediaGroup item ${pi} processing failed: ${e.message}`);
+              const blob = toBlob(chunk[pi].buffer);
+              const singleResult = await sendSinglePhoto(channelId, blob, chunk[pi].name, undefined);
+              if (singleResult) results.push(singleResult);
+            }
+          }
+          chunkOk = true;
+        } else {
+          console.error(
+            `❌ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} failed:`,
+            data?.description || "unknown error",
+          );
         }
-        chunkOk = true;
-      } else {
-        console.error(
-          `❌ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} failed:`,
-          data.description || "unknown error",
+      } catch (e: any) {
+        console.warn(
+          `⚠️ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} failed: ${e.message}`,
         );
       }
-    } catch (e: any) {
-      console.warn(
-        `⚠️ sendMediaGroup chunk ${i / CHUNK_SIZE + 1} failed: ${e.message}`,
-      );
     }
 
-    // Fallback: send each photo individually, skip failures
+    // Fallback: send each photo individually (also used when chunk < 2)
     if (!chunkOk) {
-      console.log(`   Sending ${chunk.length} photos individually (fallback)`);
+      console.log(`   Sending ${chunk.length} photos individually`);
       for (let fi = 0; fi < chunk.length; fi++) {
         const blob = toBlob(chunk[fi].buffer);
         const result = await sendSinglePhoto(

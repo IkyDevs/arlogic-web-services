@@ -30,8 +30,27 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const [editData, setEditData] = useState<any>(null);
 
   const fetchAll = async () => {
-    const { data } = await supabase.from("layanan").select("*").order("created_at", { ascending: false });
-    if (data) setAllData(data);
+    const { data } = await supabase
+      .from("layanan")
+      .select("*, layanan_items(*)")
+      .order("created_at", { ascending: false });
+    if (data) {
+      // Expand: setiap extra item (layanan_items) jadi row terpisah
+      const expanded = data.flatMap((tx) => {
+        const items = (tx as any).layanan_items || [];
+        if (items.length === 0) return [tx];
+        const extraRows = items.map((item: any) => ({
+          ...tx,
+          jenis_layanan: item.jenis_layanan,
+          detail_sku: item.detail_sku,
+          notes: item.notes,
+          nominal: item.nominal,
+          _isExtraItem: true,
+        }));
+        return [tx, ...extraRows];
+      });
+      setAllData(expanded);
+    }
   };
 
   useEffect(() => { fetchAll(); }, []);

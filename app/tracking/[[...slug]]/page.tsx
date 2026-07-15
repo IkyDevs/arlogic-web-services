@@ -48,7 +48,7 @@ function getMovementIcon(m: string) {
   switch (m) {
     case "automatic": return <Settings className="w-4 h-4" />;
     case "quartz": return <Battery className="w-4 h-4" />;
-    case "mechanical": return <Settings className="w-4 h-4" />;
+    case "digital": return <Settings className="w-4 h-4" />;
     case "analog_digital": return <Watch className="w-4 h-4" />;
     case "smartwatch": return <Smartphone className="w-4 h-4" />;
     default: return <Watch className="w-4 h-4" />;

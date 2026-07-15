@@ -48,6 +48,12 @@
 ### In Progress / Needs Fix
 - [x] **v.24**: Selaraskan komponen management transaksi dengan fitur pengeluaran
 - [x] **v.24**: Scrollable daftar transaksi di dashboard
+- [x] **v.25**: Fix upload foto ke Telegram — skip sendMediaGroup jika < 2 foto, fallback per-photo
+- [x] **v.25**: Tipe jam MECHANICAL → DIGITAL
+- [x] **v.25**: Tambah EDC Mandiri & EDC BCA di metode bayar DP
+- [x] **v.25**: Down Payment tampil di detail service (admin, teknisi, owner)
+- [x] **v.25**: Multi jenis layanan — caption Telegram kirim terpisah per item
+- [x] **v.25**: TransactionManagement expand layanan_items jadi per-item rows
 - [ ] Technician service queue & "take service" flow alignment
 - [ ] QC/Supervisor dashboard approve/reject flow refinement
 - [ ] Telegram multi-group support configuration

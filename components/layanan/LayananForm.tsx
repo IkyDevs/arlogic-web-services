@@ -7,7 +7,13 @@ import { useUpload } from "@/hooks/useUpload";
 import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
+import {
+  hasDraft,
+  loadDraft,
+  saveDraft,
+  clearDraft,
+  saveDraftTextSync,
+} from "@/lib/draftStorage";
 import {
   User,
   Phone,
@@ -91,10 +97,30 @@ export default memo(function LayananForm({
   });
 
   // ── Extra items (multi-jenis) ────────────────────────────────────────
-  const [extraItems, setExtraItems] = useState<{ jenis_layanan: string; detail_sku: string; notes: string; nominal: string }[]>([]);
-  const addExtraItem = () => setExtraItems(p => [...p, { jenis_layanan: "service_langsung", detail_sku: "", notes: "", nominal: "" }]);
-  const removeExtraItem = (idx: number) => setExtraItems(p => p.filter((_, i) => i !== idx));
-  const updateExtraItem = (idx: number, field: string, value: string) => setExtraItems(p => p.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  const [extraItems, setExtraItems] = useState<
+    {
+      jenis_layanan: string;
+      detail_sku: string;
+      notes: string;
+      nominal: string;
+    }[]
+  >([]);
+  const addExtraItem = () =>
+    setExtraItems((p) => [
+      ...p,
+      {
+        jenis_layanan: "service_langsung",
+        detail_sku: "",
+        notes: "",
+        nominal: "",
+      },
+    ]);
+  const removeExtraItem = (idx: number) =>
+    setExtraItems((p) => p.filter((_, i) => i !== idx));
+  const updateExtraItem = (idx: number, field: string, value: string) =>
+    setExtraItems((p) =>
+      p.map((item, i) => (i === idx ? { ...item, [field]: value } : item)),
+    );
 
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -111,7 +137,10 @@ export default memo(function LayananForm({
   const showCustomLeadSource = formData.lead_source === "tulis_sendiri";
 
   const handleCancel = useCallback(() => {
-    if (!initialData && user?.id) { clearingDraft.current = true; clearDraft("layanan", user.id); }
+    if (!initialData && user?.id) {
+      clearingDraft.current = true;
+      clearDraft("layanan", user.id);
+    }
     restoredRef.current = false;
     onClose?.();
   }, [initialData, user?.id, onClose]);
@@ -132,9 +161,13 @@ export default memo(function LayananForm({
         }
         // Restore extra items
         if (draft.data?.extraItems) {
-          try { setExtraItems(JSON.parse(draft.data.extraItems)); } catch {}
+          try {
+            setExtraItems(JSON.parse(draft.data.extraItems));
+          } catch {}
         }
-        toast.success("Draft transaksi ditemukan dan dipulihkan", { duration: 3000 });
+        toast.success("Draft transaksi ditemukan dan dipulihkan", {
+          duration: 3000,
+        });
       }
     };
     checkDraft();
@@ -146,7 +179,16 @@ export default memo(function LayananForm({
     const d = formData;
     if (d.customer_name || d.nominal || d.customer_whatsapp) {
       const dataWithItems = { ...d, extraItems: JSON.stringify(extraItems) };
-      localStorage.setItem(`draft_layanan_${user.id}`, JSON.stringify({ data: dataWithItems, timestamp: Date.now(), userId: user.id, photos: [], extraPhoto: null }));
+      localStorage.setItem(
+        `draft_layanan_${user.id}`,
+        JSON.stringify({
+          data: dataWithItems,
+          timestamp: Date.now(),
+          userId: user.id,
+          photos: [],
+          extraPhoto: null,
+        }),
+      );
     }
   }, [formData, extraItems, user?.id]);
 
@@ -158,7 +200,9 @@ export default memo(function LayananForm({
     photoTimer.current = setTimeout(() => {
       saveDraft("layanan", user.id, formData, photoFiles).catch(() => {});
     }, 2000);
-    return () => { if (photoTimer.current) clearTimeout(photoTimer.current); };
+    return () => {
+      if (photoTimer.current) clearTimeout(photoTimer.current);
+    };
   }, [photoFiles, user?.id]);
 
   // ── Effects ──────────────────────────────────────────────────────────────
@@ -270,55 +314,69 @@ export default memo(function LayananForm({
         )?.label || formData.metode_pembayaran;
 
       const now = new Date();
-      const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const dayNames = [
+        "Minggu",
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat",
+        "Sabtu",
+      ];
+      const monthNames = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
       const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
 
       const isEdit = !!initialData?.id;
       const isMulti = extraItems.length > 0;
-      const allItems = [{ jenis: jenisLayananValue as string, sku: formData.detail_sku, notes: formData.notes, nominal: formData.nominal }]
-        .concat(extraItems.map(it => ({ jenis: it.jenis_layanan, sku: it.detail_sku, notes: it.notes, nominal: it.nominal })));
-      const typeIcons = allItems.map(it => jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis);
-      const headerTitle = isEdit ? "📝 EDIT TRANSAKSI" : isMulti ? "📊 TRANSAKSI MULTIPLE LAYANAN" : "📊 TRANSAKSI";
-      const typeIcon = jenisLayananValue === "dp_service" ? "💳" : "🔧";
-      const totalNominal = allItems.reduce((s, it) => s + (parseInt(it.nominal) || 0), 0);
+      const allItems = [
+        {
+          jenis: jenisLayananValue as string,
+          sku: formData.detail_sku,
+          notes: formData.notes,
+          nominal: formData.nominal,
+        },
+      ].concat(
+        extraItems.map((it) => ({
+          jenis: it.jenis_layanan,
+          sku: it.detail_sku,
+          notes: it.notes,
+          nominal: it.nominal,
+        })),
+      );
 
-      const typeLine = isMulti
-        ? `${typeIcon} tipe : ${typeIcons.join(" & ")}`
-        : `${typeIcon} tipe : ${jenisLayananLabel}`;
+      // Build individual caption per item (format: 1 pesan per jenis layanan)
+      const buildItemCaption = (item: typeof allItems[0]) => {
+        const label =
+          jenisLayananOptions.find((o) => o.value === item.jenis)?.label ||
+          item.jenis;
+        const icon = item.jenis === "dp_service" ? "💳" : "🔧";
+        const invoice = item.sku ? `\n📋 Invoice: ${item.sku}` : "";
+        const note = item.notes ? `\n📝 Keterangan: ${item.notes}` : "";
+        return `📊 TRANSAKSI
 
-      const nominalLines = isMulti
-        ? allItems.map(it => {
-            const lbl = jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis;
-            return `💰 Nominal ${lbl}: Rp ${parseInt(it.nominal || "0").toLocaleString("id-ID")}`;
-          }).join("\n")
-        : `💰 Nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}`;
-
-      const invoiceLines = isMulti
-        ? allItems.map(it => {
-            const lbl = jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis;
-            return it.sku ? `📋 Invoice ${lbl}: ${it.sku}` : null;
-          }).filter(Boolean).join("\n")
-        : formData.detail_sku ? `📋 Invoice: ${formData.detail_sku}` : "";
-
-      const notesLines = isMulti
-        ? allItems.map(it => {
-            const lbl = jenisLayananOptions.find(o => o.value === it.jenis)?.label || it.jenis;
-            return it.notes ? `📝 Keterangan ${lbl}: ${it.notes}` : null;
-          }).filter(Boolean).join("\n")
-        : formData.notes ? `📝 Keterangan: ${formData.notes}` : "";
-
-      const transactionDescription = `${headerTitle}
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-${typeLine}
+${icon} tipe : ${label}
 📱 Customer: ${formData.customer_name}
 📞 WA: ${formData.customer_whatsapp}
-${nominalLines}
-💳 Metode: ${metodeLabel}${invoiceLines ? "\n" + invoiceLines : ""}${notesLines ? "\n" + notesLines : ""}
+💰 Nominal: Rp ${parseInt(item.nominal || "0").toLocaleString("id-ID")}
+💳 Metode: ${metodeLabel}${invoice}${note}
 👤 Operator: ${selectedUser?.full_name || user?.full_name}
-⏰ ${fmtDateTime}
-━━━━━━━━━━━━━━━━━━━━━━━━`;
+⏰ ${fmtDateTime}`;
+      };
+
+      const mainCaption = buildItemCaption(allItems[0]);
 
       let photoUrls: string[] = initialData?.photo_url
         ? [initialData.photo_url]
@@ -328,10 +386,11 @@ ${nominalLines}
       let tgChatId: string | undefined = undefined;
       let tgMessageId: number | undefined = undefined;
 
+      // Upload foto + kirim caption untuk item utama
       if (photoFiles.length > 0) {
         const results = await uploadFiles(photoFiles, {
           type: "layanan",
-          caption: transactionDescription,
+          caption: mainCaption,
         });
         if (results && results.length > 0) {
           photoUrls = results.map((r) => r.url);
@@ -347,7 +406,11 @@ ${nominalLines}
       }
 
       if (!telegramSent) {
-        if (initialData?.id && initialData.telegram_chat_id && initialData.telegram_message_id) {
+        if (
+          initialData?.id &&
+          initialData.telegram_chat_id &&
+          initialData.telegram_message_id
+        ) {
           try {
             await fetch("/api/telegram/edit-message", {
               method: "POST",
@@ -355,8 +418,11 @@ ${nominalLines}
               body: JSON.stringify({
                 chat_id: initialData.telegram_chat_id,
                 message_id: initialData.telegram_message_id,
-                text: transactionDescription,
-                is_caption: (initialData.photo_urls && initialData.photo_urls.length > 0) || !!initialData.photo_url
+                text: mainCaption,
+                is_caption:
+                  (initialData.photo_urls &&
+                    initialData.photo_urls.length > 0) ||
+                  !!initialData.photo_url,
               }),
             });
             telegramSent = true;
@@ -368,7 +434,10 @@ ${nominalLines}
             const res = await fetch("/api/telegram", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ type: "transaction", message: transactionDescription }),
+              body: JSON.stringify({
+                type: "transaction",
+                message: mainCaption,
+              }),
             });
             const data = await res.json();
             if (data.success && data.chat_id && data.message_id) {
@@ -376,7 +445,26 @@ ${nominalLines}
               tgMessageId = data.message_id;
             }
           } catch (telegramErr) {
-            console.error("Failed to send transaction to telegram:", telegramErr);
+            console.error(
+              "Failed to send transaction to telegram:",
+              telegramErr,
+            );
+          }
+        }
+      }
+
+      // Kirim extra items sebagai pesan text-only terpisah (tanpa foto)
+      if (isMulti && !isEdit) {
+        for (let i = 1; i < allItems.length; i++) {
+          const caption = buildItemCaption(allItems[i]);
+          try {
+            await fetch("/api/telegram", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ type: "transaction", message: caption }),
+            });
+          } catch (e) {
+            console.error(`Failed to send extra item ${i} to telegram:`, e);
           }
         }
       }
@@ -407,14 +495,20 @@ ${nominalLines}
           payload.telegram_chat_id = tgChatId;
           payload.telegram_message_id = tgMessageId;
         }
-        const { error } = await supabase.from("layanan").update(payload).eq("id", initialData.id);
+        const { error } = await supabase
+          .from("layanan")
+          .update(payload)
+          .eq("id", initialData.id);
         if (error) throw error;
         toast.success("Transaksi berhasil diubah!");
 
         if (initialData.id) {
-          await supabase.from("layanan_items").delete().eq("layanan_id", initialData.id);
+          await supabase
+            .from("layanan_items")
+            .delete()
+            .eq("layanan_id", initialData.id);
           if (extraItems.length > 0) {
-            const itemRows = extraItems.map(it => ({
+            const itemRows = extraItems.map((it) => ({
               layanan_id: initialData.id,
               jenis_layanan: it.jenis_layanan,
               detail_sku: it.detail_sku || "",
@@ -425,31 +519,37 @@ ${nominalLines}
           }
         }
       } else {
-        const { data: newLayanan, error } = await supabase.from("layanan").insert([
-          {
-            ...payload,
-            photo_url: photoUrls[0] || null,
-            photo_urls: photoUrls,
-            telegram_chat_id: tgChatId,
-            telegram_message_id: tgMessageId,
-            created_by: user?.id,
-            created_by_name: user?.full_name,
-            status: "active",
-          },
-        ]).select("id");
+        const { data: newLayanan, error } = await supabase
+          .from("layanan")
+          .insert([
+            {
+              ...payload,
+              photo_url: photoUrls[0] || null,
+              photo_urls: photoUrls,
+              telegram_chat_id: tgChatId,
+              telegram_message_id: tgMessageId,
+              created_by: user?.id,
+              created_by_name: user?.full_name,
+              status: "active",
+            },
+          ])
+          .select("id");
         if (error) throw error;
         toast.success("Transaksi berhasil ditambahkan!");
 
         if (extraItems.length > 0 && newLayanan?.[0]?.id) {
-          const itemRows = extraItems.map(it => ({
+          const itemRows = extraItems.map((it) => ({
             layanan_id: newLayanan[0].id,
             jenis_layanan: it.jenis_layanan,
             detail_sku: it.detail_sku || "",
             notes: it.notes || "",
             nominal: parseInt(it.nominal) || 0,
           }));
-          const { error: itemErr } = await supabase.from("layanan_items").insert(itemRows);
-          if (itemErr) console.error("Gagal simpan extra items:", JSON.stringify(itemErr));
+          const { error: itemErr } = await supabase
+            .from("layanan_items")
+            .insert(itemRows);
+          if (itemErr)
+            console.error("Gagal simpan extra items:", JSON.stringify(itemErr));
         }
       }
 
@@ -459,8 +559,12 @@ ${nominalLines}
         if (formData.customer_name && custPhone) {
           const last4 = custPhone.slice(-4);
           const rawName = formData.customer_name.trim().replace(/^CS\s*/i, "");
-          const baseName = rawName.endsWith(` ${last4}`) ? rawName : `${rawName} ${last4}`;
-          const custName = baseName.startsWith("CS ") ? baseName : `CS ${baseName}`;
+          const baseName = rawName.endsWith(` ${last4}`)
+            ? rawName
+            : `${rawName} ${last4}`;
+          const custName = baseName.startsWith("CS ")
+            ? baseName
+            : `CS ${baseName}`;
           const { data: existingCust, error: checkErr } = await supabase
             .from("customers")
             .select("id, name")
@@ -468,9 +572,14 @@ ${nominalLines}
             .maybeSingle();
           if (checkErr) throw checkErr;
           if (existingCust) {
-            await supabase.from("customers").update({ last_transaction: new Date().toISOString() }).eq("id", existingCust.id);
+            await supabase
+              .from("customers")
+              .update({ last_transaction: new Date().toISOString() })
+              .eq("id", existingCust.id);
           } else {
-            const { error: insertErr } = await supabase.from("customers").insert({ name: custName, phone: custPhone });
+            const { error: insertErr } = await supabase
+              .from("customers")
+              .insert({ name: custName, phone: custPhone });
             if (insertErr) throw insertErr;
             // Only send Telegram for genuinely new customers
             fetch("/api/telegram", {
@@ -488,7 +597,10 @@ ${nominalLines}
         toast.error("Gagal simpan customer: " + custErr.message);
       }
 
-      if (user?.id) { clearingDraft.current = true; clearDraft("layanan", user.id); }
+      if (user?.id) {
+        clearingDraft.current = true;
+        clearDraft("layanan", user.id);
+      }
       restoredRef.current = false;
       onSuccess?.();
       onClose?.();
@@ -545,7 +657,9 @@ ${nominalLines}
               {initialData ? "Edit Transaction" : "New Transaction"}
             </h2>
             <p className="text-xs text-gray-500">
-              {initialData ? "Edit data transaksi customer" : "Input transaksi customer"}
+              {initialData
+                ? "Edit data transaksi customer"
+                : "Input transaksi customer"}
             </p>
           </div>
         </div>
@@ -572,8 +686,16 @@ ${nominalLines}
               </label>
               <CustomerAutocomplete
                 value={formData.customer_name}
-                onChange={(val) => setFormData((p) => ({ ...p, customer_name: val }))}
-                onSelect={(name, phone) => setFormData((p) => ({ ...p, customer_name: name, customer_whatsapp: phone }))}
+                onChange={(val) =>
+                  setFormData((p) => ({ ...p, customer_name: val }))
+                }
+                onSelect={(name, phone) =>
+                  setFormData((p) => ({
+                    ...p,
+                    customer_name: name,
+                    customer_whatsapp: phone,
+                  }))
+                }
                 placeholder="Nama lengkap customer"
                 autoFocus
               />
@@ -818,36 +940,90 @@ ${nominalLines}
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
               <Plus className="w-3.5 h-3.5" /> Layanan Tambahan
             </p>
-            <button type="button" onClick={addExtraItem}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 transition-all">
+            <button
+              type="button"
+              onClick={addExtraItem}
+              className="flex items-center gap-1 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 transition-all"
+            >
               <Plus className="w-3 h-3" /> Tambah
             </button>
           </div>
           {extraItems.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">Tambahkan layanan lain dalam 1 transaksi (misal: beli jam + service jam)</p>
+            <p className="text-xs text-gray-400 italic">
+              Tambahkan layanan lain dalam 1 transaksi (misal: beli jam +
+              service jam)
+            </p>
           ) : (
             <div className="space-y-2">
               {extraItems.map((item, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 space-y-2">
+                <div
+                  key={idx}
+                  className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 space-y-2"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase">Item #{idx + 1}</span>
-                    <button type="button" onClick={() => removeExtraItem(idx)} className="p-1 text-red-500 hover:bg-red-50 rounded-lg">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase">
+                      Item #{idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeExtraItem(idx)}
+                      className="p-1 text-red-500 hover:bg-red-50 rounded-lg"
+                    >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <select value={item.jenis_layanan} onChange={(e) => updateExtraItem(idx, "jenis_layanan", e.target.value)}
-                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">
-                      {jenisLayananOptions.filter(o => o.value !== "pengeluaran" && o.value !== "cashdraw").map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    <select
+                      value={item.jenis_layanan}
+                      onChange={(e) =>
+                        updateExtraItem(idx, "jenis_layanan", e.target.value)
+                      }
+                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                    >
+                      {jenisLayananOptions
+                        .filter(
+                          (o) =>
+                            o.value !== "pengeluaran" && o.value !== "cashdraw",
+                        )
+                        .map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
                     </select>
-                    <input type="text" value={item.detail_sku} onChange={(e) => updateExtraItem(idx, "detail_sku", e.target.value)}
-                      placeholder="SKU / Invoice" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none" />
+                    <input
+                      type="text"
+                      value={item.detail_sku}
+                      onChange={(e) =>
+                        updateExtraItem(idx, "detail_sku", e.target.value)
+                      }
+                      placeholder="SKU / Invoice"
+                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none"
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <input type="text" value={item.nominal} onChange={(e) => updateExtraItem(idx, "nominal", e.target.value.replace(/\D/g, ""))}
-                      placeholder="Nominal" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none" />
-                    <input type="text" value={item.notes} onChange={(e) => updateExtraItem(idx, "notes", e.target.value)}
-                      placeholder="Catatan" className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none" />
+                    <input
+                      type="text"
+                      value={item.nominal}
+                      onChange={(e) =>
+                        updateExtraItem(
+                          idx,
+                          "nominal",
+                          e.target.value.replace(/\D/g, ""),
+                        )
+                      }
+                      placeholder="Nominal"
+                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={item.notes}
+                      onChange={(e) =>
+                        updateExtraItem(idx, "notes", e.target.value)
+                      }
+                      placeholder="Catatan"
+                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none"
+                    />
                   </div>
                 </div>
               ))}
@@ -1037,7 +1213,14 @@ ${nominalLines}
                       {extraItems.length > 0 ? "Total Nominal" : "Nominal"}
                     </p>
                     <p className="text-sm font-bold text-blue-600">
-                      Rp {(parseInt(formData.nominal) + extraItems.reduce((s, it) => s + (parseInt(it.nominal) || 0), 0)).toLocaleString("id-ID")}
+                      Rp{" "}
+                      {(
+                        parseInt(formData.nominal) +
+                        extraItems.reduce(
+                          (s, it) => s + (parseInt(it.nominal) || 0),
+                          0,
+                        )
+                      ).toLocaleString("id-ID")}
                     </p>
                   </div>
                   <div>
@@ -1096,11 +1279,28 @@ ${nominalLines}
                     </p>
                     <div className="space-y-1">
                       {extraItems.map((it, i) => (
-                        <div key={i} className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 text-xs text-gray-700">
-                          <span className="font-semibold">{jenisLayananOptions.find(o => o.value === it.jenis_layanan)?.label || it.jenis_layanan}</span>
-                          {it.detail_sku && <span className="ml-2 text-gray-400">SKU: {it.detail_sku}</span>}
-                          {it.nominal && <span className="ml-2 font-semibold text-blue-600">Rp {parseInt(it.nominal).toLocaleString("id-ID")}</span>}
-                          {it.notes && <p className="text-gray-400 mt-0.5">{it.notes}</p>}
+                        <div
+                          key={i}
+                          className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 text-xs text-gray-700"
+                        >
+                          <span className="font-semibold">
+                            {jenisLayananOptions.find(
+                              (o) => o.value === it.jenis_layanan,
+                            )?.label || it.jenis_layanan}
+                          </span>
+                          {it.detail_sku && (
+                            <span className="ml-2 text-gray-400">
+                              SKU: {it.detail_sku}
+                            </span>
+                          )}
+                          {it.nominal && (
+                            <span className="ml-2 font-semibold text-blue-600">
+                              Rp {parseInt(it.nominal).toLocaleString("id-ID")}
+                            </span>
+                          )}
+                          {it.notes && (
+                            <p className="text-gray-400 mt-0.5">{it.notes}</p>
+                          )}
                         </div>
                       ))}
                     </div>
