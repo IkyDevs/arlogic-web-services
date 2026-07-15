@@ -186,6 +186,20 @@ Error di-catch oleh blok `catch` utama → toast ke user. Service order tetap te
 3. **`db/supabase-schema.sql`**: Tambah kolom `linked_service_order_id UUID REFERENCES service_orders(id)` di tabel `layanan`
 4. **Database migration**: `ALTER TABLE layanan ADD COLUMN IF NOT EXISTS linked_service_order_id UUID REFERENCES service_orders(id);`
 
+### Issue 12: Tombol Hapus Transaksi di List Transaksi (Admin Only)
+
+**Masalah**: Admin tidak bisa menghapus transaksi yang salah input.
+
+**Fix**:
+1. **`components/layanan/LayananList.tsx`**:
+   - Tambah icon `Trash2` merah di kolom Actions (hanya untuk admin)
+   - Fungsi `handleDelete()`: confirm → hapus pesan Telegram via `/api/telegram/delete-message` → hapus dari tabel `layanan` (cascade ke `layanan_items`) → refresh list
+2. **`app/api/telegram/delete-message/route.ts`** (NEW):
+   - Endpoint `POST /api/telegram/delete-message`
+   - Menerima `{ chat_id, message_id }`
+   - Panggil `deleteMessage` Telegram API
+   - Warning saja jika gagal (mungkin pesan sudah dihapus manual)
+
 ### Issue 10: Popup Service Masih Tampilkan QR Token Lama Setelah Submit Sukses
 
 **Masalah**: Setelah berhasil create service dan modal ditutup, saat membuka form Service lagi, popup success (QR + token) dari submit sebelumnya langsung muncul.

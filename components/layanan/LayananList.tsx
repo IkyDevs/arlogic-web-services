@@ -26,6 +26,7 @@ import {
   Clock,
   TrendingUp,
   Users,
+  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -255,6 +256,34 @@ export default function LayananList({
       toast.success(
         `Status updated to ${status === "completed" ? "COMPLETED" : "CANCELLED"}`,
       );
+      fetchLayanan();
+    }
+  };
+
+  const handleDelete = async (item: any) => {
+    if (!confirm(`Hapus transaksi "${item.customer_name}" (Rp ${Number(item.nominal).toLocaleString("id-ID")})?`)) return;
+
+    // Hapus pesan Telegram jika ada
+    if (item.telegram_chat_id && item.telegram_message_id) {
+      try {
+        await fetch("/api/telegram/delete-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: item.telegram_chat_id,
+            message_id: item.telegram_message_id,
+          }),
+        });
+      } catch (e) {
+        console.warn("Gagal hapus pesan Telegram:", e);
+      }
+    }
+
+    const { error } = await supabase.from("layanan").delete().eq("id", item.id);
+    if (error) {
+      toast.error("Gagal hapus transaksi: " + error.message);
+    } else {
+      toast.success("Transaksi berhasil dihapus");
       fetchLayanan();
     }
   };
@@ -708,6 +737,13 @@ export default function LayananList({
                           title="Edit"
                         >
                           <FileText className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item)}
+                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          title="Hapus transaksi"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
