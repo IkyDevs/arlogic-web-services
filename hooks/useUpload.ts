@@ -4,47 +4,60 @@ import toast from 'react-hot-toast'
 const compressImageOnClient = (file: File): Promise<Blob> => {
   return new Promise((resolve) => {
     const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+
     img.onload = () => {
-      const canvas = document.createElement('canvas')
-      // Telegram recommends max 1280px for photos in media groups
-      const maxDimension = 1280
-      let width = img.width
-      let height = img.height
+      try {
+        const canvas = document.createElement('canvas')
+        // Telegram recommends max 1280px — use 1600px for better quality
+        const maxDimension = 1600
+        let width = img.width
+        let height = img.height
 
-      if (width > maxDimension || height > maxDimension) {
-        if (width > height) {
-          height = Math.round((height * maxDimension) / width)
-          width = maxDimension
-        } else {
-          width = Math.round((width * maxDimension) / height)
-          height = maxDimension
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
         }
-      }
 
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          URL.revokeObjectURL(objectUrl)
+          resolve(file)
+          return
+        }
+
+        // White background agar PNG transparan tidak jadi hitam
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(0, 0, width, height)
         ctx.drawImage(img, 0, 0, width, height)
-        // High quality — Telegram supports up to 10MB per photo
+
         canvas.toBlob(
           (blob) => {
-            URL.revokeObjectURL(img.src)
+            URL.revokeObjectURL(objectUrl)
             resolve(blob || file)
           },
           'image/jpeg',
           0.92
         )
-      } else {
-        URL.revokeObjectURL(img.src)
+      } catch {
+        URL.revokeObjectURL(objectUrl)
         resolve(file)
       }
     }
+
     img.onerror = () => {
-      URL.revokeObjectURL(img.src)
+      URL.revokeObjectURL(objectUrl)
       resolve(file)
     }
-    img.src = URL.createObjectURL(file)
+
+    img.src = objectUrl
   })
 }
 
@@ -86,18 +99,18 @@ export function useUpload() {
         }
       }
 
-      // Compress all files in parallel
+      // Compress all files in parallel (always, for format conversion to JPEG)
       const compressed = await Promise.all(
         files.map(async (file) => {
-          if (file.size > 200 * 1024) {
-            try {
-              const blob = await compressImageOnClient(file)
-              return new File([blob], file.name, { type: 'image/jpeg' })
-            } catch {
-              return file
-            }
+          const needsCompress = file.size > 200 * 1024 || file.type !== 'image/jpeg'
+          if (!needsCompress) return file
+          try {
+            const blob = await compressImageOnClient(file)
+            const jpgName = file.name.replace(/\.[^.]+$/, '.jpg')
+            return new File([blob], jpgName, { type: 'image/jpeg' })
+          } catch {
+            return file
           }
-          return file
         })
       )
 

@@ -54,6 +54,7 @@
 - [x] **v.25**: Down Payment tampil di detail service (admin, teknisi, owner)
 - [x] **v.25**: Multi jenis layanan — caption Telegram kirim terpisah per item
 - [x] **v.25**: TransactionManagement expand layanan_items jadi per-item rows
+- [x] **v.25**: Fix Pendapatan Hari Ini selalu Rp0 — include layanan_items + kirim props
 - [ ] Technician service queue & "take service" flow alignment
 - [ ] QC/Supervisor dashboard approve/reject flow refinement
 - [ ] Telegram multi-group support configuration

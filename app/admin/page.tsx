@@ -277,29 +277,34 @@ export default function AdminDashboard() {
         .lte("created_at", today + "T23:59:59"),
       supabase
         .from("layanan")
-        .select("nominal")
+        .select("nominal, layanan_items(nominal)")
         .neq("status", "cancelled")
         .neq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
         .lte("created_at", today + "T23:59:59"),
       supabase
         .from("layanan")
-        .select("nominal")
+        .select("nominal, layanan_items(nominal)")
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
         .lte("created_at", today + "T23:59:59"),
     ]);
+    const sumNominal = (rows: any[]) =>
+      rows.reduce((s: number, item: any) => {
+        let total = item.nominal || 0;
+        if (item.layanan_items) {
+          total += item.layanan_items.reduce(
+            (si: number, li: any) => si + (li.nominal || 0),
+            0,
+          );
+        }
+        return s + total;
+      }, 0);
     setTodayStats({
       transactions: txCount.count || 0,
-      revenue: (txRev.data || []).reduce(
-        (s: number, i: any) => s + (i.nominal || 0),
-        0,
-      ),
-      expenses: (txExp.data || []).reduce(
-        (s: number, i: any) => s + (i.nominal || 0),
-        0,
-      ),
+      revenue: sumNominal(txRev.data || []),
+      expenses: sumNominal(txExp.data || []),
     });
   };
 
@@ -348,17 +353,17 @@ export default function AdminDashboard() {
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran"),
       supabase.from("layanan").select("*", { count: "exact", head: true }),
-      // Today-specific queries
+      // Today-specific queries (include layanan_items for multi-item transactions)
       supabase
         .from("layanan")
-        .select("nominal")
+        .select("nominal, layanan_items(nominal)")
         .neq("status", "cancelled")
         .neq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
         .lte("created_at", today + "T23:59:59"),
       supabase
         .from("layanan")
-        .select("nominal")
+        .select("nominal, layanan_items(nominal)")
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
@@ -386,15 +391,20 @@ export default function AdminDashboard() {
       0,
     );
 
-    const todayRev = (todayRevenue.data || []).reduce(
-      (sum: number, item: any) => sum + (item.nominal || 0),
-      0,
-    );
+    const sumNominal = (rows: any[]) =>
+      rows.reduce((s: number, item: any) => {
+        let total = item.nominal || 0;
+        if (item.layanan_items) {
+          total += item.layanan_items.reduce(
+            (si: number, li: any) => si + (li.nominal || 0),
+            0,
+          );
+        }
+        return s + total;
+      }, 0);
 
-    const todayExp = (todayExpenses.data || []).reduce(
-      (sum: number, item: any) => sum + (item.nominal || 0),
-      0,
-    );
+    const todayRev = sumNominal(todayRevenue.data || []);
+    const todayExp = sumNominal(todayExpenses.data || []);
 
     setStats({
       totalUsers: users.count || 0,
@@ -1183,6 +1193,10 @@ export default function AdminDashboard() {
               totalTransactions={stats.totalTransactions}
               totalUsers={stats.totalUsers}
               totalServices={stats.totalServices}
+              revenue={stats.revenue}
+              totalExpenses={stats.totalExpenses}
+              todayRevenue={todayStats.revenue}
+              todayExpenses={todayStats.expenses}
               recentTransactions={recentTransactions}
             />
           )}

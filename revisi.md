@@ -102,6 +102,35 @@
 - `components/owner/WatchDatabase.tsx` — MECHANICAL→DIGITAL
 - `app/tracking/[[...slug]]/page.tsx` — MECHANICAL→DIGITAL
 
+### Issue 6: Upload Foto Kadang Gagal — Efek Kompresi
+
+**Masalah**: Upload foto ke Telegram kadang berhasil, kadang tidak. Foto dari HP (HEIC/WebP) sering gagal.
+
+**Root Cause** (3 masalah di `hooks/useUpload.ts`):
+1. **Hanya kompres >200KB**: File kecil (<200KB) tidak dikompres, format asli (HEIC/WebP) tetap dikirim → Telegram tolak karena hanya support JPEG/PNG/GIF untuk `sendPhoto`
+2. **Canvas gagal decode HEIC**: `img.onerror` → return original HEIC yang dibungkus `{ type: 'image/jpeg' }` → data palsu
+3. **Tidak ada white fill**: PNG transparan di-convert ke JPEG tanpa background → artefak hitam
+
+**Fix**:
+1. **Selalu kompres** untuk file non-JPEG — hapus threshold 200KB, tambah `file.type !== 'image/jpeg'`
+2. **White background fill** (`ctx.fillStyle = '#FFFFFF'; ctx.fillRect(...)`) sebelum drawImage
+3. **Ubah ekstensi file** `.heic`/`.png` → `.jpg` saat buat new File
+4. **Max dimension** dinaikkan 1280 → 1600px agar hasil lebih tajam
+5. **URL.revokeObjectURL** pake variable `objectUrl` yang konsisten (fix potensi memory leak)
+
+### Issue 7: Pendapatan Hari Ini di Dashboard Admin Selalu Rp0
+
+**Masalah**: Kartu "Pendapatan Hari Ini" di dashboard admin selalu menampilkan Rp0.
+
+**Root Cause** (2 masalah):
+1. **Props tidak dikirim**: `AdminDashboardAnalytics` dipanggil tanpa `todayRevenue`, `todayExpenses`, `revenue`, `totalExpenses` → default `0`
+2. **Query tidak include `layanan_items`**: Query hanya jumlah `layanan.nominal`, mengabaikan nominal extra items di `layanan_items`
+
+**Fix**:
+1. **`app/admin/page.tsx` — `fetchTodayStats()`**: Query `layanan` dengan `layanan_items(nominal)` JOIN, tambah `sumNominal()` helper yang jumlah `layanan.nominal` + `layanan_items[].nominal`
+2. **`app/admin/page.tsx` — `fetchStats()`**: Sama, query todayRevenue dan todayExpenses include `layanan_items(nominal)`
+3. **`app/admin/page.tsx` — `AdminDashboardAnalytics` props**: Kirim `todayRevenue={todayStats.revenue}`, `todayExpenses={todayStats.expenses}`, `revenue={stats.revenue}`, `totalExpenses={stats.totalExpenses}`
+
 ### Database Migration
 Jalankan SQL berikut di Supabase SQL Editor:
 ```sql
