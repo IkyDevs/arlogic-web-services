@@ -81,7 +81,8 @@ export default function InventoryManagement({
     const { data } = await supabase
       .from("inventory")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(200);
     if (data) setInventory(data);
   };
 

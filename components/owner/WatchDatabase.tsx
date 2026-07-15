@@ -56,14 +56,16 @@ export default function WatchDatabase() {
 
   useEffect(() => {
     fetchWatches();
-  }, []);
+  }, [search]);
 
   const fetchWatches = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("watch_database")
-      .select("*")
-      .order("brand", { ascending: true });
+    let query = supabase.from("watch_database").select("*").order("brand", { ascending: true }).limit(200);
+    if (search.trim()) {
+      const s = search.trim();
+      query = query.or(`brand.ilike.%${s}%,model.ilike.%${s}%,movement.ilike.%${s}%,reference_number.ilike.%${s}%`);
+    }
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching watches:", error);
@@ -74,13 +76,7 @@ export default function WatchDatabase() {
     setLoading(false);
   };
 
-  const filtered = watches.filter(
-    (w) =>
-      w.brand.toLowerCase().includes(search.toLowerCase()) ||
-      w.model.toLowerCase().includes(search.toLowerCase()) ||
-      (w.movement || "").toLowerCase().includes(search.toLowerCase()) ||
-      (w.reference_number || "").toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = watches;
 
   const openAdd = () => {
     setEditing(null);

@@ -12,3 +12,12 @@
 GRANT ALL ON TABLE layanan_items TO authenticated;
 GRANT ALL ON TABLE layanan_items TO service_role;
 ```
+
+### 2026-07-15 — linked_service_order_id di layanan
+
+**Deskripsi**: Kolom untuk menandai DP transaksi yang sudah dipakai di service order (link DP manual ke add new service).
+
+**SQL**:
+```sql
+ALTER TABLE layanan ADD COLUMN IF NOT EXISTS linked_service_order_id UUID REFERENCES service_orders(id);
+```

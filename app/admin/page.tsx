@@ -472,7 +472,7 @@ export default function AdminDashboard() {
         query = query.eq("category", inventoryFilter.category);
       }
 
-      const { data } = await query;
+      const { data } = await query.limit(200);
       if (data) {
         setInventoryItems(data);
         setFilteredInventory(data);

@@ -163,6 +163,29 @@ if (urls.length === 0 && allPhotosToUpload.length > 0) {
 ```
 Error di-catch oleh blok `catch` utama → toast ke user. Service order tetap tersimpan (tanpa foto), DP tidak masuk ke `layanan`.
 
+### Issue 11: DP Service Manual + Link ke Add New Service
+
+**Masalah**: Customer TF DP hari ini, tapi jam dikirim besok. Saat jam datang dan staff input service, DP harusnya sudah ada di transaksi, bukan diinput ulang.
+
+**Flow baru**:
+1. Customer TF DP → staff input transaksi `jenis_layanan = "dp_service"` via LayananForm (sekarang opsi "DP Service" ada di dropdown)
+2. Jam datang → staff buka Add New Service
+3. Di form service, ketika nomor WA diisi, otomatis fetch DP transaksi customer yang belum ter-link
+4. Muncul selector "Pilih DP Customer" — pilih DP yang sesuai
+5. Nominal DP dan metode pembayaran otomatis terisi
+6. Setelah service terbuat, `linked_service_order_id` diisi di tabel `layanan`
+
+**Perubahan**:
+1. **`components/layanan/LayananForm.tsx`**: Tambah `{ value: "dp_service", label: "DP Service" }` ke `jenisLayananOptions`
+2. **`components/admin/ServiceInput.tsx`**:
+   - State `dpTransactions` + `selectedDpId`
+   - `useEffect` pada `cs_phone` — fetch DP transaksi yang belum ter-link
+   - UI selector DP di step 4 (sebelum DP input manual)
+   - Pilih DP → auto-fill nominal + metode bayar
+   - Submit → update `linked_service_order_id` + copy photo_url ke service_documentation
+3. **`db/supabase-schema.sql`**: Tambah kolom `linked_service_order_id UUID REFERENCES service_orders(id)` di tabel `layanan`
+4. **Database migration**: `ALTER TABLE layanan ADD COLUMN IF NOT EXISTS linked_service_order_id UUID REFERENCES service_orders(id);`
+
 ### Issue 10: Popup Service Masih Tampilkan QR Token Lama Setelah Submit Sukses
 
 **Masalah**: Setelah berhasil create service dan modal ditutup, saat membuka form Service lagi, popup success (QR + token) dari submit sebelumnya langsung muncul.

@@ -21,7 +21,7 @@ export default function DoneService() {
   const fetchData = async () => {
     setLoading(true);
     const [pendingRes, historyRes] = await Promise.all([
-      supabase.from("service_orders").select("*, items:service_items(*)").eq("status", "completed").order("done_date", { ascending: false }),
+      supabase.from("service_orders").select("*, items:service_items(*)").eq("status", "completed").order("done_date", { ascending: false }).limit(100),
       supabase.from("service_orders").select("*, items:service_items(*)").eq("status", "done").order("done_date", { ascending: false }).limit(50),
     ]);
     if (pendingRes.data) setPendingServices(pendingRes.data);

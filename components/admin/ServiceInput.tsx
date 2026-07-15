@@ -119,6 +119,8 @@ export default function ServiceInput({
   } | null>(null);
   const [step, setStep] = useState(1);
   const [estimatedCost, setEstimatedCost] = useState("");
+  const [dpTransactions, setDpTransactions] = useState<any[]>([]);
+  const [selectedDpId, setSelectedDpId] = useState<string | null>(null);
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
 
@@ -128,6 +130,8 @@ export default function ServiceInput({
     setStep(1);
     setLastInvoice(null);
     setLoading(false);
+    setSelectedDpId(null);
+    setDpTransactions([]);
   }, []);
 
   // ── Draft restore ────────────────────────────────────────────────────────
@@ -151,6 +155,25 @@ export default function ServiceInput({
       }
     })();
   }, [user?.id]);
+
+  // ── Fetch DP transaksi customer ────────────────────────────────────────
+  useEffect(() => {
+    if (!formData.cs_phone || formData.cs_phone.length < 8) {
+      setDpTransactions([]);
+      setSelectedDpId(null);
+      return;
+    }
+    const phone = formData.cs_phone.replace(/\D/g, "");
+    supabase
+      .from("layanan")
+      .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at")
+      .eq("customer_whatsapp", phone)
+      .eq("jenis_layanan", "dp_service")
+      .is("linked_service_order_id", null)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => setDpTransactions(data || []));
+  }, [formData.cs_phone]);
 
   // ── Auto-save text segera (sync) ─────────────────────────────────────────
   useEffect(() => {
@@ -399,8 +422,26 @@ In : ${now}`;
         }
       }
 
-      // Auto-add DP transaction if DP > 0
-      if (hasDp && dpValue > 0) {
+      // Link existing DP transaction (from manual DP Service input)
+      if (selectedDpId) {
+        const selectedDp = dpTransactions.find((d) => d.id === selectedDpId);
+        await supabase
+          .from("layanan")
+          .update({ linked_service_order_id: serviceId })
+          .eq("id", selectedDpId);
+        // Copy DP photo to service_documentation if exists
+        if (selectedDp?.photo_url) {
+          await supabase.from("service_documentation").insert({
+            service_order_id: serviceId,
+            photo_url: selectedDp.photo_url,
+            stage: "initial_condition",
+            uploaded_by: authUser?.id,
+          });
+        }
+      }
+
+      // Auto-add DP transaction if DP > 0 (only if not linked)
+      if (hasDp && dpValue > 0 && !selectedDpId) {
         const { data: userProfile } = await supabase
           .from("profiles")
           .select("id, full_name")
@@ -522,6 +563,7 @@ In : ${now}`;
       restoredRef.current = false;
       setLastInvoice({ invoice: invoiceNumber, token, serviceId });
       setSuccess(true);
+      setStep(5);
       toast.success("Watch service order created!");
 
       // Save to customers table + notify Telegram if new
@@ -597,6 +639,8 @@ In : ${now}`;
     setSuccess(false);
     setStep(1);
     setLastInvoice(null);
+    setSelectedDpId(null);
+    setDpTransactions([]);
   };
 
   return (
@@ -1066,6 +1110,49 @@ In : ${now}`;
                 </div>
               </div>
 
+              {dpTransactions.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                    Pilih DP Customer
+                  </label>
+                  <div className="space-y-1.5">
+                    {dpTransactions.map((dp) => (
+                      <button
+                        key={dp.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDpId(selectedDpId === dp.id ? null : dp.id);
+                          if (selectedDpId !== dp.id) {
+                            setFormData((p) => ({
+                              ...p,
+                              down_payment: String(dp.nominal || 0),
+                              payment_method: dp.metode_pembayaran || "cash",
+                            }));
+                          } else {
+                            setFormData((p) => ({
+                              ...p,
+                              down_payment: "",
+                              payment_method: "cash",
+                            }));
+                          }
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left text-sm transition-all ${
+                          selectedDpId === dp.id
+                            ? "border-emerald-500 bg-emerald-50"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="flex-1 font-medium">
+                          Rp {Number(dp.nominal).toLocaleString("id-ID")}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          {new Date(dp.created_at).toLocaleDateString("id-ID")}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Down Payment (DP)
@@ -1079,6 +1166,7 @@ In : ${now}`;
                     onChange={(e) => {
                       const raw = e.target.value.replace(/[^0-9]/g, "");
                       setFormData((p) => ({ ...p, down_payment: raw }));
+                      setSelectedDpId(null);
                     }}
                     className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
                     placeholder="0"

@@ -329,8 +329,11 @@ CREATE TABLE IF NOT EXISTS layanan (
   lead_source_custom TEXT,
   sku_details TEXT,
   nominal_pembayaran NUMERIC DEFAULT 0,
-  created_by UUID REFERENCES profiles(id)
+  created_by UUID REFERENCES profiles(id),
+  linked_service_order_id UUID REFERENCES service_orders(id)
 );
+
+ALTER TABLE layanan ADD COLUMN IF NOT EXISTS linked_service_order_id UUID REFERENCES service_orders(id);
 
 -- =====================================================
 -- SERVICE JASA MASTER DATA

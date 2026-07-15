@@ -122,22 +122,33 @@ export default function LayananList({
   const fetchLayanan = async () => {
     setLoading(true);
     try {
-      let query = supabase.from("layanan");
-      // Coba dengan join layanan_items (jika tabel sudah ada)
-      const res = await query.select("*, layanan_items(*)").order("created_at", { ascending: false });
-      const data = res.error ? (await supabase.from("layanan").select("*").order("created_at", { ascending: false })).data : res.data;
-      if (dateFilter && data) {
-        const start = dateFilter + "T00:00:00";
-        const end = dateFilter + "T23:59:59";
-        const filtered = data.filter((d: any) => d.created_at >= start && d.created_at <= end);
-        setLayanan(filtered);
-        const rows = buildDisplayRows(filtered);
-        setDisplayRows(rows);
-        setFilteredLayanan(rows);
-        calculateTotal(rows);
-      } else if (data) {
-        setLayanan(data);
-        const rows = buildDisplayRows(data);
+      let query = supabase.from("layanan").select("*, layanan_items(*)");
+      if (dateFilter) {
+        query = query
+          .gte("created_at", dateFilter + "T00:00:00")
+          .lte("created_at", dateFilter + "T23:59:59");
+      }
+      query = query.order("created_at", { ascending: false }).limit(200);
+      const res = await query;
+      if (res.error) {
+        // Fallback tanpa join jika tabel layanan_items belum ada
+        let fallback = supabase.from("layanan").select("*");
+        if (dateFilter) {
+          fallback = fallback
+            .gte("created_at", dateFilter + "T00:00:00")
+            .lte("created_at", dateFilter + "T23:59:59");
+        }
+        const fb = await fallback.order("created_at", { ascending: false }).limit(200);
+        if (fb.data) {
+          setLayanan(fb.data);
+          const rows = buildDisplayRows(fb.data);
+          setDisplayRows(rows);
+          setFilteredLayanan(rows);
+          calculateTotal(rows);
+        }
+      } else if (res.data) {
+        setLayanan(res.data);
+        const rows = buildDisplayRows(res.data);
         setDisplayRows(rows);
         setFilteredLayanan(rows);
         calculateTotal(rows);

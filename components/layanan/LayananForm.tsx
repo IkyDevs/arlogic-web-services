@@ -45,6 +45,7 @@ const jenisLayananOptions = [
   { value: "ambil_jam_service", label: "Ambil Jam Service" },
   { value: "order_online", label: "Order Online" },
   { value: "beli_jam", label: "Beli Jam" },
+  { value: "dp_service", label: "DP Service" },
 ];
 
 const metodePembayaranOptions = [

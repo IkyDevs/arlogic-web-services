@@ -65,6 +65,7 @@ export default function FeedbackList() {
           service_orders(invoice_number, watch_brand)
         `)
         .order('created_at', { ascending: false })
+        .limit(100)
 
       if (error) {
         console.error('Error fetching feedbacks:', error)
