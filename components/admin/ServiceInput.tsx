@@ -123,6 +123,14 @@ export default function ServiceInput({
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
 
+  // ── Reset state on mount ─────────────────────────────────────────────────
+  useEffect(() => {
+    setSuccess(false);
+    setStep(1);
+    setLastInvoice(null);
+    setLoading(false);
+  }, []);
+
   // ── Draft restore ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id || restoredRef.current) return;

@@ -163,6 +163,23 @@ if (urls.length === 0 && allPhotosToUpload.length > 0) {
 ```
 Error di-catch oleh blok `catch` utama → toast ke user. Service order tetap tersimpan (tanpa foto), DP tidak masuk ke `layanan`.
 
+### Issue 10: Popup Service Masih Tampilkan QR Token Lama Setelah Submit Sukses
+
+**Masalah**: Setelah berhasil create service dan modal ditutup, saat membuka form Service lagi, popup success (QR + token) dari submit sebelumnya langsung muncul.
+
+**Root Cause**: State `success`, `step`, `lastInvoice` tidak di-reset saat component mount. React kadang mempertahankan state render sebelumnya ketika modal dibuka-tutup cepat.
+
+**Fix**: Tambah `useEffect` di mount yang reset state:
+```typescript
+useEffect(() => {
+  setSuccess(false);
+  setStep(1);
+  setLastInvoice(null);
+  setLoading(false);
+}, []);
+```
+Effect ini berjalan sekali saat component mount, memastikan form selalu mulai dari step 1.
+
 ### Issue 7: Upload Foto Kadang Gagal — Efek Kompresi
 
 **Masalah**: Upload foto ke Telegram kadang berhasil, kadang tidak. Foto dari HP (HEIC/WebP) sering gagal.

@@ -1195,6 +1195,7 @@ export default function AdminDashboard() {
               totalServices={stats.totalServices}
               revenue={stats.revenue}
               totalExpenses={stats.totalExpenses}
+              todayTransactions={stats.totalTransactions}
               todayRevenue={todayStats.revenue}
               todayExpenses={todayStats.expenses}
               recentTransactions={recentTransactions}
