@@ -116,32 +116,51 @@ export function useUpload() {
         }
       }
 
-      // Process files sequentially (avoid mobile memory overload)
-      const compressed: File[] = []
-      const total = files.length
-
-      for (let i = 0; i < total; i++) {
-        const file = files[i]
-        const pct = Math.round(((i) / total) * 40)
-        setProgress(pct)
-
-        try {
-          const workFile = isHeic(file) ? await convertHeicToJpeg(file) : file
-          if (workFile.type === 'image/jpeg' && workFile.size <= 200 * 1024) {
-            compressed.push(workFile)
-          } else {
-            const blob = await compressImageOnClient(workFile)
-            const jpgName = workFile.name.replace(/\.[^.]+$/i, '.jpg')
-            compressed.push(new File([blob], jpgName, { type: 'image/jpeg' }))
-          }
-        } catch {
-          compressed.push(file)
-        }
-        setProgress(Math.round(((i + 1) / total) * 40))
+      // Step 1: convert HEIC files (batched)
+      const batchSize = 2
+      const nonHeic: File[] = []
+      const heicFiles: File[] = []
+      for (const f of files) {
+        if (isHeic(f)) heicFiles.push(f)
+        else nonHeic.push(f)
       }
+      const converted: File[] = []
+      for (let i = 0; i < heicFiles.length; i += batchSize) {
+        const batch = heicFiles.slice(i, i + batchSize)
+        const results = await Promise.all(batch.map(async (file) => {
+          try { return await convertHeicToJpeg(file); } catch { return file }
+        }))
+        converted.push(...results)
+        setProgress(Math.round(((i + batchSize) / heicFiles.length) * 20))
+      }
+      const allFiles = [...nonHeic, ...converted]
+
+      // Step 2: compress all prepped files in parallel
+      let doneCount = 0
+      const total = allFiles.length
+      const compressResults = await Promise.all(
+        allFiles.map(async (file) => {
+          const jpgName = file.name.replace(/\.[^.]+$/i, '.jpg')
+          let result: File
+          if (file.type === 'image/jpeg' && file.size <= 300 * 1024) {
+            result = file
+          } else {
+            try {
+              const blob = await compressImageOnClient(file)
+              result = new File([blob], jpgName, { type: 'image/jpeg' })
+            } catch {
+              result = file
+            }
+          }
+          doneCount++
+          setProgress(Math.round((doneCount / total) * 20 + 20))
+          return result
+        })
+      )
+      setProgress(40)
 
       const formData = new FormData()
-      for (const f of compressed) {
+      for (const f of compressResults) {
         formData.append('files', f)
       }
       

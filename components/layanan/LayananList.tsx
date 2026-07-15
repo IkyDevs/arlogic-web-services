@@ -612,12 +612,12 @@ export default function LayananList({
                     </p>
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
-                    <p className="font-medium text-xs sm:text-sm">{item.customer_name}</p>
-                    <p className="text-[10px] sm:text-xs text-slate-400">
+                    <p className="font-medium text-xs sm:text-sm dark:text-white">{item.customer_name}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 dark:!text-slate-300">
                       {item.customer_whatsapp}
                     </p>
                     {item.detail_sku && (
-                      <p className="text-[10px] text-slate-400 mt-0.5">
+                      <p className="text-[10px] text-slate-400 dark:!text-slate-300 mt-0.5 max-w-[180px] whitespace-normal break-words">
                         SKU: {item.detail_sku}
                       </p>
                     )}
