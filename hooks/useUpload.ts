@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import heic2any from 'heic2any'
 
 const isHeic = (file: File) =>
   /\.heic$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
 
 const convertHeicToJpeg = async (file: File): Promise<File> => {
+  const heic2any = (await import('heic2any')).default
   let result: Blob | Blob[]
   try {
     result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 })

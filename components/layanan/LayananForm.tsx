@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
-import heic2any from "heic2any";
 import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -251,7 +250,8 @@ export default memo(function LayananForm({
       let file = f;
       if (isHeic(f)) {
         try {
-          const blob = await heic2any({ blob: f, toType: "image/jpeg", quality: 0.92 });
+          const h2a = (await import("heic2any")).default;
+          const blob = await h2a({ blob: f, toType: "image/jpeg", quality: 0.92 });
           const b = Array.isArray(blob) ? blob[0] : blob;
           file = new File([b], f.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
         } catch {

@@ -31,7 +31,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
-import heic2any from "heic2any";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
@@ -222,7 +221,8 @@ export default function ServiceInput({
       let file = f;
       if (isHeic(f)) {
         try {
-          const blob = await heic2any({ blob: f, toType: "image/jpeg", quality: 0.92 });
+          const h2a = (await import("heic2any")).default;
+          const blob = await h2a({ blob: f, toType: "image/jpeg", quality: 0.92 });
           const b = Array.isArray(blob) ? blob[0] : blob;
           file = new File([b], f.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
         } catch {
