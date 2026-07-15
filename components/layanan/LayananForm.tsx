@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
+import heic2any from "heic2any";
 import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -231,28 +232,36 @@ export default memo(function LayananForm({
   };
 
   // ── Photo helpers ─────────────────────────────────────────────────────────
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const valid = files.filter((f) => {
-      if (!f.type.startsWith("image/")) {
+    const isHeic = (f: File) =>
+      /\.heic$/i.test(f.name) || f.type === "image/heic" || f.type === "image/heif";
+
+    for (const f of files) {
+      if (!f.type.startsWith("image/") && !isHeic(f)) {
         toast.error(`${f.name} bukan gambar`);
-        return false;
+        continue;
       }
       if (f.size > 15 * 1024 * 1024) {
         toast.error(`${f.name} terlalu besar (max 15MB)`);
-        return false;
+        continue;
       }
-      return true;
-    });
+      let file = f;
+      if (isHeic(f)) {
+        try {
+          const blob = await heic2any({ blob: f, toType: "image/jpeg", quality: 0.92 });
+          const b = Array.isArray(blob) ? blob[0] : blob;
+          file = new File([b], f.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+        } catch {
+          // fallback
+        }
+      }
+      setPhotoFiles((prev) => [...prev, file]);
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(file)]);
+    }
 
-    setPhotoFiles((prev) => [...prev, ...valid]);
-    valid.forEach((f) =>
-      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]),
-    );
-
-    // reset input so same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -663,14 +672,39 @@ ${icon} tipe : ${label}
             </p>
           </div>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <X className="w-4 h-4 text-gray-400" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!initialData && user?.id && hasDraft("layanan", user.id) && (
+            <button
+              type="button"
+              onClick={() => {
+                clearDraft("layanan", user.id);
+                setFormData({
+                  customer_name: "", customer_whatsapp: "",
+                  jenis_layanan: "service_langsung" as JenisLayanan,
+                  handled_by: user.id || "", metode_pembayaran: "cash" as MetodePembayaran,
+                  lead_source: "instagram" as LeadSource, lead_source_custom: "",
+                  detail_sku: "", nominal: "", notes: "",
+                });
+                setExtraItems([]);
+                setPhotoFiles([]);
+                setPhotoPreviews([]);
+                toast.success("Draft berhasil dihapus", { duration: 2000 });
+              }}
+              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              title="Hapus draft"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-5">

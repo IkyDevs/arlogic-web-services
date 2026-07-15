@@ -102,7 +102,68 @@
 - `components/owner/WatchDatabase.tsx` — MECHANICAL→DIGITAL
 - `app/tracking/[[...slug]]/page.tsx` — MECHANICAL→DIGITAL
 
-### Issue 6: Upload Foto Kadang Gagal — Efek Kompresi
+### Issue 6: Upload Foto HEIC Gagal Total (Tidak Bisa Preview + Error Upload)
+
+**Masalah**: Foto format HEIC dari iPhone tidak bisa di-preview dan gagal upload dengan error "failed to fetch".
+
+**Root Cause**:
+1. **Browser tidak support HEIC**: `Image()` API dan `URL.createObjectURL()` gagal decode HEIC → preview broken, kompresi return file original
+2. **Server sharp mungkin tanpa HEIC support**: Raw HEIC dikirim ke Telegram → ditolak
+3. **"failed to fetch"** karena request body HEIC besar + server crash saat proses format tidak dikenal
+
+**Fix**:
+1. **`hooks/useUpload.ts`**:
+   - Install & import `heic2any` (WASM-based HEIC→JPEG converter)
+   - Tambah `isHeic()` helper (detect by extension `.heic`/MIME `image/heic`/`image/heif`)
+   - Tambah `convertHeicToJpeg()`: panggil `heic2any()` → output Blob JPEG
+   - Flow baru: HEIC → `heic2any` → JPEG Blob → canvas kompresi → server sharp → Telegram
+2. **`components/admin/ServiceInput.tsx`**:
+   - Import `heic2any`
+   - `handleAddPhoto()`: deteksi HEIC, convert ke JPEG dulu sebelum `URL.createObjectURL()` untuk preview
+   - Preview foto HEIC sekarang muncul normal
+3. **`components/layanan/LayananForm.tsx`**:
+   - Import `heic2any`
+   - `handlePhotoSelect()`: deteksi HEIC, convert ke JPEG sebelum preview & upload
+4. **Dependency baru**: `heic2any@0.0.4` — WASM HEIC→JPEG converter di client
+
+### Issue 7: Upload Foto Lambat (Pra Service & Transaksi)
+
+**Masalah**: Proses upload foto lama karena HEIC conversion + canvas compression.
+
+**Root Cause**:
+1. HEIC conversion (`heic2any`) dan kompresi canvas jalan **parallel** (`Promise.all`) → overload memory HP
+2. **Progress bar tidak update** selama fase kompresi — user tidak tahu status
+3. File HEIC besar diproses barengan
+
+**Fix**:
+1. **Sequential processing**: Proses foto 1 per 1 (bukan parallel) — lebih stabil di mobile
+2. **Progress selama kompresi**: `setProgress()` update per foto (0-40% untuk kompresi, 40-90% untuk upload)
+3. **Skip kompresi untuk JPEG kecil** (< 200KB) — langsung kirim tanpa proses canvas
+4. Interval upload lebih lambat (setiap 300ms +3%) biar progress bar tidak keburu habis
+
+### Issue 8: Tombol Clear Draft di Popup Transaksi & Service
+
+**Masalah**: Tidak ada cara menghapus draft tersimpan di localStorage.
+
+**Fix**:
+1. **`components/admin/ServiceInput.tsx`**: Tombol `Trash2` merah di header (page) dan link "Hapus Draft" (modal)
+2. **`components/layanan/LayananForm.tsx`**: Tombol `Trash2` merah di header, sebelah tombol close
+3. Tombol hanya muncul jika ada draft (`hasDraft(...)`)
+4. Klik → `clearDraft()` → reset form → toast "Draft berhasil dihapus"
+
+### Issue 9: DP Tetap Masuk Transaksi Walau Upload Foto Gagal
+
+**Masalah**: Saat add new service, jika upload foto gagal, DP transaction (`jenis_layanan = 'dp_service'`) tetap masuk ke tabel `layanan` karena DP insert dijalankan terlepas dari hasil upload.
+
+**Fix**: Tambah throw error jika upload foto gagal:
+```typescript
+if (urls.length === 0 && allPhotosToUpload.length > 0) {
+  throw new Error("Upload foto gagal, transaksi DP dibatalkan");
+}
+```
+Error di-catch oleh blok `catch` utama → toast ke user. Service order tetap tersimpan (tanpa foto), DP tidak masuk ke `layanan`.
+
+### Issue 7: Upload Foto Kadang Gagal — Efek Kompresi
 
 **Masalah**: Upload foto ke Telegram kadang berhasil, kadang tidak. Foto dari HP (HEIC/WebP) sering gagal.
 

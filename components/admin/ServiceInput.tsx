@@ -28,8 +28,10 @@ import {
   Smartphone,
   Circle,
   DollarSign,
+  Trash2,
 } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
+import heic2any from "heic2any";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
@@ -202,11 +204,25 @@ export default function ServiceInput({
     return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
   };
 
-  const handleAddPhoto = (files: FileList | null) => {
+  const handleAddPhoto = async (files: FileList | null) => {
     if (!files) return;
-    const newFiles = Array.from(files).filter((f) =>
-      f.type.startsWith("image/"),
-    );
+    const isHeic = (f: File) =>
+      /\.heic$/i.test(f.name) || f.type === "image/heic" || f.type === "image/heif";
+    const newFiles: File[] = [];
+    for (const f of Array.from(files)) {
+      if (!f.type.startsWith("image/") && !isHeic(f)) continue;
+      let file = f;
+      if (isHeic(f)) {
+        try {
+          const blob = await heic2any({ blob: f, toType: "image/jpeg", quality: 0.92 });
+          const b = Array.isArray(blob) ? blob[0] : blob;
+          file = new File([b], f.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+        } catch {
+          // fallback: keep original
+        }
+      }
+      newFiles.push(file);
+    }
     if (newFiles.length === 0) return;
     setPhotos((prev) => [...prev, ...newFiles]);
     newFiles.forEach((f) => {
@@ -368,6 +384,10 @@ In : ${now}`;
         }));
         if (docInserts.length > 0) {
           await supabase.from("service_documentation").insert(docInserts);
+        }
+
+        if (urls.length === 0 && allPhotosToUpload.length > 0) {
+          throw new Error("Upload foto gagal, transaksi DP dibatalkan");
         }
       }
 
@@ -580,7 +600,7 @@ In : ${now}`;
           <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
             <Watch className="w-5 h-5 text-white dark:text-gray-900" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
               New Watch Service
             </h2>
@@ -588,6 +608,53 @@ In : ${now}`;
               Create service order for timepiece
             </p>
           </div>
+          {user?.id && hasDraft("service", user.id) && (
+            <button
+              type="button"
+              onClick={() => {
+                clearDraft("service", user.id);
+                restoredRef.current = false;
+                photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+                setFormData({
+                  cs_name: "", cs_phone: "", category: "", serial_number: "",
+                  watch_brand: "", watch_model: "", watch_movement: "", problem: "",
+                  request: "", notes: "", down_payment: "", payment_method: "cash", qris_photo: null,
+                });
+                setPhotos([]);
+                setPhotoPreviews([]);
+                setStep(1);
+                toast.success("Draft berhasil dihapus", { duration: 2000 });
+              }}
+              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              title="Hapus draft"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
+      {variant === "modal" && user?.id && hasDraft("service", user.id) && (
+        <div className="flex justify-end px-4 pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              clearDraft("service", user.id);
+              restoredRef.current = false;
+              photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+              setFormData({
+                cs_name: "", cs_phone: "", category: "", serial_number: "",
+                watch_brand: "", watch_model: "", watch_movement: "", problem: "",
+                request: "", notes: "", down_payment: "", payment_method: "cash", qris_photo: null,
+              });
+              setPhotos([]);
+              setPhotoPreviews([]);
+              setStep(1);
+              toast.success("Draft berhasil dihapus", { duration: 2000 });
+            }}
+            className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1"
+          >
+            <Trash2 className="w-3 h-3" /> Hapus Draft
+          </button>
         </div>
       )}
 

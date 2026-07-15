@@ -1,5 +1,22 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import heic2any from 'heic2any'
+
+const isHeic = (file: File) =>
+  /\.heic$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
+
+const convertHeicToJpeg = async (file: File): Promise<File> => {
+  let result: Blob | Blob[]
+  try {
+    result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 })
+  } catch (e) {
+    console.error('❌ heic2any conversion failed:', e)
+    throw e
+  }
+  const blob = Array.isArray(result) ? result[0] : result
+  const jpgName = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg')
+  return new File([blob], jpgName, { type: 'image/jpeg' })
+}
 
 const compressImageOnClient = (file: File): Promise<Blob> => {
   return new Promise((resolve) => {
@@ -99,20 +116,29 @@ export function useUpload() {
         }
       }
 
-      // Compress all files in parallel (always, for format conversion to JPEG)
-      const compressed = await Promise.all(
-        files.map(async (file) => {
-          const needsCompress = file.size > 200 * 1024 || file.type !== 'image/jpeg'
-          if (!needsCompress) return file
-          try {
-            const blob = await compressImageOnClient(file)
-            const jpgName = file.name.replace(/\.[^.]+$/, '.jpg')
-            return new File([blob], jpgName, { type: 'image/jpeg' })
-          } catch {
-            return file
+      // Process files sequentially (avoid mobile memory overload)
+      const compressed: File[] = []
+      const total = files.length
+
+      for (let i = 0; i < total; i++) {
+        const file = files[i]
+        const pct = Math.round(((i) / total) * 40)
+        setProgress(pct)
+
+        try {
+          const workFile = isHeic(file) ? await convertHeicToJpeg(file) : file
+          if (workFile.type === 'image/jpeg' && workFile.size <= 200 * 1024) {
+            compressed.push(workFile)
+          } else {
+            const blob = await compressImageOnClient(workFile)
+            const jpgName = workFile.name.replace(/\.[^.]+$/i, '.jpg')
+            compressed.push(new File([blob], jpgName, { type: 'image/jpeg' }))
           }
-        })
-      )
+        } catch {
+          compressed.push(file)
+        }
+        setProgress(Math.round(((i + 1) / total) * 40))
+      }
 
       const formData = new FormData()
       for (const f of compressed) {
@@ -124,8 +150,8 @@ export function useUpload() {
       if (options.formData) formData.append('formData', JSON.stringify(options.formData))
 
       const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 5, 90))
-      }, 200)
+        setProgress(prev => Math.min(prev + 3, 90))
+      }, 300)
 
       const response = await fetch('/api/upload', {
         method: 'POST',
