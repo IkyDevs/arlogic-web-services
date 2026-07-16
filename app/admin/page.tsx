@@ -33,9 +33,6 @@ import {
   FileText,
   Search,
   User,
-  LogIn,
-  LogOut as LogOutIcon,
-  Camera,
   ChevronRight,
   Receipt,
   MessageSquare,
@@ -53,6 +50,8 @@ import POSection from "@/components/admin/POSection";
 import QRCodeGenerator from "@/components/admin/QRCodeGenerator";
 import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
+import AdminSidebar from "@/components/admin/AdminSidebar";
+import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import { useTheme } from "@/components/ThemeProvider";
 
 // Dynamic imports
@@ -777,22 +776,6 @@ export default function AdminDashboard() {
     check();
   }, [user?.id]);
 
-  const formatRupiah = (nominal: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(nominal);
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
   const menuItems = [
     { id: "transaction", label: "Dashboard", icon: LayoutDashboard },
     { id: "customer", label: "Customer", icon: Users },
@@ -827,110 +810,15 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] lg:flex">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`sidebar-container fixed top-0 left-0 h-full w-64 bg-white dark:bg-[#111111] z-50 flex flex-col py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-screen lg:sticky lg:top-0 transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-white/5 overflow-y-auto ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-4 mb-6 sm:mb-8 flex-shrink-0">
-          <div className="w-10 h-10 bg-gray-900 rounded-2xl flex items-center justify-center flex-shrink-0">
-            <Watch className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900">WatchService</h1>
-            <p className="text-[10px] text-slate-500">Admin Panel</p>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden ml-auto p-1.5 hover:bg-slate-100 rounded-lg"
-          >
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 flex flex-col justify-center gap-0.5 px-3 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setActiveTab(item.id);
-                setSidebarOpen(false);
-              }}
-              className={`sidebar-item w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
-                activeTab === item.id
-                  ? "bg-gray-900 text-white"
-                  : "text-slate-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-            >
-              <item.icon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Bottom Actions */}
-        <div className="flex flex-col gap-1 px-3 pt-3 border-t border-slate-100 flex-shrink-0">
-          {/* Attendance */}
-          <button
-            onClick={() =>
-              handleAttendance(
-                todayAttendance && !todayAttendance.check_out
-                  ? "check_out"
-                  : "check_in",
-              )
-            }
-            disabled={!!todayAttendance?.check_out}
-            className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
-              !todayAttendance
-                ? "bg-green-50 text-green-600 hover:bg-green-100"
-                : todayAttendance.check_out
-                  ? "text-slate-400 cursor-not-allowed"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {!todayAttendance ? (
-              <LogIn className="w-4 h-4 flex-shrink-0" />
-            ) : todayAttendance.check_out ? (
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <LogOutIcon className="w-4 h-4 flex-shrink-0" />
-            )}
-            <span className="truncate">
-              {!todayAttendance
-                ? "Absen"
-                : todayAttendance.check_out
-                  ? "Completed"
-                  : "Absen Pulang"}
-            </span>
-          </button>
-
-          {/* Theme Toggle */}
-          <div className="px-3 py-2 flex items-center gap-3 text-slate-600">
-            <ThemeToggle />
-            <span className="text-sm font-medium">Theme</span>
-          </div>
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
-          >
-            <LogOut className="w-4 h-4 flex-shrink-0" />
-            <span>Keluar</span>
-          </button>
-        </div>
-      </aside>
+      <AdminSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        todayAttendance={todayAttendance}
+        handleAttendance={handleAttendance}
+        handleLogout={handleLogout}
+      />
 
       {/* Mobile Menu Button */}
       <button
@@ -941,7 +829,7 @@ export default function AdminDashboard() {
       </button>
 
       {/* ==================== MAIN CONTENT ==================== */}
-      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden pb-16 lg:pb-0">
         {/* Top Navbar */}
         <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
           <div className="bg-white dark:bg-[#1c1c1c] rounded-xl px-4 py-3 flex items-center justify-between border border-gray-200 gap-2 sm:gap-4">
@@ -1554,6 +1442,14 @@ export default function AdminDashboard() {
         onSuccess={handleAttendanceSuccess}
         type={attendanceType}
         existingAttendance={todayAttendance}
+      />
+
+      {/* Mobile Bottom Nav */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        transactionTabId="management-transaction"
+        serviceTabId="services"
       />
     </div>
   );

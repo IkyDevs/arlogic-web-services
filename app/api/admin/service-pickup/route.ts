@@ -1,19 +1,30 @@
 import { createClient } from "@/lib/supabase/client";
 import { NextResponse } from "next/server";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { validateOrigin } from "@/lib/csrf";
+import { rateLimitIP } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { serviceOrderId } = body;
 
+    // CSRF & rate limit checks
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const rl = rateLimitIP(request)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    }
+
     const supabase = createClient();
 
-    // 1. Get user session
+    // 1. Verify user authentication
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -21,7 +32,7 @@ export async function POST(request: Request) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, full_name")
-      .eq("id", session.user.id)
+      .eq("id", authUser.id)
       .single();
 
     if (profile?.role !== "admin") {
@@ -92,7 +103,7 @@ export async function POST(request: Request) {
 
     // 8. Create activity log
     await supabase.from("activity_logs").insert({
-      user_id: session.user.id,
+      user_id: authUser.id,
       action: "service_picked_up",
       details: {
         service_order_id: serviceOrderId,
@@ -123,11 +134,11 @@ export async function GET(request: Request) {
   try {
     const supabase = createClient();
 
-    // Get user session
+    // Verify user authentication
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

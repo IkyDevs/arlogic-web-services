@@ -1,9 +1,20 @@
 import { createClient } from "@/lib/supabase/client";
 import { NextResponse } from "next/server";
 import { sendExpenseTelegramNotification } from "@/lib/telegram";
+import { validateOrigin } from "@/lib/csrf";
+import { rateLimitIP } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    // CSRF & rate limit checks
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const rl = rateLimitIP(request)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    }
+
     const body = await request.json();
     const {
       item_name,
@@ -37,20 +48,24 @@ export async function POST(request: Request) {
 
     const supabase = createClient();
 
-    // Get user session
+    // Verify user authentication
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check if user is admin
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role, full_name")
-      .eq("id", session.user.id)
+      .eq("id", authUser.id)
       .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 403 });
+    }
 
     if (profile?.role !== "admin") {
       return NextResponse.json(
@@ -116,7 +131,7 @@ export async function POST(request: Request) {
 
     // Create activity log
     await supabase.from("activity_logs").insert({
-      user_id: session.user.id,
+      user_id: authUser.id,
       action: "expense_created",
       details: {
         expense_id: expense.id,
@@ -148,11 +163,11 @@ export async function GET(request: Request) {
   try {
     const supabase = createClient();
 
-    // Get user session
+    // Verify user authentication
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -262,11 +277,11 @@ export async function PUT(request: Request) {
 
     const supabase = createClient();
 
-    // Get user session
+    // Verify user authentication
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -274,7 +289,7 @@ export async function PUT(request: Request) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", session.user.id)
+      .eq("id", authUser.id)
       .single();
 
     if (profile?.role !== "admin") {
@@ -285,7 +300,7 @@ export async function PUT(request: Request) {
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
@@ -318,7 +333,7 @@ export async function PUT(request: Request) {
 
     // Create activity log
     await supabase.from("activity_logs").insert({
-      user_id: session.user.id,
+      user_id: authUser.id,
       action: "expense_updated",
       details: {
         expense_id: id,
@@ -354,11 +369,11 @@ export async function DELETE(request: Request) {
 
     const supabase = createClient();
 
-    // Get user session
+    // Verify user authentication
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -366,7 +381,7 @@ export async function DELETE(request: Request) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", session.user.id)
+      .eq("id", authUser.id)
       .single();
 
     if (profile?.role !== "admin") {
@@ -399,7 +414,7 @@ export async function DELETE(request: Request) {
 
     // Create activity log
     await supabase.from("activity_logs").insert({
-      user_id: session.user.id,
+      user_id: authUser.id,
       action: "expense_deleted",
       details: {
         expense_id: id,

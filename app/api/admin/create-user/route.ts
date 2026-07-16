@@ -1,8 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { validateOrigin } from '@/lib/csrf'
+import { rateLimitIP } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // CSRF & rate limit checks
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const rl = rateLimitIP(request)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const { email, password, full_name, role, gender } = await request.json()
 
     // Validate inputs

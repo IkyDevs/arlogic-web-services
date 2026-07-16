@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { validateOrigin } from "@/lib/csrf";
+import { rateLimitIP } from "@/lib/rate-limit";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -172,6 +174,15 @@ async function handleAction(action: string, payload: any) {
 
 export async function POST(req: NextRequest) {
   try {
+    // CSRF & rate limit checks
+    if (!validateOrigin(req)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+    const rl = rateLimitIP(req)
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 })
+    }
+
     const body = await req.json();
     const result = await handleAction(body.action, body);
     return NextResponse.json({ success: true, data: result });

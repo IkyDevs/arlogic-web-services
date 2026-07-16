@@ -1,7 +1,5 @@
-// lib/telegram.ts
-// Telegram Storage Service - Upload foto ke channel terpisah
-
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TG_API = "https://api.telegram.org/bot";
 
 const CHANNELS = {
   attendance: process.env.TELEGRAM_CHANNEL_ATTENDANCE,
@@ -25,111 +23,85 @@ export interface TelegramMessageResult {
   message_id: number;
 }
 
-async function sendPhotoBlob(
-  channelId: string,
-  blob: Blob,
-  fileName: string,
-  caption?: string,
-): Promise<TelegramMessageResult> {
-  const formData = new FormData();
-  formData.append("chat_id", channelId);
-  formData.append("photo", blob, fileName);
-  if (caption) formData.append("caption", caption);
+const FETCH_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 2;
 
-  const response = await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
-    { method: "POST", body: formData },
-  );
-
-  const rawText = await response.text();
-  let data: any;
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    data = JSON.parse(rawText);
-  } catch (parseError) {
-    console.error("❌ Telegram non-JSON response in sendPhoto:", rawText);
-    throw new Error(
-      `Telegram API returned invalid response (status ${response.status})`,
-    );
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
   }
-
-  if (!data.ok) {
-    throw new Error(data.description || "Telegram API error");
-  }
-
-  const chat_id = String(data.result.chat.id);
-  const message_id = data.result.message_id;
-  const photoArray = data.result.photo;
-  const fileId = photoArray[photoArray.length - 1].file_id;
-
-  const fileResponse = await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`,
-  );
-  const fileData = await fileResponse.json();
-
-  if (!fileData.ok) {
-    throw new Error(fileData.description || "Failed to get file URL");
-  }
-
-  return {
-    url: `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`,
-    chat_id,
-    message_id,
-  };
 }
 
-async function sendSinglePhoto(
-  channelId: string,
-  blob: Blob,
-  fileName: string,
-  caption: string | undefined,
-): Promise<TelegramMessageResult | null> {
-  try {
-    return await sendPhotoBlob(channelId, blob, fileName, caption);
-  } catch (e: any) {
-    console.error(`❌ sendSinglePhoto failed for ${fileName}: ${e.message}`);
-    return null;
+async function tgPost(method: string, body: any, isFormData = false): Promise<any> {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+
+  const url = `${TG_API}${TELEGRAM_BOT_TOKEN}/${method}`;
+  const options: RequestInit = isFormData
+    ? { method: "POST", body }
+    : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, options);
+      const raw = await res.text();
+      let data: any;
+      try { data = JSON.parse(raw); } catch {
+        throw new Error(`Telegram API returned non-JSON (HTTP ${res.status})`);
+      }
+      if (!data.ok) throw new Error(data.description || "Telegram API error");
+      return data.result;
+    } catch (e: any) {
+      lastError = e;
+      if (e.name === "AbortError") throw new Error("Telegram API timeout");
+      if (attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      }
+    }
   }
+  throw lastError || new Error("Telegram API request failed");
 }
 
 async function getFileUrl(fileId: string): Promise<string | null> {
   try {
-    const res = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`,
-    );
-    const data = await res.json();
-    if (!data.ok) return null;
-    return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${data.result.file_path}`;
+    const result = await tgPost("getFile", { file_id: fileId });
+    if (!result?.file_path) return null;
+    return `${TG_API}${TELEGRAM_BOT_TOKEN}/${result.file_path}`;
   } catch {
     return null;
   }
 }
 
-export async function editMessageCaption(
-  chatId: string,
-  messageId: number,
-  caption: string,
-): Promise<boolean> {
+async function sendPhotoBlob(channelId: string, blob: Blob, fileName: string, caption?: string): Promise<TelegramMessageResult> {
+  const formData = new FormData();
+  formData.append("chat_id", channelId);
+  formData.append("photo", blob, fileName);
+  if (caption) formData.append("caption", caption);
+
+  const result = await tgPost("sendPhoto", formData, true);
+  const chat_id = String(result.chat.id);
+  const message_id = result.message_id;
+  const fileId = result.photo[result.photo.length - 1].file_id;
+  const url = await getFileUrl(fileId);
+
+  return { url: url || "", chat_id, message_id };
+}
+
+async function sendSinglePhoto(channelId: string, blob: Blob, fileName: string, caption?: string): Promise<TelegramMessageResult | null> {
+  try { return await sendPhotoBlob(channelId, blob, fileName, caption); }
+  catch { return null; }
+}
+
+export async function editMessageCaption(chatId: string, messageId: number, caption: string): Promise<boolean> {
   try {
-    const res = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageCaption`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          message_id: messageId,
-          caption,
-        }),
-      },
-    );
-    const data = await res.json();
-    if (!data.ok) {
-      console.warn("⚠️ editMessageCaption failed:", data.description);
-      return false;
-    }
+    await tgPost("editMessageCaption", { chat_id: chatId, message_id: messageId, caption });
     return true;
-  } catch (e: any) {
-    console.error("❌ editMessageCaption error:", e.message);
+  } catch {
     return false;
   }
 }
@@ -140,22 +112,18 @@ export async function uploadMultipleToTelegram(
   channelType: TelegramChannelType = "service",
 ): Promise<TelegramMessageResult[]> {
   const channelId = CHANNELS[channelType];
-
   if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
-  if (!channelId)
-    throw new Error(`Channel ID for ${channelType} not configured`);
-  if (!files || files.length === 0) return [];
+  if (!channelId) throw new Error(`Channel ID for ${channelType} not configured`);
+  if (!files?.length) return [];
 
   const results: TelegramMessageResult[] = [];
-  const toBlob = (buffer: Buffer): Blob =>
-    new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
-
+  const toBlob = (buffer: Buffer): Blob => new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
   const CHUNK_SIZE = 10;
+
   for (let i = 0; i < files.length; i += CHUNK_SIZE) {
     const chunk = files.slice(i, i + CHUNK_SIZE);
     let chunkOk = false;
 
-    // Try sendMediaGroup only if 2+ photos (Telegram requires min 2 items)
     if (chunk.length >= 2) {
       try {
         const media = chunk.map((f, idx) => ({
@@ -167,73 +135,34 @@ export async function uploadMultipleToTelegram(
         const formData = new FormData();
         formData.append("chat_id", channelId);
         formData.append("media", JSON.stringify(media));
-        chunk.forEach((f, idx) => {
-          formData.append(`photo_${idx}`, toBlob(f.buffer), `photo_${idx}.jpg`);
-        });
+        chunk.forEach((f, idx) => formData.append(`photo_${idx}`, toBlob(f.buffer), `photo_${idx}.jpg`));
 
-        const res = await fetch(
-          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`,
-          { method: "POST", body: formData },
-        );
-        const raw = await res.text();
-        console.log(
-          `📸 Telegram sendMediaGroup response (chunk ${Math.floor(i / CHUNK_SIZE) + 1}):`,
-          raw.slice(0, 200),
-        );
-        const data = JSON.parse(raw);
-
-        if (data.ok && Array.isArray(data.result)) {
-          console.log(
-            `✅ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} success: ${data.result.length} photos`,
-          );
-          for (let pi = 0; pi < data.result.length; pi++) {
-            const r = data.result[pi];
+        const sendResult = await tgPost("sendMediaGroup", formData, true);
+        if (Array.isArray(sendResult)) {
+          await Promise.all(sendResult.map(async (r, pi) => {
             try {
-              const chat_id = String(r.chat.id);
-              const message_id = r.message_id;
-              const photoArray = r.photo;
-              const fileId = photoArray[photoArray.length - 1].file_id;
-              const url = await getFileUrl(fileId);
-              if (url) {
-                results.push({ url, chat_id, message_id });
-              } else {
-                // Fallback per-photo: send individually if getFileUrl failed
-                const blob = toBlob(chunk[pi].buffer);
-                const singleResult = await sendSinglePhoto(channelId, blob, chunk[pi].name, undefined);
-                if (singleResult) results.push(singleResult);
+              const cid = String(r.chat.id);
+              const mid = r.message_id;
+              const fid = r.photo[r.photo.length - 1].file_id;
+              const url = await getFileUrl(fid);
+              if (url) results.push({ url, chat_id: cid, message_id: mid });
+              else {
+                const fallback = await sendSinglePhoto(channelId, toBlob(chunk[pi].buffer), chunk[pi].name);
+                if (fallback) results.push(fallback);
               }
-            } catch (e: any) {
-              console.warn(`  ⚠️ sendMediaGroup item ${pi} processing failed: ${e.message}`);
-              const blob = toBlob(chunk[pi].buffer);
-              const singleResult = await sendSinglePhoto(channelId, blob, chunk[pi].name, undefined);
-              if (singleResult) results.push(singleResult);
+            } catch {
+              const fallback = await sendSinglePhoto(channelId, toBlob(chunk[pi].buffer), chunk[pi].name);
+              if (fallback) results.push(fallback);
             }
-          }
+          }));
           chunkOk = true;
-        } else {
-          console.error(
-            `❌ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} failed:`,
-            data?.description || "unknown error",
-          );
         }
-      } catch (e: any) {
-        console.warn(
-          `⚠️ sendMediaGroup chunk ${Math.floor(i / CHUNK_SIZE) + 1} failed: ${e.message}`,
-        );
-      }
+      } catch { /* fallback to individual */ }
     }
 
-    // Fallback: send each photo individually (also used when chunk < 2)
     if (!chunkOk) {
-      console.log(`   Sending ${chunk.length} photos individually`);
       for (let fi = 0; fi < chunk.length; fi++) {
-        const blob = toBlob(chunk[fi].buffer);
-        const result = await sendSinglePhoto(
-          channelId,
-          blob,
-          chunk[fi].name,
-          fi === 0 && i === 0 ? caption : undefined,
-        );
+        const result = await sendSinglePhoto(channelId, toBlob(chunk[fi].buffer), chunk[fi].name, fi === 0 && i === 0 ? caption : undefined);
         if (result) results.push(result);
       }
     }
@@ -249,66 +178,20 @@ export async function uploadToTelegram(
   channelType: TelegramChannelType = "service",
 ): Promise<string> {
   const channelId = CHANNELS[channelType];
+  if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  if (!channelId) throw new Error(`Channel ID for ${channelType} not configured`);
 
-  if (!TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN not configured");
-  }
+  const formData = new FormData();
+  formData.append("chat_id", channelId);
+  formData.append("photo", file, fileName);
+  formData.append("caption", caption);
 
-  if (!channelId) {
-    throw new Error(`Channel ID for ${channelType} not configured`);
-  }
-
-  try {
-    const formData = new FormData();
-    formData.append("chat_id", channelId);
-    formData.append("photo", file, fileName);
-    formData.append("caption", caption);
-
-    const response = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
-
-    const rawText = await response.text();
-    let data: any;
-    try {
-      data = JSON.parse(rawText);
-    } catch (parseError) {
-      console.error("❌ Telegram non-JSON response:", rawText);
-      throw new Error(
-        `Telegram API returned invalid response (status ${response.status})`,
-      );
-    }
-
-    if (!data.ok) {
-      throw new Error(data.description || "Telegram API error");
-    }
-
-    const photoArray = data.result.photo;
-    const fileId = photoArray[photoArray.length - 1].file_id;
-
-    const fileResponse = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`,
-    );
-    const fileData = await fileResponse.json();
-
-    if (!fileData.ok) {
-      throw new Error(fileData.description || "Failed to get file URL");
-    }
-
-    return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`;
-  } catch (error: any) {
-    console.error("❌ Telegram upload error:", error);
-    throw error;
-  }
+  const result = await tgPost("sendPhoto", formData, true);
+  const fileId = result.photo[result.photo.length - 1].file_id;
+  const url = await getFileUrl(fileId);
+  if (!url) throw new Error("Failed to get Telegram file URL");
+  return url;
 }
-
-// =====================================================
-// EXPENSE NOTIFICATION FUNCTIONS (Revisi v.23)
-// =====================================================
 
 export interface ExpenseNotificationData {
   expenseId: string;
@@ -325,113 +208,53 @@ export async function sendExpenseTelegramNotification(
   data: ExpenseNotificationData,
 ): Promise<{ messageId: number; chatId: string }> {
   const chatId = process.env.TELEGRAM_CHANNEL_BUKU_KAS || CHANNELS.buku_kas || CHANNELS.layanan;
-
-  if (!TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN not configured");
-  }
-
-  if (!chatId) {
-    throw new Error("Telegram chat ID for Buku Kas not configured");
-  }
+  if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  if (!chatId) throw new Error("Telegram chat ID for Buku Kas not configured");
 
   const formattedDate = new Date(data.createdAt).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 
-  // Format message sesuai requirement
-  const caption = `
-${data.proofPhotoUrls.length > 0 ? "(foto bukti pengeluaran)" : ""}
-
-📋 **PENGELUARAN BARU**
-────────────────────
-📅 Tanggal: ${formattedDate}
-🛒 Nama Barang: ${data.itemName}
-💰 Nominal: Rp ${data.amount.toLocaleString("id-ID")}
-💳 Jenis Pembayaran: ${data.paymentMethod}
-👤 Operator: ${data.handledByName}
-${data.notes ? `📝 Catatan: ${data.notes}` : ""}
-────────────────────
-#pengeluaran #operasional
-`.trim();
+  const caption = [
+    data.proofPhotoUrls.length > 0 ? "(foto bukti pengeluaran)" : "",
+    "",
+    "📋 **PENGELUARAN BARU**",
+    "────────────────────",
+    `📅 Tanggal: ${formattedDate}`,
+    `🛒 Nama Barang: ${data.itemName}`,
+    `💰 Nominal: Rp ${data.amount.toLocaleString("id-ID")}`,
+    `💳 Jenis Pembayaran: ${data.paymentMethod}`,
+    `👤 Operator: ${data.handledByName}`,
+    data.notes ? `📝 Catatan: ${data.notes}` : null,
+    "────────────────────",
+    "#pengeluaran #operasional",
+  ].filter(Boolean).join("\n");
 
   try {
-    // If there are proof photos, upload the first one
     if (data.proofPhotoUrls.length > 0) {
-      const firstPhotoUrl = data.proofPhotoUrls[0];
-
       try {
-        // Download the photo from R2/S3
-        const photoResponse = await fetch(firstPhotoUrl);
-        if (!photoResponse.ok) {
-          throw new Error(`Failed to download photo: ${photoResponse.status}`);
+        const photoRes = await fetchWithTimeout(data.proofPhotoUrls[0]);
+        if (photoRes.ok) {
+          const blob = await photoRes.blob();
+          const fileName = `expense_${data.expenseId}_${Date.now()}.jpg`;
+          const formData = new FormData();
+          formData.append("chat_id", chatId);
+          formData.append("photo", blob, fileName);
+          formData.append("caption", caption);
+          formData.append("parse_mode", "Markdown");
+
+          const result = await tgPost("sendPhoto", formData, true);
+          return { messageId: result.message_id, chatId: String(result.chat.id) };
         }
-
-        const blob = await photoResponse.blob();
-        const fileName = `expense_${data.expenseId}_${Date.now()}.jpg`;
-
-        const formData = new FormData();
-        formData.append("chat_id", chatId);
-        formData.append("photo", blob, fileName);
-        formData.append("caption", caption);
-        formData.append("parse_mode", "Markdown");
-
-        const response = await fetch(
-          `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
-          {
-            method: "POST",
-            body: formData,
-          },
-        );
-
-        const responseData = await response.json();
-
-        if (!responseData.ok) {
-          throw new Error(responseData.description || "Telegram API error");
-        }
-
-        return {
-          messageId: responseData.result.message_id,
-          chatId: String(responseData.result.chat.id),
-        };
-      } catch (photoError) {
-        console.warn(
-          "Failed to send photo, falling back to text message:",
-          photoError,
-        );
-        // Fallback to text message if photo fails
-      }
+      } catch { /* fallback to text */ }
     }
 
-    // Fallback: Send text-only message
-    const response = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: caption,
-          parse_mode: "Markdown",
-        }),
-      },
-    );
-
-    const responseData = await response.json();
-
-    if (!responseData.ok) {
-      throw new Error(responseData.description || "Telegram API error");
-    }
-
-    return {
-      messageId: responseData.result.message_id,
-      chatId: String(responseData.result.chat.id),
-    };
+    const result = await tgPost("sendMessage", {
+      chat_id: chatId, text: caption, parse_mode: "Markdown",
+    });
+    return { messageId: result.message_id, chatId: String(result.chat.id) };
   } catch (error: any) {
-    console.error("Error sending expense Telegram notification:", error);
+    console.error("❌ sendExpenseTelegramNotification:", error.message);
     throw error;
   }
 }
@@ -441,31 +264,10 @@ export async function sendTelegramMessage(options: {
   text: string;
   parseMode?: "HTML" | "Markdown";
 }): Promise<{ messageId: number; chatId: string }> {
-  if (!TELEGRAM_BOT_TOKEN) {
-    throw new Error("TELEGRAM_BOT_TOKEN not configured");
-  }
-
-  const response = await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: options.chatId,
-        text: options.text,
-        parse_mode: options.parseMode || "HTML",
-      }),
-    },
-  );
-
-  const responseData = await response.json();
-
-  if (!responseData.ok) {
-    throw new Error(responseData.description || "Telegram API error");
-  }
-
-  return {
-    messageId: responseData.result.message_id,
-    chatId: String(responseData.result.chat.id),
-  };
+  const result = await tgPost("sendMessage", {
+    chat_id: options.chatId,
+    text: options.text,
+    parse_mode: options.parseMode || "HTML",
+  });
+  return { messageId: result.message_id, chatId: String(result.chat.id) };
 }

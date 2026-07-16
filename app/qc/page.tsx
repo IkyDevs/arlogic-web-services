@@ -32,6 +32,7 @@ import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import AttendanceReport from "@/components/qc/AttendanceReport";
 import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
+import MobileBottomNav from "@/components/ui/MobileBottomNav";
 
 const TransactionManagement = dynamic(() => import("@/components/layanan/TransactionManagement"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
@@ -314,7 +315,7 @@ export default function QCDashboard() {
       </button>
 
       {/* Main Content */}
-      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
+      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden pb-16 lg:pb-0">
         {/* Header */}
         <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
           <div className="bg-white dark:bg-[#1c1c1c] rounded-xl px-4 py-3 flex items-center justify-between border border-gray-200 gap-2 sm:gap-4">
@@ -465,6 +466,14 @@ export default function QCDashboard() {
           </motion.div>
         </div>
       )}
+
+      {/* Mobile Bottom Nav */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        transactionTabId="management-transaction"
+        serviceTabId="service"
+      />
     </div>
   );
 }
