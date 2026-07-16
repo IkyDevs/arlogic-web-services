@@ -26,7 +26,6 @@ import {
   Trash2,
   AlertCircle,
   Calendar,
-  Hash,
   Wrench,
   Plus,
   ChevronDown,
@@ -859,15 +858,14 @@ ${icon} tipe : ${label}
             <div className="md:col-span-2">
               <label className={labelClass}>SKU / Keterangan Barang</label>
               <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
+                <textarea
                   value={formData.detail_sku}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, detail_sku: e.target.value }))
                   }
-                  className={`${inputClass} pl-9`}
-                  placeholder="Deskripsi item / SKU…"
+                  rows={3}
+                  className={`${inputClass} resize-none`}
+                  placeholder="SKU 1&#10;SKU 2&#10;SKU 3"
                 />
               </div>
             </div>
