@@ -104,7 +104,7 @@ async function getFileUrl(fileId: string): Promise<string | null> {
   try {
     const result = await tgPost("getFile", { file_id: fileId });
     if (!result?.file_path) return null;
-    return `${TG_API}${TELEGRAM_BOT_TOKEN}/${result.file_path}`;
+    return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${result.file_path}`;
   } catch {
     return null;
   }
