@@ -73,6 +73,7 @@ describe("useUpload", () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
+      text: () => Promise.resolve(JSON.stringify({ error: "Upload failed", details: "Server error" })),
       json: () => Promise.resolve({ error: "Upload failed", details: "Server error" }),
     });
 

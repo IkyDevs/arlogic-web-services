@@ -46,7 +46,7 @@ async function compressImage(file: File): Promise<File> {
     img.onload = async () => {
       clearTimeout(timeout)
       cleanup()
-      const maxDim = 1200
+      const maxDim = 1024
       let { width, height } = img
       if (width > maxDim || height > maxDim) {
         if (width > height) {
@@ -66,7 +66,7 @@ async function compressImage(file: File): Promise<File> {
         ctx.fillStyle = '#FFFFFF'
         ctx.fillRect(0, 0, width, height)
         ctx.drawImage(img, 0, 0, width, height)
-        const blob = await canvasToBlobSafe(canvas, 'image/jpeg', 0.8)
+        const blob = await canvasToBlobSafe(canvas, 'image/jpeg', 0.6)
         if (blob) {
           const jpgName = file.name.replace(/\.[^.]+$/i, '.jpg')
           resolve(new File([blob], jpgName, { type: 'image/jpeg' }))
@@ -117,76 +117,66 @@ export function useUpload() {
     setProgress(5)
 
     try {
-      // Process files sequentially to reduce memory pressure on Android
+      // Compress all files sequentially (memory-safe for Android)
       const prepped: File[] = []
-      let totalBytes = 0
       for (const f of files) {
         if (abortRef.current) return []
         const converted = isHeic(f) ? await convertHeicToJpeg(f) : f
-        const compressed = await compressImage(converted)
-        prepped.push(compressed)
-        totalBytes += compressed.size
-        setProgress(10 + Math.round((prepped.length / files.length) * 30))
+        prepped.push(await compressImage(converted))
+        setProgress(5 + Math.round((prepped.length / files.length) * 20))
       }
 
-      if (prepped.length === 0) return []
-      if (totalBytes > 8 * 1024 * 1024) {
-        toast.error(`Total foto terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Maksimal 8MB.`)
-        return []
+      if (abortRef.current || prepped.length === 0) return []
+
+      // Upload each file individually to avoid Vercel 4.5MB body limit
+      const results: UploadFileResult[] = []
+      for (let i = 0; i < prepped.length; i++) {
+        if (abortRef.current) return results
+
+        const formData = new FormData()
+        formData.append('files', prepped[i])
+        formData.append('type', options.type)
+        if (options.caption) formData.append('caption', options.caption)
+
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 30000)
+
+        try {
+          const res = await fetch('/api/upload', { method: 'POST', body: formData, signal: controller.signal })
+          clearTimeout(timer)
+          if (abortRef.current) return results
+
+          const text = await res.text()
+          let data: any
+          try { data = JSON.parse(text) } catch {
+            throw new Error(`Server error (HTTP ${res.status})`)
+          }
+          if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
+
+          if (data.urls?.[0]) {
+            results.push({
+              url: data.urls[0],
+              chat_id: data.messages?.[0]?.chat_id || '',
+              message_id: data.messages?.[0]?.message_id || 0,
+            })
+          }
+        } catch (fetchErr: any) {
+          clearTimeout(timer)
+          if (fetchErr.name === 'AbortError') throw new Error('Koneksi tidak stabil. Coba lagi.')
+          throw fetchErr
+        }
+
+        setProgress(25 + Math.round(((i + 1) / prepped.length) * 70))
       }
 
-      if (abortRef.current) return []
-      setProgress(40)
-
-      const formData = new FormData()
-      for (const f of prepped) formData.append('files', f)
-      formData.append('type', options.type)
-      if (options.caption) formData.append('caption', options.caption)
-
-      setProgress(50)
-
-      const controller = new AbortController()
-      const fetchTimeout = setTimeout(() => controller.abort(), 45000)
-
-      let res: Response
-      try {
-        res = await fetch('/api/upload', { method: 'POST', body: formData, signal: controller.signal })
-      } catch (fetchErr: any) {
-        clearTimeout(fetchTimeout)
-        if (fetchErr.name === 'AbortError') throw new Error('Request timeout — koneksi tidak stabil')
-        throw new Error('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.')
-      }
-      clearTimeout(fetchTimeout)
-
-      if (abortRef.current) return []
-
-      let data: any
-      try { data = await res.json() }
-      catch {
-        const text = await res.text().catch(() => '')
-        const snippet = text.slice(0, 120).replace(/\n/g, ' ')
-        throw new Error(`Server error (HTTP ${res.status}). ${snippet || 'Coba upload dengan lebih sedikit foto.'}`)
-      }
-
-      if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
-
-      setProgress(100)
-      const results: UploadFileResult[] = (data.urls || []).map((url: string, i: number) => ({
-        url,
-        chat_id: data.messages?.[i]?.chat_id || '',
-        message_id: data.messages?.[i]?.message_id || 0,
-      }))
-
-      toast.success(`${results.length} foto berhasil diupload`)
+      if (results.length) toast.success(`${results.length} foto berhasil diupload`)
       return results
     } catch (e: any) {
       const msg = e.message || ''
       if (msg.includes('koneksi') || msg.includes('timeout') || msg.includes('network'))
         toast.error(msg)
-      else if (msg.includes('503') || msg.includes('502') || msg.includes('504'))
-        toast.error('Server sibuk. Coba upload ulang dengan lebih sedikit foto.')
       else
-        toast.error(msg || 'Gagal upload foto. Coba lagi dengan file lebih kecil.')
+        toast.error(msg || 'Gagal upload foto')
       return []
     } finally {
       setUploading(false)
