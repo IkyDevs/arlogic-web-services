@@ -106,6 +106,11 @@ export function useUpload() {
     if (!files?.length) return []
     abortRef.current = false
 
+    if (files.length > 10) {
+      toast.error('Maksimal 10 foto per upload. Pisahkan jadi beberapa kali upload.')
+      return []
+    }
+
     for (const f of files) {
       if (f.size > 20 * 1024 * 1024) { toast.error(`"${f.name}" terlalu besar (max 20MB)`); return [] }
       if (!f.type.startsWith('image/') && !f.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)) {
@@ -117,66 +122,66 @@ export function useUpload() {
     setProgress(5)
 
     try {
-      // Compress all files sequentially (memory-safe for Android)
       const prepped: File[] = []
       for (const f of files) {
         if (abortRef.current) return []
-        const converted = isHeic(f) ? await convertHeicToJpeg(f) : f
-        prepped.push(await compressImage(converted))
-        setProgress(5 + Math.round((prepped.length / files.length) * 20))
+        prepped.push(await compressImage(isHeic(f) ? await convertHeicToJpeg(f) : f))
+        setProgress(5 + Math.round((prepped.length / files.length) * 25))
       }
 
       if (abortRef.current || prepped.length === 0) return []
 
-      // Upload each file individually to avoid Vercel 4.5MB body limit
-      const results: UploadFileResult[] = []
-      for (let i = 0; i < prepped.length; i++) {
-        if (abortRef.current) return results
-
-        const formData = new FormData()
-        formData.append('files', prepped[i])
-        formData.append('type', options.type)
-        if (options.caption) formData.append('caption', options.caption)
-
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 30000)
-
-        try {
-          const res = await fetch('/api/upload', { method: 'POST', body: formData, signal: controller.signal })
-          clearTimeout(timer)
-          if (abortRef.current) return results
-
-          const text = await res.text()
-          let data: any
-          try { data = JSON.parse(text) } catch {
-            throw new Error(`Server error (HTTP ${res.status})`)
-          }
-          if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
-
-          if (data.urls?.[0]) {
-            results.push({
-              url: data.urls[0],
-              chat_id: data.messages?.[0]?.chat_id || '',
-              message_id: data.messages?.[0]?.message_id || 0,
-            })
-          }
-        } catch (fetchErr: any) {
-          clearTimeout(timer)
-          if (fetchErr.name === 'AbortError') throw new Error('Koneksi tidak stabil. Coba lagi.')
-          throw fetchErr
-        }
-
-        setProgress(25 + Math.round(((i + 1) / prepped.length) * 70))
+      const totalBytes = prepped.reduce((s, f) => s + f.size, 0)
+      if (totalBytes > 4 * 1024 * 1024) {
+        toast.error(`Ukuran total terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Gunakan resolusi lebih rendah.`)
+        return []
       }
 
-      if (results.length) toast.success(`${results.length} foto berhasil diupload`)
+      setProgress(30)
+      const formData = new FormData()
+      for (const f of prepped) formData.append('files', f)
+      formData.append('type', options.type)
+      if (options.caption) formData.append('caption', options.caption)
+
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 30000)
+
+      let res: Response
+      try {
+        res = await fetch('/api/upload', { method: 'POST', body: formData, signal: controller.signal })
+        clearTimeout(timer)
+      } catch (fetchErr: any) {
+        clearTimeout(timer)
+        throw new Error(fetchErr.name === 'AbortError' ? 'Koneksi tidak stabil. Coba lagi.' : 'Tidak dapat terhubung ke server.')
+      }
+
+      if (abortRef.current) return []
+
+      const text = await res.text()
+      let data: any
+      try { data = JSON.parse(text) } catch {
+        throw new Error(`Server error (HTTP ${res.status}). ${text.slice(0, 150).replace(/\n/g, ' ')}`)
+      }
+      if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
+      if (!data.urls?.length) throw new Error('Foto gagal dikirim. Coba lagi.')
+
+      setProgress(100)
+      const results: UploadFileResult[] = data.urls.map((url: string, i: number) => ({
+        url,
+        chat_id: data.messages?.[i]?.chat_id || '',
+        message_id: data.messages?.[0]?.message_id || 0,
+      }))
+
+      toast.success(`${results.length} foto berhasil`)
       return results
+
     } catch (e: any) {
       const msg = e.message || ''
-      if (msg.includes('koneksi') || msg.includes('timeout') || msg.includes('network'))
+      if (msg.includes('koneksi') || msg.includes('Server error') || msg.includes('timeout') || msg.includes('network')) {
         toast.error(msg)
-      else
-        toast.error(msg || 'Gagal upload foto')
+      } else {
+        toast.error(msg || 'Gagal upload')
+      }
       return []
     } finally {
       setUploading(false)

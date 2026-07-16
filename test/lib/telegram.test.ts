@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+vi.setConfig({ testTimeout: 30000 });
+
 const TEST_BOT_TOKEN = "test:bot_token";
 const mockFetch = vi.fn();
 
@@ -53,13 +55,11 @@ describe("sendTelegramMessage", () => {
 
   it("throws on Telegram API error response", async () => {
     const { sendTelegramMessage } = await import("@/lib/telegram");
-    // Always return error response
+    // mockImplementation so every retry attempt gets the same error
     mockFetch.mockImplementation(() => Promise.resolve({
       ok: true,
-      text: () => Promise.resolve(JSON.stringify({
-        ok: false,
-        description: "API error: bad request",
-      })),
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: false, description: "API error: bad request" })),
     } as any));
 
     await expect(sendTelegramMessage({
@@ -80,7 +80,11 @@ describe("editMessageCaption", () => {
 
   it("returns false on API error", async () => {
     const { editMessageCaption } = await import("@/lib/telegram");
-    mockFetch.mockResolvedValueOnce(makeFetchResponse(false));
+    mockFetch.mockImplementation(() => Promise.resolve({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: false, description: "API error" })),
+    } as any));
 
     const result = await editMessageCaption("@test", 123, "New caption");
     expect(result).toBe(false);
@@ -88,7 +92,7 @@ describe("editMessageCaption", () => {
 
   it("returns false on fetch error", async () => {
     const { editMessageCaption } = await import("@/lib/telegram");
-    mockFetch.mockRejectedValueOnce(new Error("Network error"));
+    mockFetch.mockRejectedValue(new Error("Network error"));
 
     const result = await editMessageCaption("@test", 123, "New caption");
     expect(result).toBe(false);

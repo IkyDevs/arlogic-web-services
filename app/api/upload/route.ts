@@ -3,9 +3,9 @@ import { uploadMultipleToTelegram } from '@/lib/telegram'
 import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
 
-const MAX_FILES = 20;
+const MAX_FILES = 10;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
-const MAX_TOTAL_SIZE = 8 * 1024 * 1024;
+const MAX_TOTAL_SIZE = 4 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
 
 let sharpModule: any = null;
@@ -57,7 +57,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak ada file yang diupload' }, { status: 400 })
     }
     if (files.length > MAX_FILES) {
-      return NextResponse.json({ error: `Maksimal ${MAX_FILES} file per upload` }, { status: 400 })
+      return NextResponse.json({ error: `Batas maksimal upload dalam 1 grup adalah ${MAX_FILES} foto.` }, { status: 400 })
+    }
+
+    const totalSize = files.reduce((s, f) => s + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      return NextResponse.json({ error: `Total ukuran file terlalu besar (${(totalSize / 1024 / 1024).toFixed(1)}MB). Maksimal 4MB.` }, { status: 400 })
     }
 
     for (const f of files) {
@@ -67,11 +72,6 @@ export async function POST(request: NextRequest) {
       if (!ALLOWED_TYPES.includes(f.type) && !f.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)) {
         return NextResponse.json({ error: `"${f.name}" bukan format gambar yang didukung` }, { status: 400 })
       }
-    }
-
-    const totalSize = files.reduce((s, f) => s + f.size, 0);
-    if (totalSize > MAX_TOTAL_SIZE) {
-      return NextResponse.json({ error: `Total ukuran file terlalu besar (${(totalSize / 1024 / 1024).toFixed(1)}MB). Maksimal 8MB.` }, { status: 400 })
     }
 
     const sharp = await getSharp();

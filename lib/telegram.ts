@@ -24,7 +24,6 @@ export interface TelegramMessageResult {
 }
 
 const FETCH_TIMEOUT_MS = 15_000;
-const MAX_RETRIES = 1;
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
@@ -37,34 +36,68 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-async function tgPost(method: string, body: any, isFormData = false): Promise<any> {
+// Intelligent retry wrapper:
+// - 429 Too Many Requests → parse retry_after, wait exactly that long, DON'T consume retry budget
+// - Network/timeout errors → exponential backoff: 2s → 4s → 8s, max 3 retries
+async function fetchTelegramWithRetry(
+  url: string,
+  options: RequestInit,
+  retries = 3,
+  baseDelay = 2000,
+): Promise<any> {
   if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
 
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, options);
+      const raw = await res.text();
+
+      let data: any;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error(`Telegram API returned non-JSON (HTTP ${res.status})`);
+      }
+
+      // Rate limited — wait for retry_after seconds, then retry without consuming budget
+      if (res.status === 429 || (data?.ok === false && data?.parameters?.retry_after)) {
+        const waitSeconds = data?.parameters?.retry_after || 5;
+        await new Promise(r => setTimeout(r, waitSeconds * 1000));
+        attempt--;  // don't decrement retry budget
+        continue;
+      }
+
+      if (!data?.ok) throw new Error(data?.description || "Telegram API error");
+      return data.result;
+    } catch (e: any) {
+      lastError = e;
+      if (e.name === "AbortError") {
+        if (attempt < retries) {
+          const delay = baseDelay * Math.pow(2, attempt);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error("Telegram API timeout after retries");
+      }
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+    }
+  }
+
+  throw lastError || new Error("Telegram API request failed");
+}
+
+async function tgPost(method: string, body: any, isFormData = false): Promise<any> {
   const url = `${TG_API}${TELEGRAM_BOT_TOKEN}/${method}`;
   const options: RequestInit = isFormData
     ? { method: "POST", body }
     : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
-
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const res = await fetchWithTimeout(url, options);
-      const raw = await res.text();
-      let data: any;
-      try { data = JSON.parse(raw); } catch {
-        throw new Error(`Telegram API returned non-JSON (HTTP ${res.status})`);
-      }
-      if (!data.ok) throw new Error(data.description || "Telegram API error");
-      return data.result;
-    } catch (e: any) {
-      lastError = e;
-      if (e.name === "AbortError") throw new Error("Telegram API timeout");
-      if (attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
-      }
-    }
-  }
-  throw lastError || new Error("Telegram API request failed");
+  return fetchTelegramWithRetry(url, options);
 }
 
 async function getFileUrl(fileId: string): Promise<string | null> {
