@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
-import { useUpload } from "@/hooks/useUpload";
+import { useUpload, compressFiles } from "@/hooks/useUpload";
 import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -130,6 +130,8 @@ export default memo(function LayananForm({
   // Multiple photos
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressProgress, setCompressProgress] = useState({ done: 0, total: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
@@ -230,36 +232,31 @@ export default memo(function LayananForm({
     if (data) setUsers(data);
   };
 
-  // ── Photo helpers ─────────────────────────────────────────────────────────
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const isHeic = (f: File) =>
-      /\.heic$/i.test(f.name) || f.type === "image/heic" || f.type === "image/heif";
+    const rawFiles = files.filter(
+      (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
+    );
+    if (rawFiles.length === 0) return;
 
-    for (const f of files) {
-      if (!f.type.startsWith("image/") && !isHeic(f)) {
-        toast.error(`${f.name} bukan gambar`);
-        continue;
-      }
-      if (f.size > 15 * 1024 * 1024) {
-        toast.error(`${f.name} terlalu besar (max 15MB)`);
-        continue;
-      }
-      let file = f;
-      if (isHeic(f)) {
-        try {
-          const h2a = (await import("heic2any")).default;
-          const blob = await h2a({ blob: f, toType: "image/jpeg", quality: 0.92 });
-          const b = Array.isArray(blob) ? blob[0] : blob;
-          file = new File([b], f.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
-        } catch {
-          // fallback
-        }
-      }
-      setPhotoFiles((prev) => [...prev, file]);
-      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(file)]);
+    setIsCompressing(true);
+    setCompressProgress({ done: 0, total: rawFiles.length });
+
+    try {
+      const compressed = await compressFiles(rawFiles, (done, total) => {
+        setCompressProgress({ done, total });
+      }, 'trx');
+      if (compressed.length === 0) return;
+      setPhotoFiles((prev) => [...prev, ...compressed]);
+      compressed.forEach((f) => {
+        setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]);
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal memproses foto');
+    } finally {
+      setIsCompressing(false);
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1074,7 +1071,8 @@ ${icon} tipe : ${label}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-xs font-semibold hover:bg-gray-800 transition-all"
+              disabled={isCompressing}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-xs font-semibold hover:bg-gray-800 transition-all disabled:opacity-50"
             >
               <Plus className="w-3.5 h-3.5" /> Tambah Foto
             </button>
@@ -1139,6 +1137,16 @@ ${icon} tipe : ${label}
             </div>
           )}
 
+          {/* Compression Loading Indicator */}
+          {isCompressing && (
+            <div className="flex items-center gap-2 mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+              <span className="text-sm text-blue-700">
+                Mengompresi foto ({compressProgress.done}/{compressProgress.total})...
+              </span>
+            </div>
+          )}
+
           {/* Upload progress */}
           {uploading && progress > 0 && (
             <div className="mt-2">
@@ -1172,6 +1180,7 @@ ${icon} tipe : ${label}
             disabled={
               loading ||
               uploading ||
+              isCompressing ||
               (photoFiles.length === 0 && !initialData?.photo_url)
             }
             className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"

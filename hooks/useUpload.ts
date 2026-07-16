@@ -10,7 +10,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-async function processOne(file: File, index: number): Promise<File> {
+async function processOne(file: File, index: number, prefix = 'service'): Promise<File> {
   let sourceBlob: Blob = file
 
   if (/\.heic$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif') {
@@ -58,17 +58,18 @@ async function processOne(file: File, index: number): Promise<File> {
     }, 'image/jpeg', 0.70)
   })
 
-  const cleanFile = new File([compressedBlob], `service_${Date.now()}_${index}.jpg`, { type: 'image/jpeg' })
+  const cleanFile = new File([compressedBlob], `${prefix}_${Date.now()}_${index}.jpg`, { type: 'image/jpeg' })
   return cleanFile
 }
 
 export async function compressFiles(
   files: File[],
   onProgress?: (done: number, total: number) => void,
+  prefix = 'service',
 ): Promise<File[]> {
   const compressed: File[] = []
   for (let i = 0; i < files.length; i++) {
-    const result = await processOne(files[i], i)
+    const result = await processOne(files[i], i, prefix)
     compressed.push(result)
     onProgress?.(i + 1, files.length)
   }
