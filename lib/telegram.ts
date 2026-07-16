@@ -125,11 +125,6 @@ async function sendPhotoBlob(channelId: string, blob: Blob, fileName: string, ca
   return { url: url || "", chat_id, message_id };
 }
 
-async function sendSinglePhoto(channelId: string, blob: Blob, fileName: string, caption?: string): Promise<TelegramMessageResult | null> {
-  try { return await sendPhotoBlob(channelId, blob, fileName, caption); }
-  catch { return null; }
-}
-
 export async function editMessageCaption(chatId: string, messageId: number, caption: string): Promise<boolean> {
   try {
     await tgPost("editMessageCaption", { chat_id: chatId, message_id: messageId, caption });
@@ -149,55 +144,42 @@ export async function uploadMultipleToTelegram(
   if (!channelId) throw new Error(`Channel ID for ${channelType} not configured`);
   if (!files?.length) return [];
 
-  const results: TelegramMessageResult[] = [];
   const toBlob = (buffer: Buffer): Blob => new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
-  const CHUNK_SIZE = 10;
 
-  for (let i = 0; i < files.length; i += CHUNK_SIZE) {
-    const chunk = files.slice(i, i + CHUNK_SIZE);
-    let chunkOk = false;
+  if (files.length === 1) {
+    const result = await sendPhotoBlob(channelId, toBlob(files[0].buffer), files[0].name, caption);
+    return [result];
+  }
 
-    if (chunk.length >= 2) {
-      try {
-        const media = chunk.map((f, idx) => ({
-          type: "photo" as const,
-          media: `attach://photo_${idx}`,
-          ...(idx === 0 ? { caption } : {}),
-        }));
+  const media = files.map((f, idx) => ({
+    type: "photo" as const,
+    media: `attach://file_${idx}`,
+    ...(idx === 0 ? { caption } : {}),
+  }));
 
-        const formData = new FormData();
-        formData.append("chat_id", channelId);
-        formData.append("media", JSON.stringify(media));
-        chunk.forEach((f, idx) => formData.append(`photo_${idx}`, toBlob(f.buffer), `photo_${idx}.jpg`));
+  const formData = new FormData();
+  formData.append("chat_id", channelId);
+  formData.append("media", JSON.stringify(media));
+  files.forEach((f, idx) => formData.append(`file_${idx}`, toBlob(f.buffer), `file_${idx}.jpg`));
 
-        const sendResult = await tgPost("sendMediaGroup", formData, true);
-        if (Array.isArray(sendResult)) {
-          await Promise.all(sendResult.map(async (r, pi) => {
-            try {
-              const cid = String(r.chat.id);
-              const mid = r.message_id;
-              const fid = r.photo[r.photo.length - 1].file_id;
-              const url = await getFileUrl(fid);
-              if (url) results.push({ url, chat_id: cid, message_id: mid });
-              else {
-                const fallback = await sendSinglePhoto(channelId, toBlob(chunk[pi].buffer), chunk[pi].name);
-                if (fallback) results.push(fallback);
-              }
-            } catch {
-              const fallback = await sendSinglePhoto(channelId, toBlob(chunk[pi].buffer), chunk[pi].name);
-              if (fallback) results.push(fallback);
-            }
-          }));
-          chunkOk = true;
-        }
-      } catch { /* fallback to individual */ }
-    }
+  const sendResult = await tgPost("sendMediaGroup", formData, true);
 
-    if (!chunkOk) {
-      for (let fi = 0; fi < chunk.length; fi++) {
-        const result = await sendSinglePhoto(channelId, toBlob(chunk[fi].buffer), chunk[fi].name, fi === 0 && i === 0 ? caption : undefined);
-        if (result) results.push(result);
-      }
+  if (!Array.isArray(sendResult)) {
+    throw new Error("Telegram sendMediaGroup returned non-array result");
+  }
+
+  const results: TelegramMessageResult[] = [];
+  for (let i = 0; i < sendResult.length; i++) {
+    const r = sendResult[i];
+    const chat_id = String(r.chat.id);
+    const message_id = r.message_id;
+    const photoArray = r.photo;
+    if (photoArray?.length) {
+      const fileId = photoArray[photoArray.length - 1].file_id;
+      const url = await getFileUrl(fileId);
+      results.push({ url: url || "", chat_id, message_id });
+    } else {
+      results.push({ url: "", chat_id, message_id });
     }
   }
 

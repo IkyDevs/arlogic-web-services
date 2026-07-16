@@ -30,7 +30,7 @@ import {
   DollarSign,
   Trash2,
 } from "lucide-react";
-import { useUpload } from "@/hooks/useUpload";
+import { useUpload, compressFiles } from "@/hooks/useUpload";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
@@ -117,6 +117,8 @@ export default function ServiceInput({
   });
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressProgress, setCompressProgress] = useState({ done: 0, total: 0 });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{
@@ -243,30 +245,30 @@ export default function ServiceInput({
 
   const handleAddPhoto = async (files: FileList | null) => {
     if (!files) return;
-    const isHeic = (f: File) =>
-      /\.heic$/i.test(f.name) || f.type === "image/heic" || f.type === "image/heif";
-    const newFiles: File[] = [];
-    for (const f of Array.from(files)) {
-      if (!f.type.startsWith("image/") && !isHeic(f)) continue;
-      let file = f;
-      if (isHeic(f)) {
-        try {
-          const h2a = (await import("heic2any")).default;
-          const blob = await h2a({ blob: f, toType: "image/jpeg", quality: 0.92 });
-          const b = Array.isArray(blob) ? blob[0] : blob;
-          file = new File([b], f.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
-        } catch {
-          // fallback: keep original
-        }
-      }
-      newFiles.push(file);
+    const rawFiles = Array.from(files).filter(
+      (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
+    );
+    if (rawFiles.length === 0) return;
+
+    setIsCompressing(true);
+    setCompressProgress({ done: 0, total: rawFiles.length });
+
+    try {
+      const compressed = await compressFiles(rawFiles, (done, total) => {
+        setCompressProgress({ done, total });
+      });
+
+      if (compressed.length === 0) return;
+      setPhotos((prev) => [...prev, ...compressed]);
+      compressed.forEach((f) => {
+        const url = URL.createObjectURL(f);
+        setPhotoPreviews((prev) => [...prev, url]);
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal memproses foto');
+    } finally {
+      setIsCompressing(false);
     }
-    if (newFiles.length === 0) return;
-    setPhotos((prev) => [...prev, ...newFiles]);
-    newFiles.forEach((f) => {
-      const url = URL.createObjectURL(f);
-      setPhotoPreviews((prev) => [...prev, url]);
-    });
   };
 
   const removePhoto = (i: number) => {
@@ -643,6 +645,8 @@ In : ${now}`;
     });
     setPhotos([]);
     setPhotoPreviews([]);
+    setIsCompressing(false);
+    setCompressProgress({ done: 0, total: 0 });
     setSuccess(false);
     setStep(1);
     setLastInvoice(null);
@@ -977,18 +981,30 @@ In : ${now}`;
               </div>
             )}
 
+            {/* Compression Loading Indicator */}
+            {isCompressing && (
+              <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                <span className="text-sm text-blue-700">
+                  Mengompresi foto ({compressProgress.done}/{compressProgress.total})...
+                </span>
+              </div>
+            )}
+
             {/* Upload Buttons */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => cameraInputRef.current?.click()}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
+                disabled={isCompressing}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
               >
                 <Camera className="w-4 h-4" />
                 Take Photo
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900"
+                disabled={isCompressing}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900 disabled:opacity-50"
               >
                 <ImageIcon className="w-4 h-4" />
                 Upload from Gallery
@@ -1013,9 +1029,11 @@ In : ${now}`;
             </div>
 
             <p className="text-xs text-slate-400 mt-3">
-              {photos.length > 0
-                ? `${photos.length} photos selected`
-                : "Optional — can be skipped"}
+              {isCompressing
+                ? "Processing..."
+                : photos.length > 0
+                  ? `${photos.length} photos selected`
+                  : "Optional — can be skipped"}
             </p>
 
             <div className="flex justify-between mt-6">
@@ -1027,7 +1045,8 @@ In : ${now}`;
               </button>
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
+                disabled={isCompressing}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
               >
                 {photos.length === 0 ? "Skip →" : "Continue →"}
               </button>

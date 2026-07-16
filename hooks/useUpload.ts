@@ -1,86 +1,84 @@
 import { useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 
-const isHeic = (file: File) =>
-  /\.heic$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
-
-// Android Chrome rawan error canvas.toBlob — timeout fallback
-function canvasToBlobSafe(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(null), 8000)
-    canvas.toBlob(
-      (blob) => { clearTimeout(timeout); resolve(blob) },
-      type,
-      quality,
-    )
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Gagal memuat gambar ke memori browser'))
+    img.src = src
   })
 }
 
-async function convertHeicToJpeg(file: File): Promise<File> {
-  try {
+async function processOne(file: File, index: number): Promise<File> {
+  let sourceBlob: Blob = file
+
+  if (/\.heic$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif') {
     const heic2any = (await import('heic2any')).default
     const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 })
-    const blob = Array.isArray(result) ? result[0] : result
-    const jpgName = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg')
-    return new File([blob], jpgName, { type: 'image/jpeg' })
-  } catch {
-    return file
+    sourceBlob = Array.isArray(result) ? result[0] : result
   }
+
+  const imageSrc = URL.createObjectURL(sourceBlob)
+
+  const img = new Image()
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve()
+    img.onerror = () => reject(new Error('Gagal memuat gambar ke memori browser'))
+    img.src = imageSrc
+  })
+  URL.revokeObjectURL(imageSrc)
+
+  let { width, height } = img
+  const maxDim = 1600
+  if (width > maxDim || height > maxDim) {
+    if (width > height) {
+      height = Math.round((height * maxDim) / width)
+      width = maxDim
+    } else {
+      width = Math.round((width * maxDim) / height)
+      height = maxDim
+    }
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d', { willReadFrequently: false })
+  if (!ctx) throw new Error('Gagal menginisialisasi canvas')
+
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(img, 0, 0, width, height)
+
+  const compressedBlob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob)
+      else reject(new Error('Canvas gagal memproses biner gambar'))
+    }, 'image/jpeg', 0.70)
+  })
+
+  const cleanFile = new File([compressedBlob], `service_${Date.now()}_${index}.jpg`, { type: 'image/jpeg' })
+  return cleanFile
 }
 
-async function compressImage(file: File): Promise<File> {
-  if (file.size <= 300 * 1024) return file
+export async function compressFiles(
+  files: File[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<File[]> {
+  const compressed: File[] = []
+  for (let i = 0; i < files.length; i++) {
+    const result = await processOne(files[i], i)
+    compressed.push(result)
+    onProgress?.(i + 1, files.length)
+  }
 
-  return new Promise((resolve) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
+  const totalBytes = compressed.reduce((s, f) => s + f.size, 0)
+  if (totalBytes > 4 * 1024 * 1024) {
+    throw new Error(`Ukuran total foto terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Pilih foto dengan resolusi lebih rendah.`)
+  }
 
-    const cleanup = () => {
-      try { URL.revokeObjectURL(url) } catch { /* noop */ }
-      img.src = ''
-    }
-
-    const fallback = () => { cleanup(); resolve(file) }
-    const timeout = setTimeout(fallback, 15000)
-
-    img.onload = async () => {
-      clearTimeout(timeout)
-      cleanup()
-      const maxDim = 800
-      let { width, height } = img
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = Math.round((height * maxDim) / width)
-          width = maxDim
-        } else {
-          width = Math.round((width * maxDim) / height)
-          height = maxDim
-        }
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d', { willReadFrequently: false })
-      if (!ctx) { fallback(); return }
-      try {
-        ctx.fillStyle = '#FFFFFF'
-        ctx.fillRect(0, 0, width, height)
-        ctx.drawImage(img, 0, 0, width, height)
-        const blob = await canvasToBlobSafe(canvas, 'image/jpeg', 0.45)
-        if (blob) {
-          const jpgName = file.name.replace(/\.[^.]+$/i, '.jpg')
-          resolve(new File([blob], jpgName, { type: 'image/jpeg' }))
-        } else {
-          fallback()
-        }
-      } catch {
-        fallback()
-      }
-    }
-
-    img.onerror = () => { clearTimeout(timeout); fallback() }
-    img.src = url
-  })
+  return compressed
 }
 
 export interface UploadFileResult {
@@ -118,28 +116,19 @@ export function useUpload() {
       }
     }
 
+    const totalBytes = files.reduce((s, f) => s + f.size, 0)
+    if (totalBytes > 4 * 1024 * 1024) {
+      toast.error(`Ukuran total terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Gunakan resolusi lebih rendah.`)
+      return []
+    }
+
     setUploading(true)
     setProgress(5)
 
     try {
-      const prepped: File[] = []
-      for (const f of files) {
-        if (abortRef.current) return []
-        prepped.push(await compressImage(isHeic(f) ? await convertHeicToJpeg(f) : f))
-        setProgress(5 + Math.round((prepped.length / files.length) * 25))
-      }
-
-      if (abortRef.current || prepped.length === 0) return []
-
-      const totalBytes = prepped.reduce((s, f) => s + f.size, 0)
-      if (totalBytes > 4 * 1024 * 1024) {
-        toast.error(`Ukuran total terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Gunakan resolusi lebih rendah.`)
-        return []
-      }
-
       setProgress(30)
       const formData = new FormData()
-      for (const f of prepped) formData.append('files', f)
+      for (const f of files) formData.append('files', f, f.name)
       formData.append('type', options.type)
       if (options.caption) formData.append('caption', options.caption)
 

@@ -108,6 +108,7 @@ describe("uploadMultipleToTelegram", () => {
 
   it("sends single file via sendPhoto", async () => {
     const { uploadMultipleToTelegram } = await import("@/lib/telegram");
+    // sendPhoto + getFile
     mockFetch.mockResolvedValueOnce(makeFetchResponse(true, { file_path: "photos/test.jpg" }));
 
     const results = await uploadMultipleToTelegram(
@@ -119,6 +120,38 @@ describe("uploadMultipleToTelegram", () => {
     expect(results.length).toBe(1);
     expect(results[0].chat_id).toBe("-100123456789");
     expect(results[0].message_id).toBe(123);
+  });
+
+  it("sends multiple files via sendMediaGroup", async () => {
+    const { uploadMultipleToTelegram } = await import("@/lib/telegram");
+    const groupResult = [
+      { message_id: 201, chat: { id: -100123456789 }, photo: [{ file_id: "fid_0", file_unique_id: "fuid_0" }] },
+      { message_id: 202, chat: { id: -100123456789 }, photo: [{ file_id: "fid_1", file_unique_id: "fuid_1" }] },
+      { message_id: 203, chat: { id: -100123456789 }, photo: [{ file_id: "fid_2", file_unique_id: "fuid_2" }] },
+    ];
+    const body = JSON.stringify({ ok: true, result: groupResult });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      text: () => Promise.resolve(body),
+      json: () => Promise.resolve(JSON.parse(body)),
+    });
+    // getFile calls for each photo
+    mockFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve(JSON.stringify({ ok: true, result: { file_path: "photos/test.jpg" } })) });
+
+    const results = await uploadMultipleToTelegram(
+      [
+        { buffer: Buffer.from("img1"), name: "a.jpg" },
+        { buffer: Buffer.from("img2"), name: "b.jpg" },
+        { buffer: Buffer.from("img3"), name: "c.jpg" },
+      ],
+      "Album caption",
+      "service",
+    );
+
+    expect(results.length).toBe(3);
+    expect(results[0].chat_id).toBe("-100123456789");
+    expect(results[0].message_id).toBe(201);
+    expect(results[2].message_id).toBe(203);
   });
 });
 
