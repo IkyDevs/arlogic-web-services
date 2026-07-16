@@ -612,7 +612,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
 
       {/* Photo Modal */}
       {photoModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setPhotoModal(null)}>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setPhotoModal(null)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative max-w-2xl w-full">
             <button onClick={() => setPhotoModal(null)} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors">
               <X className="w-6 h-6" />

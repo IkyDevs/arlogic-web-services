@@ -770,7 +770,7 @@ export default function LayananList({
       {/* ==================== MODAL PREVIEW PHOTO GALLERY ==================== */}
       {selectedPhotos.length > 0 && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
           onClick={() => setSelectedPhotos([])}
         >
           <div

@@ -107,7 +107,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const FilterModal = () => {
     if (!filterModal) return null;
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setFilterModal(null)}>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setFilterModal(null)}>
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
           className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl border border-slate-200"
           onClick={(e) => e.stopPropagation()}>
@@ -309,17 +309,17 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
 
       <FilterModal />
       {showAddForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           <LayananForm onSuccess={() => { setShowAddForm(false); fetchAll(); }} onClose={() => setShowAddForm(false)} />
         </div>
       )}
       {showExpenseForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           <PengeluaranForm onSuccess={() => { setShowExpenseForm(false); fetchAll(); }} onClose={() => setShowExpenseForm(false)} />
         </div>
       )}
       {showEditForm && editData && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           {editData.jenis_layanan === "pengeluaran" ? (
             <PengeluaranForm initialData={editData} onSuccess={() => { setShowEditForm(false); setEditData(null); fetchAll(); }} onClose={() => { setShowEditForm(false); setEditData(null); }} />
           ) : (
@@ -328,7 +328,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
         </div>
       )}
       {showCashdrawForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           <CashdrawForm onSuccess={() => { setShowCashdrawForm(false); fetchAll(); }} onClose={() => setShowCashdrawForm(false)} />
         </div>
       )}

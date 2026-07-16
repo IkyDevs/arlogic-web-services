@@ -541,7 +541,7 @@ export default function CustomerList() {
 
       {/* Import CSV Modal */}
       {showImport && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { if (!importing) setShowImport(false); }}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => { if (!importing) setShowImport(false); }}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg shadow-2xl border border-gray-200 dark:border-white/10"
             onClick={(e) => e.stopPropagation()}>
@@ -639,7 +639,7 @@ export default function CustomerList() {
 
       {/* Customer Detail Modal */}
       {showCustomerDetail && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowCustomerDetail(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowCustomerDetail(false)}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
             onClick={(e) => e.stopPropagation()}>
@@ -702,7 +702,7 @@ export default function CustomerList() {
 
       {/* Detail Item Modal */}
       {selectedDetailItem && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[55] p-4" onClick={() => setSelectedDetailItem(null)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={() => setSelectedDetailItem(null)}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
             onClick={(e) => e.stopPropagation()}>
@@ -820,7 +820,7 @@ export default function CustomerList() {
 
       {/* Edit Customer Modal */}
       {showEdit && editData && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowEdit(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowEdit(false)}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 dark:border-white/10"
             onClick={(e) => e.stopPropagation()}>

@@ -160,7 +160,7 @@ export default function ServiceDetailModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -434,7 +434,7 @@ export default function ServiceDetailModal({
 
           {/* Fullscreen Photo Modal */}
           {showFullscreen && photos.length > 0 && (
-            <div className="fixed inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center z-[60]">
+            <div className="fixed inset-0 bg-black/90 backdrop-blur-lg flex items-center justify-center z-[70]">
               <div className="relative w-full max-w-4xl mx-auto p-4">
                 <button
                   onClick={() => setShowFullscreen(false)}

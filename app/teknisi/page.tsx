@@ -750,7 +750,7 @@ export default function TeknisiDashboard() {
                 {/* Activity Detail Modal */}
                 {showActivityModal && selectedActivity && (
                   <div
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
                     onClick={() => setShowActivityModal(false)}
                   >
                     <motion.div
@@ -1203,7 +1203,7 @@ export default function TeknisiDashboard() {
       {/* Progress Update Modal */}
       {selectedService && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
           onClick={() => setSelectedService(null)}
         >
           <motion.div
@@ -1267,7 +1267,7 @@ export default function TeknisiDashboard() {
       {/* Service Input Modal */}
       {showServiceForm && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
           onClick={() => setShowServiceForm(false)}
         >
           <motion.div
@@ -1308,7 +1308,7 @@ export default function TeknisiDashboard() {
 
       {/* Layanan Form Modal */}
       {showLayananForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-sm md:max-w-lg max-h-[90vh] overflow-y-auto border border-slate-200">
             <LayananForm
               onSuccess={handleLayananSuccess}

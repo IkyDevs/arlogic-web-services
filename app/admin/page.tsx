@@ -1148,7 +1148,7 @@ export default function AdminDashboard() {
 
       {/* QR Code Generator Modal */}
       {showQRModal && selectedService && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           <QRCodeGenerator
             invoiceNumber={selectedService.invoice_number}
             token={selectedService.token}
@@ -1165,7 +1165,7 @@ export default function AdminDashboard() {
       {/* Transaction Detail Modal */}
       {showTransactionDetail && selectedTransaction && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
           onClick={() => setShowTransactionDetail(false)}
         >
           <motion.div
@@ -1401,7 +1401,7 @@ export default function AdminDashboard() {
       {/* Service Input Modal */}
       {showServiceForm && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
           onClick={() => setShowServiceForm(false)}
         >
           <motion.div
@@ -1442,7 +1442,7 @@ export default function AdminDashboard() {
 
       {/* Layanan Form Modal */}
       {showLayananForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           <LayananForm
             onSuccess={handleLayananSuccess}
             onClose={() => setShowLayananForm(false)}

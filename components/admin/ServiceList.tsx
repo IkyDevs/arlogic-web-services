@@ -250,7 +250,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
       {/* Service Detail Modal */}
       {showModal && selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setShowModal(false); setServicePhotos([]); }}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => { setShowModal(false); setServicePhotos([]); }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200"
             onClick={(e) => e.stopPropagation()}>
@@ -395,7 +395,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
       {/* Photo Preview Modal */}
       {previewPhoto && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
           onClick={() => setPreviewPhoto(null)}>
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
             className="relative max-w-3xl w-full max-h-[90vh] flex items-center justify-center"

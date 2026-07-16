@@ -751,7 +751,7 @@ keterangan:`;
 
           {/* UPDATE MODAL — combines Timeline + Add Jasa + Add Sparepart */}
           {showUpdateModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowUpdateModal(false)}>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowUpdateModal(false)}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
                 onClick={(e) => e.stopPropagation()}>
@@ -792,7 +792,7 @@ keterangan:`;
 
           {/* PROGRESS (legacy) MODAL */}
           {showProgressModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowProgressModal(false)}>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowProgressModal(false)}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
                 onClick={(e) => e.stopPropagation()}>
@@ -822,7 +822,7 @@ keterangan:`;
 
           {/* SUBMIT QC MODAL */}
           {showSubmitQCModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowSubmitQCModal(false)}>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowSubmitQCModal(false)}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
                 onClick={(e) => e.stopPropagation()}>
@@ -957,7 +957,7 @@ keterangan:`;
 
           {/* SERVICE INFO MODAL — card click on my services */}
           {showServiceInfoModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setShowServiceInfoModal(false); setServiceInfoPhotos([]); }}>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => { setShowServiceInfoModal(false); setServiceInfoPhotos([]); }}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
                 onClick={(e) => e.stopPropagation()}>
@@ -1051,7 +1051,7 @@ keterangan:`;
 
           {/* LEGACY TIMELINE MODAL */}
           {showTimelineModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowTimelineModal(false)}>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowTimelineModal(false)}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
                 onClick={(e) => e.stopPropagation()}>
