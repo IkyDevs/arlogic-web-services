@@ -23,8 +23,8 @@ export interface TelegramMessageResult {
   message_id: number;
 }
 
-const FETCH_TIMEOUT_MS = 30_000;
-const MAX_RETRIES = 2;
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 1;
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();

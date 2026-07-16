@@ -119,12 +119,20 @@ export function useUpload() {
     try {
       // Process files sequentially to reduce memory pressure on Android
       const prepped: File[] = []
+      let totalBytes = 0
       for (const f of files) {
         if (abortRef.current) return []
         const converted = isHeic(f) ? await convertHeicToJpeg(f) : f
         const compressed = await compressImage(converted)
         prepped.push(compressed)
+        totalBytes += compressed.size
         setProgress(10 + Math.round((prepped.length / files.length) * 30))
+      }
+
+      if (prepped.length === 0) return []
+      if (totalBytes > 8 * 1024 * 1024) {
+        toast.error(`Total foto terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Maksimal 8MB.`)
+        return []
       }
 
       if (abortRef.current) return []
@@ -138,7 +146,7 @@ export function useUpload() {
       setProgress(50)
 
       const controller = new AbortController()
-      const fetchTimeout = setTimeout(() => controller.abort(), 60000)
+      const fetchTimeout = setTimeout(() => controller.abort(), 45000)
 
       let res: Response
       try {
@@ -154,7 +162,11 @@ export function useUpload() {
 
       let data: any
       try { data = await res.json() }
-      catch { throw new Error('Server mengembalikan response tidak valid. Coba lagi.') }
+      catch {
+        const text = await res.text().catch(() => '')
+        const snippet = text.slice(0, 120).replace(/\n/g, ' ')
+        throw new Error(`Server error (HTTP ${res.status}). ${snippet || 'Coba upload dengan lebih sedikit foto.'}`)
+      }
 
       if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
 

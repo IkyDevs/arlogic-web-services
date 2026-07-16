@@ -5,6 +5,7 @@ import { rateLimitIP } from '@/lib/rate-limit'
 
 const MAX_FILES = 20;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_TOTAL_SIZE = 8 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
 
 let sharpModule: any = null;
@@ -68,6 +69,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const totalSize = files.reduce((s, f) => s + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      return NextResponse.json({ error: `Total ukuran file terlalu besar (${(totalSize / 1024 / 1024).toFixed(1)}MB). Maksimal 8MB.` }, { status: 400 })
+    }
+
     const sharp = await getSharp();
     const processedFiles: Array<{ buffer: Buffer; name: string }> = [];
     const timestamp = Date.now();
@@ -100,6 +106,10 @@ export async function POST(request: NextRequest) {
 
     if (telegramResults.length === 0) {
       return NextResponse.json({ error: 'Foto gagal dikirim ke Telegram. Coba lagi dengan file lebih kecil.' }, { status: 502 })
+    }
+
+    if (telegramResults.length < processedFiles.length) {
+      console.warn(`⚠️ Only ${telegramResults.length}/${processedFiles.length} photos uploaded to Telegram`);
     }
 
     return NextResponse.json({
