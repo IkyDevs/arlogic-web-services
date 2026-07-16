@@ -30,7 +30,7 @@ export default function MobileBottomNav({
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-white/10 safe-area-bottom" role="navigation" aria-label="Navigasi utama">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-white/10 safe-area-bottom" role="navigation" aria-label="Navigasi utama">
       <div className="flex items-center justify-around h-14 px-2">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
