@@ -132,7 +132,10 @@ export default memo(function LayananForm({
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressProgress, setCompressProgress] = useState({ done: 0, total: 0 });
+  const [showPhotoSource, setShowPhotoSource] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
 
@@ -725,6 +728,7 @@ ${icon} tipe : ${label}
                     ...p,
                     customer_name: name,
                     customer_whatsapp: phone,
+                    lead_source: "old" as LeadSource,
                   }))
                 }
                 placeholder="Nama lengkap customer"
@@ -1070,7 +1074,7 @@ ${icon} tipe : ${label}
             </p>
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setShowPhotoSource(true)}
               disabled={isCompressing}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-xs font-semibold hover:bg-gray-800 transition-all disabled:opacity-50"
             >
@@ -1086,6 +1090,85 @@ ${icon} tipe : ${label}
             onChange={handlePhotoSelect}
             className="hidden"
           />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            onChange={handlePhotoSelect}
+            className="hidden"
+          />
+
+          {/* Photo Source Popup */}
+          {showPhotoSource && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
+              onClick={() => setShowPhotoSource(false)}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-xl w-full max-w-xs border border-gray-200 dark:border-white/10 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-5 text-center border-b border-gray-200 dark:border-white/10">
+                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    Pilih Sumber Foto
+                  </p>
+                </div>
+                <div className="p-4 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPhotoSource(false);
+                      setTimeout(() => cameraInputRef.current?.click(), 100);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-left"
+                  >
+                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
+                      <Camera className="w-4 h-4 text-white dark:text-gray-900" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        Ambil Foto
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        Buka kamera langsung
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPhotoSource(false);
+                      setTimeout(() => fileInputRef.current?.click(), 100);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-left"
+                  >
+                    <div className="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        Pilih dari Galeri
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        Pilih foto yang sudah ada
+                      </p>
+                    </div>
+                  </button>
+                </div>
+                <div className="px-4 pb-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowPhotoSource(false)}
+                    className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
 
           {/* Preview grid */}
           {photoPreviews.length > 0 ? (
@@ -1095,11 +1178,17 @@ ${icon} tipe : ${label}
                   key={i}
                   className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 aspect-square"
                 >
-                  <img
-                    src={src}
-                    alt={`foto-${i}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPhoto(src)}
+                    className="w-full h-full p-0 border-0"
+                  >
+                    <img
+                      src={src}
+                      alt={`foto-${i}`}
+                      className="w-full h-full object-cover cursor-pointer"
+                    />
+                  </button>
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
@@ -1115,7 +1204,7 @@ ${icon} tipe : ${label}
               {/* Add more tile */}
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => setShowPhotoSource(true)}
                 className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-white/20 flex flex-col items-center justify-center gap-1 hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-gray-400"
               >
                 <Plus className="w-6 h-6" />
@@ -1124,7 +1213,7 @@ ${icon} tipe : ${label}
             </div>
           ) : (
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setShowPhotoSource(true)}
               className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
             >
               <Camera className="w-10 h-10 mx-auto mb-2 text-gray-300" />
@@ -1172,6 +1261,34 @@ ${icon} tipe : ${label}
             </p>
           )}
         </div>
+
+        {/* ── Photo Preview Lightbox ─────────────────────────────────────── */}
+        {previewPhoto && (
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[90] p-4"
+            onClick={() => setPreviewPhoto(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative max-w-3xl max-h-[90vh] w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setPreviewPhoto(null)}
+                className="absolute -top-10 right-0 p-2 text-white/70 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <img
+                src={previewPhoto}
+                alt="Preview foto"
+                className="w-full h-full max-h-[85vh] object-contain rounded-xl"
+              />
+            </motion.div>
+          </div>
+        )}
 
         {/* ── Actions ──────────────────────────────────────────────────────── */}
         <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">

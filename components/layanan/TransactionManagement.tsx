@@ -76,6 +76,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
     let totalRevenue = 0, totalExpenses = 0;
     const jenisCount: Record<string, number> = {};
     const metodeRevenue: Record<string, number> = {};
+    const metodeCount: Record<string, number> = {};
     const staffStats: Record<string, { count: number; revenue: number }> = {};
     for (const item of data) {
       const j = item.jenis_layanan || "Lainnya";
@@ -85,12 +86,13 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
       if (isExpense) totalExpenses += nominal; else totalRevenue += nominal;
       const m = item.metode_pembayaran || "unknown";
       metodeRevenue[m] = (metodeRevenue[m] || 0) + (isExpense ? -nominal : nominal);
+      metodeCount[m] = (metodeCount[m] || 0) + 1;
       const staff = item.handled_by_name || "Unknown";
       if (!staffStats[staff]) staffStats[staff] = { count: 0, revenue: 0 };
       staffStats[staff].count++;
       staffStats[staff].revenue += isExpense ? 0 : nominal;
     }
-    return { total: data.length, totalRevenue, totalExpenses, netRevenue: totalRevenue - totalExpenses, active: data.filter(i => i.status === "active").length, completed: data.filter(i => i.status === "completed").length, jenisCount, metodeRevenue, staffStats };
+    return { total: data.length, totalRevenue, totalExpenses, netRevenue: totalRevenue - totalExpenses, active: data.filter(i => i.status === "active").length, completed: data.filter(i => i.status === "completed").length, jenisCount, metodeRevenue, metodeCount, staffStats };
   }, [filteredData]);
 
   const topStaff = useMemo(() => Object.entries(analytics.staffStats).sort(([, a], [, b]) => b.count - a.count).slice(0, 5), [analytics.staffStats]);
@@ -273,17 +275,22 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
         <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
           <p className="text-[10px] md:text-sm font-bold text-purple-600 uppercase mb-1 md:mb-2">Staff</p>
           <div className="space-y-0.5 md:space-y-1">
-            {topStaff.map(([name, data]) => (
-              <BarItem key={name} label={name} value={`${data.count}`} pct={Math.round(data.count / (topStaff[0]?.[1].count || 1) * 100)}
-                onClick={() => openFilterModal(`Staff: ${name}`, (item) => (item.handled_by_name || "Unknown") === name)} />
-            ))}
+            {(() => {
+              const totalStaffCount = Object.values(analytics.staffStats).reduce((s, x) => s + x.count, 0);
+              return topStaff.map(([name, data]) => (
+                <BarItem key={name} label={name} value={`${data.count}`} pct={totalStaffCount > 0 ? Math.round(data.count / totalStaffCount * 100) : 0}
+                  onClick={() => openFilterModal(`Staff: ${name}`, (item) => (item.handled_by_name || "Unknown") === name)} />
+              ));
+            })()}
           </div>
         </div>
         <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
           <p className="text-[10px] md:text-sm font-bold text-emerald-600 uppercase mb-1 md:mb-2">Method</p>
           <div className="space-y-0.5 md:space-y-1">
             {Object.entries(analytics.metodeRevenue).sort(([, a], [, b]) => b - a).slice(0, 4).map(([key, val]) => {
-              const pct = analytics.total > 0 ? Math.round(Math.abs(Number(val)) / Math.max(...Object.values(analytics.metodeRevenue).map(v => Math.abs(Number(v)))) * 100) : 0;
+              const totalMethodCount = Object.values(analytics.metodeCount).reduce((s, v) => s + v, 0);
+              const methodCount = analytics.metodeCount[key] || 0;
+              const pct = totalMethodCount > 0 ? Math.round(methodCount / totalMethodCount * 100) : 0;
               return <BarItem key={key} label={paymentLabels[key] || key} value={fmtRupiah(Number(val))} pct={pct}
                 onClick={() => openFilterModal(`Method: ${paymentLabels[key] || key}`, (item) => (item.metode_pembayaran || "unknown") === key)} />;
             })}
