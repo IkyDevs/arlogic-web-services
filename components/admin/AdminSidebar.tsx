@@ -146,9 +146,10 @@ export default function AdminSidebar({
 
           <button
             onClick={handleLogout}
+            aria-label="Keluar dari aplikasi"
             className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
           >
-            <LogOut className="w-4 h-4 flex-shrink-0" />
+            <LogOut className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
             <span>Keluar</span>
           </button>
         </div>

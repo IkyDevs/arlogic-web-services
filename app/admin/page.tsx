@@ -52,6 +52,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { useTheme } from "@/components/ThemeProvider";
 
 // Dynamic imports
@@ -823,9 +824,10 @@ export default function AdminDashboard() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
+        aria-label="Buka menu navigasi"
         className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white dark:bg-[#1c1c1c] p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 dark:border-white/10"
       >
-        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+        <Menu className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
       </button>
 
       {/* ==================== MAIN CONTENT ==================== */}
@@ -1076,27 +1078,37 @@ export default function AdminDashboard() {
 
         {/* ==================== CONTENT AREA ==================== */}
         <main className="flex-1 p-2 sm:p-3 md:p-4 overflow-hidden min-h-0 flex flex-col">
-          {activeTab === "transaction" && (
-            <AdminDashboardAnalytics
-              totalTransactions={stats.totalTransactions}
-              totalUsers={stats.totalUsers}
-              totalServices={stats.totalServices}
-              revenue={stats.revenue}
-              totalExpenses={stats.totalExpenses}
-              todayTransactions={stats.totalTransactions}
-              todayRevenue={todayStats.revenue}
-              todayExpenses={todayStats.expenses}
-              recentTransactions={recentTransactions}
-            />
-          )}
+          <ErrorBoundary name="Dashboard">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.2 }}
+                className="flex-1 flex flex-col min-h-0"
+              >
+              {activeTab === "transaction" && (
+                <AdminDashboardAnalytics
+                  totalTransactions={stats.totalTransactions}
+                  totalUsers={stats.totalUsers}
+                  totalServices={stats.totalServices}
+                  revenue={stats.revenue}
+                  totalExpenses={stats.totalExpenses}
+                  todayTransactions={stats.totalTransactions}
+                  todayRevenue={todayStats.revenue}
+                  todayExpenses={todayStats.expenses}
+                  recentTransactions={recentTransactions}
+                />
+              )}
 
-          {activeTab === "customer" && <CustomerList />}
+              {activeTab === "customer" && <CustomerList />}
 
-          {activeTab === "management-transaction" && (
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <TransactionManagement isDark={isDark} key={refreshLayanan} />
-            </div>
-          )}
+              {activeTab === "management-transaction" && (
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                  <TransactionManagement isDark={isDark} key={refreshLayanan} />
+                </div>
+              )}
 
           {activeTab === "services" && (
             <ServiceList onAdd={() => setShowServiceForm(true)} />
@@ -1128,6 +1140,9 @@ export default function AdminDashboard() {
           {activeTab === "template" && <TemplateManager />}
 
           {activeTab === "export" && <ExportReports />}
+            </motion.div>
+          </AnimatePresence>
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -1448,6 +1463,7 @@ export default function AdminDashboard() {
       <MobileBottomNav
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        homeTabId="transaction"
         transactionTabId="management-transaction"
         serviceTabId="services"
       />

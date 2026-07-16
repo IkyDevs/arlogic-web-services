@@ -1322,6 +1322,7 @@ export default function TeknisiDashboard() {
       <MobileBottomNav
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        homeTabId="queue"
         transactionTabId="layanan"
         serviceTabId="service"
       />

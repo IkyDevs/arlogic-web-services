@@ -1,27 +1,36 @@
 "use client";
 
-import { ShoppingCart, ClipboardList } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, ClipboardList } from "lucide-react";
 
 interface MobileBottomNavProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  homeTabId: string;
+  homeLabel?: string;
   transactionTabId?: string;
+  transactionLabel?: string;
   serviceTabId?: string;
+  serviceLabel?: string;
 }
 
 export default function MobileBottomNav({
   activeTab,
   onTabChange,
+  homeTabId,
+  homeLabel = "Home",
   transactionTabId = "management-transaction",
+  transactionLabel = "Transaksi",
   serviceTabId = "services",
+  serviceLabel = "Service",
 }: MobileBottomNavProps) {
   const tabs = [
-    { id: transactionTabId, label: "Transaksi", icon: ShoppingCart },
-    { id: serviceTabId, label: "Service", icon: ClipboardList },
+    { id: homeTabId, label: homeLabel, icon: LayoutDashboard, ariaLabel: "Dashboard utama" },
+    { id: transactionTabId, label: transactionLabel, icon: ShoppingCart, ariaLabel: "Management transaksi" },
+    { id: serviceTabId, label: serviceLabel, icon: ClipboardList, ariaLabel: "Service order" },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-white/10 safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white dark:bg-[#111111] border-t border-gray-200 dark:border-white/10 safe-area-bottom" role="navigation" aria-label="Navigasi utama">
       <div className="flex items-center justify-around h-14 px-2">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -29,6 +38,8 @@ export default function MobileBottomNav({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
+              aria-label={tab.ariaLabel}
+              aria-current={isActive ? "page" : undefined}
               className={`flex flex-col items-center justify-center gap-0.5 w-full h-full rounded-lg transition-colors ${
                 isActive
                   ? "text-gray-900 dark:text-white"
@@ -42,7 +53,7 @@ export default function MobileBottomNav({
                     : ""
                 }`}
               >
-                <tab.icon className="w-5 h-5" />
+                <tab.icon className="w-5 h-5" aria-hidden="true" />
               </div>
               <span
                 className={`text-[10px] font-medium leading-none ${
