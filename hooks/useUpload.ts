@@ -46,7 +46,7 @@ async function compressImage(file: File): Promise<File> {
     img.onload = async () => {
       clearTimeout(timeout)
       cleanup()
-      const maxDim = 1024
+      const maxDim = 800
       let { width, height } = img
       if (width > maxDim || height > maxDim) {
         if (width > height) {
@@ -66,7 +66,7 @@ async function compressImage(file: File): Promise<File> {
         ctx.fillStyle = '#FFFFFF'
         ctx.fillRect(0, 0, width, height)
         ctx.drawImage(img, 0, 0, width, height)
-        const blob = await canvasToBlobSafe(canvas, 'image/jpeg', 0.6)
+        const blob = await canvasToBlobSafe(canvas, 'image/jpeg', 0.45)
         if (blob) {
           const jpgName = file.name.replace(/\.[^.]+$/i, '.jpg')
           resolve(new File([blob], jpgName, { type: 'image/jpeg' }))
