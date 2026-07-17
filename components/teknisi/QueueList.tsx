@@ -37,6 +37,7 @@ import ServiceTimeline from "./ServiceTimeline";
 import ProgressUpdate from "./ProgressUpdate";
 
 import AddJasaModal from "./AddJasaModal";
+import AddSparepartModal from "./AddSparepartModal";
 import RequestSparepartModal from "./RequestSparepartModal";
 
 interface QueueListProps {
@@ -69,6 +70,7 @@ export default function QueueList({
   const [showProgressModal, setShowProgressModal] = useState(false);
 
   const [showAddJasa, setShowAddJasa] = useState(false);
+  const [showAddSparepart, setShowAddSparepart] = useState(false);
   const [showRequestSparepart, setShowRequestSparepart] = useState(false);
   const [requestSparepartQuery, setRequestSparepartQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,7 @@ export default function QueueList({
   const [qcItems, setQCItems] = useState<any[]>([]);
   const [qcTotalCost, setQCTotalCost] = useState(0);
   const [qcSubmitting, setQCSubmitting] = useState(false);
+  const [qcNotes, setQCNotes] = useState("");
   const qcFileInputRef = useRef<HTMLInputElement>(null);
   const [editingPrice, setEditingPrice] = useState<{ [key: number]: number }>({});
   const qcInitialItemsRef = useRef<any[]>([]);
@@ -214,6 +217,11 @@ export default function QueueList({
     setShowAddJasa(true);
   };
 
+  const openAddSparepart = (service: ExtendedServiceOrder) => {
+    setSelectedService(service);
+    setShowAddSparepart(true);
+  };
+
   const openRequestSparepart = (
     service: ExtendedServiceOrder,
     query?: string,
@@ -334,18 +342,26 @@ export default function QueueList({
       } catch { /* ignore */ }
 
       const captionHeader = selectedService.status === "revision_required" ? "UPDATE QC AFTER REJECT QC" : "UPDATE QC";
+      const teknisiNotes = qcNotes.trim() ? `\n\nKeterangan Teknisi :\n${qcNotes.trim()}` : "";
       const caption = `${captionHeader}
+
+Status : Menunggu QC
+
 Teknisi : ${user?.full_name || "-"}
+
 Start : ${startDate}
+
 Done : ${fmtDate}
-pengerjaan :
-barang:
+
+Rincian Item
+
+Barang:
 ${barangList}
-jasa:
+
+Jasa:
 ${jasaList}
-total: Rp ${qcTotalCost.toLocaleString("id-ID")}${dpText}${kekuranganText}
-status : menunggu qc
-keterangan:`;
+
+Total : Rp ${qcTotalCost.toLocaleString("id-ID")}${dpText}${kekuranganText}${teknisiNotes}`;
 
       const uploadedUrls: string[] = [];
       let firstChatId = '';
@@ -381,6 +397,7 @@ keterangan:`;
           work_duration: selectedService.start_date
             ? Math.ceil((new Date().getTime() - new Date(selectedService.start_date).getTime()) / (1000 * 60 * 60 * 24))
             : null,
+          qc_submit_notes: qcNotes || null,
         })
         .eq("id", selectedService.id);
 
@@ -430,6 +447,7 @@ keterangan:`;
       setShowSubmitQCModal(false);
       setQCPhotos([]);
       setQCPhotoPreviews([]);
+      setQCNotes("");
       fetchQueues();
     } catch (error: any) {
       toast.error(error.message);
@@ -812,8 +830,8 @@ keterangan:`;
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
                   <ProgressUpdate service={selectedService} onUpdate={() => fetchQueues()}
-
                     onAddJasa={() => { setShowProgressModal(false); openAddJasa(selectedService); }}
+                    onAddSparepart={() => { setShowProgressModal(false); openAddSparepart(selectedService); }}
                     onSubmitToQC={() => handleSubmitToQC(selectedService)} />
                 </div>
               </motion.div>
@@ -939,6 +957,17 @@ keterangan:`;
                       <input ref={qcFileInputRef} type="file" accept="image/*" multiple onChange={handleQCPhotoUpload} className="hidden" />
                     </div>
                     <p className="text-xs text-gray-400">Tambahkan foto hasil service sebagai bukti QC</p>
+                  </div>
+
+                  {/* Catatan Teknisi */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4 text-gray-400" />
+                      Catatan Teknisi <span className="text-xs text-gray-400 font-normal">(opsional)</span>
+                    </h4>
+                    <textarea value={qcNotes} onChange={(e) => setQCNotes(e.target.value)}
+                      rows={2} className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
+                      placeholder="Catatan untuk QC..." />
                   </div>
 
                   {/* Submit */}
@@ -1086,6 +1115,22 @@ keterangan:`;
                 setSelectedService(null);
                 fetchQueues();
                 toast.success("Jasa berhasil ditambahkan ke service");
+              }}
+            />
+          )}
+
+          {showAddSparepart && (
+            <AddSparepartModal
+              isOpen={showAddSparepart}
+              onClose={() => {
+                setShowAddSparepart(false);
+                setSelectedService(null);
+              }}
+              service={selectedService}
+              onSuccess={() => {
+                setShowAddSparepart(false);
+                setSelectedService(null);
+                fetchQueues();
               }}
             />
           )}

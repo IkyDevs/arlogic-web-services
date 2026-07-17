@@ -104,9 +104,12 @@ export interface ServiceOrder {
   // Financial
   estimated_cost?: number;
   final_cost?: number;
+  discount?: number;
+  discount_percentage?: number;
 
   // Completion
   completion_notes?: string;
+  qc_submit_notes?: string;
 
   // Warranty
   warranty_months?: number;
