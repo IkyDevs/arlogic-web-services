@@ -322,7 +322,7 @@ export interface Layanan {
   id: string;
   customer_name: string;
   customer_whatsapp: string;
-  jenis_layanan: JenisLayanan;
+  jenis_layanan: string;
   handled_by: string;
   handled_by_name: string;
   metode_pembayaran: MetodePembayaran;

@@ -100,9 +100,9 @@ export default memo(function LayananForm({
   const [extraItems, setExtraItems] = useState<
     {
       jenis_layanan: string;
-      detail_sku: string;
-      notes: string;
       nominal: string;
+      notes: string;
+      detail_sku: string;
     }[]
   >([]);
   const addExtraItem = () =>
@@ -110,9 +110,9 @@ export default memo(function LayananForm({
       ...p,
       {
         jenis_layanan: "service_langsung",
-        detail_sku: "",
-        notes: "",
         nominal: "",
+        notes: "",
+        detail_sku: "",
       },
     ]);
   const removeExtraItem = (idx: number) =>
@@ -366,26 +366,40 @@ export default memo(function LayananForm({
         })),
       );
 
-      // Build individual caption per item (format: 1 pesan per jenis layanan)
-      const buildItemCaption = (item: typeof allItems[0]) => {
-        const label =
-          jenisLayananOptions.find((o) => o.value === item.jenis)?.label ||
-          item.jenis;
-        const icon = item.jenis === "dp_service" ? "💳" : "🔧";
-        const invoice = item.sku ? `\n📋 Invoice: ${item.sku}` : "";
-        const note = item.notes ? `\n📝 Keterangan: ${item.notes}` : "";
+      // Build single caption combining all jenis layanan
+      const buildCaption = (items: typeof allItems) => {
+        const labels = items.map(
+          (item) =>
+            jenisLayananOptions.find((o) => o.value === item.jenis)?.label ||
+            item.jenis,
+        );
+        const typeLabel = labels.join(" & ");
+        const totalNominal = items.reduce(
+          (s, item) => s + parseInt(item.nominal || "0"),
+          0,
+        );
+        const allSkus = items
+          .map((item) => item.sku)
+          .filter(Boolean)
+          .join(", ");
+        const invoice = allSkus ? `\n📋 Invoice: ${allSkus}` : "";
+        const allNotes = items
+          .map((item) => item.notes)
+          .filter(Boolean)
+          .join("; ");
+        const note = allNotes ? `\n📝 Keterangan: ${allNotes}` : "";
         return `📊 TRANSAKSI
 
-${icon} tipe : ${label}
+🔧 tipe : ${typeLabel}
 📱 Customer: ${formData.customer_name}
 📞 WA: ${formData.customer_whatsapp}
-💰 Nominal: Rp ${parseInt(item.nominal || "0").toLocaleString("id-ID")}
+💰 Nominal: Rp ${totalNominal.toLocaleString("id-ID")}
 💳 Metode: ${metodeLabel}${invoice}${note}
 👤 Operator: ${selectedUser?.full_name || user?.full_name}
 ⏰ ${fmtDateTime}`;
       };
 
-      const mainCaption = buildItemCaption(allItems[0]);
+      const mainCaption = buildCaption(allItems);
 
       let photoUrls: string[] = initialData?.photo_url
         ? [initialData.photo_url]
@@ -462,26 +476,21 @@ ${icon} tipe : ${label}
         }
       }
 
-      // Kirim extra items sebagai pesan text-only terpisah (tanpa foto)
-      if (isMulti && !isEdit) {
-        for (let i = 1; i < allItems.length; i++) {
-          const caption = buildItemCaption(allItems[i]);
-          try {
-            await fetch("/api/telegram", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ type: "transaction", message: caption }),
-            });
-          } catch (e) {
-            console.error(`Failed to send extra item ${i} to telegram:`, e);
-          }
-        }
-      }
+      const combinedJenisLabel = isMulti
+        ? allItems
+            .map(
+              (item) =>
+                jenisLayananOptions.find((o) => o.value === item.jenis)
+                  ?.label || item.jenis,
+            )
+            .join(" & ")
+        : jenisLayananOptions.find((o) => o.value === jenisLayananValue)
+              ?.label || jenisLayananValue;
 
       const payload: any = {
         customer_name: formData.customer_name.trim(),
         customer_whatsapp: formData.customer_whatsapp.trim(),
-        jenis_layanan: jenisLayananValue,
+        jenis_layanan: combinedJenisLabel,
         handled_by: formData.handled_by,
         handled_by_name: selectedUser?.full_name || user?.full_name,
         metode_pembayaran: formData.metode_pembayaran,
@@ -491,7 +500,9 @@ ${icon} tipe : ${label}
             ? formData.lead_source_custom
             : null,
         detail_sku: formData.detail_sku || null,
-        nominal: parseInt(formData.nominal) || 0,
+        nominal: isMulti
+          ? allItems.reduce((s, item) => s + parseInt(item.nominal || "0"), 0)
+          : parseInt(formData.nominal) || 0,
         notes: formData.notes || null,
       };
 
@@ -769,37 +780,191 @@ ${icon} tipe : ${label}
             </div>
           </div>
         </div>
-
         {/* ── Service Details ──────────────────────────────────────────────── */}
         <div className={sectionClass}>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
             <Wrench className="w-3.5 h-3.5" /> Service Details
           </p>
           <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>
-                Jenis Layanan <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.jenis_layanan}
-                onChange={(e) =>
-                  setFormData((p) => ({
-                    ...p,
-                    jenis_layanan: e.target.value as JenisLayanan,
-                  }))
-                }
-                className={inputClass}
-                required
-              >
-                {jenisLayananOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-3">
+              {extraItems.length === 0 ? (
+                <>
+                  <label className={labelClass}>
+                    Jenis Layanan <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.jenis_layanan}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        jenis_layanan: e.target.value as JenisLayanan,
+                      }))
+                    }
+                    className={inputClass}
+                    required
+                  >
+                    {jenisLayananOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <label className={labelClass}>
+                    Layanan <span className="text-red-500">*</span>
+                  </label>
+                  {/* Item 1: Utama */}
+                  <div className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-white/10 border-b border-gray-200 dark:border-white/10">
+                      <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                        Layanan Utama
+                      </span>
+                    </div>
+                    <div className="p-3 space-y-2 bg-white dark:bg-[#1c1c1c]">
+                      <select
+                        value={formData.jenis_layanan}
+                        onChange={(e) =>
+                          setFormData((p) => ({
+                            ...p,
+                            jenis_layanan: e.target.value as JenisLayanan,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                      >
+                        {jenisLayananOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={formData.detail_sku}
+                          onChange={(e) =>
+                            setFormData((p) => ({
+                              ...p,
+                              detail_sku: e.target.value,
+                            }))
+                          }
+                          placeholder="SKU / Invoice"
+                          className="px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10 w-full"
+                        />
+                        <input
+                          type="text"
+                          value={formData.nominal}
+                          onChange={(e) =>
+                            setFormData((p) => ({
+                              ...p,
+                              nominal: e.target.value.replace(/\D/g, ""),
+                            }))
+                          }
+                          placeholder="Nominal"
+                          className="px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10 w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {extraItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-white/10 border-b border-gray-200 dark:border-white/10">
+                        <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                          Layanan Tambahan #{idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeExtraItem(idx)}
+                          className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="p-3 space-y-2 bg-white dark:bg-[#1c1c1c]">
+                        <select
+                          value={item.jenis_layanan}
+                          onChange={(e) =>
+                            updateExtraItem(idx, "jenis_layanan", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                        >
+                          {jenisLayananOptions
+                            .filter(
+                              (o) =>
+                                o.value !== "pengeluaran" && o.value !== "cashdraw",
+                            )
+                            .map((o) => (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            ))}
+                        </select>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={item.detail_sku}
+                            onChange={(e) =>
+                              updateExtraItem(idx, "detail_sku", e.target.value)
+                            }
+                            placeholder="SKU / Invoice"
+                            className="px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10 w-full"
+                          />
+                          <input
+                            type="text"
+                            value={item.nominal}
+                            onChange={(e) =>
+                              updateExtraItem(
+                                idx,
+                                "nominal",
+                                e.target.value.replace(/\D/g, ""),
+                              )
+                            }
+                            placeholder="Nominal"
+                            className="px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10 w-full"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={item.notes}
+                          onChange={(e) =>
+                            updateExtraItem(idx, "notes", e.target.value)
+                          }
+                          placeholder="Catatan (opsional)"
+                          className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Tambah Layanan button */}
+              {extraItems.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={addExtraItem}
+                  className="flex items-center justify-center gap-1.5 w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tambah Layanan Lain
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={addExtraItem}
+                  className="flex items-center justify-center gap-1.5 w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tambah Layanan Lagi
+                </button>
+              )}
+              {extraItems.length === 0 && (
+                <p className="text-[11px] text-gray-400 italic -mt-1">
+                  Tambah layanan lain dalam 1 transaksi (misal: beli jam + service jam)
+                </p>
+              )}
             </div>
-
-            {/* ── Handled By — default current user, toggle untuk pilih lain ── */}
             <div>
               <label className={labelClass}>
                 Handled By <span className="text-red-500">*</span>
@@ -856,20 +1021,22 @@ ${icon} tipe : ${label}
               )}
             </div>
 
-            <div className="md:col-span-2">
-              <label className={labelClass}>SKU / Keterangan Barang</label>
-              <div className="relative">
-                <textarea
-                  value={formData.detail_sku}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, detail_sku: e.target.value }))
-                  }
-                  rows={3}
-                  className={`${inputClass} resize-none`}
-                  placeholder="SKU 1&#10;SKU 2&#10;SKU 3"
-                />
+            {extraItems.length === 0 && (
+              <div className="md:col-span-2">
+                <label className={labelClass}>SKU / Keterangan Barang</label>
+                <div className="relative">
+                  <textarea
+                    value={formData.detail_sku}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, detail_sku: e.target.value }))
+                    }
+                    rows={3}
+                    className={`${inputClass} resize-none`}
+                    placeholder="SKU 1&#10;SKU 2&#10;SKU 3"
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -905,16 +1072,32 @@ ${icon} tipe : ${label}
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  type="number"
+                  type={extraItems.length > 0 ? "text" : "number"}
                   min="0"
-                  value={formData.nominal}
+                  value={
+                    extraItems.length > 0
+                      ? (
+                          (parseInt(formData.nominal) || 0) +
+                          extraItems.reduce(
+                            (s, it) => s + (parseInt(it.nominal) || 0),
+                            0,
+                          )
+                        ).toLocaleString("id-ID")
+                      : formData.nominal
+                  }
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, nominal: e.target.value }))
                   }
                   className={`${inputClass} pl-9`}
                   placeholder="0"
                   required
+                  readOnly={extraItems.length > 0}
                 />
+                {extraItems.length > 0 && (
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Total otomatis dari semua layanan
+                  </p>
+                )}
               </div>
             </div>
             <div>
@@ -966,103 +1149,6 @@ ${icon} tipe : ${label}
               />
             </div>
           </div>
-        </div>
-
-        {/* ── Extra Items (multi-jenis) ──────────────────────────────────── */}
-        <div className={sectionClass}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-              <Plus className="w-3.5 h-3.5" /> Layanan Tambahan
-            </p>
-            <button
-              type="button"
-              onClick={addExtraItem}
-              className="flex items-center gap-1 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 transition-all"
-            >
-              <Plus className="w-3 h-3" /> Tambah
-            </button>
-          </div>
-          {extraItems.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">
-              Tambahkan layanan lain dalam 1 transaksi (misal: beli jam +
-              service jam)
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {extraItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase">
-                      Item #{idx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeExtraItem(idx)}
-                      className="p-1 text-red-500 hover:bg-red-50 rounded-lg"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={item.jenis_layanan}
-                      onChange={(e) =>
-                        updateExtraItem(idx, "jenis_layanan", e.target.value)
-                      }
-                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                    >
-                      {jenisLayananOptions
-                        .filter(
-                          (o) =>
-                            o.value !== "pengeluaran" && o.value !== "cashdraw",
-                        )
-                        .map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                    </select>
-                    <input
-                      type="text"
-                      value={item.detail_sku}
-                      onChange={(e) =>
-                        updateExtraItem(idx, "detail_sku", e.target.value)
-                      }
-                      placeholder="SKU / Invoice"
-                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={item.nominal}
-                      onChange={(e) =>
-                        updateExtraItem(
-                          idx,
-                          "nominal",
-                          e.target.value.replace(/\D/g, ""),
-                        )
-                      }
-                      placeholder="Nominal"
-                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={item.notes}
-                      onChange={(e) =>
-                        updateExtraItem(idx, "notes", e.target.value)
-                      }
-                      placeholder="Catatan"
-                      className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ── Photos ────────────────────────────────────────────────────────── */}
@@ -1387,11 +1473,21 @@ ${icon} tipe : ${label}
                       Jenis Layanan
                     </p>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {
-                        jenisLayananOptions.find(
-                          (opt) => opt.value === formData.jenis_layanan,
-                        )?.label
-                      }
+                      {extraItems.length > 0
+                        ? [
+                            jenisLayananOptions.find(
+                              (opt) => opt.value === formData.jenis_layanan,
+                            )?.label || formData.jenis_layanan,
+                            ...extraItems.map(
+                              (it) =>
+                                jenisLayananOptions.find(
+                                  (o) => o.value === it.jenis_layanan,
+                                )?.label || it.jenis_layanan,
+                            ),
+                          ].join(" & ")
+                        : jenisLayananOptions.find(
+                            (opt) => opt.value === formData.jenis_layanan,
+                          )?.label}
                     </p>
                   </div>
                 </div>
@@ -1409,61 +1505,88 @@ ${icon} tipe : ${label}
                   </p>
                 </div>
 
-                {formData.detail_sku && (
-                  <div>
+                {extraItems.length > 0 ? (
+                  <div className="space-y-2">
                     <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      SKU / Detail
+                      Detail Layanan
                     </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {formData.detail_sku}
-                    </p>
-                  </div>
-                )}
-
-                {formData.notes && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Catatan
-                    </p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
-                      {formData.notes}
-                    </p>
-                  </div>
-                )}
-
-                {extraItems.length > 0 && (
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-                      Layanan Tambahan ({extraItems.length})
-                    </p>
-                    <div className="space-y-1">
-                      {extraItems.map((it, i) => (
-                        <div
-                          key={i}
-                          className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 text-xs text-gray-700"
-                        >
-                          <span className="font-semibold">
+                    {/* Main item */}
+                    <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-gray-900">
+                          {
+                            jenisLayananOptions.find(
+                              (o) => o.value === formData.jenis_layanan,
+                            )?.label
+                          }
+                        </span>
+                      </div>
+                      {formData.detail_sku && (
+                        <p className="text-[11px] text-gray-500">
+                          SKU: {formData.detail_sku}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Nominal</span>
+                        <span className="text-xs font-semibold text-blue-600">
+                          Rp {parseInt(formData.nominal || "0").toLocaleString("id-ID")}
+                        </span>
+                      </div>
+                    </div>
+                    {extraItems.map((it, i) => (
+                      <div
+                        key={i}
+                        className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 space-y-1"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-900">
                             {jenisLayananOptions.find(
                               (o) => o.value === it.jenis_layanan,
                             )?.label || it.jenis_layanan}
                           </span>
-                          {it.detail_sku && (
-                            <span className="ml-2 text-gray-400">
-                              SKU: {it.detail_sku}
-                            </span>
-                          )}
-                          {it.nominal && (
-                            <span className="ml-2 font-semibold text-blue-600">
-                              Rp {parseInt(it.nominal).toLocaleString("id-ID")}
-                            </span>
-                          )}
-                          {it.notes && (
-                            <p className="text-gray-400 mt-0.5">{it.notes}</p>
-                          )}
                         </div>
-                      ))}
-                    </div>
+                        {it.detail_sku && (
+                          <p className="text-[11px] text-gray-500">
+                            SKU: {it.detail_sku}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Nominal</span>
+                          <span className="text-xs font-semibold text-blue-600">
+                            Rp {parseInt(it.nominal || "0").toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        {it.notes && (
+                          <p className="text-[11px] text-gray-400 italic">
+                            {it.notes}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <>
+                    {formData.detail_sku && (
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          SKU / Detail
+                        </p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {formData.detail_sku}
+                        </p>
+                      </div>
+                    )}
+                    {formData.notes && (
+                      <div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Catatan
+                        </p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
+                          {formData.notes}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div>

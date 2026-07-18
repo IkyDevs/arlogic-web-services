@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import {
   Layanan,
+  JenisLayanan,
   jenisLayananLabels,
   metodePembayaranLabels,
   leadSourceLabels,
@@ -105,17 +106,7 @@ export default function LayananList({
   const buildDisplayRows = (data: any[]) => {
     const rows: any[] = [];
     for (const tx of data) {
-      const extraItems = tx.layanan_items;
-      if (extraItems && Array.isArray(extraItems) && extraItems.length > 0) {
-        // Row pertama: main item (dari field layanan itu sendiri)
-        rows.push({ ...tx, _isItem: false });
-        // Row berikutnya: extra items
-        for (const it of extraItems) {
-          rows.push({ ...tx, ...it, _isItem: true, jenis_layanan: it.jenis_layanan, detail_sku: it.detail_sku || "", notes: it.notes || "", nominal: it.nominal || 0 });
-        }
-      } else {
-        rows.push({ ...tx, _isItem: false });
-      }
+      rows.push({ ...tx, _isItem: false });
     }
     return rows;
   };
@@ -352,7 +343,7 @@ export default function LayananList({
       formatDate(item.created_at),
       item.customer_name,
       item.customer_whatsapp,
-      jenisLayananLabels[item.jenis_layanan],
+      jenisLayananLabels[item.jenis_layanan as JenisLayanan] || item.jenis_layanan,
       item.handled_by_name,
       metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran,
       item.lead_source === "tulis_sendiri"
@@ -666,7 +657,7 @@ export default function LayananList({
                     <span
                       className={`badge text-[10px] sm:text-xs ${getJenisLayananStyle(item.jenis_layanan)}`}
                     >
-                      {jenisLayananLabels[item.jenis_layanan]}
+                      {jenisLayananLabels[item.jenis_layanan as JenisLayanan] || item.jenis_layanan}
                     </span>
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
