@@ -71,6 +71,7 @@ export default function LayananList({
   const [photoGalleryIndex, setPhotoGalleryIndex] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [staffList, setStaffList] = useState<any[]>([]);
+  const [splitPaymentDetail, setSplitPaymentDetail] = useState<any | null>(null);
   const supabase = createClient();
 
   // Check if user is admin
@@ -339,25 +340,30 @@ export default function LayananList({
       "Status",
       "Notes",
     ];
-    const rows = filteredLayanan.map((item) => [
-      formatDate(item.created_at),
-      item.customer_name,
-      item.customer_whatsapp,
-      jenisLayananLabels[item.jenis_layanan as JenisLayanan] || item.jenis_layanan,
-      item.handled_by_name,
-      metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran,
-      item.lead_source === "tulis_sendiri"
-        ? item.lead_source_custom
-        : leadSourceLabels[item.lead_source],
-      item.detail_sku || "-",
-      item.nominal,
-      item.status === "active"
-        ? "ACTIVE"
-        : item.status === "completed"
-          ? "COMPLETED"
-          : "CANCELLED",
-      item.notes || "-",
-    ]);
+    const rows = filteredLayanan.map((item) => {
+      const paymentMethod = (item as any).split_payment
+        ? `Split Payment (${metodePembayaranLabels[(item as any).metode_pembayaran_1 as keyof typeof metodePembayaranLabels] || (item as any).metode_pembayaran_1}: Rp ${(item as any).nominal_1?.toLocaleString("id-ID") || 0} + ${metodePembayaranLabels[(item as any).metode_pembayaran_2 as keyof typeof metodePembayaranLabels] || (item as any).metode_pembayaran_2}: Rp ${(item as any).nominal_2?.toLocaleString("id-ID") || 0})`
+        : metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran;
+      return [
+        formatDate(item.created_at),
+        item.customer_name,
+        item.customer_whatsapp,
+        jenisLayananLabels[item.jenis_layanan as JenisLayanan] || item.jenis_layanan,
+        item.handled_by_name,
+        paymentMethod,
+        item.lead_source === "tulis_sendiri"
+          ? item.lead_source_custom
+          : leadSourceLabels[item.lead_source],
+        item.detail_sku || "-",
+        item.nominal,
+        item.status === "active"
+          ? "ACTIVE"
+          : item.status === "completed"
+            ? "COMPLETED"
+            : "CANCELLED",
+        item.notes || "-",
+      ];
+    });
 
     const csvContent = [headers, ...rows]
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
@@ -664,7 +670,16 @@ export default function LayananList({
                     {item.handled_by_name || "-"}
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
-                    {metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran}
+                    {(item as any).split_payment ? (
+                      <button
+                        onClick={() => setSplitPaymentDetail(item)}
+                        className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all text-xs font-medium border border-purple-200"
+                      >
+                        Split Payment
+                      </button>
+                    ) : (
+                      metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran
+                    )}
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 font-bold text-blue-600 whitespace-nowrap text-xs sm:text-sm md:text-base">
                     {formatRupiah(item.nominal)}
@@ -846,6 +861,69 @@ export default function LayananList({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== SPLIT PAYMENT DETAIL MODAL ==================== */}
+      {splitPaymentDetail && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+          onClick={() => setSplitPaymentDetail(null)}
+        >
+          <div
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10">
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                Detail Split Payment
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {splitPaymentDetail?.customer_name}
+              </p>
+            </div>
+            <div className="p-6 space-y-3">
+              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {splitPaymentDetail?.metode_pembayaran_1
+                      ? (metodePembayaranLabels[splitPaymentDetail.metode_pembayaran_1 as keyof typeof metodePembayaranLabels] || splitPaymentDetail.metode_pembayaran_1)
+                      : "-"}
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    Rp {(splitPaymentDetail?.nominal_1 || 0).toLocaleString("id-ID")}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">
+                    {splitPaymentDetail?.metode_pembayaran_2
+                      ? (metodePembayaranLabels[splitPaymentDetail.metode_pembayaran_2 as keyof typeof metodePembayaranLabels] || splitPaymentDetail.metode_pembayaran_2)
+                      : "-"}
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">
+                    Rp {(splitPaymentDetail?.nominal_2 || 0).toLocaleString("id-ID")}
+                  </span>
+                </div>
+                <div className="border-t border-gray-200 dark:border-white/10 pt-2 mt-2 flex justify-between text-sm font-bold">
+                  <span>Total</span>
+                  <span className="text-blue-600">
+                    Rp {(
+                      (splitPaymentDetail?.nominal_1 || 0) +
+                      (splitPaymentDetail?.nominal_2 || 0)
+                    ).toLocaleString("id-ID")}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10">
+              <button
+                onClick={() => setSplitPaymentDetail(null)}
+                className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all text-sm"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>

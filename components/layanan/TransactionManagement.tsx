@@ -9,8 +9,8 @@ import PengeluaranForm from "./PengeluaranForm";
 import CashdrawForm from "./CashdrawForm";
 import LayananForm from "./LayananForm";
 
-const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", edc: "#F59E0B", transfer: "#6B7280", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444" };
-const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus" };
+const paymentColors: Record<string, string> = { cash: "#10B981", qris: "#3B82F6", edc: "#F59E0B", transfer: "#6B7280", tf_bca: "#8B5CF6", tf_mandiri: "#8B5CF6", edc_bca: "#F59E0B", edc_mandiri: "#F59E0B", bri: "#EC4899", kudus: "#EF4444", split_payment: "#A855F7" };
+const paymentLabels: Record<string, string> = { cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer", tf_bca: "TF BCA", tf_mandiri: "TF Mandiri", edc_bca: "EDC BCA", edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus", split_payment: "Split Payment" };
 
 function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -122,10 +122,13 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           <div className="p-5 space-y-2 max-h-[calc(85vh-70px)] overflow-y-auto">
             {filterModal.filtered.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">Tidak ada transaksi</p>
-            ) : filterModal.filtered.map((tx, i) => {
+            ) : (() => {
+              const uniqueJenis = new Set(filterModal.filtered.map((t) => t.jenis_layanan));
+              const singleJenis = uniqueJenis.size === 1;
+              return filterModal.filtered.map((tx, i) => {
               const isExpense = tx.jenis_layanan === "pengeluaran";
               return (
-                <div key={tx.id || i} className={`p-3 rounded-xl border ${isExpense ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
+                <div key={`${tx.id}-${i}`} className={`p-3 rounded-xl border ${isExpense ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className={`font-semibold text-sm ${isExpense ? "text-red-700" : "text-slate-900"}`}>
                       {isExpense ? <Receipt className="w-3.5 h-3.5 inline mr-1" /> : null}{tx.customer_name}
@@ -138,9 +141,16 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
                     <span>{new Date(tx.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
                     {tx.handled_by_name && <span>{tx.handled_by_name}</span>}
                   </div>
+                  {singleJenis && tx.detail_sku && (
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 flex-wrap">
+                      <span className="font-medium text-slate-700">SKU: {tx.detail_sku}</span>
+                      <span className="text-emerald-600 font-medium">{fmtRupiah(tx.nominal || 0)}</span>
+                    </div>
+                  )}
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
         </motion.div>
       </div>

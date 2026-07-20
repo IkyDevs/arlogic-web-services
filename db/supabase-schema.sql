@@ -63,7 +63,10 @@ CREATE TABLE IF NOT EXISTS service_orders (
   work_duration TEXT,
   estimated_cost DECIMAL(10,2),
   final_cost DECIMAL(10,2),
+  discount INTEGER DEFAULT 0,
+  discount_percentage NUMERIC(5,2) DEFAULT 0,
   completion_notes TEXT,
+  qc_submit_notes TEXT,
   warranty_months INTEGER DEFAULT 3,
   warranty_expiry TIMESTAMPTZ
 );

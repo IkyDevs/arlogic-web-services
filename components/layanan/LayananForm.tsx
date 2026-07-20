@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, memo, useCallback } from "react";
+import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload, compressFiles } from "@/hooks/useUpload";
@@ -57,7 +57,12 @@ const metodePembayaranOptions = [
   { value: "edc_mandiri", label: "EDC Mandiri" },
   { value: "bri", label: "BRI" },
   { value: "kudus", label: "Kudus" },
+  { value: "split_payment", label: "Split Payment" },
 ];
+
+const splitMetodeOptions = metodePembayaranOptions.filter(
+  (o) => o.value !== "split_payment",
+);
 
 const leadSourceOptions = [
   { value: "instagram", label: "Instagram" },
@@ -80,7 +85,6 @@ export default memo(function LayananForm({
   const supabase = createClient();
   const { uploadFile, uploadFiles, uploading, progress } = useUpload();
 
-  // Form state
   const [formData, setFormData] = useState({
     customer_name: initialData?.customer_name || "",
     customer_whatsapp: initialData?.customer_whatsapp || "",
@@ -94,6 +98,11 @@ export default memo(function LayananForm({
     detail_sku: initialData?.detail_sku || "",
     nominal: initialData?.nominal?.toString() || "",
     notes: initialData?.notes || "",
+    // Split payment fields
+    metode_pembayaran_1: initialData?.metode_pembayaran_1 || "cash",
+    nominal_1: initialData?.nominal_1?.toString() || "",
+    metode_pembayaran_2: initialData?.metode_pembayaran_2 || "qris",
+    nominal_2: initialData?.nominal_2?.toString() || "",
   });
 
   // ── Extra items (multi-jenis) ────────────────────────────────────────
@@ -140,6 +149,19 @@ export default memo(function LayananForm({
   const clearingDraft = useRef(false);
 
   const showCustomLeadSource = formData.lead_source === "tulis_sendiri";
+
+  const serviceTotal = useMemo(
+    () =>
+      (parseInt(formData.nominal) || 0) +
+      extraItems.reduce((s, it) => s + (parseInt(it.nominal) || 0), 0),
+    [formData.nominal, extraItems],
+  );
+
+  const derivedNominal2 = useMemo(() => {
+    if (formData.metode_pembayaran !== ("split_payment" as string)) return formData.nominal_2;
+    const n1 = parseInt(formData.nominal_1) || 0;
+    return Math.max(0, serviceTotal - n1).toString();
+  }, [formData.metode_pembayaran, formData.nominal_1, serviceTotal]);
 
   const handleCancel = useCallback(() => {
     if (!initialData && user?.id) {
@@ -300,6 +322,18 @@ export default memo(function LayananForm({
       return;
     }
 
+    if (formData.metode_pembayaran === "split_payment") {
+      const paymentTotal =
+        (parseInt(formData.nominal_1) || 0) +
+        (parseInt(derivedNominal2) || 0);
+      if (paymentTotal !== serviceTotal) {
+        toast.error(
+          `Total pembayaran (Rp ${paymentTotal.toLocaleString("id-ID")}) harus sama dengan total service (Rp ${serviceTotal.toLocaleString("id-ID")})`,
+        );
+        return;
+      }
+    }
+
     // Show confirmation modal instead of submitting directly
     setShowConfirmation(true);
   };
@@ -388,13 +422,32 @@ export default memo(function LayananForm({
           .filter(Boolean)
           .join("; ");
         const note = allNotes ? `\n📝 Keterangan: ${allNotes}` : "";
+
+        const isSplit = formData.metode_pembayaran === "split_payment";
+        const metodeSection = isSplit
+          ? `💳 SPLIT PAYMENT
+  ► Metode 1   : ${
+              splitMetodeOptions.find(
+                (o) => o.value === formData.metode_pembayaran_1,
+              )?.label || formData.metode_pembayaran_1
+            }
+  ► Nominal 1  : Rp ${(parseInt(formData.nominal_1) || 0).toLocaleString("id-ID")}
+  ► Metode 2   : ${
+              splitMetodeOptions.find(
+                (o) => o.value === formData.metode_pembayaran_2,
+              )?.label || formData.metode_pembayaran_2
+            }
+  ► Nominal 2  : Rp ${(parseInt(derivedNominal2) || 0).toLocaleString("id-ID")}
+  💰 Total      : Rp ${totalNominal.toLocaleString("id-ID")}`
+          : `💰 Nominal: Rp ${totalNominal.toLocaleString("id-ID")}
+💳 Metode: ${metodeLabel}`;
+
         return `📊 TRANSAKSI
 
 🔧 tipe : ${typeLabel}
 📱 Customer: ${formData.customer_name}
 📞 WA: ${formData.customer_whatsapp}
-💰 Nominal: Rp ${totalNominal.toLocaleString("id-ID")}
-💳 Metode: ${metodeLabel}${invoice}${note}
+${metodeSection}${invoice}${note}
 👤 Operator: ${selectedUser?.full_name || user?.full_name}
 ⏰ ${fmtDateTime}`;
       };
@@ -487,6 +540,8 @@ export default memo(function LayananForm({
         : jenisLayananOptions.find((o) => o.value === jenisLayananValue)
               ?.label || jenisLayananValue;
 
+      const isSplit = formData.metode_pembayaran === "split_payment";
+
       const payload: any = {
         customer_name: formData.customer_name.trim(),
         customer_whatsapp: formData.customer_whatsapp.trim(),
@@ -500,11 +555,21 @@ export default memo(function LayananForm({
             ? formData.lead_source_custom
             : null,
         detail_sku: formData.detail_sku || null,
-        nominal: isMulti
-          ? allItems.reduce((s, item) => s + parseInt(item.nominal || "0"), 0)
-          : parseInt(formData.nominal) || 0,
+        nominal: isSplit
+          ? (parseInt(formData.nominal_1) || 0) + (parseInt(derivedNominal2) || 0)
+          : isMulti
+            ? allItems.reduce((s, item) => s + parseInt(item.nominal || "0"), 0)
+            : parseInt(formData.nominal) || 0,
         notes: formData.notes || null,
       };
+
+      if (isSplit) {
+        payload.split_payment = true;
+        payload.metode_pembayaran_1 = formData.metode_pembayaran_1;
+        payload.nominal_1 = parseInt(formData.nominal_1) || 0;
+        payload.metode_pembayaran_2 = formData.metode_pembayaran_2;
+        payload.nominal_2 = parseInt(derivedNominal2) || 0;
+      }
 
       if (initialData?.id) {
         if (photoUrls.length > 0) {
@@ -638,6 +703,10 @@ export default memo(function LayananForm({
         detail_sku: "",
         nominal: "",
         notes: "",
+        metode_pembayaran_1: "cash",
+        nominal_1: "",
+        metode_pembayaran_2: "qris",
+        nominal_2: "",
       });
       setPhotoFiles([]);
       setPhotoPreviews([]);
@@ -695,6 +764,8 @@ export default memo(function LayananForm({
                   handled_by: user.id || "", metode_pembayaran: "cash" as MetodePembayaran,
                   lead_source: "instagram" as LeadSource, lead_source_custom: "",
                   detail_sku: "", nominal: "", notes: "",
+                  metode_pembayaran_1: "cash", nominal_1: "",
+                  metode_pembayaran_2: "qris", nominal_2: "",
                 });
                 setExtraItems([]);
                 setPhotoFiles([]);
@@ -809,6 +880,35 @@ export default memo(function LayananForm({
                       </option>
                     ))}
                   </select>
+                  <label className={labelClass}>SKU / Invoice</label>
+                  <input
+                    type="text"
+                    value={formData.detail_sku}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, detail_sku: e.target.value }))
+                    }
+                    className={inputClass}
+                    placeholder="SKU / Invoice"
+                  />
+                  <label className={labelClass}>
+                    Nominal <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={formData.nominal}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          nominal: e.target.value.replace(/\D/g, ""),
+                        }))
+                      }
+                      className={`${inputClass} pl-9`}
+                      placeholder="0"
+                      required
+                    />
+                  </div>
                 </>
               ) : (
                 <div className="space-y-3">
@@ -1020,23 +1120,6 @@ export default memo(function LayananForm({
                 </select>
               )}
             </div>
-
-            {extraItems.length === 0 && (
-              <div className="md:col-span-2">
-                <label className={labelClass}>SKU / Keterangan Barang</label>
-                <div className="relative">
-                  <textarea
-                    value={formData.detail_sku}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, detail_sku: e.target.value }))
-                    }
-                    rows={3}
-                    className={`${inputClass} resize-none`}
-                    placeholder="SKU 1&#10;SKU 2&#10;SKU 3"
-                  />
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -1065,41 +1148,132 @@ export default memo(function LayananForm({
                 ))}
               </select>
             </div>
-            <div>
-              <label className={labelClass}>
-                Nominal <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type={extraItems.length > 0 ? "text" : "number"}
-                  min="0"
-                  value={
-                    extraItems.length > 0
-                      ? (
-                          (parseInt(formData.nominal) || 0) +
-                          extraItems.reduce(
-                            (s, it) => s + (parseInt(it.nominal) || 0),
-                            0,
-                          )
-                        ).toLocaleString("id-ID")
-                      : formData.nominal
-                  }
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, nominal: e.target.value }))
-                  }
-                  className={`${inputClass} pl-9`}
-                  placeholder="0"
-                  required
-                  readOnly={extraItems.length > 0}
-                />
-                {extraItems.length > 0 && (
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    Total otomatis dari semua layanan
-                  </p>
-                )}
+
+            {formData.metode_pembayaran === "split_payment" ? (
+              <div className="md:col-span-2 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl space-y-2">
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      Pembayaran 1
+                    </label>
+                    <select
+                      value={formData.metode_pembayaran_1}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          metode_pembayaran_1: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    >
+                      {splitMetodeOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.nominal_1}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          const n1 = parseInt(val) || 0;
+                          const n2 = Math.max(0, serviceTotal - n1);
+                          setFormData((p) => ({
+                            ...p,
+                            nominal_1: val,
+                            nominal_2: n2.toString(),
+                          }));
+                        }}
+                        className={`${inputClass} pl-9`}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div className="p-3 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl space-y-2">
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      Pembayaran 2
+                    </label>
+                    <select
+                      value={formData.metode_pembayaran_2}
+                      onChange={(e) =>
+                        setFormData((p) => ({
+                          ...p,
+                          metode_pembayaran_2: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    >
+                      {splitMetodeOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={derivedNominal2}
+                        readOnly
+                        className={`${inputClass} pl-9 bg-gray-50`}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 px-3 py-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Total Bayar:
+                  </span>
+                  <span className="text-sm font-bold text-blue-600">
+                    Rp{" "}
+                    {(
+                      (parseInt(formData.nominal_1) || 0) +
+                      (parseInt(derivedNominal2) || 0)
+                    ).toLocaleString("id-ID")}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className={labelClass}>
+                  Total Amount <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type={extraItems.length > 0 ? "text" : "number"}
+                    min="0"
+                    value={
+                      extraItems.length > 0
+                        ? (
+                            (parseInt(formData.nominal) || 0) +
+                            extraItems.reduce(
+                              (s, it) => s + (parseInt(it.nominal) || 0),
+                              0,
+                            )
+                          ).toLocaleString("id-ID")
+                        : formData.nominal
+                    }
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, nominal: e.target.value }))
+                    }
+                    className={`${inputClass} pl-9`}
+                    placeholder="0"
+                    required
+                    readOnly={extraItems.length > 0}
+                  />
+                  {extraItems.length > 0 && (
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Total otomatis dari semua layanan
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
             <div>
               <label className={labelClass}>Lead Source</label>
               <select
@@ -1460,11 +1634,9 @@ export default memo(function LayananForm({
                     <p className="text-sm font-bold text-blue-600">
                       Rp{" "}
                       {(
-                        parseInt(formData.nominal) +
-                        extraItems.reduce(
-                          (s, it) => s + (parseInt(it.nominal) || 0),
-                          0,
-                        )
+                        formData.metode_pembayaran === "split_payment"
+                          ? (parseInt(formData.nominal_1) || 0) + (parseInt(derivedNominal2) || 0)
+                          : serviceTotal
                       ).toLocaleString("id-ID")}
                     </p>
                   </div>
@@ -1489,6 +1661,18 @@ export default memo(function LayananForm({
                             (opt) => opt.value === formData.jenis_layanan,
                           )?.label}
                     </p>
+                    {extraItems.length === 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        {formData.detail_sku && (
+                          <p className="text-[11px] text-gray-500">
+                            SKU: {formData.detail_sku}
+                          </p>
+                        )}
+                        <p className="text-[11px] font-semibold text-blue-600">
+                          Rp {parseInt(formData.nominal || "0").toLocaleString("id-ID")}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1496,13 +1680,52 @@ export default memo(function LayananForm({
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Metode Pembayaran
                   </p>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {
-                      metodePembayaranOptions.find(
-                        (opt) => opt.value === formData.metode_pembayaran,
-                      )?.label
-                    }
-                  </p>
+                  {formData.metode_pembayaran === "split_payment" ? (
+                    <div className="mt-1 space-y-1">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        Split Payment
+                      </p>
+                      <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">
+                            {splitMetodeOptions.find(
+                              (o) => o.value === formData.metode_pembayaran_1,
+                            )?.label || formData.metode_pembayaran_1}
+                          </span>
+                          <span className="font-semibold text-blue-600">
+                            Rp {(parseInt(formData.nominal_1) || 0).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">
+                            {splitMetodeOptions.find(
+                              (o) => o.value === formData.metode_pembayaran_2,
+                            )?.label || formData.metode_pembayaran_2}
+                          </span>
+                          <span className="font-semibold text-blue-600">
+                            Rp {(parseInt(derivedNominal2) || 0).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="border-t border-gray-200 dark:border-white/10 pt-1 mt-1 flex justify-between text-xs font-bold">
+                          <span>Total</span>
+                          <span className="text-blue-600">
+                            Rp {(
+                              (parseInt(formData.nominal_1) || 0) +
+                              (parseInt(derivedNominal2) || 0)
+                            ).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {
+                        metodePembayaranOptions.find(
+                          (opt) => opt.value === formData.metode_pembayaran,
+                        )?.label
+                      }
+                    </p>
+                  )}
                 </div>
 
                 {extraItems.length > 0 ? (

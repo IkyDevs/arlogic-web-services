@@ -340,6 +340,12 @@ export interface Layanan {
   notes?: string;
   telegram_chat_id?: string;
   telegram_message_id?: number;
+  // Split payment fields
+  split_payment?: boolean;
+  metode_pembayaran_1?: string;
+  nominal_1?: number;
+  metode_pembayaran_2?: string;
+  nominal_2?: number;
 }
 
 // =====================================================
