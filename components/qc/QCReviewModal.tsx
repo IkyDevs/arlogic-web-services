@@ -279,29 +279,30 @@ export default function QCReviewModal({
           if (orig && orig.quantity !== curr.quantity) changes.push(`\u2022 Qty ${curr.name}: ${orig.quantity}x \u2192 ${curr.quantity}x`);
           if (!orig) changes.push(`\u2022 ${curr.item_type === "jasa" ? "Jasa" : "Sparepart"} baru: ${curr.name} Rp${(curr.price || 0).toLocaleString()}`);
         }
-        if (changes.length > 0) {
-          notifMsg += "\n\nPerubahan oleh QC:\n" + changes.join("\n");
-          const { data: photoDocs } = await supabase.from("service_documentation").select("photo_url").eq("service_order_id", service.id).order("created_at", { ascending: true });
-          await supabase.from("activity_logs").insert({
-            user_id: service.assigned_teknisi_id, action: "qc_price_changes",
-            details: {
-              service_id: service.id, invoice: service.invoice_number,
-              customer_name: service.customer_name, customer_phone: service.customer_phone,
-              watch_brand: service.watch_brand || service.device_brand || "",
-              serial_number: service.serial_number || "",
-              reviewer: reviewerName, changes,
-              items_before: serviceItems.map((i: any) => ({ name: i.name, price: i.price, quantity: i.quantity, item_type: i.item_type })),
-              items_after: localItems.map((i: any) => ({ name: i.name, price: i.price, quantity: i.quantity, item_type: i.item_type })),
-              photo_urls: (photoDocs || []).map((d: any) => d.photo_url),
-            },
-          });
+          if (changes.length > 0) {
+            notifMsg += "\n\nPerubahan oleh QC:\n" + changes.join("\n");
+            const { data: photoDocs } = await supabase.from("service_documentation").select("photo_url").eq("service_order_id", service.id).order("created_at", { ascending: true });
+            await supabase.from("activity_logs").insert({
+              user_id: service.assigned_teknisi_id, action: "qc_price_changes",
+              details: {
+                service_id: service.id, invoice: service.invoice_number,
+                customer_name: service.customer_name, customer_phone: service.customer_phone,
+                watch_brand: service.watch_brand || service.device_brand || "",
+                serial_number: service.serial_number || "",
+                reviewer: reviewerName, changes,
+                items_before: serviceItems.map((i: any) => ({ name: i.name, price: i.price, quantity: i.quantity, item_type: i.item_type })),
+                items_after: localItems.map((i: any) => ({ name: i.name, price: i.price, quantity: i.quantity, item_type: i.item_type })),
+                photo_urls: (photoDocs || []).map((d: any) => d.photo_url),
+              },
+            });
+          }
 
           // Edit Telegram caption
           try {
             const newCaption = await generateCaption("approved");
             const editRes = await fetch("/api/telegram/edit-caption", {
               method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ service_order_id: service.id, new_caption: newCaption }),
+              body: JSON.stringify({ service_order_id: service.id, new_caption: newCaption, channel: "qc_update" }),
             });
             if (!editRes.ok) {
               const errData = await editRes.json().catch(() => ({}));
@@ -312,7 +313,6 @@ export default function QCReviewModal({
             console.warn("Failed to edit Telegram caption:", e.message);
             toast.error("Gagal edit caption Telegram: " + e.message);
           }
-        }
       }
 
       await supabase.from("notifications").insert({

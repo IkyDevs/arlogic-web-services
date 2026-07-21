@@ -309,6 +309,11 @@ export default function QueueList({
     if (!selectedService || !user) return;
     setQCSubmitting(true);
     try {
+      if (qcPhotos.length > 10) {
+        toast.error("Maksimal 10 foto untuk submit QC");
+        setQCSubmitting(false);
+        return;
+      }
       // Build caption
       const now = new Date();
       const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];

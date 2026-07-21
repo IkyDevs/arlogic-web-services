@@ -158,7 +158,7 @@ export default function QCDashboard() {
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
       .eq("status", "qc_pending")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
 
     if (data) {
       const mapped = data.map((s: any) => ({

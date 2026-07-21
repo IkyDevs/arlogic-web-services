@@ -125,6 +125,15 @@ async function sendPhotoBlob(channelId: string, blob: Blob, fileName: string, ca
   return { url: url || "", chat_id, message_id };
 }
 
+export async function resolveChatId(channelUsername: string): Promise<string> {
+  try {
+    const result = await tgPost("getChat", { chat_id: channelUsername });
+    return String(result.id);
+  } catch {
+    return channelUsername;
+  }
+}
+
 export async function editMessageCaption(chatId: string, messageId: number, caption: string): Promise<boolean> {
   try {
     await tgPost("editMessageCaption", { chat_id: chatId, message_id: messageId, caption });
