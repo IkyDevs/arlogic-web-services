@@ -130,6 +130,8 @@ export default function ServiceInput({
   const [estimatedCost, setEstimatedCost] = useState("");
   const [dpTransactions, setDpTransactions] = useState<any[]>([]);
   const [selectedDpId, setSelectedDpId] = useState<string | null>(null);
+  const [dpMode, setDpMode] = useState<"manual" | "from_transaction">("manual");
+  const [dpSearch, setDpSearch] = useState("");
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
 
@@ -141,6 +143,7 @@ export default function ServiceInput({
     setLoading(false);
     setSelectedDpId(null);
     setDpTransactions([]);
+    setDpMode("manual");
   }, []);
 
   // ── Draft restore ────────────────────────────────────────────────────────
@@ -167,22 +170,33 @@ export default function ServiceInput({
 
   // ── Fetch DP transaksi customer ────────────────────────────────────────
   useEffect(() => {
-    if (!formData.cs_phone || formData.cs_phone.length < 8) {
-      setDpTransactions([]);
-      setSelectedDpId(null);
-      return;
-    }
-    const phone = formData.cs_phone.replace(/\D/g, "");
-    supabase
-      .from("layanan")
-      .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at")
-      .eq("customer_whatsapp", phone)
-      .eq("jenis_layanan", "dp_service")
-      .is("linked_service_order_id", null)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => setDpTransactions(data || []));
-  }, [formData.cs_phone]);
+    if (dpMode !== "from_transaction") return;
+    const name = formData.cs_name?.trim();
+    const phone = formData.cs_phone?.replace(/\D/g, "");
+    if (!name && !phone) return;
+    const fetchDp = async () => {
+      let query = supabase
+        .from("layanan")
+        .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at, customer_name, customer_whatsapp")
+        .in("jenis_layanan", ["dp_service", "DP Service"])
+        .is("linked_service_order_id", null)
+        .or("dp_applied.is.null,dp_applied.eq.false");
+      if (name && phone.length >= 8) {
+        query = query.or(`customer_name.ilike.%${name}%,customer_whatsapp.ilike.%${phone}%`);
+      } else if (name) {
+        query = query.ilike("customer_name", `%${name}%`);
+      } else {
+        query = query.ilike("customer_whatsapp", `%${phone}%`);
+      }
+      const { data, error } = await query.order("created_at", { ascending: false }).limit(50);
+      if (error) {
+        toast.error("Gagal memuat DP: " + error.message);
+        return;
+      }
+      setDpTransactions(data || []);
+    };
+    fetchDp();
+  }, [dpMode, formData.cs_name, formData.cs_phone]);
 
   // ── Auto-save text segera (sync) ─────────────────────────────────────────
   useEffect(() => {
@@ -1136,46 +1150,79 @@ In : ${now}`;
                 </div>
               </div>
 
-              {dpTransactions.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-                    Pilih DP Customer
-                  </label>
-                  <div className="space-y-1.5">
-                    {dpTransactions.map((dp) => (
-                      <button
-                        key={dp.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedDpId(selectedDpId === dp.id ? null : dp.id);
-                          if (selectedDpId !== dp.id) {
-                            setFormData((p) => ({
-                              ...p,
-                              down_payment: String(dp.nominal || 0),
-                              payment_method: dp.metode_pembayaran || "cash",
-                            }));
-                          } else {
-                            setFormData((p) => ({
-                              ...p,
-                              down_payment: "",
-                              payment_method: "cash",
-                            }));
-                          }
-                        }}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left text-sm transition-all ${
-                          selectedDpId === dp.id
-                            ? "border-emerald-500 bg-emerald-50"
-                            : "border-slate-200 bg-white hover:bg-slate-50"
-                        }`}
-                      >
-                        <span className="flex-1 font-medium">
-                          Rp {Number(dp.nominal).toLocaleString("id-ID")}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {new Date(dp.created_at).toLocaleDateString("id-ID")}
-                        </span>
+              {dpMode === "from_transaction" && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setDpMode("manual")}>
+                  <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                      <h3 className="text-sm font-bold text-slate-900">Pilih DP dari Transaksi</h3>
+                      <button type="button" onClick={() => setDpMode("manual")} className="p-1 hover:bg-slate-100 rounded-lg">
+                        <X className="w-4 h-4 text-slate-400" />
                       </button>
-                    ))}
+                    </div>
+                    <div className="p-3 border-b border-slate-200">
+                      <input
+                        type="text"
+                        value={dpSearch}
+                        onChange={(e) => setDpSearch(e.target.value)}
+                        placeholder="Cari transaksi DP..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all"
+                      />
+                    </div>
+                    <div className="p-4 space-y-2 overflow-y-auto max-h-[calc(80vh-130px)]">
+                      {dpTransactions.length === 0 ? (
+                        <p className="text-sm text-slate-400 text-center py-8">
+                          Tidak ada transaksi DP ditemukan
+                        </p>
+                      ) : (
+                        dpTransactions.filter((dp) => {
+                          if (!dpSearch.trim()) return true;
+                          const q = dpSearch.toLowerCase();
+                          return (
+                            (dp.nominal?.toString() || "").includes(q) ||
+                            (dp.detail_sku || "").toLowerCase().includes(q) ||
+                            (dp.customer_name || "").toLowerCase().includes(q) ||
+                            (dp.customer_whatsapp || "").includes(q)
+                          );
+                        }).map((dp) => (
+                          <button
+                            key={dp.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDpId(dp.id);
+                              setFormData((p) => ({
+                                ...p,
+                                down_payment: String(dp.nominal || 0),
+                                payment_method: dp.metode_pembayaran || "cash",
+                              }));
+                              setDpSearch("");
+                              setDpMode("manual");
+                            }}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left text-sm transition-all ${
+                              selectedDpId === dp.id
+                                ? "border-emerald-500 bg-emerald-50"
+                                : "border-slate-200 bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium">
+                                Rp {Number(dp.nominal).toLocaleString("id-ID")}
+                              </p>
+                              <p className="text-[11px] text-slate-700 truncate mt-0.5">
+                                {dp.customer_name || "-"} — {dp.customer_whatsapp || "-"}
+                              </p>
+                              {dp.detail_sku && (
+                                <p className="text-[11px] text-slate-400 truncate">
+                                  {dp.detail_sku}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-xs text-slate-400 flex-shrink-0">
+                              {new Date(dp.created_at).toLocaleDateString("id-ID")}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1183,23 +1230,70 @@ In : ${now}`;
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Down Payment (DP)
                 </label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={formData.down_payment}
+                <div className="flex gap-2 items-start">
+                  {dpMode === "manual" && !selectedDpId ? (
+                  <div className="relative flex-1">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.down_payment}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        setFormData((p) => ({ ...p, down_payment: raw }));
+                        setSelectedDpId(null);
+                      }}
+                      className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                  ) : selectedDpId ? (
+                    <div className="flex-1 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-emerald-700">
+                          Rp {Number(formData.down_payment).toLocaleString("id-ID")}
+                        </p>
+                        <p className="text-xs text-emerald-600">
+                          {paymentLabels[formData.payment_method] || formData.payment_method}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDpId(null);
+                          setFormData((p) => ({ ...p, down_payment: "", payment_method: "cash" }));
+                        }}
+                        className="text-xs text-emerald-700 underline hover:text-emerald-900"
+                      >
+                        Ganti
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                      <p className="text-xs text-slate-400">Pilih transaksi DP melalui tombol di samping</p>
+                    </div>
+                  )}
+                  <select
+                    value={dpMode}
                     onChange={(e) => {
-                      const raw = e.target.value.replace(/[^0-9]/g, "");
-                      setFormData((p) => ({ ...p, down_payment: raw }));
-                      setSelectedDpId(null);
+                      const mode = e.target.value as "manual" | "from_transaction";
+                      setDpMode(mode);
+                      setDpSearch("");
+                      if (mode === "from_transaction") {
+                        setSelectedDpId(null);
+                        setFormData((p) => ({ ...p, down_payment: "", payment_method: "cash" }));
+                      }
                     }}
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-                    placeholder="0"
-                  />
+                    className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
+                  >
+                    <option value="manual">Manual</option>
+                    <option value="from_transaction">Pilih dari Transaksi</option>
+                  </select>
                 </div>
               </div>
 
+              {dpMode === "manual" && !selectedDpId && (
+                <>
               <div>
                 <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
                   Metode Pembayaran
@@ -1268,6 +1362,8 @@ In : ${now}`;
                     />
                   </div>
                 </div>
+              )}
+                </>
               )}
 
               {/* Summary */}

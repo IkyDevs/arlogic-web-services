@@ -322,7 +322,7 @@ export default memo(function LayananForm({
       return;
     }
 
-    if (formData.metode_pembayaran === "split_payment") {
+    if ((formData.metode_pembayaran as string) === "split_payment") {
       const paymentTotal =
         (parseInt(formData.nominal_1) || 0) +
         (parseInt(derivedNominal2) || 0);
@@ -423,7 +423,7 @@ export default memo(function LayananForm({
           .join("; ");
         const note = allNotes ? `\n📝 Keterangan: ${allNotes}` : "";
 
-        const isSplit = formData.metode_pembayaran === "split_payment";
+        const isSplit = (formData.metode_pembayaran as string) === "split_payment";
         const metodeSection = isSplit
           ? `💳 SPLIT PAYMENT
   ► Metode 1   : ${
@@ -537,10 +537,9 @@ ${metodeSection}${invoice}${note}
                   ?.label || item.jenis,
             )
             .join(" & ")
-        : jenisLayananOptions.find((o) => o.value === jenisLayananValue)
-              ?.label || jenisLayananValue;
+        : jenisLayananValue;
 
-      const isSplit = formData.metode_pembayaran === "split_payment";
+      const isSplit = (formData.metode_pembayaran as string) === "split_payment";
 
       const payload: any = {
         customer_name: formData.customer_name.trim(),
@@ -1149,7 +1148,7 @@ ${metodeSection}${invoice}${note}
               </select>
             </div>
 
-            {formData.metode_pembayaran === "split_payment" ? (
+            {(formData.metode_pembayaran as string) === "split_payment" ? (
               <div className="md:col-span-2 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl space-y-2">
@@ -1634,7 +1633,7 @@ ${metodeSection}${invoice}${note}
                     <p className="text-sm font-bold text-blue-600">
                       Rp{" "}
                       {(
-                        formData.metode_pembayaran === "split_payment"
+                        (formData.metode_pembayaran as string) === "split_payment"
                           ? (parseInt(formData.nominal_1) || 0) + (parseInt(derivedNominal2) || 0)
                           : serviceTotal
                       ).toLocaleString("id-ID")}
@@ -1680,7 +1679,7 @@ ${metodeSection}${invoice}${note}
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Metode Pembayaran
                   </p>
-                  {formData.metode_pembayaran === "split_payment" ? (
+                  {(formData.metode_pembayaran as string) === "split_payment" ? (
                     <div className="mt-1 space-y-1">
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         Split Payment

@@ -199,6 +199,8 @@ export default function AttendanceModal({
       
       const context = canvas.getContext('2d')
       if (context) {
+        context.translate(canvas.width, 0)
+        context.scale(-1, 1)
         context.drawImage(video, 0, 0, canvas.width, canvas.height)
         
         canvas.toBlob(async (blob) => {
@@ -499,7 +501,7 @@ catatan: ${defaultCheckInNotes}`
                       autoPlay
                       playsInline
                       muted
-                      className="w-full h-auto min-h-[180px] sm:min-h-[240px] object-cover"
+                      className="w-full h-auto min-h-[180px] sm:min-h-[240px] object-cover scale-x-[-1]"
                     />
                     <canvas ref={canvasRef} className="hidden" />
                   </div>
