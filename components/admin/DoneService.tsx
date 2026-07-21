@@ -38,15 +38,38 @@ export default function DoneService() {
     fetchData();
   };
 
-  const contactWA = (phone: string, name: string, invoice: string, total: number) => {
-    let p = phone.replace(/\D/g, "");
+  const contactWA = (svc: any) => {
+    let p = svc.customer_phone.replace(/\D/g, "");
     if (p.startsWith("0")) p = "62" + p.substring(1);
+    
+    const items = svc.items || [];
+    const spareparts = items.filter((i: any) => i.item_type === "sparepart");
+    const jasa = items.filter((i: any) => i.item_type === "jasa");
+    const total = items.reduce((s: number, it: any) => s + (parseFloat(it.price) || 0) * (it.quantity || 1), 0);
+    const discount = svc.discount || 0;
+    const finalTotal = total - discount;
+
+    // Fetch DP from layanan table if needed, but for now calculate kekurangan from DP if exists
+    // Simplification: assume dp from service order if it exists, otherwise 0
+    const dp = svc.down_payment || 0;
+    const kekurangan = finalTotal - dp;
+
+    const partsStr = spareparts.length > 0 ? `sparepart : ${spareparts.map((i: any) => `${i.name}`).join(", ")}` : "";
+    const jasaStr = jasa.length > 0 ? `jasa : ${jasa.map((i: any) => `${i.name}`).join(", ")}` : "";
+    const dpStr = dp > 0 ? `dp : ${fmtRupiah(dp)}` : "";
+    const totalStr = `total : ${fmtRupiah(finalTotal)}`;
+    const discStr = discount > 0 ? `discount : ${fmtRupiah(discount)}` : "";
+    const kurangStr = kekurangan > 0 ? `kekurangan : ${fmtRupiah(kekurangan)}` : "";
+
+    const details = [partsStr, jasaStr, dpStr, totalStr, discStr, kurangStr].filter(Boolean).join("\n");
+
     const msg = encodeURIComponent(
-      `Halo ${name},\n\n` +
-      `Kami informasikan bahwa service untuk invoice ${invoice} telah selesai dan siap diambil.\n\n` +
-      `Total biaya service: Rp ${total.toLocaleString("id-ID")}\n\n` +
-      `Silakan datang ke toko untuk pengambilan.\n` +
-      `Terima kasih.\n- Arlogic Watch Service`
+      `Assalamu'alaikum..\n` +
+      `Selamat malam kak ${svc.customer_name},\n\n` +
+      `saya Siqi dari Arlogic ex. Juragan7am mau menginformasikan kalau jam tangannya sudah lolos Quality Control dan sudah bisa diambil. Untuk rician biaya kekurangan nya sebagai berikut\n` +
+      `- RICIAN\n` +
+      `${details}\n\n` +
+      `😊`
     );
     window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
   };
@@ -92,7 +115,7 @@ export default function DoneService() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => contactWA(svc.customer_phone, svc.customer_name, svc.invoice_number, totalCost)}
+             <button onClick={() => contactWA(svc)}
               className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-all text-sm flex-shrink-0">
               <Phone className="w-4 h-4" />
               <span className="hidden sm:inline">Hubungi</span>

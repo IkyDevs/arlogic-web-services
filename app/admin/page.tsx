@@ -193,6 +193,8 @@ export default function AdminDashboard() {
 
   // Analytics state
   const [chartData, setChartData] = useState<any[]>([]);
+  const [doneServiceCount, setDoneServiceCount] = useState(0); // New state for done services count
+
 
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -326,6 +328,7 @@ export default function AdminDashboard() {
       todayRevenue,
       todayExpenses,
       todayTransactions,
+      doneServices, // Fetch done services count
     ] = await Promise.all([
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase
@@ -373,6 +376,10 @@ export default function AdminDashboard() {
         .select("*", { count: "exact", head: true })
         .gte("created_at", today + "T00:00:00")
         .lte("created_at", today + "T23:59:59"),
+      supabase
+        .from("service_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "completed"), // Fetch count for 'done' status
     ]);
 
     const totalInventoryStock = (inventoryData.data || []).reduce(
@@ -418,6 +425,7 @@ export default function AdminDashboard() {
       revenueGrowth: 12.5,
       avgRating: 4.8,
     });
+    setDoneServiceCount(doneServices.count || 0); // Set the done services count
   };
 
   const fetchRecentServices = async () => {
@@ -819,6 +827,7 @@ export default function AdminDashboard() {
         todayAttendance={todayAttendance}
         handleAttendance={handleAttendance}
         handleLogout={handleLogout}
+        doneCount={doneServiceCount} // Pass doneServiceCount here
       />
 
       {/* Mobile Menu Button */}
@@ -1337,59 +1346,13 @@ export default function AdminDashboard() {
                     {!isExpense && selectedTransaction.detail_sku && (
                       <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">
-                          SKU / Detail
+                          Detail SKU
                         </p>
                         <p className="text-sm text-gray-700 dark:text-gray-300">
                           {selectedTransaction.detail_sku}
                         </p>
                       </div>
                     )}
-                    {selectedTransaction.notes && (
-                      <div
-                        className={`p-3 rounded-xl border ${isExpense ? "bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-800" : "bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-800"}`}
-                      >
-                        <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">
-                          Catatan
-                        </p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">
-                          {selectedTransaction.notes}
-                        </p>
-                      </div>
-                    )}
-                    {(() => {
-                      let urls: string[] = [];
-                      if (selectedTransaction.photo_urls) {
-                        if (Array.isArray(selectedTransaction.photo_urls)) {
-                          urls = selectedTransaction.photo_urls;
-                        } else if (
-                          typeof selectedTransaction.photo_urls === "string"
-                        ) {
-                          try {
-                            urls = JSON.parse(selectedTransaction.photo_urls);
-                          } catch {
-                            urls = [];
-                          }
-                        }
-                      }
-                      return urls.length > 0 ? (
-                        <div>
-                          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
-                            Foto Bukti
-                          </p>
-                          <div className="grid grid-cols-3 gap-2">
-                            {urls.map((url: string, i: number) => (
-                              <img
-                                key={i}
-                                src={url}
-                                alt={"foto-" + i}
-                                className="rounded-lg border border-gray-200 dark:border-white/10 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => window.open(url, "_blank")}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ) : null;
-                    })()}
                   </div>
                 </>
               );
@@ -1398,75 +1361,47 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Service Input Modal */}
-      {showServiceForm && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
-          onClick={() => setShowServiceForm(false)}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                  <Watch className="w-4 h-4 text-white dark:text-gray-900" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                    New Watch Service
-                  </h2>
-                  <p className="text-xs text-gray-500">
-                    Create service order for timepiece
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowServiceForm(false)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
-            </div>
-            {/* Modal Content */}
-            <div className="p-6">
-              <ServiceInput variant="modal" />
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Layanan Form Modal */}
-      {showLayananForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
-          <LayananForm
-            onSuccess={handleLayananSuccess}
-            onClose={() => setShowLayananForm(false)}
-          />
-        </div>
-      )}
-
-      {/* Attendance Modal */}
-      <AttendanceModal
-        isOpen={showAttendance}
-        onClose={() => setShowAttendance(false)}
-        onSuccess={handleAttendanceSuccess}
-        type={attendanceType}
-        existingAttendance={todayAttendance}
-      />
-
       {/* Mobile Bottom Nav */}
       <MobileBottomNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
-        homeTabId="transaction"
-        transactionTabId="management-transaction"
-        serviceTabId="services"
+        setActiveTab={setActiveTab}
+        unreadCount={unreadCount}
+        handleAttendance={() => handleAttendance("check_in")}
+        todayAttendance={todayAttendance}
       />
+
+      {/* Layanan Form */}
+      {showLayananForm && (
+        <LayananForm
+          isOpen={showLayananForm}
+          onClose={() => setShowLayananForm(false)}
+          onSuccess={handleLayananSuccess}
+        />
+      )}
+
+      {/* Service Input Form */}
+      {showServiceForm && (
+        <ServiceInput
+          isOpen={showServiceForm}
+          onClose={() => setShowServiceForm(false)}
+          onSuccess={() => {
+            setShowServiceForm(false);
+            fetchRecentServices();
+            fetchStats();
+            toast.success("Service berhasil ditambahkan!");
+          }}
+        />
+      )}
+
+      {/* Attendance Modal */}
+      {showAttendance && (
+        <AttendanceModal
+          type={attendanceType}
+          isOpen={showAttendance}
+          onClose={() => setShowAttendance(false)}
+          onSuccess={handleAttendanceSuccess}
+        />
+      )}
     </div>
   );
 }

@@ -44,6 +44,7 @@ interface AdminSidebarProps {
   todayAttendance: any;
   handleAttendance: (type: "check_in" | "check_out") => void;
   handleLogout: () => void;
+  doneCount: number; // Added doneCount prop
 }
 
 export default function AdminSidebar({
@@ -54,6 +55,7 @@ export default function AdminSidebar({
   todayAttendance,
   handleAttendance,
   handleLogout,
+  doneCount, // Destructure doneCount
 }: AdminSidebarProps) {
   return (
     <>
@@ -101,6 +103,11 @@ export default function AdminSidebar({
             >
               <item.icon className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{item.label}</span>
+              {item.id === "done" && doneCount > 0 && (
+                <span className="ml-auto bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {doneCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>

@@ -890,3 +890,37 @@ NOTIFY pgrst, 'reload schema';
 -- 2. Tambah 20+ FK indexes untuk query join
 -- 3. Batch insert pattern untuk N+1 query fixes
 -- 4. Fix useEffect stale closure di teknisi page
+
+-- =====================================================
+-- WHATSAPP TEMPLATES
+-- =====================================================
+CREATE TABLE IF NOT EXISTS whatsapp_templates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  template_name TEXT UNIQUE NOT NULL,
+  template_content TEXT NOT NULL,
+  placeholders JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_templates_name ON whatsapp_templates(template_name);
+
+ALTER TABLE whatsapp_templates ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all authenticated users to read whatsapp_templates" ON whatsapp_templates
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Allow admin to manage whatsapp_templates" ON whatsapp_templates
+  FOR ALL USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
+
+GRANT ALL ON TABLE whatsapp_templates TO authenticated;
+GRANT ALL ON TABLE whatsapp_templates TO service_role;
+
+-- Add trigger for updated_at column
+DROP TRIGGER IF EXISTS update_whatsapp_templates_updated_at ON whatsapp_templates;
+CREATE TRIGGER update_whatsapp_templates_updated_at
+  BEFORE UPDATE ON whatsapp_templates
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+NOTIFY pgrst, 'reload schema';
+
