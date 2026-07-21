@@ -299,7 +299,7 @@ export default function QCReviewModal({
 
           // Edit Telegram caption
           try {
-            const newCaption = await generateCaption("approved");
+            const newCaption = await generateCaption(status); // Gunakan status dinamis
             const editRes = await fetch("/api/telegram/edit-caption", {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ service_order_id: service.id, new_caption: newCaption, channel: "qc_update" }),

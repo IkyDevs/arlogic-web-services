@@ -55,6 +55,11 @@ interface ExtendedServiceOrder extends ServiceOrder {
   };
 }
 
+const MAX_FILES = 10;
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_TOTAL_SIZE = 4 * 1024 * 1024; // 4MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
+
 export default function QueueList({
   teknisiId,
   onTakeProject,
@@ -270,11 +275,57 @@ export default function QueueList({
   };
 
   const handleQCPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("handleQCPhotoUpload triggered", { event: e, filesSelected: e.target.files?.length });
     const files = Array.from(e.target.files || []);
-    const newPhotos = [...qcPhotos, ...files];
-    setQCPhotos(newPhotos);
-    const newPreviews = files.map((f) => URL.createObjectURL(f));
-    setQCPhotoPreviews([...qcPhotoPreviews, ...newPreviews]);
+    e.target.value = ''; // Clear input to allow re-uploading same file after removal
+
+    const validFiles: File[] = [];
+    const validPreviews: string[] = [];
+    let currentTotalSize = qcPhotos.reduce((sum, file) => sum + file.size, 0);
+    console.log("Initial qcPhotos count:", qcPhotos.length, "currentTotalSize:", currentTotalSize);
+
+    // Validate each new file
+    for (const file of files) {
+      console.log(`Validating file: ${file.name}, size: ${file.size}, type: ${file.type}`);
+
+      if (qcPhotos.length + validFiles.length >= MAX_FILES) {
+        toast.error(`Maksimal ${MAX_FILES} foto diizinkan. ${file.name} tidak ditambahkan.`);
+        console.warn(`File ${file.name} rejected: Max files reached.`);
+        break; // Stop adding more files if max is reached
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`"${file.name}" terlalu besar (maksimal ${MAX_FILE_SIZE / (1024 * 1024)}MB).`);
+        console.warn(`File ${file.name} rejected: Size too large.`);
+        continue; // Skip this file
+      }
+
+      if (!ALLOWED_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)) {
+        toast.error(`"${file.name}" bukan format gambar yang didukung.`);
+        console.warn(`File ${file.name} rejected: Invalid type.`);
+        continue; // Skip this file
+      }
+
+      // Check total size with existing and valid new files
+      if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
+        toast.error(`Menambahkan "${file.name}" akan melebihi total ukuran maksimal ${MAX_TOTAL_SIZE / (1024 * 1024)}MB.`);
+        console.warn(`File ${file.name} rejected: Total size limit reached.`);
+        continue; // Skip this file
+      }
+      
+      validFiles.push(file);
+      validPreviews.push(URL.createObjectURL(file));
+      currentTotalSize += file.size;
+      console.log(`File ${file.name} accepted. New currentTotalSize: ${currentTotalSize}`);
+    }
+
+    if (validFiles.length > 0) {
+      setQCPhotos((prev) => [...prev, ...validFiles]);
+      setQCPhotoPreviews((prev) => [...prev, ...validPreviews]);
+      console.log(`Added ${validFiles.length} new valid files. Total qcPhotos now: ${qcPhotos.length + validFiles.length}`);
+    } else {
+      console.log("No valid files to add.");
+    }
   };
 
   const removeQCPhoto = (index: number) => {
@@ -309,11 +360,49 @@ export default function QueueList({
     if (!selectedService || !user) return;
     setQCSubmitting(true);
     try {
-      if (qcPhotos.length > 10) {
-        toast.error("Maksimal 10 foto untuk submit QC");
+      // Validasi client-side sudah dilakukan di handleQCPhotoUpload
+      // if (qcPhotos.length === 0) {
+      //   toast.error("Setidaknya harus ada 1 foto untuk submit QC.");
+      //   setQCSubmitting(false);
+      //   return;
+      // }
+      // if (qcPhotos.length > 10) {
+      //   toast.error("Maksimal 10 foto untuk submit QC");
+      //   setQCSubmitting(false);
+      //   return;
+      // }
+
+      // const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+      // const MAX_TOTAL_SIZE = 4 * 1024 * 1024; // 4MB
+      // const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
+
+      // let totalSize = 0;
+      // for (const file of qcPhotos) {
+      //   if (file.size > MAX_FILE_SIZE) {
+      //     toast.error(`"${file.name}" terlalu besar (maksimal 20MB).`);
+      //     setQCSubmitting(false);
+      //     return;
+      //   }
+      //   if (!ALLOWED_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)) {
+      //     toast.error(`"${file.name}" bukan format gambar yang didukung.`);
+      //     setQCSubmitting(false);
+      //     return;
+      //   }
+      //   totalSize += file.size;
+      // }
+
+      // if (totalSize > MAX_TOTAL_SIZE) {
+      //   toast.error(`Ukuran total foto terlalu besar (${(totalSize / (1024 * 1024)).toFixed(1)}MB). Maksimal ${MAX_TOTAL_SIZE / (1024 * 1024)}MB.`);
+      //   setQCSubmitting(false);
+      //   return;
+      // }
+
+      if (qcPhotos.length === 0) {
+        toast.error("Setidaknya harus ada 1 foto untuk submit QC.");
         setQCSubmitting(false);
         return;
       }
+
       // Build caption
       const now = new Date();
       const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
