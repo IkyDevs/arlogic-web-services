@@ -349,6 +349,11 @@ Status : Menunggu QC
 
 Teknisi : ${user?.full_name || "-"}
 
+Pelanggan : ${selectedService.customer_name || "-"}
+No. HP : ${selectedService.customer_phone || "-"}
+Brand Jam : ${selectedService.watch_brand || "-"}
+Tipe Jam : ${selectedService.watch_model || "-"}
+
 Start : ${startDate}
 
 Done : ${fmtDate}
@@ -366,21 +371,23 @@ Total : Rp ${qcTotalCost.toLocaleString("id-ID")}${dpText}${kekuranganText}${tek
       const uploadedUrls: string[] = [];
       let firstChatId = '';
       let firstMessageId = 0;
+      const formData = new FormData();
       for (let i = 0; i < qcPhotos.length; i++) {
-        const formData = new FormData();
         formData.append("files", qcPhotos[i]);
-        formData.append("type", "service");
-        formData.append("caption", caption);
-        const res = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        if (data.urls && data.urls.length > 0) {
-          const chatId = data.messages?.[0]?.chat_id || '';
-          const messageId = data.messages?.[0]?.message_id || 0;
-          uploadedUrls.push(data.urls[0]);
+      }
+      formData.append("type", "qc_update");
+      formData.append("caption", caption);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.urls && data.urls.length > 0) {
+        for (let i = 0; i < data.urls.length; i++) {
+          const chatId = data.messages?.[i]?.chat_id || '';
+          const messageId = data.messages?.[i]?.message_id || 0;
+          uploadedUrls.push(data.urls[i]);
           if (!firstChatId && chatId) { firstChatId = chatId; firstMessageId = messageId; }
           await supabase.from("service_documentation").insert({
             service_order_id: selectedService.id,
-            photo_url: data.urls[0],
+            photo_url: data.urls[i],
             stage: "qc",
             uploaded_by: user.id,
             telegram_chat_id: chatId,
