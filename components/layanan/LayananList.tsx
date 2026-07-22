@@ -613,6 +613,9 @@ export default function LayananList({
                   Payment
                 </th>
                 <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                  Lead Source
+                </th>
+                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   Amount
                 </th>
                 <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
@@ -680,6 +683,11 @@ export default function LayananList({
                     ) : (
                       metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran
                     )}
+                  </td>
+                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
+                    {item.lead_source === "tulis_sendiri"
+                      ? (item.lead_source_custom || "Tulis Sendiri")
+                      : leadSourceLabels[item.lead_source] || item.lead_source || "-"}
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 font-bold text-blue-600 whitespace-nowrap text-xs sm:text-sm md:text-base">
                     {formatRupiah(item.nominal)}
