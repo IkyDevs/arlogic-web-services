@@ -190,9 +190,22 @@ export default function ClosingDashboard() {
       {/* Payment Method Breakdown */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
         className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200">
-          <h3 className="text-sm font-bold text-slate-900">Rincian per Pembayaran</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Masukkan jumlah aktual sesuai kasir / merchant</p>
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Rincian per Pembayaran</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Masukkan jumlah aktual sesuai kasir / merchant</p>
+          </div>
+          <button onClick={() => {
+            const autoFill: Record<string, string> = {};
+            for (const [method, group] of Object.entries(paymentGroups)) {
+              autoFill[method] = String(group.expected);
+            }
+            setActualAmounts(autoFill);
+            toast.success("Semua nominal aktual terisi");
+          }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-all">
+            <TrendingUp className="w-3.5 h-3.5" /> Auto Aktual
+          </button>
         </div>
         <div className="divide-y divide-slate-100">
           {Object.keys(paymentGroups).length === 0 ? (
