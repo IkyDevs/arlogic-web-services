@@ -38,39 +38,51 @@ export default function DoneService() {
     fetchData();
   };
 
-  const contactWA = (svc: any) => {
+  const contactWA = async (svc: any) => {
     let p = svc.customer_phone.replace(/\D/g, "");
     if (p.startsWith("0")) p = "62" + p.substring(1);
     
     const items = svc.items || [];
     const spareparts = items.filter((i: any) => i.item_type === "sparepart");
     const jasa = items.filter((i: any) => i.item_type === "jasa");
-    const total = items.reduce((s: number, it: any) => s + (parseFloat(it.price) || 0) * (it.quantity || 1), 0);
-    const discount = svc.discount || 0;
-    const finalTotal = total - discount;
 
-    // Fetch DP from layanan table if needed, but for now calculate kekurangan from DP if exists
-    // Simplification: assume dp from service order if it exists, otherwise 0
-    const dp = svc.down_payment || 0;
+    // Fix 2.2: Get total and discount from svc.final_cost and svc.discount
+    const finalTotal = svc.final_cost || 0;
+    const discount = svc.discount || 0;
+
+    // Fix 2.1: Fetch DP from layanan table
+    const { data: dpData } = await supabase.from("layanan").select("nominal")
+      .eq("detail_sku", `DP - Invoice ${svc.invoice_number}`).maybeSingle();
+    const dp = dpData?.nominal || 0;
+
     const kekurangan = finalTotal - dp;
 
-    const partsStr = spareparts.length > 0 ? `sparepart : ${spareparts.map((i: any) => `${i.name}`).join(", ")}` : "";
-    const jasaStr = jasa.length > 0 ? `jasa : ${jasa.map((i: any) => `${i.name}`).join(", ")}` : "";
-    const dpStr = dp > 0 ? `dp : ${fmtRupiah(dp)}` : "";
-    const totalStr = `total : ${fmtRupiah(finalTotal)}`;
-    const discStr = discount > 0 ? `discount : ${fmtRupiah(discount)}` : "";
-    const kurangStr = kekurangan > 0 ? `kekurangan : ${fmtRupiah(kekurangan)}` : "";
+    const messageLines: string[] = [];
+    messageLines.push(`Assalamu'alaikum..`);
+    messageLines.push(`Selamat malam kak ${svc.customer_name}, saya Siqi dari Arlogic ex. Juragan7am mau menginformasikan kalau jam tangannya sudah lolos Quality Control dan sudah bisa diambil. Untuk rician biaya kekurangan nya sebagai berikut`);
+    messageLines.push(`- RICIAN SERVICE`);
 
-    const details = [partsStr, jasaStr, dpStr, totalStr, discStr, kurangStr].filter(Boolean).join("\n");
+    if (spareparts.length > 0) {
+      messageLines.push(`- sparepart : ${spareparts.map((i: any) => i.name).join(", ")}`);
+    }
+    if (jasa.length > 0) {
+      messageLines.push(`- jasa : ${jasa.map((i: any) => i.name).join(", ")}`);
+    }
+    if (dp > 0) {
+      messageLines.push(`- dp : ${fmtRupiah(dp)}`);
+    }
+    if (finalTotal > 0) {
+      messageLines.push(`- total : ${fmtRupiah(finalTotal)}`);
+    }
+    if (discount > 0) {
+      messageLines.push(`- discount : ${fmtRupiah(discount)}`);
+    }
+    if (kekurangan > 0) {
+      messageLines.push(`- kekurangan : ${fmtRupiah(kekurangan)}`);
+    }
+    messageLines.push(`😊`);
 
-    const msg = encodeURIComponent(
-      `Assalamu'alaikum..\n` +
-      `Selamat malam kak ${svc.customer_name},\n\n` +
-      `saya Siqi dari Arlogic ex. Juragan7am mau menginformasikan kalau jam tangannya sudah lolos Quality Control dan sudah bisa diambil. Untuk rician biaya kekurangan nya sebagai berikut\n` +
-      `- RICIAN\n` +
-      `${details}\n\n` +
-      `😊`
-    );
+    const msg = encodeURIComponent(messageLines.join("\n"));
     window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
   };
 
@@ -85,9 +97,9 @@ export default function DoneService() {
 
   const renderCard = (svc: any, i: number, showDone: boolean) => {
     const items = svc.items || [];
-    const totalCost = items.length > 0
+    const totalCost = svc.final_cost || (items.length > 0
       ? items.reduce((s: number, it: any) => s + (parseFloat(it.price) || 0) * (it.quantity || 1), 0)
-      : svc.final_cost || svc.estimated_cost || 0;
+      : svc.estimated_cost || 0);
     return (
       <motion.div key={svc.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
         className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

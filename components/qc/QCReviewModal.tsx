@@ -107,13 +107,14 @@ export default function QCReviewModal({
 
   // ── Calculations ──
   const subtotal = localItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
-  const timelineSparepartCost = timeline.filter(t => t.details?.total_sparepart_cost)
-    .reduce((sum, t) => sum + (t.details?.total_sparepart_cost || 0), 0);
+  const timelineSpareparts = timeline.filter(t => t.details?.spareparts && Array.isArray(t.details.spareparts)).flatMap(t => t.details.spareparts || []);
+  const timelineSparepartCost = timelineSpareparts.reduce((sum, t) => sum + (t.price || 0) * (t.qty || 1), 0);
   const totalBeforeDiscount = subtotal + timelineSparepartCost;
   const effectiveDiscount = Math.min(discount, totalBeforeDiscount);
   const grandTotal = Math.max(0, totalBeforeDiscount - effectiveDiscount);
   const discountPercent = totalBeforeDiscount > 0 ? Math.round((effectiveDiscount / totalBeforeDiscount) * 100) : 0;
 
+  // ── Item editing ──
   // ── Item editing ──
   const startEditItem = (index: number, item: any) => {
     setEditingItem({ ...editingItem, [index]: { price: item.price, quantity: item.quantity } });
@@ -266,9 +267,21 @@ export default function QCReviewModal({
     }
     setProcessing(true);
     try {
-      if (status === "approved" && localItems.length > 0) {
+      if (status === "approved" && (localItems.length > 0 || timelineSpareparts.length > 0)) {
         await supabase.from("service_items").delete().eq("service_order_id", service.id);
-        const insertItems = localItems.map((item: any) => ({
+
+        const combinedItems = [
+          ...localItems,
+          ...timelineSpareparts.map((sp: any) => ({
+            name: sp.name,
+            price: sp.price,
+            quantity: sp.qty || 1, // Use qty from timeline sparepart if available, else 1
+            item_type: "sparepart",
+            notes: sp.notes || null, // Preserve notes if available
+          })),
+        ];
+
+        const insertItems = combinedItems.map((item: any) => ({
           service_order_id: service.id, name: item.name, price: item.price,
           quantity: item.quantity, item_type: item.item_type, notes: item.notes || null,
         }));
