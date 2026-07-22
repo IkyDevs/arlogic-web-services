@@ -405,18 +405,59 @@ export default function QueueList({
 
       // Build caption
       const now = new Date();
-      const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-      const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-      const fmtDate = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} (${String(now.getMonth()+1).padStart(2,"0")}), ${now.getFullYear()}`;
+      const formatTanggal = (dateString: string | null | undefined) => {
+        if (!dateString) return "-";
+        const d = new Date(dateString);
+        const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+        const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+        return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+      };
 
-      const barangList = qcItems.filter((i) => i.item_type === "sparepart").map((i) => `• ${i.name} (${i.quantity}x) @Rp ${(i.price || 0).toLocaleString()}`).join("\n") || "—";
-      const jasaList = qcItems.filter((i) => i.item_type === "jasa").map((i) => `• ${i.name} (${i.quantity}x) @Rp ${(i.price || 0).toLocaleString()}`).join("\n") || "—";
+      const startDateFormatted = formatTanggal(selectedService.start_date);
+      const doneDateFormatted = formatTanggal(now.toISOString());
 
-      const startDate = selectedService.start_date ? new Date(selectedService.start_date).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "-";
+      const qcSubmittedItems = qcItems.map(item => ({
+        ...item,
+        price: editingPrice[qcItems.indexOf(item)]?.price ?? item.price,
+        quantity: editingPrice[qcItems.indexOf(item)]?.quantity ?? item.quantity,
+      }));
 
-      // Check for DP
-      let dpText = "";
-      let kekuranganText = "";
+      const barangItems = qcSubmittedItems.filter((i) => i.item_type === "sparepart");
+      const jasaItems = qcSubmittedItems.filter((i) => i.item_type === "jasa");
+
+      const barangList = barangItems.length > 0
+        ? barangItems.map((i) => `- ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`).join("\n")
+        : "";
+
+      const jasaList = jasaItems.length > 0
+        ? jasaItems.map((i) => `- ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`).join("\n")
+        : "";
+
+      const sections: string[] = [];
+      sections.push(`${selectedService.status === "revision_required" ? "UPDATE QC AFTER REJECT QC" : "UPDATE QC"}`);
+      sections.push(`Status : Menunggu QC`);
+      sections.push(`Nama : ${selectedService.customer_name || "-"}`);
+      sections.push(`No. hp : ${selectedService.customer_phone || "-"}`);
+      sections.push(`Brand : ${selectedService.watch_brand || "-"}`);
+      if (selectedService.watch_model) {
+        sections.push(`Tipe : ${selectedService.watch_model}`);
+      }
+      if (selectedService.estimated_cost && selectedService.estimated_cost > 0) {
+        sections.push(`Estimasi : Rp${selectedService.estimated_cost.toLocaleString("id-ID")}`);
+      }
+      sections.push(`Teknisi : ${user?.full_name || "-"}`);
+      sections.push(`Start : ${startDateFormatted}`);
+      sections.push(`Done : ${doneDateFormatted}`);
+      sections.push(`Rincian Item`);
+
+      if (barangItems.length > 0) {
+        sections.push(`Barang:\n${barangList}`);
+      }
+      if (jasaItems.length > 0) {
+        sections.push(`Jasa:\n${jasaList}`);
+      }
+
+      let dpNominal = 0;
       try {
         const { data: dpData } = await supabase
           .from("layanan")
@@ -424,43 +465,25 @@ export default function QueueList({
           .eq("detail_sku", `DP - Invoice ${selectedService.invoice_number}`)
           .maybeSingle();
         if (dpData && dpData.nominal) {
-          const dpNominal = dpData.nominal || 0;
-          dpText = `\ndp: Rp ${dpNominal.toLocaleString("id-ID")}`;
-          const selisih = qcTotalCost - dpNominal;
-          if (selisih > 0) {
-            kekuranganText = `\nkekurangan: Rp ${selisih.toLocaleString("id-ID")}`;
-          } else if (selisih < 0) {
-            kekuranganText = `\nreturn: Rp ${Math.abs(selisih).toLocaleString("id-ID")}`;
-          }
+          dpNominal = dpData.nominal;
         }
-      } catch { /* ignore */ }
+      } catch (e) {
+        console.error("Error fetching DP for caption:", e);
+      }
+      if (dpNominal > 0) {
+        sections.push(`Dp : Rp${dpNominal.toLocaleString("id-ID")}`);
+      }
+      // Discount is handled in QC review, not initial teknisi submit.
+      // Total will be shown in QCReviewModal as it can be modified.
+      sections.push(`Total : Rp${qcTotalCost.toLocaleString("id-ID")}`);
 
-      const captionHeader = selectedService.status === "revision_required" ? "UPDATE QC AFTER REJECT QC" : "UPDATE QC";
-      const teknisiNotes = qcNotes.trim() ? `\n\nKeterangan Teknisi :\n${qcNotes.trim()}` : "";
-      const caption = `${captionHeader}
+      if (qcNotes.trim()) {
+        sections.push(`Keterangan Teknisi :\n${qcNotes.trim()}`);
+      }
+      // Keterangan QC is handled in QC review, not initial teknisi submit.
 
-Status : Menunggu QC
+      const caption = sections.filter(Boolean).join("\n\n");
 
-Teknisi : ${user?.full_name || "-"}
-
-Pelanggan : ${selectedService.customer_name || "-"}
-No. HP : ${selectedService.customer_phone || "-"}
-Brand Jam : ${selectedService.watch_brand || "-"}
-Tipe Jam : ${selectedService.watch_model || "-"}
-
-Start : ${startDate}
-
-Done : ${fmtDate}
-
-Rincian Item
-
-Barang:
-${barangList}
-
-Jasa:
-${jasaList}
-
-Total : Rp ${qcTotalCost.toLocaleString("id-ID")}${dpText}${kekuranganText}${teknisiNotes}`;
 
       const uploadedUrls: string[] = [];
       let firstChatId = '';

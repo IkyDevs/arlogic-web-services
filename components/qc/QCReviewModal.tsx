@@ -169,58 +169,93 @@ export default function QCReviewModal({
     return `${days[dt.getDay()]}, ${dt.getDate()} ${months[dt.getMonth()]} (${String(dt.getMonth()+1).padStart(2,"0")}), ${dt.getFullYear()}`;
   };
 
-  const generateCaption = async (status: "approved" | "rejected") => {
-    const now = new Date();
-    const fmtDate = formatDateFull(now.toISOString());
-    const allSpareparts = [
-      ...localItems.filter((i) => i.item_type === "sparepart").map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
-      ...timeline.filter(t => t.details?.spareparts && Array.isArray(t.details.spareparts)).flatMap(t => t.details.spareparts || []),
-    ];
-    const barangList = allSpareparts.length > 0
-      ? allSpareparts.map((i: any) => `\u2022 ${i.name} (${i.qty || i.quantity || 1}x) @Rp${((i.price || 0) * (i.qty || i.quantity || 1)).toLocaleString("id-ID")}`).join("\n")
-      : "\u2014";
-    const jasaList = localItems.filter((i) => i.item_type === "jasa")
-      .map((i) => `\u2022 ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString()}`).join("\n") || "\u2014";
-    const startDate = service.start_date ? formatDateFull(service.start_date) : "-";
-    const doneDate = service.done_date ? formatDateFull(service.done_date) : fmtDate;
+    const generateCaption = async (status: "approved" | "rejected", serviceDetails: any, items: any[], currentReviewNotes: string, currentDiscount: number) => {
+      const now = new Date();
+      const fmtDate = formatDateFull(now.toISOString());
+      const allItems = items;
 
-    let dpText = "";
-    let kekuranganText = "";
-    const { data: dpData } = await supabase.from("layanan").select("nominal")
-      .eq("detail_sku", `DP - Invoice ${service.invoice_number}`).maybeSingle();
-    if (dpData && dpData.nominal) {
-      const dpNominal = dpData.nominal;
-      dpText = `\nDP : Rp${dpNominal.toLocaleString("id-ID")}`;
-      const sisa = grandTotal - dpNominal;
-      if (sisa > 0) kekuranganText = `\nKekurangan : Rp${sisa.toLocaleString("id-ID")}`;
-      else if (sisa < 0) kekuranganText = `\nReturn : Rp${Math.abs(sisa).toLocaleString("id-ID")}`;
-    }
+      // Extract details from serviceDetails for customer, watch, etc.
+      const customerName = serviceDetails.customer_name || "-";
+      const customerPhone = serviceDetails.customer_phone || "-";
+      const watchBrand = serviceDetails.watch_brand || serviceDetails.device_brand || "-";
+      const watchModel = serviceDetails.watch_model || serviceDetails.device_model;
+      const estimatedCost = serviceDetails.estimated_cost;
+      const teknisiName = serviceDetails.teknisi_name || serviceDetails.assigned_teknisi_name || "-";
+      const startDate = serviceDetails.start_date ? formatDateFull(serviceDetails.start_date) : "-";
+      const doneDate = serviceDetails.done_date ? formatDateFull(serviceDetails.done_date) : fmtDate;
+      const teknisiNotes = serviceDetails.qc_submit_notes?.trim();
 
-    const diskonText = effectiveDiscount > 0 ? `\nDiskon : Rp${effectiveDiscount.toLocaleString("id-ID")} (${discountPercent}%)` : "";
-    const qcNotes = reviewNotes.trim() ? `\n\nKeterangan QC :\n${reviewNotes.trim()}` : "";
-    const teknisiNotes = service.qc_submit_notes?.trim() ? `\n\nKeterangan Teknisi :\n${service.qc_submit_notes.trim()}` : "";
+      const subtotal = allItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+      const effectiveDiscount = Math.min(currentDiscount, subtotal);
+      const grandTotal = Math.max(0, subtotal - effectiveDiscount);
 
-    const changes: string[] = [];
-    if (status === "approved") {
-      for (const orig of serviceItems) {
-        const stillExists = localItems.some((item) => item.id === orig.id && item.name === orig.name);
-        if (!stillExists) changes.push(`\u2022 ${orig.item_type === "jasa" ? "Jasa" : "Sparepart"} "${orig.name}" dihapus`);
+      const barangItems = allItems.filter((i) => i.item_type === "sparepart");
+      const jasaItems = allItems.filter((i) => i.item_type === "jasa");
+
+      const barangList = barangItems.length > 0
+        ? barangItems.map((i: any) => `- ${i.name} (${i.quantity || 1}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`).join("\n")
+        : "";
+
+      const jasaList = jasaItems.length > 0
+        ? jasaItems.map((i: any) => `- ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`).join("\n")
+        : "";
+
+      const sections: string[] = [];
+      sections.push(`UPDATE QC`);
+      sections.push(`Status : ${status === "approved" ? "QC Approve" : "QC Revisi"}`);
+      sections.push(`Nama : ${customerName}`);
+      sections.push(`No. hp : ${customerPhone}`);
+      sections.push(`Brand : ${watchBrand}`);
+      if (watchModel) {
+        sections.push(`Tipe : ${watchModel}`);
       }
-      for (const curr of localItems) {
-        const orig = serviceItems.find((o: any) => o.id === curr.id && o.name === curr.name);
-        if (orig) {
-          if (orig.price !== curr.price) changes.push(`\u2022 Harga ${curr.name}: Rp${(orig.price || 0).toLocaleString()} \u2192 Rp${(curr.price || 0).toLocaleString()}`);
-          if (orig.quantity !== curr.quantity) changes.push(`\u2022 Qty ${curr.name}: ${orig.quantity}x \u2192 ${curr.quantity}x`);
-        } else {
-          changes.push(`\u2022 ${curr.item_type === "jasa" ? "Jasa" : "Sparepart"} baru: ${curr.name} ${curr.quantity}x @Rp${(curr.price || 0).toLocaleString()}`);
+      if (estimatedCost && estimatedCost > 0) {
+        sections.push(`Estimasi : Rp${estimatedCost.toLocaleString("id-ID")}`);
+      }
+      sections.push(`Teknisi : ${teknisiName}`);
+      sections.push(`Start : ${startDate}`);
+      sections.push(`Done : ${doneDate}`);
+      
+      if (barangItems.length > 0 || jasaItems.length > 0) {
+        sections.push(`Rincian Item`);
+        if (barangItems.length > 0) {
+          sections.push(`Barang:\n${barangList}`);
+        }
+        if (jasaItems.length > 0) {
+          sections.push(`Jasa:\n${jasaList}`);
         }
       }
-    }
-    const revisiText = changes.length > 0 ? `\n\nPerubahan oleh QC:\n${changes.join("\n")}` : "";
 
-    const statusLabel = status === "approved" ? "QC Approve" : "Revisi";
-    return `UPDATE QC\n\nStatus : ${statusLabel}\n\nTeknisi : ${service.teknisi_name || service.assigned_teknisi_name || "-"}\n\nStart : ${startDate}\n\nDone : ${doneDate}\n\nRincian Item\n\nBarang:\n${barangList}\n\nJasa:\n${jasaList}\n\nTotal : Rp${grandTotal.toLocaleString("id-ID")}${diskonText}${dpText}${kekuranganText}${qcNotes}${teknisiNotes}${revisiText}`;
-  };
+      let dpNominal = 0;
+      try {
+        const { data: dpData } = await supabase.from("layanan").select("nominal")
+          .eq("detail_sku", `DP - Invoice ${serviceDetails.invoice_number}`).maybeSingle();
+        if (dpData && dpData.nominal) {
+          dpNominal = dpData.nominal;
+        }
+      } catch (e) {
+        console.error("Error fetching DP for caption:", e);
+      }
+      if (dpNominal > 0) {
+        sections.push(`Dp : Rp${dpNominal.toLocaleString("id-ID")}`);
+      }
+      if (effectiveDiscount > 0) {
+        sections.push(`Diskon : Rp${effectiveDiscount.toLocaleString("id-ID")}`);
+      }
+      if (grandTotal > 0) {
+        sections.push(`Total : Rp${grandTotal.toLocaleString("id-ID")}`);
+      }
+
+      if (teknisiNotes) {
+        sections.push(`Keterangan Teknisi :\n${teknisiNotes}`);
+      }
+      if (currentReviewNotes.trim()) {
+        sections.push(`Keterangan QC:\n${currentReviewNotes.trim()}`);
+      }
+
+      return sections.filter(Boolean).join("\n\n");
+    };
+
 
   // ── Review action ──
   const handleReview = async (status: "approved" | "rejected") => {
@@ -299,7 +334,7 @@ export default function QCReviewModal({
 
           // Edit Telegram caption
           try {
-            const newCaption = await generateCaption(status); // Gunakan status dinamis
+            const newCaption = await generateCaption(newStatus, service, localItems, reviewNotes, effectiveDiscount);
             const editRes = await fetch("/api/telegram/edit-caption", {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ service_order_id: service.id, new_caption: newCaption, channel: "qc_update" }),
