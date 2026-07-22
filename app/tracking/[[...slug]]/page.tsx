@@ -74,6 +74,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackHover, setFeedbackHover] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
+  const [teknisiName, setTeknisiName] = useState("");
 
   const currentStep = useMemo(() => {
     if (!service) return 0;
@@ -101,6 +102,13 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       if (fetchError || !data) { setError("Token tidak valid."); setLoading(false); return; }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
       setService(data);
+
+      // Fetch teknisi name if assigned
+      if (data.assigned_teknisi_id) {
+        const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", data.assigned_teknisi_id).single();
+        setTeknisiName(profile?.full_name || "");
+      }
+
       const [itemsRes, timelineRes, docsRes, feedbackRes] = await Promise.all([
         supabase.from("service_items").select("*").eq("service_order_id", data.id),
         supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
@@ -139,6 +147,12 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       if (fetchError || !data) { setError("Token tidak valid. Silakan cek kembali."); setLoading(false); return; }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
       setService(data);
+
+      // Fetch teknisi name if assigned
+      if (data.assigned_teknisi_id) {
+        const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", data.assigned_teknisi_id).single();
+        setTeknisiName(profile?.full_name || "");
+      }
 
       const [itemsRes, timelineRes, docsRes, feedbackRes] = await Promise.all([
         supabase.from("service_items").select("*").eq("service_order_id", data.id),
@@ -381,14 +395,26 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                   <div className="grid grid-cols-2 gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
                     {service.watch_brand && <div><span className="text-xs text-slate-500">Brand:</span> <span className="font-semibold text-sm">{service.watch_brand}</span></div>}
                     {service.watch_model && <div><span className="text-xs text-slate-500">Model:</span> <span className="font-semibold text-sm">{service.watch_model}</span></div>}
+                    {service.watch_year && <div><span className="text-xs text-slate-500">Tahun:</span> <span className="font-semibold text-sm">{service.watch_year}</span></div>}
                     {service.watch_movement && <div className="flex items-center gap-1"><span className="text-xs text-slate-500">Movement:</span> {getMovementIcon(service.watch_movement)} <span className="font-semibold text-sm capitalize">{service.watch_movement}</span></div>}
                     {service.watch_condition && <div><span className="text-xs text-slate-500">Condition:</span> <span className="font-semibold text-sm capitalize">{service.watch_condition}</span></div>}
+                    {service.category && <div><span className="text-xs text-slate-500">Kategori:</span> <span className="font-semibold text-sm capitalize">{service.category}</span></div>}
                   </div>
                 )}
                 {service.serial_number && (
                   <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                     <Hash className="w-4 h-4 text-slate-400" />
                     <span className="text-sm text-slate-700">Serial: <span className="font-mono font-semibold">{service.serial_number}</span></span>
+                  </div>
+                )}
+                {service.watch_accessories?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-xs text-slate-500 w-full">Aksesoris:</span>
+                    {service.watch_accessories.map((acc: string, i: number) => (
+                      <span key={i} className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-600">
+                        {acc}
+                      </span>
+                    ))}
                   </div>
                 )}
                 <div>
@@ -400,6 +426,29 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
               </div>
             )}
           </motion.div>
+
+          {/* Teknisi Info */}
+          {teknisiName && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.22 }}
+              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                  <Wrench className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Teknisi</p>
+                  <p className="font-semibold text-slate-900">{teknisiName}</p>
+                  {service.start_date && <p className="text-xs text-slate-400">Mulai: {fmtDate(service.start_date)}</p>}
+                </div>
+                {service.work_duration && (
+                  <div className="ml-auto text-right">
+                    <p className="text-xs text-slate-500">Durasi</p>
+                    <p className="font-semibold text-sm text-slate-900">{service.work_duration}</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           {/* Initial Condition Photos */}
           {initialPhotos.length > 0 && (
@@ -467,11 +516,52 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                     </div>
                   ))}
                   <div className="flex justify-between items-center p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-md">
-                    <span>Total</span>
+                    <span>Total Biaya</span>
                     <span className="text-lg">{fmtRupiah(service.final_cost || service.estimated_cost || 0)}</span>
                   </div>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* Pembayaran */}
+          {(items.length > 0 || service.down_payment > 0 || service.discount > 0 || service.estimated_cost || service.final_cost) && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}
+              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 text-white" />
+                </div>
+                <h3 className="font-semibold text-sm text-slate-900">Rincian Pembayaran</h3>
+              </div>
+              <div className="space-y-2">
+                {items.length > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="font-semibold text-slate-900">{fmtRupiah(items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0))}</span></div>
+                )}
+                {service.down_payment > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">DP</span><span className="font-semibold text-emerald-600">-{fmtRupiah(service.down_payment)}</span></div>
+                )}
+                {service.discount > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Diskon</span><span className="font-semibold text-red-500">-{fmtRupiah(service.discount)}</span></div>
+                )}
+                {(service.estimated_cost || service.final_cost) && (
+                  <div className="border-t border-slate-100 pt-2 mt-2" />
+                )}
+                {service.estimated_cost && (
+                  <div className="flex justify-between text-sm"><span className="text-slate-400">Estimasi Biaya</span><span className="text-slate-600">{fmtRupiah(service.estimated_cost)}</span></div>
+                )}
+                {service.final_cost && (
+                  <div className="flex justify-between text-sm"><span className="text-slate-400">Biaya Final</span><span className="text-slate-600">{fmtRupiah(service.final_cost)}</span></div>
+                )}
+                <div className="h-px bg-slate-200" />
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-slate-700">Sisa yang harus dibayar</span>
+                  <span className="font-bold text-lg text-emerald-600">{fmtRupiah(Math.max(0, (service.final_cost || service.estimated_cost || items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0)) - (service.discount || 0) - (service.down_payment || 0)))}</span>
+                </div>
+                {(service.down_payment > 0 && Math.max(0, (service.final_cost || service.estimated_cost || items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0)) - (service.discount || 0) - (service.down_payment || 0)) === 0) && (
+                  <p className="text-xs text-emerald-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" />LUNAS</p>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -524,9 +614,15 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center border-2 border-white/30">
                 <CheckCircle className="w-6 h-6" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-lg font-bold">Service Selesai!</h3>
                 <p className="text-sm opacity-90">Jam tangan Anda sudah siap diambil. Bawa invoice dan token ini.</p>
+                {(service.warranty_months || service.warranty_expiry) && (
+                  <div className="flex items-center gap-3 mt-2 text-xs text-white/80">
+                    <span>Garansi: {service.warranty_months ? `${service.warranty_months} bulan` : ""}</span>
+                    {service.warranty_expiry && <span>Exp: {fmtDate(service.warranty_expiry)}</span>}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
