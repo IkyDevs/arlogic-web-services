@@ -45,6 +45,7 @@ import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
 import TransactionManagement from "@/components/layanan/TransactionManagement";
 import KaspinUpdate from "@/components/teknisi/KaspinUpdate";
+import DoneService from "@/components/admin/DoneService";
 import ThemeToggle from "@/components/ThemeToggle";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import toast from "react-hot-toast";
@@ -438,6 +439,7 @@ export default function TeknisiDashboard() {
     { id: "kaspin", label: "Kaspin", icon: Package },
     { id: "service", label: "Service Baru", icon: Wrench },
     { id: "layanan", label: "Transaksi", icon: FileText },
+    { id: "done", label: "Done", icon: CheckCircle },
   ];
 
   if (loading) {
@@ -1194,6 +1196,16 @@ export default function TeknisiDashboard() {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <TransactionManagement key={refreshLayanan} />
+              </motion.div>
+            )}
+            {activeTab === "done" && (
+              <motion.div
+                key="done"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <DoneService />
               </motion.div>
             )}
           </AnimatePresence>

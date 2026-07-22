@@ -22,6 +22,7 @@ import {
   Users,
   ShoppingCart,
   Shield,
+  CheckCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
@@ -44,6 +45,9 @@ const ServiceInput = dynamic(() => import("@/components/admin/ServiceInput"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
 });
 const RoleManagement = dynamic(() => import("@/components/admin/RoleManagement"), {
+  loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
+});
+const DoneService = dynamic(() => import("@/components/admin/DoneService"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
 });
 
@@ -246,6 +250,7 @@ export default function QCDashboard() {
     { id: "absensi", label: "Absensi", icon: Calendar },
     { id: "customer", label: "Customer", icon: Users },
     { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
+    { id: "done", label: "Done", icon: CheckCircle },
     { id: "service", label: "Service", icon: ClipboardCheck },
     { id: "users", label: "Users", icon: Shield },
   ];
@@ -378,6 +383,8 @@ export default function QCDashboard() {
             <ServiceList onAdd={() => setShowServiceForm(true)} />
           ) : activeTab === "users" ? (
             <RoleManagement />
+          ) : activeTab === "done" ? (
+            <DoneService />
           ) : (
             <>
               <QCStats
