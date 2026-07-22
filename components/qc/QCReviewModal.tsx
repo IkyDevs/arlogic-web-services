@@ -118,7 +118,7 @@ export default function QCReviewModal({
   const totalBeforeDiscount = subtotal;
   const effectiveDiscount = Math.min(discount, totalBeforeDiscount);
   const afterDiscount = totalBeforeDiscount - effectiveDiscount;
-  const dpValue = service?.down_payment && Number(service.down_payment) > 0 ? Number(service.down_payment) : 0;
+  const dpValue = Number(service?.down_payment) || 0;
   const grandTotal = Math.max(0, afterDiscount - dpValue);
   const discountPercent = totalBeforeDiscount > 0 ? Math.round((effectiveDiscount / totalBeforeDiscount) * 100) : 0;
 
@@ -491,7 +491,7 @@ export default function QCReviewModal({
               </div>
               <div className="flex justify-between">
                 <span className="text-[var(--color-text-secondary)]">DP Dibayar</span>
-                <span className="font-medium text-green-600">{dpValue > 0 ? formatRupiah(dpValue) : "Belum DP"}</span>
+                <span className="font-medium text-green-600">{service?.down_payment > 0 ? formatRupiah(Number(service.down_payment)) : "Belum DP"}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between">
