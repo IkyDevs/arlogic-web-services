@@ -418,8 +418,8 @@ export default function QueueList({
 
       const qcSubmittedItems = qcItems.map(item => ({
         ...item,
-        price: editingPrice[qcItems.indexOf(item)]?.price ?? item.price,
-        quantity: editingPrice[qcItems.indexOf(item)]?.quantity ?? item.quantity,
+        price: editingPrice[qcItems.indexOf(item)] ?? item.price,
+        quantity: item.quantity,
       }));
 
       const barangItems = qcSubmittedItems.filter((i) => i.item_type === "sparepart");

@@ -87,13 +87,25 @@ export default function QCReviewModal({
     ]);
     if (timelineRes.data) setTimeline(timelineRes.data);
     if (photosRes.data) setDocumentations(photosRes.data);
-    if (itemsRes.data) {
-      setServiceItems(itemsRes.data);
+      let technicianSubmittedItems = itemsRes.data || [];
+      // Extract spareparts from timeline events for informational purposes, but not for auto-merging into editable items
+      let timelineSparepartsForReference = (timelineRes.data || [])
+        .filter(t => t.details?.spareparts && Array.isArray(t.details.spareparts))
+        .flatMap(t => t.details.spareparts || []);
+  
+      // setServiceItems is used as a reference (e.g., for clearing draft)
+      setServiceItems(technicianSubmittedItems);
+  
       if (!draftData) {
-        setLocalItems(JSON.parse(JSON.stringify(itemsRes.data)));
+        // Initialize localItems (the editable list in QC modal) ONLY from technician's submitted items
+        setLocalItems(JSON.parse(JSON.stringify(technicianSubmittedItems))); // Deep copy to avoid direct state mutation
         setDiscount(service.discount || 0);
       }
-    }
+  // The timelineSparepartsForReference can be used to display a separate section in the UI
+  // if QC needs to be aware of items logged in timeline but not officially submitted.
+  //   }); 
+
+  //   initialLocalItemsForReview = Array.from(finalItemsMap.values());
   };
 
   const clearDraftData = () => {
@@ -170,7 +182,7 @@ export default function QCReviewModal({
     return `${days[dt.getDay()]}, ${dt.getDate()} ${months[dt.getMonth()]} (${String(dt.getMonth()+1).padStart(2,"0")}), ${dt.getFullYear()}`;
   };
 
-    const generateCaption = async (status: "approved" | "rejected", serviceDetails: any, items: any[], currentReviewNotes: string, currentDiscount: number) => {
+    const generateCaption = async (status: string, serviceDetails: any, items: any[], currentReviewNotes: string, currentDiscount: number) => {
       const now = new Date();
       const fmtDate = formatDateFull(now.toISOString());
       const allItems = items;
@@ -267,7 +279,7 @@ export default function QCReviewModal({
     }
     setProcessing(true);
     try {
-      if (status === "approved" && (localItems.length > 0 || timelineSpareparts.length > 0)) {
+      if (status === "approved" && localItems.length > 0) { 
         await supabase.from("service_items").delete().eq("service_order_id", service.id);
 
         const combinedItems = [
