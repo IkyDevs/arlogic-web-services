@@ -4,7 +4,7 @@ import { LayoutDashboard, ShoppingCart, ClipboardList } from "lucide-react";
 
 interface MobileBottomNavProps {
   activeTab: string;
-  onTabChange: (tab: string) => void;
+  setActiveTab: (tab: string) => void;
   homeTabId: string;
   homeLabel?: string;
   transactionTabId?: string;
@@ -15,7 +15,7 @@ interface MobileBottomNavProps {
 
 export default function MobileBottomNav({
   activeTab,
-  onTabChange,
+  setActiveTab,
   homeTabId,
   homeLabel = "Home",
   transactionTabId = "management-transaction",
@@ -37,7 +37,7 @@ export default function MobileBottomNav({
           return (
             <button
               key={tab.id}
-              onClick={() => onTabChange(tab.id)}
+              onClick={() => setActiveTab(tab.id)}
               aria-label={tab.ariaLabel}
               aria-current={isActive ? "page" : undefined}
               className={`flex flex-col items-center justify-center gap-0.5 w-full h-full rounded-lg transition-colors ${

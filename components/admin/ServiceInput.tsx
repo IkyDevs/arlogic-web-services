@@ -91,8 +91,12 @@ const STEP_LABELS = ["Customer", "Watch", "Photos", "Issue"];
 
 export default function ServiceInput({
   variant = "page",
+  onClose,
+  onSuccess,
 }: {
   variant?: "page" | "modal";
+  onClose?: () => void;
+  onSuccess?: () => void;
 }) {
   const supabase = createClient();
   const { user } = useAuthStore();
@@ -588,6 +592,7 @@ In : ${now}`;
       setSuccess(true);
       setStep(5);
       toast.success("Watch service order created!");
+      onSuccess?.();
 
       // Save to customers table + notify Telegram if new
       try {
@@ -672,6 +677,14 @@ In : ${now}`;
     <div
       className={`overflow-x-hidden ${variant === "modal" ? "" : "max-w-3xl mx-auto py-3 sm:py-4 px-0 sm:px-4"}`}
     >
+      {variant === "modal" && (
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors z-10"
+        >
+          <X className="w-4 h-4 text-gray-400" />
+        </button>
+      )}
       {variant === "page" && (
         <div className="flex items-center gap-3 mb-4 sm:mb-6 px-4 sm:px-0">
           <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">

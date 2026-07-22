@@ -470,7 +470,7 @@ export default function QCDashboard() {
       {/* Mobile Bottom Nav */}
       <MobileBottomNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        setActiveTab={setActiveTab}
         homeTabId="all"
         transactionTabId="management-transaction"
         serviceTabId="service"

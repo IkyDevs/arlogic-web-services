@@ -1362,18 +1362,16 @@ export default function AdminDashboard() {
       )}
 
       {/* Mobile Bottom Nav */}
-      <MobileBottomNav
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        unreadCount={unreadCount}
-        handleAttendance={() => handleAttendance("check_in")}
-        todayAttendance={todayAttendance}
-      />
+<MobileBottomNav
+  activeTab={activeTab}
+  setActiveTab={setActiveTab}
+  homeTabId="transaction"
+  serviceTabId="services"
+/>
 
       {/* Layanan Form */}
       {showLayananForm && (
         <LayananForm
-          isOpen={showLayananForm}
           onClose={() => setShowLayananForm(false)}
           onSuccess={handleLayananSuccess}
         />
@@ -1382,10 +1380,9 @@ export default function AdminDashboard() {
       {/* Service Input Form */}
       {showServiceForm && (
         <ServiceInput
-          isOpen={showServiceForm}
+          variant="modal"
           onClose={() => setShowServiceForm(false)}
           onSuccess={() => {
-            setShowServiceForm(false);
             fetchRecentServices();
             fetchStats();
             toast.success("Service berhasil ditambahkan!");
