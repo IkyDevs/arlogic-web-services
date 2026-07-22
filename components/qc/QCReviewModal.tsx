@@ -88,14 +88,10 @@ export default function QCReviewModal({
     if (timelineRes.data) setTimeline(timelineRes.data);
     if (photosRes.data) setDocumentations(photosRes.data);
       let technicianSubmittedItems = itemsRes.data || [];
-      // Extract spareparts from timeline events for informational purposes, but not for auto-merging into editable items
-      let timelineSparepartsForReference = (timelineRes.data || [])
-        .filter(t => t.details?.spareparts && Array.isArray(t.details.spareparts))
-        .flatMap(t => t.details.spareparts || []);
-  
+
       // setServiceItems is used as a reference (e.g., for clearing draft)
       setServiceItems(technicianSubmittedItems);
-  
+
       if (!draftData) {
         // Initialize localItems (the editable list in QC modal) ONLY from technician's submitted items
         setLocalItems(JSON.parse(JSON.stringify(technicianSubmittedItems))); // Deep copy to avoid direct state mutation
@@ -119,11 +115,11 @@ export default function QCReviewModal({
 
   // ── Calculations ──
   const subtotal = localItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
-  const timelineSpareparts = timeline.filter(t => t.details?.spareparts && Array.isArray(t.details.spareparts)).flatMap(t => t.details.spareparts || []);
-  const timelineSparepartCost = timelineSpareparts.reduce((sum, t) => sum + (t.price || 0) * (t.qty || 1), 0);
-  const totalBeforeDiscount = subtotal + timelineSparepartCost;
+  const totalBeforeDiscount = subtotal;
   const effectiveDiscount = Math.min(discount, totalBeforeDiscount);
-  const grandTotal = Math.max(0, totalBeforeDiscount - effectiveDiscount);
+  const afterDiscount = totalBeforeDiscount - effectiveDiscount;
+  const dpValue = service?.down_payment && Number(service.down_payment) > 0 ? Number(service.down_payment) : 0;
+  const grandTotal = Math.max(0, afterDiscount - dpValue);
   const discountPercent = totalBeforeDiscount > 0 ? Math.round((effectiveDiscount / totalBeforeDiscount) * 100) : 0;
 
   // ── Item editing ──
@@ -200,7 +196,7 @@ export default function QCReviewModal({
 
       const subtotal = allItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
       const effectiveDiscount = Math.min(currentDiscount, subtotal);
-      const grandTotal = Math.max(0, subtotal - effectiveDiscount);
+      const grandTotal = Math.max(0, subtotal - effectiveDiscount - dpValue);
 
       const barangItems = allItems.filter((i) => i.item_type === "sparepart");
       const jasaItems = allItems.filter((i) => i.item_type === "jasa");
@@ -239,18 +235,8 @@ export default function QCReviewModal({
         }
       }
 
-      let dpNominal = 0;
-      try {
-        const { data: dpData } = await supabase.from("layanan").select("nominal")
-          .eq("detail_sku", `DP - Invoice ${serviceDetails.invoice_number}`).maybeSingle();
-        if (dpData && dpData.nominal) {
-          dpNominal = dpData.nominal;
-        }
-      } catch (e) {
-        console.error("Error fetching DP for caption:", e);
-      }
-      if (dpNominal > 0) {
-        sections.push(`Dp : Rp${dpNominal.toLocaleString("id-ID")}`);
+      if (dpValue > 0) {
+        sections.push(`Dp : Rp${dpValue.toLocaleString("id-ID")}`);
       }
       if (effectiveDiscount > 0) {
         sections.push(`Diskon : Rp${effectiveDiscount.toLocaleString("id-ID")}`);
@@ -282,16 +268,7 @@ export default function QCReviewModal({
       if (status === "approved" && localItems.length > 0) { 
         await supabase.from("service_items").delete().eq("service_order_id", service.id);
 
-        const combinedItems = [
-          ...localItems,
-          ...timelineSpareparts.map((sp: any) => ({
-            name: sp.name,
-            price: sp.price,
-            quantity: sp.qty || 1, // Use qty from timeline sparepart if available, else 1
-            item_type: "sparepart",
-            notes: sp.notes || null, // Preserve notes if available
-          })),
-        ];
+        const combinedItems = localItems;
 
         const insertItems = combinedItems.map((item: any) => ({
           service_order_id: service.id, name: item.name, price: item.price,
@@ -474,7 +451,16 @@ export default function QCReviewModal({
             <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
               <div className="flex items-center gap-2 mb-3"><Watch className="w-4 h-4 text-[var(--color-accent)]" /><h4 className="text-sm font-semibold text-[var(--color-text)]">Watch</h4></div>
               <div className="space-y-2 text-sm">
-                {[{ label: "Brand", value: service.watch_brand || service.device_brand || "-" }, { label: "Model", value: service.watch_model || service.device_model || "-" }, { label: "Movement", value: service.watch_movement || "-" }, { label: "Condition", value: service.watch_condition || "-" }].map((d) => (
+                {[
+                  { label: "Brand", value: service.watch_brand || service.device_brand || "-" },
+                  { label: "Model", value: service.watch_model || service.device_model || "-" },
+                  { label: "Tahun", value: service.watch_year || "-" },
+                  { label: "Movement", value: service.watch_movement || "-" },
+                  { label: "Condition", value: service.watch_condition || "-" },
+                  { label: "Serial No.", value: service.watch_serial_number || service.serial_number || "-" },
+                  { label: "Kategori", value: service.category || service.device_type || "-" },
+                  { label: "Aksesoris", value: service.watch_accessories?.length ? service.watch_accessories.join(", ") : "-" },
+                ].map((d) => (
                   <div key={d.label} className="flex justify-between"><span className="text-[var(--color-text-secondary)]">{d.label}</span><span className="font-medium text-[var(--color-text)] capitalize">{d.value}</span></div>
                 ))}
               </div>
@@ -491,16 +477,118 @@ export default function QCReviewModal({
             </div>
           </div>
 
+          {/* Pembayaran */}
+          <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
+            <div className="flex items-center gap-2 mb-3"><DollarSign className="w-4 h-4 text-[var(--color-accent)]" /><h4 className="text-sm font-semibold text-[var(--color-text)]">Pembayaran</h4></div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[var(--color-text-secondary)]">Estimasi Biaya</span>
+                <span className="font-medium text-[var(--color-text)]">{service.estimated_cost ? formatRupiah(service.estimated_cost) : "-"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--color-text-secondary)]">Total Item</span>
+                <span className="font-medium text-[var(--color-text)]">{formatRupiah(totalBeforeDiscount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--color-text-secondary)]">DP Dibayar</span>
+                <span className="font-medium text-green-600">{dpValue > 0 ? formatRupiah(dpValue) : "Belum DP"}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-text-secondary)]">Diskon</span>
+                  <span className="font-medium text-red-500">-{formatRupiah(effectiveDiscount)} ({discountPercent}%)</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-base font-bold pt-2 border-t border-[var(--color-border)]">
+                <span>Sisa yang harus dibayar</span>
+                <span className="text-[var(--color-accent)]">{formatRupiah(grandTotal)}</span>
+              </div>
+              {dpValue > 0 && grandTotal <= 0 && (
+                <p className="text-xs text-green-600 font-medium">LUNAS — DP sudah mencakup seluruh biaya</p>
+              )}
+            </div>
+          </div>
+
           {/* Service Details */}
           <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
             <div className="flex items-center gap-2 mb-3"><FileText className="w-4 h-4 text-[var(--color-accent)]" /><h4 className="text-sm font-semibold text-[var(--color-text)]">Service Details</h4></div>
             <div className="space-y-3 text-sm">
               <div><p className="text-[var(--color-text-secondary)] mb-1">Issue</p><p className="text-[var(--color-text)] bg-[var(--color-card)] p-2 rounded border border-[var(--color-border)]">{service.issue_description}</p></div>
               {service.request && <div><p className="text-[var(--color-text-secondary)] mb-1">Customer Request</p><p className="text-[var(--color-text)] bg-[var(--color-card)] p-2 rounded border border-[var(--color-border)]">{service.request}</p></div>}
+              {service.notes && <div><p className="text-[var(--color-text-secondary)] mb-1">Catatan</p><p className="text-[var(--color-text)] bg-[var(--color-card)] p-2 rounded border border-[var(--color-border)]">{service.notes}</p></div>}
               {service.completion_notes && <div><p className="text-[var(--color-text-secondary)] mb-1">Completion Notes</p><p className="text-[var(--color-text)] bg-[var(--color-card)] p-2 rounded border border-[var(--color-border)]">{service.completion_notes}</p></div>}
               {service.qc_submit_notes && <div><p className="text-[var(--color-text-secondary)] mb-1">Catatan Teknisi</p><p className="text-[var(--color-text)] bg-[var(--color-card)] p-2 rounded border border-[var(--color-border)]">{service.qc_submit_notes}</p></div>}
+              {(service.warranty_months || service.warranty_expiry) && (
+                <div className="flex gap-4 pt-1 border-t border-[var(--color-border)]">
+                  {service.warranty_months && <div><p className="text-[var(--color-text-secondary)] text-xs">Garansi</p><p className="font-medium text-[var(--color-text)]">{service.warranty_months} bulan</p></div>}
+                  {service.warranty_expiry && <div><p className="text-[var(--color-text-secondary)] text-xs">Garansi Expiry</p><p className="font-medium text-[var(--color-text)]">{formatDate(service.warranty_expiry)}</p></div>}
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Original Technician Items — read-only reference */}
+          {serviceItems.length > 0 && (
+            <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)] border-l-4 border-l-amber-400">
+              <div className="flex items-center gap-2 mb-3">
+                <Package className="w-4 h-4 text-amber-500" />
+                <h4 className="text-sm font-semibold text-[var(--color-text)]">Item dari Teknisi ({serviceItems.length})</h4>
+                <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Original</span>
+              </div>
+              <div className="space-y-1.5">
+                {serviceItems.map((item, index) => {
+                  const isDeleted = !localItems.some((li) => li.id === item.id && li.name === item.name);
+                  const modifiedItem = localItems.find((li) => li.id === item.id && li.name === item.name);
+                  const priceChanged = modifiedItem && modifiedItem.price !== item.price;
+                  const qtyChanged = modifiedItem && modifiedItem.quantity !== item.quantity;
+                  return (
+                    <div key={item.id || index}
+                      className={`flex items-center justify-between p-2 rounded border gap-2 ${
+                        isDeleted
+                          ? "bg-red-50 border-red-200 line-through opacity-60"
+                          : priceChanged || qtyChanged
+                          ? "bg-amber-50 border-amber-200"
+                          : "bg-[var(--color-card)] border-[var(--color-border)]"
+                      }`}>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0 ${item.item_type === "jasa" ? "bg-pink-100 text-pink-700" : "bg-purple-100 text-purple-700"}`}>
+                          {item.item_type === "jasa" ? "JASA" : "SPR"}
+                        </span>
+                        <span className="text-sm font-medium truncate text-[var(--color-text)]">{item.name}</span>
+                        <span className="text-xs text-[var(--color-text-tertiary)] flex-shrink-0">{item.quantity}x</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs font-semibold text-[var(--color-text)]">
+                          {formatRupiah((item.price || 0) * (item.quantity || 1))}
+                        </span>
+                        {isDeleted && <span className="text-[10px] text-red-600 font-medium">Dihapus</span>}
+                        {priceChanged && <span className="text-[10px] text-amber-600 font-medium">Harga berubah</span>}
+                        {qtyChanged && !priceChanged && <span className="text-[10px] text-amber-600 font-medium">Qty berubah</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {localItems.some((li) => li.id?.toString().startsWith("custom_")) && (
+                <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                  <span className="font-medium">*</span> Item baru yang ditambahkan QC tidak muncul di daftar ini
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* PO Info */}
+          {(service.po_status || service.po_sparepart) && (
+            <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
+              <div className="flex items-center gap-2 mb-3"><Package className="w-4 h-4 text-orange-500" /><h4 className="text-sm font-semibold text-[var(--color-text)]">Purchase Order</h4></div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {service.po_status && <div><p className="text-[var(--color-text-secondary)]">Status PO</p><p className="font-medium text-[var(--color-text)]">{service.po_status}</p></div>}
+                {service.po_sparepart && <div><p className="text-[var(--color-text-secondary)]">Sparepart PO</p><p className="font-medium text-[var(--color-text)]">{service.po_sparepart}</p></div>}
+                {service.po_requested_at && <div><p className="text-[var(--color-text-secondary)]">Requested At</p><p className="font-medium text-[var(--color-text)]">{formatDate(service.po_requested_at)}</p></div>}
+                {service.po_admin_response && <div><p className="text-[var(--color-text-secondary)]">Admin Response</p><p className="font-medium text-[var(--color-text)]">{service.po_admin_response}</p></div>}
+              </div>
+            </div>
+          )}
 
           {/* Service Items — editable with discount */}
           <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
@@ -567,6 +655,12 @@ export default function QCReviewModal({
                     <span>Subtotal</span>
                     <span>{formatRupiah(totalBeforeDiscount)}</span>
                   </div>
+                  {dpValue > 0 && (
+                    <div className="flex justify-between items-center text-sm opacity-80">
+                      <span>DP</span>
+                      <span>-{formatRupiah(dpValue)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center gap-2">
                     <span className="text-sm font-medium">Diskon</span>
                     <div className="flex items-center gap-1">
@@ -577,7 +671,7 @@ export default function QCReviewModal({
                     </div>
                   </div>
                   <div className="flex justify-between items-center text-lg font-bold pt-1 border-t border-white/20">
-                    <span>Grand Total</span>
+                    <span>Sisa yang harus dibayar</span>
                     <span>{formatRupiah(grandTotal)}</span>
                   </div>
                 </div>
