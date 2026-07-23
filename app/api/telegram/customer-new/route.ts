@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { customerNewSchema } from "@/lib/validation/schemas";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const CHANNEL_CUSTOMER = process.env.TELEGRAM_CHANNEL_CUSTOMER!;
 
@@ -14,21 +14,16 @@ function formatName(name: string, phone: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, phone } = await request.json();
-    if (!name || !phone) {
-      return NextResponse.json({ error: "name and phone required" }, { status: 400 });
-    }
+    const body = await request.json();
+    const parsed = customerNewSchema.parse(body);
 
-    const cleanPhone = phone.replace(/\D/g, "");
+    const cleanPhone = parsed.phone.replace(/\D/g, "");
     if (!cleanPhone) {
       return NextResponse.json({ error: "invalid phone" }, { status: 400 });
     }
 
-    const supabase = await import("@supabase/supabase-js").then((m) =>
-      m.createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
-    );
+    const supabase = getSupabaseAdmin() as any;
 
-    // Check if customer exists in customers table
     const { data: existing } = await supabase
       .from("customers")
       .select("id, name")
@@ -36,7 +31,6 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      // Update last_transaction
       await supabase
         .from("customers")
         .update({ last_transaction: new Date().toISOString() })
@@ -45,21 +39,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: "existing", name: existing.name });
     }
 
-    // New customer — format name with last 4 digits
-    const formattedName = formatName(name, cleanPhone);
+    const formattedName = formatName(parsed.name, cleanPhone);
 
-    // Insert into customers table
     await supabase.from("customers").insert({
       name: formattedName,
       phone: cleanPhone,
     });
 
-    // Send to Telegram
     if (TELEGRAM_BOT_TOKEN && CHANNEL_CUSTOMER) {
-      const msg = `CUSTOMER BARU 
-nama cs: ${formattedName}
-no. wa: ${cleanPhone}`;
-
+      const msg = `CUSTOMER BARU \nnama cs: ${formattedName}\nno. wa: ${cleanPhone}`;
       await fetch(
         `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
         {
@@ -72,7 +60,7 @@ no. wa: ${cleanPhone}`;
 
     return NextResponse.json({ status: "new", name: formattedName, sent: true });
   } catch (e: any) {
-    console.error("❌ customer-new error:", e.message);
+    console.error("[Customer New Error]", e.message);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

@@ -10,15 +10,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user role
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    // If owner or admin, return all records
-    // Otherwise return only own records or assigned records
     let query = supabase
       .from('layanan')
       .select(`
@@ -28,10 +25,7 @@ export async function GET(request: NextRequest) {
       `)
       .order('created_at', { ascending: false })
 
-    if (profile?.role === 'owner' || profile?.role === 'admin') {
-      // Return all
-    } else {
-      // Return only own records
+    if (profile?.role !== 'owner' && profile?.role !== 'admin') {
       query = query.or(`created_by.eq.${user.id},handled_by.eq.${user.id}`)
     }
 
@@ -43,6 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data })
   } catch (error: any) {
+    console.error('[Layanan GET Error]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
@@ -69,7 +64,6 @@ export async function POST(request: NextRequest) {
       nominal
     } = body
 
-    // Validate required fields
     if (!customer_name || !jenis_layanan) {
       return NextResponse.json({
         error: 'Customer name and service type are required'
@@ -99,6 +93,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
+    console.error('[Layanan POST Error]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
@@ -119,25 +114,22 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Transaction ID is required' }, { status: 400 })
     }
 
-    // Check if user has permission to edit this transaction
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    // Get the existing transaction
-    const { data: existing, error: fetchError } = await supabase
+    const { data: existing } = await supabase
       .from('layanan')
       .select('*')
       .eq('id', id)
       .single()
 
-    if (fetchError || !existing) {
+    if (!existing) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
     }
 
-    // Check permission: owner/admin can edit all, others can only edit their own
     const isOwnerOrAdmin = profile?.role === 'owner' || profile?.role === 'admin'
     const isCreator = existing.created_by === user.id
     const isHandler = existing.handled_by === user.id
@@ -146,17 +138,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 })
     }
 
-    // Prepare update data - remove undefined values
-    const cleanData: any = {}
-    Object.entries(updateData).forEach(([key, value]) => {
-      if (value !== undefined) {
-        cleanData[key] = value
-      }
-    })
-
-    // Handle nominal conversion
+    const cleanData: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(updateData)) {
+      if (value !== undefined) cleanData[key] = value
+    }
     if (cleanData.nominal !== undefined) {
-      cleanData.nominal = parseFloat(cleanData.nominal) || 0
+      cleanData.nominal = parseFloat(cleanData.nominal as string) || 0
     }
 
     const { data, error } = await supabase
@@ -172,8 +159,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
+    console.error('[Layanan PUT Error]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
-
-

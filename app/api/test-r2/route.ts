@@ -22,7 +22,7 @@ export async function GET() {
       endpoint: process.env.R2_ENDPOINT
     })
   } catch (error: any) {
-    console.error('R2 test error:', error)
+    console.error('[R2 Test Error]', error)
     return NextResponse.json({
       success: false,
       error: error.message,

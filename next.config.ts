@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   images: {
@@ -13,9 +14,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Moved from experimental.serverComponentsExternalPackages (Next.js 15+)
   serverExternalPackages: ["sharp"],
   compress: true,
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
+});

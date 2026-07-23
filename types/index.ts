@@ -151,6 +151,8 @@ export interface ServiceDocumentation {
   photo_url: string;
   stage: string;
   uploaded_by: string;
+  telegram_chat_id?: string;
+  telegram_message_id?: number;
   created_at: string;
 }
 

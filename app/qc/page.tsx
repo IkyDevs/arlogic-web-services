@@ -23,6 +23,7 @@ import {
   ShoppingCart,
   Shield,
   CheckCircle,
+  Loader,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
@@ -268,10 +269,22 @@ export default function QCDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-600 dark:text-slate-400 font-medium">
-            Loading...
+        <div className="text-center w-full max-w-lg px-4 space-y-4">
+          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-6 border border-gray-200 dark:border-white/10 shadow-sm">
+            <div className="h-8 w-48 bg-gray-200 dark:bg-white/5 rounded animate-pulse mx-auto mb-4" />
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-16 bg-gray-200 dark:bg-white/5 rounded-xl animate-pulse" />
+              ))}
+            </div>
+            <div className="space-y-3">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="h-20 bg-gray-200 dark:bg-white/5 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+          <p className="text-sm text-slate-400 flex items-center justify-center gap-2">
+            <Loader className="w-4 h-4 animate-spin" /> Memuat data QC...
           </p>
         </div>
       </div>

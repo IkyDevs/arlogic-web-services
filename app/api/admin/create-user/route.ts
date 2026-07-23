@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
+import { createUserSchema } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
   try {
-    // CSRF & rate limit checks
     if (!validateOrigin(request)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -14,40 +15,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
 
-    const { email, password, full_name, role, gender } = await request.json()
+    const body = await request.json()
+    const parsed = createUserSchema.parse(body)
 
-    // Validate inputs
-    if (!email || !password || !full_name || !role) {
-      return NextResponse.json(
-        { error: 'All fields are required' },
-        { status: 400 }
-      )
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
-        { status: 400 }
-      )
-    }
-
-    const validRoles = ['admin', 'teknisi', 'supervisor', 'owner', 'customer']
-    const validGenders = ['male', 'female', 'other']
-    if (!validRoles.includes(role)) {
-      return NextResponse.json(
-        { error: 'Invalid role' },
-        { status: 400 }
-      )
-    }
-    const normalizedGender = typeof gender === 'string' ? gender.toLowerCase() : 'other'
-    if (!validGenders.includes(normalizedGender)) {
-      return NextResponse.json(
-        { error: 'Invalid gender' },
-        { status: 400 }
-      )
-    }
-
-    // Verify caller is admin
     const supabase = await createClient()
     const { data: { user: callerUser } } = await supabase.auth.getUser()
 
@@ -65,20 +35,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
-    // Use service role client for admin operations
-    const { createClient: createAdminClient } = await import('@supabase/supabase-js')
-    const adminClient = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const adminClient = getSupabaseAdmin()
 
-    // Create auth user with admin API (no email confirmation needed)
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email,
-      password,
+      email: parsed.email,
+      password: parsed.password,
       email_confirm: true,
-      user_metadata: { full_name, role },
+      user_metadata: { full_name: parsed.full_name, role: parsed.role },
     })
 
     if (authError) {
@@ -89,15 +52,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create auth user' }, { status: 500 })
     }
 
-    // Create/update profile
-    const { error: profileError } = await adminClient
-      .from('profiles')
+    const { error: profileError } = await (adminClient
+      .from('profiles') as any)
       .upsert({
         id: authData.user.id,
-        email,
-        full_name,
-        role,
-        gender: normalizedGender,
+        email: parsed.email,
+        full_name: parsed.full_name,
+        role: parsed.role,
+        gender: parsed.gender,
       })
 
     if (profileError) {
@@ -110,10 +72,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      user: { id: authData.user.id, email, full_name, role }
+      user: { id: authData.user.id, email: parsed.email, full_name: parsed.full_name, role: parsed.role }
     })
   } catch (err: any) {
-    console.error('Create user error:', err)
+    console.error('[Create User Error]', err)
     return NextResponse.json(
       { error: err.message || 'Internal server error' },
       { status: 500 }

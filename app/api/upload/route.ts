@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { uploadMultipleToTelegram } from '@/lib/telegram'
 import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
+import { uploadSchema, UploadType } from '@/lib/validation/schemas'
 
 const BUCKET_NAME = 'uploads';
 
@@ -32,16 +33,8 @@ const CHANNEL_MAP: Record<string, 'attendance' | 'service' | 'layanan' | 'invent
   qc_update: 'qc_update',
 };
 
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-}
-
 async function ensureBucket() {
   const sb = getSupabaseAdmin();
-  if (!sb) return false;
   try {
     const { data: buckets } = await sb.storage.listBuckets();
     if (!buckets?.find(b => b.name === BUCKET_NAME)) {
@@ -55,7 +48,6 @@ async function ensureBucket() {
 
 async function uploadToSupabase(buffer: Buffer, fileName: string): Promise<string | null> {
   const sb = getSupabaseAdmin();
-  if (!sb) return null;
   try {
     await ensureBucket();
     const { data } = await sb.storage.from(BUCKET_NAME).upload(fileName, buffer, {
@@ -71,8 +63,15 @@ async function uploadToSupabase(buffer: Buffer, fileName: string): Promise<strin
   }
 }
 
+const MAX_BODY_SIZE = 10 * 1024 * 1024;
+
 export async function POST(request: NextRequest) {
   try {
+    const contentLength = parseInt(request.headers.get('content-length') || '0', 10);
+    if (contentLength > MAX_BODY_SIZE) {
+      return NextResponse.json({ error: `Request body terlalu besar (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maksimal 10MB.` }, { status: 413 })
+    }
+
     if (!validateOrigin(request)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -116,6 +115,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const typeResult = UploadType.safeParse(type);
+    const channelType = typeResult.success ? typeResult.data : 'service';
+
     const sharp = await getSharp();
     const processedFiles: Array<{ buffer: Buffer; name: string }> = [];
     const timestamp = Date.now();
@@ -130,12 +132,11 @@ export async function POST(request: NextRequest) {
             const optimized = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
             processedFiles.push({ buffer: optimized, name: `${type}/${timestamp}_${Math.random().toString(36).substring(2, 8)}.jpg` });
             continue;
-          } catch { /* fallback to original */ }
+          } catch { }
         }
 
         processedFiles.push({ buffer, name: `${type}/${timestamp}_${Math.random().toString(36).substring(2, 8)}.jpg` });
       } catch {
-        // skip failed file
       }
     }
 
@@ -143,7 +144,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal memproses file' }, { status: 500 })
     }
 
-    const channelType = CHANNEL_MAP[type] || 'service';
     const telegramResults = await uploadMultipleToTelegram(processedFiles, caption, channelType);
 
     if (telegramResults.length === 0) {
@@ -151,16 +151,30 @@ export async function POST(request: NextRequest) {
     }
 
     if (telegramResults.length < processedFiles.length) {
-      console.warn(`⚠️ Only ${telegramResults.length}/${processedFiles.length} photos uploaded to Telegram`);
+      console.warn(`Only ${telegramResults.length}/${processedFiles.length} photos uploaded to Telegram`);
     }
 
-    // Upload to Supabase Storage for permanent URLs (fallback to Telegram URL if fails)
     const supabaseUrls: (string | null)[] = await Promise.all(
       processedFiles.map((f) => uploadToSupabase(f.buffer, f.name))
     );
 
     const permanentUrls = supabaseUrls.map((u, i) => u || telegramResults[i]?.url || '');
     const fileIds = telegramResults.map(r => r.file_id || '');
+
+    // Save to photos table for keep-alive tracking
+    const sb = getSupabaseAdmin();
+    const photoRecords = processedFiles.map((f, i) => ({
+      file_id: telegramResults[i]?.file_id || '',
+      file_unique_id: '',
+      file_size: f.buffer.length,
+      photo_data: f.buffer.toString('base64'),
+      filename: f.name,
+      stage: type,
+      uploaded_by: null,
+    }));
+    (sb.from('photos') as any).insert(photoRecords).then().catch((e: any) => {
+      console.warn('[Upload] Failed to save photo records:', e.message);
+    });
 
     return NextResponse.json({
       success: true,
@@ -170,7 +184,7 @@ export async function POST(request: NextRequest) {
       messages: telegramResults.map(r => ({ chat_id: r.chat_id, message_id: r.message_id })),
       count: telegramResults.length,
       storage: 'supabase',
-      channel: channelType,
+      channel: type,
     });
   } catch (error: any) {
     const msg = error?.message || '';
@@ -180,6 +194,7 @@ export async function POST(request: NextRequest) {
     if (msg.includes('timeout') || msg.includes('abort')) {
       return NextResponse.json({ error: 'Koneksi ke Telegram timeout. Coba lagi.' }, { status: 504 })
     }
+    console.error('[Upload API Error]', error)
     return NextResponse.json({ error: 'Upload gagal', details: msg }, { status: 500 });
   }
 }

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { validateOrigin } from "@/lib/csrf";
 import { rateLimitIP } from "@/lib/rate-limit";
+import { closingSchema } from "@/lib/validation/schemas";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const CHANNEL_CLOSING = process.env.TELEGRAM_CHANNEL_CLOSING;
 
-// Create table script for manual setup in Supabase SQL editor
 export const CREATE_TABLE_SQL = `CREATE TABLE IF NOT EXISTS closings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   closing_date DATE NOT NULL,
@@ -29,15 +28,10 @@ export const CREATE_TABLE_SQL = `CREATE TABLE IF NOT EXISTS closings (
 );
 CREATE INDEX IF NOT EXISTS idx_closings_date ON closings(closing_date);
 CREATE INDEX IF NOT EXISTS idx_closings_status ON closings(status);
-
--- Grant access (service_role bypasses RLS but this ensures anon can too)
 ALTER TABLE closings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Full access via service_role" ON closings USING (true) WITH CHECK (true);`;
 
-// Use service_role to bypass RLS
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-const CHANNEL_CLOSING = process.env.TELEGRAM_CHANNEL_CLOSING;
+const supabase = getSupabaseAdmin();
 
 function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -65,13 +59,8 @@ ${paymentLines}
 status : ${diffStatus}
 owner : ${ownerStatus}`;
 
-  if (closing.admin_notes) {
-    msg += `\nnotes: ${closing.admin_notes}`;
-  }
-  if (closing.difference_notes) {
-    msg += `\ncatatan selisih: ${closing.difference_notes}`;
-  }
-
+  if (closing.admin_notes) msg += `\nnotes: ${closing.admin_notes}`;
+  if (closing.difference_notes) msg += `\ncatatan selisih: ${closing.difference_notes}`;
   return msg;
 }
 
@@ -80,22 +69,12 @@ async function sendTelegramMessage(text: string): Promise<{ chat_id: string; mes
   try {
     const res = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: CHANNEL_CLOSING, text, parse_mode: "HTML" }),
-      }
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: CHANNEL_CLOSING, text, parse_mode: "HTML" }) }
     );
     const data = await res.json();
-    if (!data.ok) {
-      console.error("❌ Telegram sendMessage error:", data.description);
-      return null;
-    }
+    if (!data.ok) { console.error("Telegram sendMessage error:", data.description); return null; }
     return { chat_id: String(data.result.chat.id), message_id: data.result.message_id };
-  } catch (e: any) {
-    console.error("❌ Telegram sendMessage failed:", e.message);
-    return null;
-  }
+  } catch (e: any) { console.error("Telegram sendMessage failed:", e.message); return null; }
 }
 
 async function editTelegramMessage(chatId: string, messageId: number, text: string): Promise<boolean> {
@@ -103,67 +82,46 @@ async function editTelegramMessage(chatId: string, messageId: number, text: stri
   try {
     const res = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, message_id: messageId, text, parse_mode: "HTML" }),
-      }
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: chatId, message_id: messageId, text, parse_mode: "HTML" }) }
     );
     const data = await res.json();
-    if (!data.ok) {
-      console.error("❌ Telegram editMessageText error:", data.description);
-      return false;
-    }
+    if (!data.ok) { console.error("Telegram editMessageText error:", data.description); return false; }
     return true;
-  } catch (e: any) {
-    console.error("❌ Telegram editMessageText failed:", e.message);
-    return false;
-  }
+  } catch (e: any) { console.error("Telegram editMessageText failed:", e.message); return false; }
 }
 
 async function handleAction(action: string, payload: any) {
+  const closings = () => supabase.from("closings") as any;
+
   switch (action) {
     case "create": {
-      const { data, error } = await supabase.from("closings").insert(payload.data).select().single();
+      const { data, error } = await closings().insert(payload.data).select().single();
       if (error) throw error;
 
-      // Send to Telegram
       const msg = buildClosingMessage(data);
       const tgRef = await sendTelegramMessage(msg);
       if (tgRef) {
-        const { error: updateErr } = await supabase
-          .from("closings")
-          .update({ telegram_chat_id: tgRef.chat_id, telegram_message_id: tgRef.message_id })
-          .eq("id", data.id);
-        if (!updateErr) data.telegram_chat_id = tgRef.chat_id;
-        if (!updateErr) data.telegram_message_id = tgRef.message_id;
+        await closings().update({ telegram_chat_id: tgRef.chat_id, telegram_message_id: tgRef.message_id }).eq("id", data.id);
       }
-
       return data;
     }
     case "approve": {
-      const { data, error } = await supabase
-        .from("closings")
+      const { data, error } = await closings()
         .update({ status: "approved", admin_notes: payload.admin_notes || null, updated_at: new Date().toISOString() })
         .eq("id", payload.id)
         .select()
         .single();
       if (error) throw error;
 
-      // Edit Telegram caption if we have the message reference
       if (data.telegram_chat_id && data.telegram_message_id) {
-        const msg = buildClosingMessage(data);
-        await editTelegramMessage(data.telegram_chat_id, data.telegram_message_id, msg);
+        await editTelegramMessage(data.telegram_chat_id, data.telegram_message_id, buildClosingMessage(data));
       } else {
-        // Fallback: send new message
-        const msg = buildClosingMessage(data);
-        await sendTelegramMessage(msg);
+        await sendTelegramMessage(buildClosingMessage(data));
       }
-
       return data;
     }
     case "list": {
-      const { data, error } = await supabase.from("closings").select("*").order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await closings().select("*").order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
       return data;
     }
@@ -174,7 +132,6 @@ async function handleAction(action: string, payload: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    // CSRF & rate limit checks
     if (!validateOrigin(req)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
@@ -184,10 +141,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const result = await handleAction(body.action, body);
+    const parsed = closingSchema.parse(body);
+    const result = await handleAction(parsed.action, body);
     return NextResponse.json({ success: true, data: result });
   } catch (error: any) {
-    // If table doesn't exist, provide setup instructions
     if (error.message?.includes("relation") && error.message?.includes("does not exist")) {
       return NextResponse.json({
         success: false,
@@ -196,12 +153,11 @@ export async function POST(req: NextRequest) {
         sql: CREATE_TABLE_SQL,
       }, { status: 200 });
     }
-    console.error("Closing API error:", error);
+    console.error("[Closing API Error]", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-// GET endpoint to return the SQL for setup
 export async function GET() {
   return NextResponse.json({ sql: CREATE_TABLE_SQL });
 }

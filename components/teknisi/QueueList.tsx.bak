@@ -40,7 +40,6 @@ import AddJasaModal from "./AddJasaModal";
 import AddSparepartModal from "./AddSparepartModal";
 import RequestSparepartModal from "./RequestSparepartModal";
 import SubmitQCModal from "./SubmitQCModal";
-import { Skeleton } from "@/components/ui/Skeleton";
 
 interface QueueListProps {
   teknisiId: string;
@@ -56,11 +55,6 @@ interface ExtendedServiceOrder extends ServiceOrder {
     photo_url?: string;
   };
 }
-
-const MAX_FILES = 10;
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
-const MAX_TOTAL_SIZE = 4 * 1024 * 1024; // 4MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
 
 export default function QueueList({
   teknisiId,
@@ -85,15 +79,6 @@ export default function QueueList({
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showSubmitQCModal, setShowSubmitQCModal] = useState(false);
   const [showServiceInfoModal, setShowServiceInfoModal] = useState(false);
-  const [qcPhotos, setQCPhotos] = useState<File[]>([]);
-  const [qcPhotoPreviews, setQCPhotoPreviews] = useState<string[]>([]);
-  const [qcItems, setQCItems] = useState<any[]>([]);
-  const [qcTotalCost, setQCTotalCost] = useState(0);
-  const [qcSubmitting, setQCSubmitting] = useState(false);
-  const [qcNotes, setQCNotes] = useState("");
-  const qcFileInputRef = useRef<HTMLInputElement>(null);
-  const [editingPrice, setEditingPrice] = useState<{ [key: number]: number }>({});
-  const qcInitialItemsRef = useRef<any[]>([]);
   const [serviceInfoPhotos, setServiceInfoPhotos] = useState<string[]>([]);
   const [serviceInfoPhotosLoading, setServiceInfoPhotosLoading] =
     useState(false);
@@ -250,30 +235,8 @@ export default function QueueList({
 
   const openSubmitQC = async (service: ExtendedServiceOrder) => {
     setSelectedService(service);
-    setQCPhotos([]);
-    setQCPhotoPreviews([]);
-    await fetchQCItems(service.id);
     setShowSubmitQCModal(true);
   };
-
-  const fetchQCItems = async (serviceId: string) => {
-    const { data } = await supabase
-      .from("service_items")
-      .select("*")
-      .eq("service_order_id", serviceId);
-    if (data) {
-      setQCItems(data);
-      qcInitialItemsRef.current = JSON.parse(JSON.stringify(data));
-      setQCTotalCost(
-        data.reduce(
-          (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
-          0,
-        ),
-      );
-    } else {
-      setQCItems([]);
-      setQCTotalCost(0);
-    }
   };
 
   const handleQCPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -683,20 +646,9 @@ export default function QueueList({
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton variant="card" height="4rem" />
-        <div className="grid gap-4">
-          {[1,2,3].map(i => (
-            <div key={i} className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <Skeleton variant="text" width="30%" />
-                <Skeleton variant="text" width="20%" />
-              </div>
-              <Skeleton variant="text" width="60%" />
-              <Skeleton variant="text" width="40%" />
-            </div>
-          ))}
-        </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
+        <div className="inline-block w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+        <p className="mt-3 text-sm font-medium text-gray-500">Memuat data...</p>
       </div>
     );
   }
