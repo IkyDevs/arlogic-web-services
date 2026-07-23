@@ -276,3 +276,105 @@ Add localStorage draft system for QCReviewModal, reusing the existing `draftStor
 12. **F1** — ProgressUpdate + QueueList: Wire up new modal
 13. **F1** — Auto timeline generation
 14. Documentation update
+
+---
+
+# Revision V27 — Grouping Jenis Layanan & Konsistensi Edit Transaksi
+
+## Revision 1 — Grouping Jenis Layanan pada List Daftar Transaksi
+
+### Problem
+Setiap item layanan ditampilkan sebagai baris terpisah, menyebabkan tampilan tidak rapi ketika beberapa item memiliki Jenis Layanan yang sama.
+
+### Solution
+Grouping UI pada `LayananList.tsx`:
+- Type hanya muncul satu kali (deduplikasi dari main item + `layanan_items`)
+- Semua SKU tetap tampil terpisah di bawah Customer column dengan format: `• SKU — RpNominal`
+- Nominal masing-masing SKU tetap dipisahkan (tidak digabung)
+- Data database tetap disimpan per item (tidak ada merge)
+- Grouping hanya pada level tampilan (UI), struktur data asli tidak berubah
+
+### Files Affected
+| File | Action |
+|------|--------|
+| `components/layanan/LayananList.tsx` | **MODIFY** — Grouping display on Customer & Type cells using `layanan_items` |
+
+---
+
+## Revision 2 — Perbaiki Bug Edit Transaction
+
+### Problem
+Saat edit transaksi, extra items (`layanan_items`) tidak direstore ke form, menyebabkan:
+- Seluruh SKU berubah menjadi satu item
+- Harga dijumlahkan menjadi satu nominal
+- Detail SKU hilang
+- Struktur transaksi berubah
+
+### Root Cause
+`LayananForm.tsx` tidak memiliki logic untuk me-restore `extraItems` dari `initialData.layanan_items` saat mode edit. `extraItems` selalu diinisialisasi sebagai `[]`.
+
+### Solution
+1. **Add effect** — Restore `extraItems` dari `initialData.layanan_items` saat `initialData?.id` berubah
+2. **Fix jenis_layanan parsing** — Jika `initialData.jenis_layanan` adalah combined label (e.g. "Service Langsung & Service Langsung") bukan nilai enum valid, ambil dari `layanan_items[0].jenis_layanan`
+3. **Fix save** — Ubah `payload.jenis_layanan` dari `combinedJenisLabel` menjadi `jenisLayananValue` agar database menyimpan nilai enum yang valid, bukan label display
+
+### Data Flow (Edit)
+```
+User clicks edit → LayananList.onEdit(item)
+  → item contains layanan_items[]
+  → LayananForm receives initialData
+  → Effect runs: restore extraItems from layanan_items
+  → Fix jenis_layanan if combined label
+  → Form displays ALL items correctly
+  → On save: main item → layanan row, extra items → layanan_items
+```
+
+### Files Affected
+| File | Action |
+|------|--------|
+| `components/layanan/LayananForm.tsx` | **MODIFY** — Add restore effect, fix save payload |
+
+---
+
+## Revision 3 — Samakan Seluruh Flow Transaksi
+
+### Verification
+| Flow | Status | Notes |
+|------|--------|-------|
+| New Transaction | ✅ | Main item → `layanan` row, extra items → `layanan_items` |
+| Edit Transaction | ✅ | Data 100% identik dengan kondisi awal, form terisi dengan data sebelumnya |
+| Detail Transaction | ✅ | Via LayananList grouping display |
+| Preview Transaction | ✅ | Confirmation modal menampilkan semua item |
+| Pembuatan Nota | ✅ | Telegram caption via `buildCaption()` mencakup semua item |
+| Penyimpanan Database | ✅ | `jenis_layanan` menyimpan nilai enum valid, bukan combined label |
+| Perhitungan Total | ✅ | `nominal` di `layanan` row adalah total seluruh item |
+| API Request & Response | ✅ | PUT endpoint menerima semua field |
+| Mapping DTO | ✅ | `initialData` mencakup `layanan_items` |
+| State Management | ✅ | `extraItems` state di-restore dari DB |
+| Validasi Form | ✅ | Validasi tetap sama |
+
+### Files Affected
+| File | Action |
+|------|--------|
+| `components/layanan/LayananList.tsx` | **MODIFY** — Grouping display (Revisi 1) |
+| `components/layanan/LayananForm.tsx` | **MODIFY** — Restore extraItems, fix save (Revisi 2 & 3) |
+
+### No Database Changes
+Tidak ada perubahan schema atau migration. Struktur data tetap:
+- `layanan` row: main item data (`jenis_layanan`, `detail_sku`, `nominal`)
+- `layanan_items`: extra items (index > 0)
+
+---
+
+## Acceptance Criteria Checklist
+
+- [x] Jenis Layanan yang sama ditampilkan sebagai satu Type pada daftar transaksi
+- [x] Semua SKU tetap tampil secara terpisah di bawah Type tersebut
+- [x] Nominal setiap SKU tetap terpisah
+- [x] Data database tetap disimpan per item, bukan hasil merge
+- [x] Edit Transaction menampilkan data persis seperti saat transaksi dibuat
+- [x] Tidak ada SKU yang hilang setelah edit
+- [x] Tidak ada nominal yang dijumlahkan otomatis
+- [x] Grouping hanya memengaruhi tampilan UI
+- [x] Seluruh flow transaksi tetap konsisten mulai dari input hingga nota
+- [x] Tidak ada regression pada fitur transaksi lainnya

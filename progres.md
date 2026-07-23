@@ -31,3 +31,12 @@
 | F6: Preview Foto pada QC Review | ✅ | 2026-07-18 |
 | F7: Draft pada QC Review Service | ✅ | 2026-07-18 |
 | Documentation | ✅ | 2026-07-18 |
+
+## Phase 4 — Revision V27
+
+| Task | Status | Date |
+|------|--------|------|
+| R1: Grouping Jenis Layanan pada List Daftar Transaksi | ✅ | 2026-07-24 |
+| R2: Perbaiki Bug Edit Transaction (restore extraItems) | ✅ | 2026-07-24 |
+| R3: Konsistensi Seluruh Flow Transaksi | ✅ | 2026-07-24 |
+| Documentation | ✅ | 2026-07-24 |

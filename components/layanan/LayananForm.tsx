@@ -200,6 +200,37 @@ export default memo(function LayananForm({
     checkDraft();
   }, [user?.id]);
 
+  // ── Restore extra items & fix jenis_layanan when editing ──────────────
+  useEffect(() => {
+    if (!initialData?.id) return;
+
+    // Jika jenis_layanan bukan nilai enum yang valid (misal combined label),
+    // ambil dari item pertama layanan_items
+    const isValidJenis = jenisLayananOptions.some(
+      (o) => o.value === initialData.jenis_layanan,
+    );
+    if (!isValidJenis) {
+      const mainJenis =
+        initialData.layanan_items?.[0]?.jenis_layanan || "service_langsung";
+      setFormData((p) => ({ ...p, jenis_layanan: mainJenis }));
+    }
+
+    // Restore extra items from layanan_items
+    if (
+      Array.isArray(initialData.layanan_items) &&
+      initialData.layanan_items.length > 0
+    ) {
+      setExtraItems(
+        initialData.layanan_items.map((item: any) => ({
+          jenis_layanan: item.jenis_layanan || "service_langsung",
+          nominal: item.nominal?.toString() || "",
+          notes: item.notes || "",
+          detail_sku: item.detail_sku || "",
+        })),
+      );
+    }
+  }, [initialData?.id]);
+
   // ── Auto-save text segera (sync) ─────────────────────────────────────────
   useEffect(() => {
     if (initialData || !user?.id) return;
@@ -544,7 +575,7 @@ ${metodeSection}${invoice}${note}
       const payload: any = {
         customer_name: formData.customer_name.trim(),
         customer_whatsapp: formData.customer_whatsapp.trim(),
-        jenis_layanan: combinedJenisLabel,
+        jenis_layanan: jenisLayananValue,
         handled_by: formData.handled_by,
         handled_by_name: selectedUser?.full_name || user?.full_name,
         metode_pembayaran: formData.metode_pembayaran,

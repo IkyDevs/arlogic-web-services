@@ -656,18 +656,49 @@ export default function LayananList({
                     <p className="text-[10px] sm:text-xs text-slate-400 dark:!text-slate-300">
                       {item.customer_whatsapp}
                     </p>
-                    {item.detail_sku && (
-                      <p className="text-[10px] text-slate-400 dark:!text-slate-300 mt-0.5 max-w-[180px] whitespace-normal break-words">
-                        SKU: {item.detail_sku}
-                      </p>
-                    )}
+                    {(() => {
+                      // Main item is on the layanan row; extra items are in layanan_items.
+                      // Merge both so the first SKU is never lost.
+                      const allSkuItems: { sku: string; nominal: number }[] = [];
+                      if (item.detail_sku) {
+                        allSkuItems.push({ sku: item.detail_sku, nominal: item.nominal || 0 });
+                      }
+                      const layananItems = (item as any).layanan_items || [];
+                      layananItems.forEach((li: any) => {
+                        allSkuItems.push({ sku: li.detail_sku || '-', nominal: li.nominal || 0 });
+                      });
+                      if (allSkuItems.length === 0) return null;
+                      return (
+                        <div className="mt-1 space-y-0.5">
+                          {allSkuItems.map((s, idx) => (
+                            <p key={idx} className="text-[10px] text-slate-500 dark:!text-slate-400 max-w-[200px] whitespace-normal break-words leading-tight">
+                              • {s.sku}
+                              <span className="text-blue-500 font-medium">
+                                {' '}Rp {s.nominal.toLocaleString('id-ID')}
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
-                    <span
-                      className={`badge text-[10px] sm:text-xs ${getJenisLayananStyle(item.jenis_layanan)}`}
-                    >
-                      {jenisLayananLabels[item.jenis_layanan as JenisLayanan] || item.jenis_layanan}
-                    </span>
+                    {(() => {
+                      const layananItems = (item as any).layanan_items || [];
+                      const uniqueTypes = new Set<string>();
+                      const mainType = item.jenis_layanan;
+                      const isValidMain = jenisLayananOptions.some(o => o.value === mainType);
+                      if (isValidMain) uniqueTypes.add(mainType);
+                      layananItems.forEach((li: any) => {
+                        if (li.jenis_layanan) uniqueTypes.add(li.jenis_layanan);
+                      });
+                      if (uniqueTypes.size === 0 && mainType) uniqueTypes.add(mainType);
+                      return Array.from(uniqueTypes).map((type, idx) => (
+                        <span key={idx} className={`badge text-[10px] sm:text-xs ${getJenisLayananStyle(type)}`}>
+                          {jenisLayananLabels[type as JenisLayanan] || type}
+                        </span>
+                      ));
+                    })()}
                   </td>
                   <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                     {item.handled_by_name || "-"}

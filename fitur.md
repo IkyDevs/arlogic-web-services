@@ -32,6 +32,14 @@
 | Item Editing | ❌ | ❌ | ✅ | ❌ |
 | Customer Management | ✅ | ✅ | ✅ | ✅ |
 
+## Recent Changes (V27)
+
+| Feature | Description |
+|---------|-------------|
+| Grouping Jenis Layanan | Multi-item transaksi ditampilkan per Type (UI-only) |
+| Fix Edit Transaction | Extra items tidak hilang saat edit, data 100% identik |
+| Konsistensi Data | `jenis_layanan` menyimpan nilai enum valid, label hanya untuk Telegram |
+
 ## Recent Changes (V26)
 
 | Feature | Description |

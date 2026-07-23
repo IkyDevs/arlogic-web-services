@@ -16,6 +16,8 @@ Sistem manajemen toko service jam tangan dengan multi-role dashboard.
 - Workflow QC (Quality Control)
 - Sistem Diskon Custom
 - Draft System (Auto-save)
+- Grouping Jenis Layanan (Display multi-item transaksi per type)
+- Edit Transaction Preserved (Data tetap utuh tanpa merge)
 
 ## Role System
 
