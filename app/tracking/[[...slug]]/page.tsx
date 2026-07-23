@@ -65,6 +65,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState(false);
+  const [queuePosition, setQueuePosition] = useState<{ position: number; total: number; currentWork: string | null; currentWorkPos: number | null } | null>(null);
   const [expandedSections, setExpandedSections] = useState({ device: true, items: false, timeline: true, photos: false });
   const [photoModal, setPhotoModal] = useState<string | null>(null);
 
@@ -111,6 +112,27 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
       setService(data);
 
+      // Fetch queue position
+      if (data.status === 'pending' || data.status === 'assigned' || data.status === 'in_progress') {
+        const { data: queue } = await supabase
+          .from("service_orders")
+          .select("id, status, created_at, assigned_teknisi_id")
+          .in("status", ["pending", "assigned", "in_progress"])
+          .order("created_at", { ascending: true });
+
+        if (queue) {
+          const pos = queue.findIndex(s => s.id === data.id);
+          const currentWork = queue.find(s => s.status === 'in_progress') || queue.find(s => s.status === 'assigned');
+          const currentWorkPos = currentWork ? queue.findIndex(s => s.id === currentWork.id) + 1 : null;
+          let currentWorkName = null;
+          if (currentWork?.assigned_teknisi_id) {
+            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", currentWork.assigned_teknisi_id).single();
+            currentWorkName = p?.full_name || null;
+          }
+          setQueuePosition({ position: pos + 1, total: queue.length, currentWork: currentWorkName, currentWorkPos });
+        }
+      }
+
       // Fetch teknisi name if assigned
       if (data.assigned_teknisi_id) {
         const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", data.assigned_teknisi_id).single();
@@ -129,9 +151,9 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
        if (docsRes.data) setInitialPhotos(docsRes.data);
        if (qcDocsRes.data) setQCPhotos(qcDocsRes.data);
        if (feedbackRes.data) setFeedbackAlready(true);
-       
-       // Log visit to tracking_logs
-      await supabase.from("tracking_logs").insert({
+
+        // Log visit to tracking_logs
+       await supabase.from("tracking_logs").insert({
         service_order_id: data.id,
         token: t,
       });
@@ -148,6 +170,25 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       if (fetchError || !data) { setError("Token tidak valid. Silakan cek kembali."); setLoading(false); return; }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
       setService(data);
+
+      // Fetch queue
+      if (data.status === 'pending' || data.status === 'assigned' || data.status === 'in_progress') {
+        const { data: queue } = await supabase
+          .from("service_orders").select("id, status, created_at, assigned_teknisi_id")
+          .in("status", ["pending", "assigned", "in_progress"])
+          .order("created_at", { ascending: true });
+        if (queue) {
+          const pos = queue.findIndex(s => s.id === data.id);
+          const currentWork = queue.find(s => s.status === 'in_progress') || queue.find(s => s.status === 'assigned');
+          const currentWorkPos = currentWork ? queue.findIndex(s => s.id === currentWork.id) + 1 : null;
+          let currentWorkName = null;
+          if (currentWork?.assigned_teknisi_id) {
+            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", currentWork.assigned_teknisi_id).single();
+            currentWorkName = p?.full_name || null;
+          }
+          setQueuePosition({ position: pos + 1, total: queue.length, currentWork: currentWorkName, currentWorkPos });
+        }
+      }
 
       // Fetch teknisi name if assigned
       if (data.assigned_teknisi_id) {
@@ -199,13 +240,13 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
         teknisi_id: service.assigned_teknisi_id || null,
       });
       if (insertError) throw insertError;
-      
+
       // Send notification to all owner and admin users
       const { data: owners } = await supabase
         .from("profiles")
         .select("id")
         .in("role", ["owner", "admin"]);
-      
+
       if (owners && owners.length > 0) {
         const notifications = owners.map(owner => ({
           user_id: owner.id,
@@ -213,10 +254,10 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
           title: "New Customer Feedback",
           message: service.customer_name + " rated service " + service.invoice_number + " with " + feedbackRating + " stars",
         }));
-        
+
         await supabase.from("notifications").insert(notifications);
       }
-      
+
       setFeedbackSubmitted(true);
       toast.success("Terima kasih atas feedback Anda!");
     } catch (err: any) {
@@ -319,6 +360,36 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
             </div>
           </div>
         </motion.div>
+
+        {/* Queue Position - only for active services */}
+        {queuePosition && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+            className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+                  <span className="text-white font-bold text-sm">#{queuePosition.position}</span>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Antrian Anda</p>
+                  <p className="font-bold text-slate-900">Posisi {queuePosition.position} dari {queuePosition.total}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-500">Sedang dikerjakan</p>
+                <p className="font-semibold text-sm text-slate-900">
+                  {queuePosition.currentWork
+                    ? `Antrian #${queuePosition.currentWorkPos} oleh ${queuePosition.currentWork}`
+                    : 'Mohon Bersabar ya'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, (queuePosition.position / queuePosition.total) * 100)}%` }} />
+            </div>
+          </motion.div>
+        )}
 
         {/* Progress Steps */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
