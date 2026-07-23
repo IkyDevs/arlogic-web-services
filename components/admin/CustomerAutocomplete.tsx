@@ -7,6 +7,7 @@ import { User, Phone, Search } from "lucide-react";
 interface CustomerResult {
   name: string;
   phone: string;
+  point?: number;
 }
 
 interface Props {
@@ -39,14 +40,42 @@ export default function CustomerAutocomplete({
 
   const searchCustomers = useCallback(async (q: string) => {
     if (!q.trim()) { setSuggestions([]); setShowDropdown(false); return; }
-    const searchTerm = `%${q.trim()}%`;
+    const trimmed = q.trim();
+
     try {
-      const { data } = await supabase
+      // Split input: coba pars sebagai "nama digit_terakhir" atau "nama" atau "nomor"
+      const parts = trimmed.split(/\s+/);
+      let searchName = trimmed;
+      let searchLastDigits = '';
+
+      if (parts.length >= 2) {
+        const lastPart = parts[parts.length - 1];
+        if (/^\d{1,}$/.test(lastPart)) {
+          searchName = parts.slice(0, -1).join(' ');
+          searchLastDigits = lastPart;
+        }
+      }
+
+      let query = supabase
         .from("customers")
-        .select("name, phone")
-        .or(`name.ilike.${searchTerm},phone.ilike.${searchTerm}`)
+        .select("name, phone, point")
         .limit(10);
-      const list = (data || []).map((r) => ({ name: r.name, phone: r.phone }));
+
+      if (searchLastDigits) {
+        // Cari nama cocok + 4 digit terakhir phone
+        query = query
+          .ilike('name', `%${searchName}%`)
+          .ilike('phone', `%${searchLastDigits}`);
+      } else if (/^\d+$/.test(trimmed)) {
+        // Cari by nomor telepon
+        query = query.ilike('phone', `%${trimmed}%`);
+      } else {
+        // Cari by nama
+        query = query.ilike('name', `%${trimmed}%`);
+      }
+
+      const { data } = await query;
+      const list = (data || []).map((r) => ({ name: r.name, phone: r.phone, point: r.point }));
       setSuggestions(list);
       setShowDropdown(list.length > 0);
       setHighlightIdx(-1);
@@ -87,6 +116,7 @@ export default function CustomerAutocomplete({
   return (
     <div className={`relative ${className}`} ref={wrapperRef}>
       <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           ref={inputRef}
           type="text"
@@ -101,7 +131,7 @@ export default function CustomerAutocomplete({
         />
       </div>
       {showDropdown && (
-        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+        <div className="absolute z-[999] w-full mt-1 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg max-h-52 overflow-y-auto" style={{ position: 'absolute', top: '100%', left: 0 }}>
           {suggestions.map((s, i) => (
             <button
               key={s.phone || s.name}
@@ -122,6 +152,11 @@ export default function CustomerAutocomplete({
               </div>
             </button>
           ))}
+        </div>
+      )}
+      {value && suggestions.length === 0 && !showDropdown && (
+        <div className="absolute z-[999] w-full mt-1 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg p-3 text-center text-xs text-gray-400">
+          Customer tidak ditemukan. Data akan disimpan sebagai customer baru.
         </div>
       )}
     </div>

@@ -297,7 +297,7 @@ export default function AddJasaModal({
         service_order_id: service.id,
         teknisi_id: user?.id,
         status: "in_progress",
-        message: `Menambahkan ${selectedJasaList.length} jasa: ${jasaNames} (Total Rp ${getTotalPrice().toLocaleString()})`,
+        message: `Menambahkan ${selectedJasaList.length} jasa: ${jasaNames}`,
         details: {
           action: "add_jasa_multiple",
           jasa_list: selectedJasaList,

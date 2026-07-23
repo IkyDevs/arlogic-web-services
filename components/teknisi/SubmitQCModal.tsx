@@ -175,18 +175,12 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
       if (error) throw error;
 
       const deletedItems: string[] = [];
-      const priceChanges: string[] = [];
       for (const orig of initialItems) {
         const stillExists = items.some((item: any) => item.id === orig.id && item.name === orig.name);
-        if (!stillExists) deletedItems.push(`${orig.item_type === "jasa" ? "jasa" : "sparepart"} ${orig.name}`);
-      }
-      for (const curr of items) {
-        const orig = initialItems.find((o: any) => o.id === curr.id && o.name === curr.name);
-        if (orig && orig.price !== curr.price) priceChanges.push(`${curr.name}: Rp ${(orig.price || 0).toLocaleString()} → Rp ${(curr.price || 0).toLocaleString()}`);
+        if (!stillExists) deletedItems.push(`${orig.name}`);
       }
       let changeMsg = "";
       if (deletedItems.length > 0) changeMsg += `menghapus ${deletedItems.join(", ")}. `;
-      if (priceChanges.length > 0) changeMsg += `mengubah harga ${priceChanges.join(", ")}. `;
       if (changeMsg) changeMsg = changeMsg.trim() + " ";
 
       await supabase.from("service_timeline").insert({

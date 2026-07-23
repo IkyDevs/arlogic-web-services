@@ -1168,57 +1168,49 @@ export default function QueueList({
                   className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-gray-900 dark:hover:border-white"
                   onClick={() => viewServiceDetails(service)}
                 >
-                  <div className="p-4">
-                    <div className="flex flex-wrap justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
-                            {service.invoice_number}
-                          </span>
-                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
-                            BARU
-                          </span>
-                        </div>
+                  <div className="p-5 sm:p-6">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0 space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2.5 py-1 bg-gray-900 text-white text-xs font-mono rounded-md">
+                              {service.invoice_number}
+                            </span>
+                            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
+                              BARU
+                            </span>
+                            {service.category && <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">{service.category}</span>}
+                          </div>
 
-                        <div className="flex items-center gap-3 mb-2 flex-wrap">
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <User className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-gray-900 dark:text-gray-100">
-                              {service.customer_name}
-                            </span>
+                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4 text-gray-400" />
+                              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                {service.customer_name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Watch className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-600 dark:text-gray-400">
+                                {service.watch_brand || service.device_brand}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <Watch className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">
-                              {service.watch_brand || service.device_brand}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                            <AlertCircle className="w-4 h-4 text-gray-400" />
-                            <span className="line-clamp-1">
-                              {service.issue_description?.substring(0, 50)}...
-                            </span>
+
+                          <div className="flex items-start gap-2 text-sm text-gray-500 bg-gray-50 dark:bg-white/5 rounded-lg p-3 border border-gray-100 dark:border-white/10">
+                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400" />
+                            <p className="line-clamp-2">{service.issue_description}</p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            viewServiceDetails(service);
-                          }}
-                          className="px-3 py-1.5 text-sm bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1"
-                        >
+                      <div className="flex gap-3 pt-1">
+                        <button onClick={(e) => { e.stopPropagation(); viewServiceDetails(service); }}
+                          className="flex-1 px-5 py-2.5 text-sm bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
                           <Eye className="w-4 h-4" /> DETAIL
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            takeProject(service);
-                          }}
-                          className="px-3 py-1.5 text-sm bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); takeProject(service); }}
+                          className="flex-1 px-5 py-2.5 text-sm bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
                           <CheckCircle className="w-4 h-4" /> AMBIL
                         </button>
                       </div>
