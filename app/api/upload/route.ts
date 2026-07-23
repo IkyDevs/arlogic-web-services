@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { uploadMultipleToTelegram } from '@/lib/telegram'
 import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
+
+const BUCKET_NAME = 'uploads';
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -28,6 +31,45 @@ const CHANNEL_MAP: Record<string, 'attendance' | 'service' | 'layanan' | 'invent
   teknisi_update: 'teknisi_update',
   qc_update: 'qc_update',
 };
+
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+}
+
+async function ensureBucket() {
+  const sb = getSupabaseAdmin();
+  if (!sb) return false;
+  try {
+    const { data: buckets } = await sb.storage.listBuckets();
+    if (!buckets?.find(b => b.name === BUCKET_NAME)) {
+      await sb.storage.createBucket(BUCKET_NAME, { public: true, fileSizeLimit: 20 * 1024 * 1024 });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function uploadToSupabase(buffer: Buffer, fileName: string): Promise<string | null> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return null;
+  try {
+    await ensureBucket();
+    const { data } = await sb.storage.from(BUCKET_NAME).upload(fileName, buffer, {
+      contentType: 'image/jpeg',
+      upsert: true,
+    });
+    if (!data) return null;
+    const { data: { publicUrl } } = sb.storage.from(BUCKET_NAME).getPublicUrl(fileName);
+    return publicUrl;
+  } catch (e) {
+    console.warn('Supabase storage upload failed:', e);
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -112,12 +154,22 @@ export async function POST(request: NextRequest) {
       console.warn(`⚠️ Only ${telegramResults.length}/${processedFiles.length} photos uploaded to Telegram`);
     }
 
+    // Upload to Supabase Storage for permanent URLs (fallback to Telegram URL if fails)
+    const supabaseUrls: (string | null)[] = await Promise.all(
+      processedFiles.map((f) => uploadToSupabase(f.buffer, f.name))
+    );
+
+    const permanentUrls = supabaseUrls.map((u, i) => u || telegramResults[i]?.url || '');
+    const fileIds = telegramResults.map(r => r.file_id || '');
+
     return NextResponse.json({
       success: true,
-      urls: telegramResults.map(r => r.url),
+      urls: permanentUrls,
+      telegram_urls: telegramResults.map(r => r.url),
+      file_ids: fileIds,
       messages: telegramResults.map(r => ({ chat_id: r.chat_id, message_id: r.message_id })),
       count: telegramResults.length,
-      storage: 'telegram',
+      storage: 'supabase',
       channel: channelType,
     });
   } catch (error: any) {

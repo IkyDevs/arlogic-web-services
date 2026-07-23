@@ -21,6 +21,7 @@ export interface TelegramMessageResult {
   url: string;
   chat_id: string;
   message_id: number;
+  file_id: string;
 }
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -122,7 +123,7 @@ async function sendPhotoBlob(channelId: string, blob: Blob, fileName: string, ca
   const fileId = result.photo[result.photo.length - 1].file_id;
   const url = await getFileUrl(fileId);
 
-  return { url: url || "", chat_id, message_id };
+  return { url: url || "", chat_id, message_id, file_id: fileId };
 }
 
 export async function resolveChatId(channelUsername: string): Promise<string> {
@@ -186,9 +187,9 @@ export async function uploadMultipleToTelegram(
     if (photoArray?.length) {
       const fileId = photoArray[photoArray.length - 1].file_id;
       const url = await getFileUrl(fileId);
-      results.push({ url: url || "", chat_id, message_id });
+      results.push({ url: url || "", chat_id, message_id, file_id: fileId });
     } else {
-      results.push({ url: "", chat_id, message_id });
+      results.push({ url: "", chat_id, message_id, file_id: "" });
     }
   }
 

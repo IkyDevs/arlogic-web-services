@@ -62,11 +62,13 @@ export default function DoneService() {
     ]);
     const dpFromLayanan = dpRes?.data?.nominal || 0;
     const dpFinal = dpFromLayanan > 0 ? dpFromLayanan : (Number(svc?.down_payment) || 0);
+    console.log("📦 DoneService items:", { fromDb: itemsRes.data?.length, fromSvc: svc.items?.length, svcItems: svc.items, dbItems: itemsRes.data });
+    const finalItems = (itemsRes.data && itemsRes.data.length > 0) ? itemsRes.data : (svc.items || []);
     setDetailData({
       timeline: timelineRes.data || [],
       docs: docsRes.data || [],
       teknisi: profileRes?.data || null,
-      items: itemsRes.data || [],
+      items: finalItems,
       dpNominal: dpFinal,
     });
     setDetailLoading(false);
