@@ -53,6 +53,7 @@ import CustomerList from "@/components/admin/CustomerList";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
+import NotificationBell from "@/components/ui/NotificationBell";
 import { useTheme } from "@/components/ThemeProvider";
 
 // Dynamic imports
@@ -901,80 +902,10 @@ export default function AdminDashboard() {
               </button>
 
               {/* Notification */}
-              <div className="relative notification-container flex-shrink-0">
-                <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 hover:bg-slate-100 rounded-lg transition-all"
-                >
-                  <Bell className="w-5 h-5 text-slate-400" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
-                      {unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                <AnimatePresence>
-                  {showNotifications && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 mt-2 w-72 sm:w-80 max-h-80 sm:max-h-96 bg-white rounded-xl sm:rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden"
-                    >
-                      <div className="p-3 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
-                        <span className="font-medium text-xs sm:text-sm text-slate-900">
-                          Notifikasi
-                        </span>
-                        <button
-                          onClick={markAllRead}
-                          className="text-xs text-gray-600 hover:underline"
-                        >
-                          Baca semua
-                        </button>
-                      </div>
-                      <div className="overflow-y-auto max-h-56 sm:max-h-72">
-                        {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-slate-400">
-                            <Bell className="w-7 h-7 sm:w-8 sm:h-8 mx-auto mb-2 opacity-30" />
-                            <p className="text-xs sm:text-sm">
-                              Tidak ada notifikasi
-                            </p>
-                          </div>
-                        ) : (
-                          notifications.map((notif) => (
-                            <div
-                              key={notif.id}
-                              className={`p-2.5 sm:p-3 border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-all ${
-                                !notif.is_read ? "bg-gray-50" : ""
-                              }`}
-                              onClick={() => markNotificationRead(notif.id)}
-                            >
-                              <div className="flex items-start gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs sm:text-sm font-medium truncate text-slate-900">
-                                    {notif.title}
-                                  </p>
-                                  <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-2">
-                                    {notif.message}
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 mt-1">
-                                    {new Date(
-                                      notif.created_at,
-                                    ).toLocaleString()}
-                                  </p>
-                                </div>
-                                {!notif.is_read && (
-                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full flex-shrink-0 mt-1" />
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+              <div className="flex-shrink-0">
+                <div className="notification-trigger">
+                  <NotificationBell open={showNotifications} setOpen={setShowNotifications} />
+                </div>
               </div>
 
               {/* Profile */}

@@ -712,6 +712,26 @@ ${metodeSection}${invoice}${note}
         toast.error("Gagal simpan customer: " + custErr.message);
       }
 
+      // ── Notification ──
+      if (user?.id) {
+        const notifType = isEdit ? "transaction_update" : "transaction";
+        const notifTitle = isEdit
+          ? "Transaksi Diubah"
+          : "Transaksi Baru";
+        const notifMsg = `${formData.customer_name} - Rp ${serviceTotal.toLocaleString("id-ID")}`;
+        await fetch("/api/notifications/trigger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: notifType,
+            title: notifTitle,
+            message: notifMsg,
+            link: undefined,
+            targetRoles: ["admin", "owner"],
+          }),
+        }).catch(() => {});
+      }
+
       if (user?.id) {
         clearingDraft.current = true;
         clearDraft("layanan", user.id);

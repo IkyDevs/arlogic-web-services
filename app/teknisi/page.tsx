@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { hasDraft } from "@/lib/draftStorage";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import NotificationBell from "@/components/ui/NotificationBell";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -90,6 +91,7 @@ export default function TeknisiDashboard() {
   >("check_in");
   const [showLayananForm, setShowLayananForm] = useState(false);
   const [showServiceForm, setShowServiceForm] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [refreshLayanan, setRefreshLayanan] = useState(0);
   const [filterPeriod, setFilterPeriod] = useState<
     "hari" | "bulan" | "tahun" | undefined
@@ -604,15 +606,9 @@ export default function TeknisiDashboard() {
               </button>
 
               {/* Notification */}
-              <button
-                onClick={() =>
-                  toast("Notifikasi belum tersedia", { icon: "🔔" })
-                }
-                className="relative p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
-              >
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
-                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-red-500 rounded-full flex-shrink-0" />
-              </button>
+              <div className="notification-trigger">
+                <NotificationBell open={showNotifications} setOpen={setShowNotifications} />
+              </div>
 
               {/* Profile */}
               <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">

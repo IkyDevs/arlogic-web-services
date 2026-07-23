@@ -45,6 +45,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
 import TrackingVisits from "@/components/owner/TrackingVisits";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 // Dynamic imports
 const RevenueChart = dynamic(() => import("@/components/owner/RevenueChart"), {
@@ -145,6 +146,7 @@ export default function OwnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [comparePeriod, setComparePeriod] = useState<PeriodType>("month");
+  const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -529,14 +531,9 @@ export default function OwnerDashboard() {
 
             <div className="flex items-center gap-2 flex-wrap">
               {/* Notification */}
-              <button className="relative p-2 hover:bg-slate-100 rounded-lg transition-all flex-shrink-0">
-                <Bell className="w-4 h-4 text-slate-400" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gray-900 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </button>
+              <div className="notification-trigger">
+                <NotificationBell open={showNotifications} setOpen={setShowNotifications} />
+              </div>
 
               {/* Refresh */}
               <button

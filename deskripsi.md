@@ -18,6 +18,7 @@ Sistem manajemen toko service jam tangan dengan multi-role dashboard.
 - Draft System (Auto-save)
 - Grouping Jenis Layanan (Display multi-item transaksi per type)
 - Edit Transaction Preserved (Data tetap utuh tanpa merge)
+- Notification Center (Real-time, role-based, multi-event notification system)
 
 ## Role System
 

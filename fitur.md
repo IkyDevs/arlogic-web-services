@@ -32,6 +32,16 @@
 | Item Editing | ❌ | ❌ | ✅ | ❌ |
 | Customer Management | ✅ | ✅ | ✅ | ✅ |
 
+## Recent Changes (V28)
+
+| Feature | Description |
+|---------|-------------|
+| Notification Center | Full notification system with real-time, role-based delivery |
+| Notification Service | Centralized `lib/notificationService.ts` with role-based routing |
+| Notification API | REST endpoints for CRUD, mark read, mark all, trigger |
+| Modern NotificationBell | Redesigned UI with categories, icons, relative timestamps |
+| Event Triggers | Automatic notifications for transaction, service, and QC events |
+
 ## Recent Changes (V27)
 
 | Feature | Description |

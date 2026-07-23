@@ -451,3 +451,113 @@ Ganti dengan statistik aktual: Pendapatan Hari Ini, Pengeluaran Hari Ini, Pengel
 - `components/qc/QCServiceList.tsx` — card/grid redesign
 - `components/qc/AttendanceReport.tsx` — Tahunan filter, CSV export
 - `app/owner/page.tsx` — remove fake metrics, realistic stats
+
+---
+
+# Revision V28 — Notification Center
+
+## Root Cause Analysis
+
+### Why Notifications Were Not Working
+
+| Issue | Detail | Impact |
+|-------|--------|--------|
+| **No centralized service** | 11 scattered manual insertion points, no standard API | Inconsistent behavior, missed events |
+| **No notification store** | Each component manages its own state with `useState` | No shared state, duplicate code |
+| **Teknisi & QC stubs** | `toast("Notifikasi belum tersedia")` instead of real implementation | These dashboards had zero notification functionality |
+| **Admin inline duplication** | Admin dashboard had its own notification dropdown separate from `NotificationBell.tsx` | Two implementations diverging, neither fully working |
+| **RLS over-permissive** | `public_all_access` policy allowed any auth user to see ALL notifications | Security issue — user could read others' notifications |
+| **Realtime not enabled** | No `ALTER PUBLICATION supabase_realtime ADD TABLE notifications` | Real-time subscription on `notifications` table does nothing |
+| **No API routes** | All operations via direct Supabase client | No server-side validation, no trigger point for backend events |
+| **Missing event coverage** | Transaction events, service creation, pending, done — no notifications | Users never knew when important events happened |
+
+### Solution Architecture
+
+```
+Business Event (LayananForm submit, QC approve, etc.)
+  → POST /api/notifications/trigger (backend API)
+    → Resolve recipients by role via profiles table
+    → INSERT into notifications table
+    → Supabase Realtime broadcasts INSERT event
+    → NotificationStore.subscribe() receives the event via channel
+    → NotificationBell re-renders with new notification
+    → Badge count increments automatically
+```
+
+## New Files Created
+
+| File | Purpose |
+|------|---------|
+| `lib/notificationService.ts` | Centralized service: types, helpers, create, notifyRole, notifyAdmins, notifyTeknisi, getRecipientRolesForType, poll helpers |
+| `stores/notificationStore.ts` | Zustand store: fetch, markRead, markAllRead, subscribe (realtime), unsubscribe |
+| `app/api/notifications/route.ts` | GET (paginated list + unread count), PUT (mark read / mark all) |
+| `app/api/notifications/trigger/route.ts` | POST — create notifications by targetUserId or targetRoles |
+
+## Modified Files
+
+| File | Action |
+|------|--------|
+| `components/ui/NotificationBell.tsx` | **REWRITE** — modern UI with category icons, colors, relative timestamps, gradient header, scrollable list, empty/loading states |
+| `app/admin/page.tsx` | Replace inline notification dropdown with `<NotificationBell />`, add import |
+| `app/teknisi/page.tsx` | Replace `toast("Notifikasi belum tersedia")` stub with `<NotificationBell />` |
+| `app/qc/page.tsx` | Replace `toast("Notifikasi belum tersedia")` stub with `<NotificationBell />` |
+| `app/owner/page.tsx` | Replace dead notification button with `<NotificationBell />` |
+| `components/layanan/LayananForm.tsx` | Add `POST /api/notifications/trigger` after transaction create/update (notifies admin + owner) |
+
+## Notification Types (NotifType)
+
+30 event types organized by domain:
+- **Transaction**: transaction, transaction_update, transaction_cancel
+- **Service**: service_new, service_taken, service_pending, service_pending_approved, service_pending_rejected, service_qc_submit, service_qc_revision, service_qc_approved, service_done, service_ready
+- **Customer**: customer_new, customer_return
+- **Sparepart**: sparepart_request, sparepart_approved, sparepart_rejected, sparepart_ready
+- **General**: feedback, reminder, info, warning, error
+
+## Role-Based Routing
+
+Each notif type has a `getRecipientRolesForType()` mapping that returns appropriate roles:
+- Transaction events → admin, owner
+- Service QC events → teknisi, admin, owner
+- Sparepart events → admin (request) or teknisi (approval)
+- Feedback → admin, owner
+
+## Database
+
+No schema changes. Existing `notifications` table is used as-is. **Must enable Realtime on `notifications` table in Supabase dashboard**:
+
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+```
+
+## API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/notifications?limit=50&offset=0&unread=true` | JWT | Get paginated notifications + unread count |
+| PUT | `/api/notifications` | JWT | Mark single read (`{id}`) or all (`{markAll: true}`) |
+| POST | `/api/notifications/trigger` | JWT | Create notification(s) by targetUserId or targetRoles |
+
+## Security
+
+- GET/PUT enforce `user_id` matching against authenticated user
+- POST trigger resolves recipients server-side via `profiles` table
+- No direct client-side `INSERT` on `notifications` table should be used going forward
+
+## UI Features
+
+- Categorized icons (30 types with emoji icons)
+- Color-coded backgrounds per category
+- Relative timestamps using `date-fns` (e.g., "2 menit yang lalu")
+- Blue dot for unread notifications
+- Blue highlight background for unread items
+- Gradient header with unread count badge
+- "Tandai semua telah dibaca" button
+- Scrollable list (max 400px)
+- Empty state ("Belum ada notifikasi")
+- Loading state (spinner)
+- Click notification → marks as read + navigates to link (if any)
+
+## Setup Required
+
+1. Enable Realtime on `notifications` table in Supabase dashboard
+2. Or run: `ALTER PUBLICATION supabase_realtime ADD TABLE notifications;`

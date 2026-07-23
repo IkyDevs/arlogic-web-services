@@ -270,7 +270,32 @@ export interface ContactLog {
 // NOTIFICATION TYPES
 // =====================================================
 
-export type NotificationType = "info" | "success" | "warning" | "error";
+export type NotificationType =
+  | "info"
+  | "success"
+  | "warning"
+  | "error"
+  | "transaction"
+  | "transaction_update"
+  | "transaction_cancel"
+  | "service_new"
+  | "service_taken"
+  | "service_pending"
+  | "service_pending_approved"
+  | "service_pending_rejected"
+  | "service_qc_submit"
+  | "service_qc_revision"
+  | "service_qc_approved"
+  | "service_done"
+  | "service_ready"
+  | "customer_new"
+  | "customer_return"
+  | "sparepart_request"
+  | "sparepart_approved"
+  | "sparepart_rejected"
+  | "sparepart_ready"
+  | "feedback"
+  | "reminder";
 
 export interface Notification {
   id: string;
@@ -280,6 +305,7 @@ export interface Notification {
   type: NotificationType;
   is_read: boolean;
   link?: string;
+  data?: Record<string, unknown>;
   created_at: string;
 }
 

@@ -1,5 +1,29 @@
 # Supabase Schema Documentation
 
+## Table: notifications
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| id | uuid | gen_random_uuid() | Primary key |
+| user_id | uuid | — | FK to profiles(id) ON DELETE CASCADE |
+| title | text | — | Notification title |
+| message | text | — | Notification message |
+| type | text | 'info' | Category: transaction, service_new, qc_approved, etc. |
+| link | text | — | Optional deep-link URL |
+| data | jsonb | — | Optional metadata payload |
+| is_read | boolean | false | Read status |
+| created_at | timestamptz | now() | Creation timestamp |
+
+### Indexes
+- `idx_notifications_user` on `user_id`
+- `idx_notifications_read` on `is_read`
+- `idx_notifications_type` on `type`
+- `idx_notifications_created` on `created_at DESC`
+
+### Notes
+- Must enable Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE notifications;`
+- API: `GET /api/notifications`, `PUT /api/notifications`, `POST /api/notifications/trigger`
+
 ## Table: service_orders
 
 | Column | Type | Default | Description |

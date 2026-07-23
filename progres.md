@@ -41,7 +41,21 @@
 | R3: Konsistensi Seluruh Flow Transaksi | ✅ | 2026-07-24 |
 | Documentation | ✅ | 2026-07-24 |
 
-## Phase 5 — Revision V27.1
+## Phase 5 — Revision V28: Notification Center
+
+| Task | Status | Date |
+|------|--------|------|
+| Notification Service (lib/notificationService.ts) | ✅ | 2026-07-24 |
+| Notification Store (stores/notificationStore.ts) | ✅ | 2026-07-24 |
+| API Routes (GET/PUT /api/notifications, POST /api/notifications/trigger) | ✅ | 2026-07-24 |
+| Rewrite NotificationBell UI (modern, categories, relative time) | ✅ | 2026-07-24 |
+| Replace stubs in QC & Teknisi dashboards | ✅ | 2026-07-24 |
+| Replace inline notification in Admin dashboard | ✅ | 2026-07-24 |
+| Integrate NotificationBell in Owner dashboard | ✅ | 2026-07-24 |
+| Transaction event trigger (create/update) | ✅ | 2026-07-24 |
+| Documentation | ✅ | 2026-07-24 |
+
+## Phase 4 — Revision V27.1
 
 | Task | Status | Date |
 |------|--------|------|

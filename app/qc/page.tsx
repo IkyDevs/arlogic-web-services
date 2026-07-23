@@ -35,6 +35,7 @@ import AttendanceReport from "@/components/qc/AttendanceReport";
 import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 const TransactionManagement = dynamic(() => import("@/components/layanan/TransactionManagement"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
@@ -81,6 +82,7 @@ export default function QCDashboard() {
   const supabase = createClient();
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -433,15 +435,9 @@ export default function QCDashboard() {
               </button>
 
               {/* Notification */}
-              <button
-                onClick={() =>
-                  toast("Notifikasi belum tersedia", { icon: "🔔" })
-                }
-                className="relative p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0"
-              >
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
-                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-red-500 rounded-full flex-shrink-0" />
-              </button>
+              <div className="notification-trigger">
+                <NotificationBell open={showNotifications} setOpen={setShowNotifications} />
+              </div>
 
               {/* Profile */}
               <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
