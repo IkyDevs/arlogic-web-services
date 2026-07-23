@@ -23,17 +23,17 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 const menuItems = [
   { id: "transaction", label: "Dashboard", icon: LayoutDashboard },
-  { id: "customer", label: "Customer", icon: Users },
-  { id: "management-transaction", label: "Management Transaction", icon: ShoppingCart },
+  { id: "customer", label: "Pelanggan", icon: Users },
+  { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
   { id: "services", label: "Service", icon: ClipboardList },
   { id: "sparepart", label: "Request Sparepart", icon: Package },
   { id: "attendance", label: "Absensi", icon: Clock },
-  { id: "users", label: "Users", icon: Users },
-  { id: "inventory", label: "Inventory", icon: Package },
+  { id: "users", label: "Pengguna", icon: Users },
+  { id: "inventory", label: "Inventaris", icon: Package },
   { id: "closing", label: "Closing", icon: FileText },
-  { id: "done", label: "Done", icon: CheckCircle },
+  { id: "done", label: "Selesai", icon: CheckCircle },
   { id: "template", label: "Template", icon: MessageSquare },
-  { id: "export", label: "Export", icon: Download },
+  { id: "export", label: "Ekspor", icon: Download },
 ];
 
 interface AdminSidebarProps {

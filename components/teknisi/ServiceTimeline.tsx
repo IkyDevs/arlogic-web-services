@@ -23,12 +23,12 @@ interface ServiceTimelineProps {
 
 const updateTemplates = [
   { icon: Wrench, label: 'Diagnosis', message: 'Melakukan diagnosis awal pada jam tangan', status: 'diagnosis' },
-  { icon: Package, label: 'Parts Ordered', message: 'Memesan sparepart yang dibutuhkan', status: 'parts_ordered' },
-  { icon: Camera, label: 'Progress Photo', message: 'Upload foto progress service', status: 'progress_photo' },
+  { icon: Package, label: 'Pesan Sparepart', message: 'Memesan sparepart yang dibutuhkan', status: 'parts_ordered' },
+  { icon: Camera, label: 'Foto Progress', message: 'Upload foto progress service', status: 'progress_photo' },
   { icon: CheckCircle, label: 'Testing', message: 'Melakukan testing setelah perbaikan', status: 'testing' },
-  { icon: AlertCircle, label: 'Issue Found', message: 'Menemukan kendala tambahan pada device', status: 'issue_found' },
-  { icon: User, label: 'Consultation', message: 'Konsultasi dengan customer', status: 'consultation' },
-  { icon: Check, label: 'Completed', message: 'Service selesai, siap diambil customer', status: 'completed' },
+  { icon: AlertCircle, label: 'Temuan Baru', message: 'Menemukan kendala tambahan pada device', status: 'issue_found' },
+  { icon: User, label: 'Konsultasi', message: 'Konsultasi dengan customer', status: 'consultation' },
+  { icon: Check, label: 'Selesai', message: 'Service selesai, siap diambil customer', status: 'completed' },
 ]
 
 export default function ServiceTimeline({ serviceId, customerPhone, customerName, invoiceNumber, onUpdate }: ServiceTimelineProps) {
@@ -128,13 +128,13 @@ const removePhoto = () => {
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; color: string }> = {
       diagnosis: { label: 'Diagnosis', color: 'bg-orange-100 text-orange-700 border border-orange-200' },
-      parts_ordered: { label: 'Parts Ordered', color: 'bg-purple-100 text-purple-700 border border-purple-200' },
+      parts_ordered: { label: 'Sparepart', color: 'bg-purple-100 text-purple-700 border border-purple-200' },
       progress_photo: { label: 'Progress', color: 'bg-blue-100 text-blue-700 border border-blue-200' },
       testing: { label: 'Testing', color: 'bg-cyan-100 text-cyan-700 border border-cyan-200' },
-      issue_found: { label: 'Issue Found', color: 'bg-red-100 text-red-700 border border-red-200' },
-      consultation: { label: 'Consultation', color: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
-      completed: { label: 'Completed', color: 'bg-emerald-100 text-emerald-700 border border-emerald-200' },
-      progress: { label: 'In Progress', color: 'bg-gray-100 text-gray-700 border border-gray-200' }
+      issue_found: { label: 'Temuan', color: 'bg-red-100 text-red-700 border border-red-200' },
+      consultation: { label: 'Konsultasi', color: 'bg-yellow-100 text-yellow-700 border border-yellow-200' },
+      completed: { label: 'Selesai', color: 'bg-emerald-100 text-emerald-700 border border-emerald-200' },
+      progress: { label: 'Progress', color: 'bg-gray-100 text-gray-700 border border-gray-200' }
     }
     return badges[status] || badges.progress
   }

@@ -15,12 +15,12 @@ import toast from "react-hot-toast";
 const supabase = createClient();
 
 const statusSteps = [
-  { status: "pending", label: "Order Received", icon: Clock, desc: "Service order has been received", color: "from-slate-400 to-slate-500" },
-  { status: "assigned", label: "Assigned to Teknisi", icon: UserCheck, desc: "A teknisi has been assigned", color: "from-blue-500 to-cyan-500" },
-  { status: "in_progress", label: "Service in Progress", icon: Wrench, desc: "Your device is being serviced", color: "from-purple-500 to-pink-500" },
-  { status: "waiting_sparepart", label: "Waiting Sparepart", icon: Package, desc: "Waiting for sparepart", color: "from-orange-500 to-red-500" },
-  { status: "qc_pending", label: "Quality Check", icon: Shield, desc: "Final quality check", color: "from-indigo-500 to-purple-500" },
-  { status: "completed", label: "Service Complete", icon: CheckCircle, desc: "Ready for pickup", color: "from-emerald-500 to-green-600" },
+  { status: "pending", label: "Pesanan Diterima", icon: Clock, desc: "Pesanan service telah diterima", color: "from-slate-400 to-slate-500" },
+  { status: "assigned", label: "Ditugaskan ke Teknisi", icon: UserCheck, desc: "Service ditugaskan ke teknisi", color: "from-blue-500 to-cyan-500" },
+  { status: "in_progress", label: "Sedang Dikerjakan", icon: Wrench, desc: "Service sedang dalam pengerjaan", color: "from-purple-500 to-pink-500" },
+  { status: "waiting_sparepart", label: "Menunggu Sparepart", icon: Package, desc: "Menunggu sparepart", color: "from-orange-500 to-red-500" },
+  { status: "qc_pending", label: "Quality Check", icon: Shield, desc: "Pengecekan kualitas akhir", color: "from-indigo-500 to-purple-500" },
+  { status: "completed", label: "Service Selesai", icon: CheckCircle, desc: "Siap diambil", color: "from-emerald-500 to-green-600" },
 ];
 
 const statusColors: Record<string, string> = {
@@ -276,8 +276,8 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
             <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
               <Watch className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Track Service</h1>
-            <p className="text-sm text-slate-500 mt-1">Masukkan token tracking Anda</p>
+              <h1 className="text-2xl font-bold text-slate-900">Lacak Service</h1>
+            <p className="text-sm text-slate-500 mt-1">Masukkan kode token tracking Anda</p>
           </div>
           <div className="space-y-4">
             <div className="relative">
@@ -291,11 +291,11 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
             <button onClick={trackService} disabled={loading}
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
               {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : <><Search className="w-4 h-4" /> Track Service</>}
+                : <><Search className="w-4 h-4" />                 Lacak Sekarang</>}
             </button>
           </div>
           <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-xs text-slate-500 text-center">Token diberikan saat membuat service order. Hubungi kami jika kehilangan token.</p>
+            <p className="text-xs text-slate-500 text-center">Token diberikan saat membuat service. Hubungi kami jika kehilangan token.</p>
           </div>
         </motion.div>
       </div>
@@ -314,9 +314,9 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
                   <Watch className="w-5 h-5 text-white" />
                 </div>
-                <span className="text-lg font-bold text-slate-900">Watch Service</span>
-              </div>
-              <p className="text-xs text-slate-500">Official Service Center</p>
+                  <span className="text-lg font-bold text-slate-900">Arlogic Watch Service</span>
+                </div>
+                <p className="text-xs text-slate-500">Pusat Layanan Service</p>
             </div>
             <div className="p-5 text-center">
               <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Invoice</p>
@@ -327,7 +327,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
               <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Status</p>
               <div className="mt-1">
                 <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full border ${statusColors[service.status] || statusColors.pending}`}>
-                  {service.status === "qc_pending" ? "Quality Check" : service.status === "waiting_sparepart" ? "Waiting Sparepart" : service.status === "in_progress" ? "In Progress" : service.status === "assigned" ? "Assigned" : service.status === "completed" ? "Completed" : service.status === "cancelled" ? "Cancelled" : service.status.charAt(0).toUpperCase() + service.status.slice(1)}
+                  {service.status === "qc_pending" ? "Quality Check" : service.status === "waiting_sparepart" ? "Menunggu Sparepart" : service.status === "in_progress" ? "Dikerjakan" : service.status === "assigned" ? "Ditugaskan" : service.status === "completed" ? "Selesai" : service.status === "cancelled" ? "Dibatalkan" : service.status}
                 </span>
               </div>
             </div>
@@ -340,13 +340,13 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-center sm:text-left">
               <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider flex items-center gap-2 justify-center sm:justify-start">
-                Scan QR Code untuk Tracking</p>
+                Scan QR Code untuk Lacak Service</p>
               <p className="text-sm text-slate-500 mt-1">Scan dengan camera HP untuk akses cepat</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="border border-slate-200 p-2 bg-white rounded-xl shadow-sm">
                 <QRCodeSVG value={typeof window !== "undefined" ? window.location.origin + "/tracking" : ""} size={72} level="H" />
-                <p className="text-[10px] text-slate-400 mt-1">Scan untuk tracking</p>
+                <p className="text-[10px] text-slate-400 mt-1">Scan untuk lacak</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Token</p>
@@ -670,7 +670,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center">
                     <Clock className="w-4 h-4 text-white" />
                   </div>
-                  <h3 className="font-semibold text-sm text-slate-900">Timeline Update</h3>
+                  <h3 className="font-semibold text-sm text-slate-900">Update Progress</h3>
                 </div>
                 {expandedSections.timeline ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
               </button>
@@ -730,8 +730,8 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
             <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
               <Clock className="w-6 h-6 text-slate-400" />
             </div>
-            <h3 className="font-bold text-slate-700">Feedback Belum Tersedia</h3>
-            <p className="text-sm text-slate-500 mt-1">Feedback dapat diberikan setelah service selesai.</p>
+              <h3 className="font-bold text-slate-700">Penilaian Belum Tersedia</h3>
+            <p className="text-sm text-slate-500 mt-1">Penilaian dapat diberikan setelah service selesai.</p>
           </motion.div>
         )}
 
@@ -742,8 +742,8 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
               <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-200">
                 <Star className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Beri Penilaian</h3>
-              <p className="text-sm text-slate-500 mt-0.5">Bagaimana pengalaman service Anda?</p>
+                  <h3 className="text-base font-bold text-slate-900">Beri Nilai</h3>
+                  <p className="text-sm text-slate-500 mt-0.5">Bagaimana pengalaman service Anda?</p>
             </div>
 
             <div className="flex items-center justify-center gap-1.5 py-2">
@@ -771,7 +771,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
 
             <button onClick={handleFeedbackSubmit} disabled={feedbackLoading || feedbackRating === 0}
               className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-blue-200">
-              {feedbackLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Send className="w-4 h-4" /> Kirim Feedback</>}
+              {feedbackLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> :                 <><Send className="w-4 h-4" /> Kirim Penilaian</>}
             </button>
           </motion.div>
         )}
@@ -783,8 +783,8 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
             <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mx-auto mb-3">
               <CheckCircle className="w-6 h-6 text-amber-600" />
             </div>
-            <h3 className="font-bold text-slate-900">Feedback Terkirim</h3>
-            <p className="text-sm text-slate-600 mt-1">Terima kasih! Feedback Anda sangat berarti untuk kami.</p>
+              <h3 className="font-bold text-slate-900">Penilaian Terkirim</h3>
+            <p className="text-sm text-slate-600 mt-1">Terima kasih! Penilaian Anda sangat berarti untuk kami.</p>
             {feedbackSubmitted && feedbackRating > 0 && (
               <div className="flex items-center justify-center gap-1 mt-3">
                 {[1, 2, 3, 4, 5].map((star) => (

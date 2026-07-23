@@ -15,12 +15,12 @@ function fmtDate(d: string) {
 }
 
 const statusBadge: Record<string, { label: string; color: string }> = {
-  pending: { label: "Pending", color: "bg-yellow-100 text-yellow-700" },
-  assigned: { label: "Assigned", color: "bg-blue-100 text-blue-700" },
-  in_progress: { label: "In Progress", color: "bg-purple-100 text-purple-700" },
-  qc_pending: { label: "QC Pending", color: "bg-orange-100 text-orange-700" },
-  completed: { label: "Completed", color: "bg-green-100 text-green-700" },
-  cancelled: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+  pending: { label: "Menunggu", color: "bg-yellow-100 text-yellow-700" },
+  assigned: { label: "Ditugaskan", color: "bg-blue-100 text-blue-700" },
+  in_progress: { label: "Dikerjakan", color: "bg-purple-100 text-purple-700" },
+  qc_pending: { label: "QC", color: "bg-orange-100 text-orange-700" },
+  completed: { label: "Selesai", color: "bg-green-100 text-green-700" },
+  cancelled: { label: "Batal", color: "bg-red-100 text-red-700" },
 };
 
 export default function DoneService() {
