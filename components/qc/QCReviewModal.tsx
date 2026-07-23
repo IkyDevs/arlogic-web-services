@@ -266,15 +266,19 @@ export default function QCReviewModal({
     setProcessing(true);
     try {
       if (status === "approved" && localItems.length > 0) { 
-        await supabase.from("service_items").delete().eq("service_order_id", service.id);
+        const { error: delErr } = await supabase.from("service_items").delete().eq("service_order_id", service.id);
+        if (delErr) throw new Error("Gagal hapus item lama: " + delErr.message);
 
         const combinedItems = localItems;
 
         const insertItems = combinedItems.map((item: any) => ({
           service_order_id: service.id, name: item.name, price: item.price,
-          quantity: item.quantity, item_type: item.item_type, notes: item.notes || null,
+          quantity: item.quantity, item_type: item.item_type,
         }));
-        if (insertItems.length > 0) await supabase.from("service_items").insert(insertItems);
+        if (insertItems.length > 0) {
+          const { error: itemsErr } = await supabase.from("service_items").insert(insertItems);
+          if (itemsErr) throw new Error("Gagal simpan item: " + itemsErr.message);
+        }
         await supabase.from("service_orders").update({ final_cost: grandTotal, discount: effectiveDiscount, discount_percentage: discountPercent }).eq("id", service.id);
       }
 

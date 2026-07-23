@@ -61,13 +61,21 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
   const [items, setItems] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [initialPhotos, setInitialPhotos] = useState<any[]>([]);
+  const [qcPhotos, setQCPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({ device: true, items: false, timeline: true, photos: true });
+  const [expandedSections, setExpandedSections] = useState({ device: true, items: false, timeline: true, photos: false });
   const [photoModal, setPhotoModal] = useState<string | null>(null);
 
   // Feedback state
+  const itemTotal = useMemo(() => items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0), [items]);
+  const restAmount = useMemo(() => {
+    // final_cost sudah termasuk diskon & DP dari QCReviewModal
+    if (service?.final_cost) return Math.max(0, service.final_cost - (service.down_payment || 0));
+    return Math.max(0, itemTotal - (service?.discount || 0) - (service?.down_payment || 0));
+  }, [service, itemTotal]);
+
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackAlready, setFeedbackAlready] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
@@ -109,26 +117,19 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
         setTeknisiName(profile?.full_name || "");
       }
 
-      const [itemsRes, timelineRes, docsRes, feedbackRes] = await Promise.all([
+      const [itemsRes, timelineRes, docsRes, qcDocsRes, feedbackRes] = await Promise.all([
         supabase.from("service_items").select("*").eq("service_order_id", data.id),
         supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
         supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
+        supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "qc"),
         supabase.from("feedbacks").select("id").eq("service_order_id", data.id).maybeSingle(),
        ]);
        if (itemsRes.data) setItems(itemsRes.data);
-       if (timelineRes.data) {
-         console.log(`📋 Timeline fetched (${timelineRes.data.length} items):`, timelineRes.data.map((t: any) => ({
-           id: t.id,
-           status: t.status,
-           message: t.message?.slice(0, 50),
-           photo_url: t.photo_url ? '✅ ' + t.photo_url.slice(0, 50) : '❌ null/undefined',
-           details_photos: t.details?.all_photo_urls?.length || 0
-         })));
-         setTimeline(timelineRes.data);
-       }
+       if (timelineRes.data) setTimeline(timelineRes.data);
        if (docsRes.data) setInitialPhotos(docsRes.data);
+       if (qcDocsRes.data) setQCPhotos(qcDocsRes.data);
        if (feedbackRes.data) setFeedbackAlready(true);
-
+       
        // Log visit to tracking_logs
       await supabase.from("tracking_logs").insert({
         service_order_id: data.id,
@@ -154,15 +155,17 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
         setTeknisiName(profile?.full_name || "");
       }
 
-      const [itemsRes, timelineRes, docsRes, feedbackRes] = await Promise.all([
+      const [itemsRes, timelineRes, docsRes, qcDocsRes, feedbackRes] = await Promise.all([
         supabase.from("service_items").select("*").eq("service_order_id", data.id),
         supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
         supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
+        supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "qc"),
         supabase.from("feedbacks").select("id").eq("service_order_id", data.id).maybeSingle(),
       ]);
       if (itemsRes.data) setItems(itemsRes.data);
       if (timelineRes.data) setTimeline(timelineRes.data);
       if (docsRes.data) setInitialPhotos(docsRes.data);
+      if (qcDocsRes.data) setQCPhotos(qcDocsRes.data);
       if (feedbackRes.data) setFeedbackAlready(true);
 
       // Log visit
@@ -485,7 +488,38 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
             </motion.div>
           )}
 
-          {/* Items & Cost */}
+          {/* Before & After Photos - only when completed */}
+          {(service.status === 'completed' || service.status === 'done') && qcPhotos.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.28 }}
+              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+                    <Camera className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-sm text-slate-900">Before & After</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {initialPhotos.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 mb-2">Kondisi Awal</p>
+                      <img src={initialPhotos[0].photo_url} alt="Before"
+                        className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
+                        onClick={() => setPhotoModal(initialPhotos[0].photo_url)} />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-2">Hasil Service</p>
+                    <img src={qcPhotos[0].photo_url} alt="After"
+                      className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
+                      onClick={() => setPhotoModal(qcPhotos[0].photo_url)} />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Items & Cost - always show if exists (source: service_items = QC approved final) */}
           {items.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
               className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -517,15 +551,15 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                   ))}
                   <div className="flex justify-between items-center p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-md">
                     <span>Total Biaya</span>
-                    <span className="text-lg">{fmtRupiah(service.final_cost || service.estimated_cost || 0)}</span>
+                    <span className="text-lg">{fmtRupiah(itemTotal)}</span>
                   </div>
                 </div>
               )}
             </motion.div>
           )}
 
-          {/* Pembayaran */}
-          {(items.length > 0 || service.down_payment > 0 || service.discount > 0 || service.estimated_cost || service.final_cost) && (
+          {/* Pembayaran - only if QC approved (completed/done) */}
+          {(service.status === 'completed' || service.status === 'done') && (items.length > 0 || service.down_payment > 0 || service.discount > 0 || service.final_cost) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}
               className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -535,31 +569,21 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                 <h3 className="font-semibold text-sm text-slate-900">Rincian Pembayaran</h3>
               </div>
               <div className="space-y-2">
-                {items.length > 0 && (
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="font-semibold text-slate-900">{fmtRupiah(items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0))}</span></div>
-                )}
                 {service.down_payment > 0 && (
                   <div className="flex justify-between text-sm"><span className="text-slate-500">DP</span><span className="font-semibold text-emerald-600">-{fmtRupiah(service.down_payment)}</span></div>
                 )}
                 {service.discount > 0 && (
                   <div className="flex justify-between text-sm"><span className="text-slate-500">Diskon</span><span className="font-semibold text-red-500">-{fmtRupiah(service.discount)}</span></div>
                 )}
-                {(service.estimated_cost || service.final_cost) && (
-                  <div className="border-t border-slate-100 pt-2 mt-2" />
-                )}
-                {service.estimated_cost && (
-                  <div className="flex justify-between text-sm"><span className="text-slate-400">Estimasi Biaya</span><span className="text-slate-600">{fmtRupiah(service.estimated_cost)}</span></div>
-                )}
-                {service.final_cost && (
-                  <div className="flex justify-between text-sm"><span className="text-slate-400">Biaya Final</span><span className="text-slate-600">{fmtRupiah(service.final_cost)}</span></div>
-                )}
                 <div className="h-px bg-slate-200" />
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-slate-700">Sisa yang harus dibayar</span>
-                  <span className="font-bold text-lg text-emerald-600">{fmtRupiah(Math.max(0, (service.final_cost || service.estimated_cost || items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0)) - (service.discount || 0) - (service.down_payment || 0)))}</span>
+                  <span className={`font-bold text-lg ${restAmount === 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                    {restAmount === 0 ? 'LUNAS' : fmtRupiah(restAmount)}
+                  </span>
                 </div>
-                {(service.down_payment > 0 && Math.max(0, (service.final_cost || service.estimated_cost || items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0)) - (service.discount || 0) - (service.down_payment || 0)) === 0) && (
-                  <p className="text-xs text-emerald-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" />LUNAS</p>
+                {restAmount === 0 && (
+                  <p className="text-xs text-emerald-600 font-medium flex items-center gap-1 mt-1"><CheckCircle className="w-3 h-3" />Pembayaran LUNAS</p>
                 )}
               </div>
             </motion.div>

@@ -83,8 +83,10 @@ export default function DoneService() {
     const { timeline, docs, teknisi, items, dpNominal } = detailData;
     const dpValue = dpNominal || Number(svc?.down_payment) || 0;
     const subtotal = items.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (i.quantity || 1), 0);
-    const grandTotal = svc.final_cost || subtotal || svc.estimated_cost || 0;
-    const remaining = Math.max(0, grandTotal - dpValue - (svc.discount || 0));
+    // final_cost sudah termasuk diskon & DP dari QCReviewModal
+    const remaining = svc.final_cost
+      ? Math.max(0, svc.final_cost - dpValue)
+      : Math.max(0, (subtotal || svc.estimated_cost || 0) - dpValue - (svc.discount || 0));
 
     const beforePhotos = docs.filter((d: any) => d.stage === "initial_condition");
     const duringPhotos = docs.filter((d: any) => d.stage && d.stage !== "initial_condition" && d.stage !== "final_condition");
