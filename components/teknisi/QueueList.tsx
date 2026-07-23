@@ -62,23 +62,38 @@ interface ExtendedServiceOrder extends ServiceOrder {
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const MAX_TOTAL_SIZE = 4 * 1024 * 1024; // 4MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+];
 
 export default function QueueList({
   teknisiId,
   onTakeProject,
 }: QueueListProps) {
-  const [pendingServices, setPendingServices] = useState<ExtendedServiceOrder[]>([]);
+  const [pendingServices, setPendingServices] = useState<
+    ExtendedServiceOrder[]
+  >([]);
   const [myServices, setMyServices] = useState<ExtendedServiceOrder[]>([]);
-  const [teknisiPendingServices, setTeknisiPendingServices] = useState<ExtendedServiceOrder[]>([]);
-  const [selectedService, setSelectedService] = useState<ExtendedServiceOrder | null>(null);
-  const [queueTab, setQueueTab] = useState<'available' | 'my' | 'pending'>('available');
+  const [teknisiPendingServices, setTeknisiPendingServices] = useState<
+    ExtendedServiceOrder[]
+  >([]);
+  const [selectedService, setSelectedService] =
+    useState<ExtendedServiceOrder | null>(null);
+  const [queueTab, setQueueTab] = useState<"available" | "my" | "pending">(
+    "available",
+  );
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [showPendingReasonModal, setShowPendingReasonModal] = useState(false);
   const [pendingReason, setPendingReason] = useState("");
-  const [pendingTargetService, setPendingTargetService] = useState<ExtendedServiceOrder | null>(null);
+  const [pendingTargetService, setPendingTargetService] =
+    useState<ExtendedServiceOrder | null>(null);
 
   const [showAddJasa, setShowAddJasa] = useState(false);
   const [showAddSparepart, setShowAddSparepart] = useState(false);
@@ -96,7 +111,9 @@ export default function QueueList({
   const [qcSubmitting, setQCSubmitting] = useState(false);
   const [qcNotes, setQCNotes] = useState("");
   const qcFileInputRef = useRef<HTMLInputElement>(null);
-  const [editingPrice, setEditingPrice] = useState<{ [key: number]: number }>({});
+  const [editingPrice, setEditingPrice] = useState<{ [key: number]: number }>(
+    {},
+  );
   const qcInitialItemsRef = useRef<any[]>([]);
   const [serviceInfoPhotos, setServiceInfoPhotos] = useState<string[]>([]);
   const [serviceInfoPhotosLoading, setServiceInfoPhotosLoading] =
@@ -110,12 +127,20 @@ export default function QueueList({
 
     const channel = supabase
       .channel("teknisi_queue_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, () => {
-        fetchQueues();
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_timeline" }, () => {
-        fetchQueues();
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_orders" },
+        () => {
+          fetchQueues();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "service_timeline" },
+        () => {
+          fetchQueues();
+        },
+      )
       .subscribe();
 
     return () => {
@@ -127,9 +152,23 @@ export default function QueueList({
     setLoading(true);
 
     const [pendingRes, assignedRes] = await Promise.all([
-      supabase.from("service_orders").select("*").eq("status", "pending").order("created_at", { ascending: true }),
-      supabase.from("service_orders").select("*").eq("assigned_teknisi_id", teknisiId)
-        .in("status", ["assigned","in_progress","req_sparepart_admin","po_pending","sparepart_ready","revision_required"])
+      supabase
+        .from("service_orders")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("service_orders")
+        .select("*")
+        .eq("assigned_teknisi_id", teknisiId)
+        .in("status", [
+          "assigned",
+          "in_progress",
+          "req_sparepart_admin",
+          "po_pending",
+          "sparepart_ready",
+          "revision_required",
+        ])
         .order("created_at", { ascending: false }),
     ]);
 
@@ -137,10 +176,12 @@ export default function QueueList({
 
     // Fetch latest timeline for all assigned services
     if (assigned.length > 0) {
-      const ids = assigned.map(s => s.id);
+      const ids = assigned.map((s) => s.id);
       const { data: timelines } = await supabase
-        .from("service_timeline").select("service_order_id, status, created_at, details, message")
-        .in("service_order_id", ids).order("created_at", { ascending: false });
+        .from("service_timeline")
+        .select("service_order_id, status, created_at, details, message")
+        .in("service_order_id", ids)
+        .order("created_at", { ascending: false });
 
       if (timelines) {
         const latestTimeline: Record<string, any> = {};
@@ -160,18 +201,22 @@ export default function QueueList({
     let pendingTek: ExtendedServiceOrder[] = [];
 
     for (const s of assigned) {
-      const tlStatus = (s as any).last_update?.status || '';
+      const tlStatus = (s as any).last_update?.status || "";
 
-      if (tlStatus === 'pending_teknisi' || tlStatus === 'pending_approved') {
+      if (tlStatus === "pending_teknisi" || tlStatus === "pending_approved") {
         (s as any)._pendingStatus = tlStatus;
-        (s as any)._pendingReason = (s as any).last_update?.details?.reason || (s as any).last_update?.message || '';
+        (s as any)._pendingReason =
+          (s as any).last_update?.details?.reason ||
+          (s as any).last_update?.message ||
+          "";
         pendingTek.push(s as ExtendedServiceOrder);
       } else {
         active.push(s as ExtendedServiceOrder);
       }
     }
 
-    if (pendingRes.data) setPendingServices(pendingRes.data as ExtendedServiceOrder[]);
+    if (pendingRes.data)
+      setPendingServices(pendingRes.data as ExtendedServiceOrder[]);
     if (active) setMyServices(active);
     if (pendingTek) setTeknisiPendingServices(pendingTek);
     setLoading(false);
@@ -185,15 +230,22 @@ export default function QueueList({
     }
     const { error } = await supabase
       .from("service_orders")
-      .update({ assigned_teknisi_id: teknisiId, status: "assigned", start_date: new Date().toISOString() })
+      .update({
+        assigned_teknisi_id: teknisiId,
+        status: "assigned",
+        start_date: new Date().toISOString(),
+      })
       .eq("id", service.id);
 
     if (error) {
       toast.error("Gagal mengambil proyek");
     } else {
       await supabase.from("service_timeline").insert({
-        service_order_id: service.id, teknisi_id: teknisiId, status: "assigned",
-        message: `Service diambil oleh teknisi`, details: { action: "take_project" },
+        service_order_id: service.id,
+        teknisi_id: teknisiId,
+        status: "assigned",
+        message: `Service diambil oleh teknisi`,
+        details: { action: "take_project" },
       });
       toast.success("Proyek berhasil diambil!");
       fetchQueues();
@@ -208,33 +260,51 @@ export default function QueueList({
   };
 
   const submitPending = async () => {
-    if (!pendingTargetService || !pendingReason.trim()) { toast.error("Alasan pending harus diisi"); return; }
+    if (!pendingTargetService || !pendingReason.trim()) {
+      toast.error("Alasan pending harus diisi");
+      return;
+    }
 
     const { error: updateErr } = await supabase
       .from("service_orders")
       .update({ assigned_teknisi_id: teknisiId, status: "assigned" })
       .eq("id", pendingTargetService.id);
-    if (updateErr) { toast.error("Gagal update: " + updateErr.message); return; }
+    if (updateErr) {
+      toast.error("Gagal update: " + updateErr.message);
+      return;
+    }
 
     const { error: tlErr } = await supabase.from("service_timeline").insert({
-      service_order_id: pendingTargetService.id, teknisi_id: teknisiId, status: "pending_teknisi",
+      service_order_id: pendingTargetService.id,
+      teknisi_id: teknisiId,
+      status: "pending_teknisi",
       message: `Ditunda oleh teknisi: ${pendingReason.trim()}`,
       details: { action: "take_pending", reason: pendingReason.trim() },
     });
-    if (tlErr) { toast.error("Gagal simpan alasan: " + tlErr.message); return; }
+    if (tlErr) {
+      toast.error("Gagal simpan alasan: " + tlErr.message);
+      return;
+    }
 
     toast.success("Proyek ditunda, menunggu persetujuan QC.");
-    setShowPendingReasonModal(false); setPendingReason(""); setPendingTargetService(null);
+    setShowPendingReasonModal(false);
+    setPendingReason("");
+    setPendingTargetService(null);
     fetchQueues();
   };
 
   const resumeProject = async (service: ExtendedServiceOrder) => {
     const { error } = await supabase.from("service_timeline").insert({
-      service_order_id: service.id, teknisi_id: teknisiId, status: "pending_resumed",
+      service_order_id: service.id,
+      teknisi_id: teknisiId,
+      status: "pending_resumed",
       message: `Service dilanjutkan oleh teknisi`,
       details: { action: "pending_resumed" },
     });
-    if (error) { toast.error("Gagal: " + error.message); return; }
+    if (error) {
+      toast.error("Gagal: " + error.message);
+      return;
+    }
     toast.success("Service dilanjutkan!");
     fetchQueues();
   };
@@ -247,19 +317,19 @@ export default function QueueList({
         .eq("role", "admin");
 
       if (admins && admins.length > 0) {
-        const notifications: any[] = []
+        const notifications: any[] = [];
         for (const admin of admins) {
           notifications.push({
             user_id: admin.id,
-            title: '⏰ Reminder: PO Belum Direspon',
+            title: "⏰ Reminder: PO Belum Direspon",
             message: `PO untuk ${service.invoice_number} (${service.po_sparepart}) belum direspon oleh admin.`,
-            type: 'warning',
-            link: '/admin',
-            is_read: false
-          })
+            type: "warning",
+            link: "/admin",
+            is_read: false,
+          });
         }
         if (notifications.length > 0) {
-          await supabase.from('notifications').insert(notifications)
+          await supabase.from("notifications").insert(notifications);
         }
       }
       toast.success("Peringatan terkirim ke admin!");
@@ -323,32 +393,49 @@ export default function QueueList({
   };
 
   const handleQCPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("handleQCPhotoUpload triggered", { event: e, filesSelected: e.target.files?.length });
+    console.log("handleQCPhotoUpload triggered", {
+      event: e,
+      filesSelected: e.target.files?.length,
+    });
     const files = Array.from(e.target.files || []);
-    e.target.value = ''; // Clear input to allow re-uploading same file after removal
+    e.target.value = ""; // Clear input to allow re-uploading same file after removal
 
     const validFiles: File[] = [];
     const validPreviews: string[] = [];
     let currentTotalSize = qcPhotos.reduce((sum, file) => sum + file.size, 0);
-    console.log("Initial qcPhotos count:", qcPhotos.length, "currentTotalSize:", currentTotalSize);
+    console.log(
+      "Initial qcPhotos count:",
+      qcPhotos.length,
+      "currentTotalSize:",
+      currentTotalSize,
+    );
 
     // Validate each new file
     for (const file of files) {
-      console.log(`Validating file: ${file.name}, size: ${file.size}, type: ${file.type}`);
+      console.log(
+        `Validating file: ${file.name}, size: ${file.size}, type: ${file.type}`,
+      );
 
       if (qcPhotos.length + validFiles.length >= MAX_FILES) {
-        toast.error(`Maksimal ${MAX_FILES} foto diizinkan. ${file.name} tidak ditambahkan.`);
+        toast.error(
+          `Maksimal ${MAX_FILES} foto diizinkan. ${file.name} tidak ditambahkan.`,
+        );
         console.warn(`File ${file.name} rejected: Max files reached.`);
         break; // Stop adding more files if max is reached
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`"${file.name}" terlalu besar (maksimal ${MAX_FILE_SIZE / (1024 * 1024)}MB).`);
+        toast.error(
+          `"${file.name}" terlalu besar (maksimal ${MAX_FILE_SIZE / (1024 * 1024)}MB).`,
+        );
         console.warn(`File ${file.name} rejected: Size too large.`);
         continue; // Skip this file
       }
 
-      if (!ALLOWED_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)) {
+      if (
+        !ALLOWED_TYPES.includes(file.type) &&
+        !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)
+      ) {
         toast.error(`"${file.name}" bukan format gambar yang didukung.`);
         console.warn(`File ${file.name} rejected: Invalid type.`);
         continue; // Skip this file
@@ -356,21 +443,27 @@ export default function QueueList({
 
       // Check total size with existing and valid new files
       if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
-        toast.error(`Menambahkan "${file.name}" akan melebihi total ukuran maksimal ${MAX_TOTAL_SIZE / (1024 * 1024)}MB.`);
+        toast.error(
+          `Menambahkan "${file.name}" akan melebihi total ukuran maksimal ${MAX_TOTAL_SIZE / (1024 * 1024)}MB.`,
+        );
         console.warn(`File ${file.name} rejected: Total size limit reached.`);
         continue; // Skip this file
       }
-      
+
       validFiles.push(file);
       validPreviews.push(URL.createObjectURL(file));
       currentTotalSize += file.size;
-      console.log(`File ${file.name} accepted. New currentTotalSize: ${currentTotalSize}`);
+      console.log(
+        `File ${file.name} accepted. New currentTotalSize: ${currentTotalSize}`,
+      );
     }
 
     if (validFiles.length > 0) {
       setQCPhotos((prev) => [...prev, ...validFiles]);
       setQCPhotoPreviews((prev) => [...prev, ...validPreviews]);
-      console.log(`Added ${validFiles.length} new valid files. Total qcPhotos now: ${qcPhotos.length + validFiles.length}`);
+      console.log(
+        `Added ${validFiles.length} new valid files. Total qcPhotos now: ${qcPhotos.length + validFiles.length}`,
+      );
     } else {
       console.log("No valid files to add.");
     }
@@ -385,7 +478,12 @@ export default function QueueList({
   const deleteQCItem = (index: number) => {
     const updated = qcItems.filter((_, i) => i !== index);
     setQCItems(updated);
-    setQCTotalCost(updated.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0));
+    setQCTotalCost(
+      updated.reduce(
+        (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+        0,
+      ),
+    );
   };
 
   const startEditPrice = (index: number, currentPrice: number) => {
@@ -396,10 +494,15 @@ export default function QueueList({
     const newPrice = editingPrice[index];
     if (newPrice === undefined || newPrice < 0) return;
     const updated = qcItems.map((item, i) =>
-      i === index ? { ...item, price: newPrice } : item
+      i === index ? { ...item, price: newPrice } : item,
     );
     setQCItems(updated);
-    setQCTotalCost(updated.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0));
+    setQCTotalCost(
+      updated.reduce(
+        (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+        0,
+      ),
+    );
     const { [index]: _, ...rest } = editingPrice;
     setEditingPrice(rest);
   };
@@ -456,33 +559,70 @@ export default function QueueList({
       const formatTanggal = (dateString: string | null | undefined) => {
         if (!dateString) return "-";
         const d = new Date(dateString);
-        const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-        const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-        return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+        const days = [
+          "Minggu",
+          "Senin",
+          "Selasa",
+          "Rabu",
+          "Kamis",
+          "Jumat",
+          "Sabtu",
+        ];
+        const months = [
+          "Januari",
+          "Februari",
+          "Maret",
+          "April",
+          "Mei",
+          "Juni",
+          "Juli",
+          "Agustus",
+          "September",
+          "Oktober",
+          "November",
+          "Desember",
+        ];
+        return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} (${String(d.getMonth() + 1).padStart(2, "0")}), ${d.getFullYear()}`;
       };
 
       const startDateFormatted = formatTanggal(selectedService.start_date);
       const doneDateFormatted = formatTanggal(now.toISOString());
 
-      const qcSubmittedItems = qcItems.map(item => ({
+      const qcSubmittedItems = qcItems.map((item) => ({
         ...item,
         price: editingPrice[qcItems.indexOf(item)] ?? item.price,
         quantity: item.quantity,
       }));
 
-      const barangItems = qcSubmittedItems.filter((i) => i.item_type === "sparepart");
+      const barangItems = qcSubmittedItems.filter(
+        (i) => i.item_type === "sparepart",
+      );
       const jasaItems = qcSubmittedItems.filter((i) => i.item_type === "jasa");
 
-      const barangList = barangItems.length > 0
-        ? barangItems.map((i) => `- ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`).join("\n")
-        : "";
+      const barangList =
+        barangItems.length > 0
+          ? barangItems
+              .map(
+                (i) =>
+                  `- ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`,
+              )
+              .join("\n")
+          : "";
 
-      const jasaList = jasaItems.length > 0
-        ? jasaItems.map((i) => `- ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`).join("\n")
-        : "";
+      const jasaList =
+        jasaItems.length > 0
+          ? jasaItems
+              .map(
+                (i) =>
+                  `- ${i.name} (${i.quantity}x) @Rp${(i.price || 0).toLocaleString("id-ID")}`,
+              )
+              .join("\n")
+          : "";
 
       const sections: string[] = [];
-      sections.push(`${selectedService.status === "revision_required" ? "UPDATE QC AFTER REJECT QC" : "UPDATE QC"}`);
+      sections.push(
+        `${selectedService.status === "revision_required" ? "UPDATE QC AFTER REJECT QC" : "UPDATE QC"}`,
+      );
       sections.push(`Status : Menunggu QC`);
       sections.push(`Nama : ${selectedService.customer_name || "-"}`);
       sections.push(`No. hp : ${selectedService.customer_phone || "-"}`);
@@ -490,8 +630,13 @@ export default function QueueList({
       if (selectedService.watch_model) {
         sections.push(`Tipe : ${selectedService.watch_model}`);
       }
-      if (selectedService.estimated_cost && selectedService.estimated_cost > 0) {
-        sections.push(`Estimasi : Rp${selectedService.estimated_cost.toLocaleString("id-ID")}`);
+      if (
+        selectedService.estimated_cost &&
+        selectedService.estimated_cost > 0
+      ) {
+        sections.push(
+          `Estimasi : Rp${selectedService.estimated_cost.toLocaleString("id-ID")}`,
+        );
       }
       sections.push(`Teknisi : ${user?.full_name || "-"}`);
       sections.push(`Start : ${startDateFormatted}`);
@@ -532,9 +677,8 @@ export default function QueueList({
 
       const caption = sections.filter(Boolean).join("\n\n");
 
-
       const uploadedUrls: string[] = [];
-      let firstChatId = '';
+      let firstChatId = "";
       let firstMessageId = 0;
       const formData = new FormData();
       for (let i = 0; i < qcPhotos.length; i++) {
@@ -542,14 +686,20 @@ export default function QueueList({
       }
       formData.append("type", "qc_update");
       formData.append("caption", caption);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json();
       if (data.urls && data.urls.length > 0) {
         for (let i = 0; i < data.urls.length; i++) {
-          const chatId = data.messages?.[i]?.chat_id || '';
+          const chatId = data.messages?.[i]?.chat_id || "";
           const messageId = data.messages?.[i]?.message_id || 0;
           uploadedUrls.push(data.urls[i]);
-          if (!firstChatId && chatId) { firstChatId = chatId; firstMessageId = messageId; }
+          if (!firstChatId && chatId) {
+            firstChatId = chatId;
+            firstMessageId = messageId;
+          }
           await supabase.from("service_documentation").insert({
             service_order_id: selectedService.id,
             photo_url: data.urls[i],
@@ -567,7 +717,11 @@ export default function QueueList({
           status: "qc_pending",
           done_date: new Date().toISOString(),
           work_duration: selectedService.start_date
-            ? Math.ceil((new Date().getTime() - new Date(selectedService.start_date).getTime()) / (1000 * 60 * 60 * 24))
+            ? Math.ceil(
+                (new Date().getTime() -
+                  new Date(selectedService.start_date).getTime()) /
+                  (1000 * 60 * 60 * 24),
+              )
             : null,
           qc_submit_notes: qcNotes || null,
         })
@@ -581,22 +735,32 @@ export default function QueueList({
       const priceChanges: string[] = [];
 
       for (const orig of initialItems) {
-        const stillExists = qcItems.some((item) => item.id === orig.id && item.name === orig.name);
+        const stillExists = qcItems.some(
+          (item) => item.id === orig.id && item.name === orig.name,
+        );
         if (!stillExists) {
-          deletedItems.push(`${orig.item_type === "jasa" ? "jasa" : "sparepart"} ${orig.name}`);
+          deletedItems.push(
+            `${orig.item_type === "jasa" ? "jasa" : "sparepart"} ${orig.name}`,
+          );
         }
       }
 
       for (const curr of qcItems) {
-        const orig = initialItems.find((o: any) => o.id === curr.id && o.name === curr.name);
+        const orig = initialItems.find(
+          (o: any) => o.id === curr.id && o.name === curr.name,
+        );
         if (orig && orig.price !== curr.price) {
-          priceChanges.push(`${curr.name}: Rp ${(orig.price || 0).toLocaleString()} → Rp ${(curr.price || 0).toLocaleString()}`);
+          priceChanges.push(
+            `${curr.name}: Rp ${(orig.price || 0).toLocaleString()} → Rp ${(curr.price || 0).toLocaleString()}`,
+          );
         }
       }
 
       let changeMsg = "";
-      if (deletedItems.length > 0) changeMsg += `menghapus ${deletedItems.join(", ")}. `;
-      if (priceChanges.length > 0) changeMsg += `mengubah harga ${priceChanges.join(", ")}. `;
+      if (deletedItems.length > 0)
+        changeMsg += `menghapus ${deletedItems.join(", ")}. `;
+      if (priceChanges.length > 0)
+        changeMsg += `mengubah harga ${priceChanges.join(", ")}. `;
       if (changeMsg) changeMsg = changeMsg.trim() + " ";
 
       await supabase.from("service_timeline").insert({
@@ -604,9 +768,7 @@ export default function QueueList({
         teknisi_id: teknisiId,
         status: "qc_pending",
         message: `${changeMsg}Service telah selesai dan dikirim ke QC oleh teknisi${
-          uploadedUrls.length > 0
-            ? ` (${uploadedUrls.length} foto)`
-            : ""
+          uploadedUrls.length > 0 ? ` (${uploadedUrls.length} foto)` : ""
         }`,
         details: {
           action: "submit_to_qc",
@@ -732,8 +894,11 @@ export default function QueueList({
       <div className="space-y-6">
         <Skeleton variant="card" height="4rem" />
         <div className="grid gap-4">
-          {[1,2,3].map(i => (
-            <div key={i} className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 shadow-sm">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 shadow-sm"
+            >
               <div className="flex items-center gap-2 mb-3">
                 <Skeleton variant="text" width="30%" />
                 <Skeleton variant="text" width="20%" />
@@ -749,14 +914,22 @@ export default function QueueList({
 
   const activeCount = myServices.length;
   const tabs = [
-    { id: 'available' as const, label: 'List Service', count: pendingServices.length },
-    { id: 'my' as const, label: 'Proyek Saya', count: activeCount },
-    { id: 'pending' as const, label: 'Pending', count: teknisiPendingServices.length },
+    {
+      id: "available" as const,
+      label: "List Service",
+      count: pendingServices.length,
+    },
+    { id: "my" as const, label: "Proyek Saya", count: activeCount },
+    {
+      id: "pending" as const,
+      label: "Pending",
+      count: teknisiPendingServices.length,
+    },
   ];
   const groupedByCategory = (services: ExtendedServiceOrder[]) => {
     const groups: Record<string, ExtendedServiceOrder[]> = {};
     for (const s of services) {
-      const key = s.category || s.watch_movement || 'Lainnya';
+      const key = s.category || s.watch_movement || "Lainnya";
       if (!groups[key]) groups[key] = [];
       groups[key].push(s);
     }
@@ -767,251 +940,365 @@ export default function QueueList({
     <div className="space-y-6">
       {/* Tab Switcher */}
       <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1.5 shadow-sm flex gap-1">
-        {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setQueueTab(tab.id)}
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setQueueTab(tab.id)}
             className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
               queueTab === tab.id
-                ? 'bg-gray-900 text-white shadow-sm'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-white/5'
-            }`}>
-            {tab.label} {tab.count > 0 && <span className={`ml-1.5 text-xs ${queueTab === tab.id ? 'text-white/80' : 'text-gray-400'}`}>({tab.count})</span>}
+                ? "bg-gray-900 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-white/5"
+            }`}
+          >
+            {tab.label}{" "}
+            {tab.count > 0 && (
+              <span
+                className={`ml-1.5 text-xs ${queueTab === tab.id ? "text-white/80" : "text-gray-400"}`}
+              >
+                ({tab.count})
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {queueTab === 'my' && (
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
-            <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+      {queueTab === "my" && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+              <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              Proyek Saya ({activeCount})
+            </h3>
           </div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Proyek Saya ({activeCount})
-          </h3>
+
+          {myServices.length === 0 ? (
+            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
+              <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium text-gray-500">
+                Belum ada proyek yang diambil
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Ambil proyek dari daftar di bawah
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {myServices.map((service, index) => {
+                const statusBadge = getStatusBadge(service.status);
+                const lastUpdateMessage =
+                  service.last_update?.message || "Belum ada update";
+
+                return (
+                  <motion.div
+                    key={service.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => viewMyServiceInfo(service)}
+                    className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer"
+                  >
+                    <div className="p-4 space-y-3">
+                      {/* Row 1: Invoice + Status badges */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
+                          {service.invoice_number}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}
+                        >
+                          {statusBadge.label}
+                        </span>
+                        {service.status === "revision_required" && (
+                          <span className="px-2 py-0.5 text-xs bg-red-600 text-white font-bold rounded-full border border-red-700">
+                            REJECT QC
+                          </span>
+                        )}
+                        {service.status === "req_sparepart_admin" && (
+                          <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full border border-orange-200">
+                            ⏳ Menunggu Admin
+                          </span>
+                        )}
+                        {service.status === "po_pending" && (
+                          <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full border border-purple-200">
+                            📦 PO Diproses
+                          </span>
+                        )}
+                        {service.status === "sparepart_ready" && (
+                          <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full border border-green-200">
+                            ✅ Siap Diambil
+                          </span>
+                        )}
+                        {service.last_update && (
+                          <span className="text-xs text-gray-400 ml-auto">
+                            {new Date(
+                              service.last_update.created_at,
+                            ).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Row 2: Customer + Watch (full width) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
+                          <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs text-gray-500">Customer</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {service.customer_name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
+                          <Watch className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs text-gray-500">Device</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {service.watch_brand || service.device_brand}{" "}
+                              {service.watch_model || service.device_model}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 3: Issue description */}
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                        {service.issue_description}
+                      </p>
+
+                      {service.last_update && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Clock className="w-3 h-3" />
+                          <span>Terakhir: {lastUpdateMessage}</span>
+                        </div>
+                      )}
+
+                      {/* Row 4: Action buttons — always at bottom */}
+                      <div className="flex gap-2 flex-wrap pt-2 border-t border-gray-100 dark:border-white/5">
+                        {(service.status === "assigned" ||
+                          service.status === "in_progress" ||
+                          service.status === "revision_required") && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openUpdate(service);
+                              }}
+                              className="px-3 py-1.5 text-xs bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1"
+                            >
+                              <Wrench className="w-3.5 h-3.5" /> UPDATE
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSubmitQC(service);
+                              }}
+                              className="px-3 py-1.5 text-xs bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> SUBMIT QC
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                takeWithPending(service);
+                              }}
+                              className="px-3 py-1.5 text-xs bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-all flex items-center gap-1"
+                            >
+                              <Clock className="w-3.5 h-3.5" /> PENDING
+                            </button>
+                          </>
+                        )}
+                        {(service.status === "req_sparepart_admin" ||
+                          service.status === "po_pending") && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sendReminderToAdmin(service);
+                            }}
+                            className="px-3 py-1.5 text-xs bg-yellow-500 text-white font-medium rounded-xl hover:bg-yellow-600 transition-all flex items-center gap-1"
+                          >
+                            <Bell className="w-3.5 h-3.5" /> REMINDER
+                          </button>
+                        )}
+                        {service.status === "qc_pending" && (
+                          <span className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 border border-purple-300 rounded-xl flex items-center gap-1 font-medium">
+                            <Clock className="w-3.5 h-3.5" /> QC
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
+      )}
 
-        {myServices.length === 0 ? (
-          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
-            <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-            <p className="text-sm font-medium text-gray-500">Belum ada proyek yang diambil</p>
-            <p className="text-xs text-gray-400 mt-1">Ambil proyek dari daftar di bawah</p>
+      {queueTab === "available" && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
+              <Package className="w-4 h-4 text-white dark:text-gray-900" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              List Service ({pendingServices.length})
+            </h3>
           </div>
-        ) : (
-          <div className="grid gap-4">
-            {myServices.map((service, index) => {
-              const statusBadge = getStatusBadge(service.status);
-              const lastUpdateMessage = service.last_update?.message || "Belum ada update";
 
-              return (
+          {pendingServices.length === 0 ? (
+            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
+              <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
+              <p className="text-sm font-medium text-gray-500">
+                Tidak ada service baru
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Semua service sudah diambil
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {pendingServices.map((service, index) => (
                 <motion.div
                   key={service.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  onClick={() => viewMyServiceInfo(service)}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer"
+                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-gray-900 dark:hover:border-white"
+                  onClick={() => viewServiceDetails(service)}
                 >
-                  <div className="p-4 space-y-3">
-                    {/* Row 1: Invoice + Status badges */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
-                        {service.invoice_number}
-                      </span>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}>
-                        {statusBadge.label}
-                      </span>
-                      {service.status === "revision_required" && (
-                        <span className="px-2 py-0.5 text-xs bg-red-600 text-white font-bold rounded-full border border-red-700">
-                          REJECT QC
-                        </span>
-                      )}
-                      {service.status === "req_sparepart_admin" && (
-                        <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full border border-orange-200">⏳ Menunggu Admin</span>
-                      )}
-                      {service.status === "po_pending" && (
-                        <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full border border-purple-200">📦 PO Diproses</span>
-                      )}
-                      {service.status === "sparepart_ready" && (
-                        <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full border border-green-200">✅ Siap Diambil</span>
-                      )}
-                      {service.last_update && (
-                        <span className="text-xs text-gray-400 ml-auto">{new Date(service.last_update.created_at).toLocaleDateString()}</span>
-                      )}
-                    </div>
+                  <div className="p-4">
+                    <div className="flex flex-wrap justify-between items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
+                            {service.invoice_number}
+                          </span>
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
+                            BARU
+                          </span>
+                        </div>
 
-                    {/* Row 2: Customer + Watch (full width) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
-                        <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs text-gray-500">Customer</p>
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{service.customer_name}</p>
+                        <div className="flex items-center gap-3 mb-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <User className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
+                              {service.customer_name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Watch className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {service.watch_brand || service.device_brand}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                            <AlertCircle className="w-4 h-4 text-gray-400" />
+                            <span className="line-clamp-1">
+                              {service.issue_description?.substring(0, 50)}...
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
-                        <Watch className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-xs text-gray-500">Device</p>
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{service.watch_brand || service.device_brand}{" "}{service.watch_model || service.device_model}</p>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Row 3: Issue description */}
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{service.issue_description}</p>
-
-                    {service.last_update && (
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        <span>Terakhir: {lastUpdateMessage}</span>
-                      </div>
-                    )}
-
-                    {/* Row 4: Action buttons — always at bottom */}
-                    <div className="flex gap-2 flex-wrap pt-2 border-t border-gray-100 dark:border-white/5">
-                      {(service.status === "assigned" || service.status === "in_progress" || service.status === "revision_required") && (
-                        <>
-                          <button onClick={(e) => { e.stopPropagation(); openUpdate(service); }}
-                            className="px-3 py-1.5 text-xs bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1">
-                            <Wrench className="w-3.5 h-3.5" /> UPDATE
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); openSubmitQC(service); }}
-                            className="px-3 py-1.5 text-xs bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1">
-                            <CheckCircle className="w-3.5 h-3.5" /> SUBMIT QC
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); takeWithPending(service); }}
-                            className="px-3 py-1.5 text-xs bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-all flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" /> PENDING
-                          </button>
-                        </>
-                      )}
-                      {(service.status === "req_sparepart_admin" || service.status === "po_pending") && (
-                        <button onClick={(e) => { e.stopPropagation(); sendReminderToAdmin(service); }}
-                          className="px-3 py-1.5 text-xs bg-yellow-500 text-white font-medium rounded-xl hover:bg-yellow-600 transition-all flex items-center gap-1">
-                          <Bell className="w-3.5 h-3.5" /> REMINDER
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            viewServiceDetails(service);
+                          }}
+                          className="px-3 py-1.5 text-sm bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1"
+                        >
+                          <Eye className="w-4 h-4" /> DETAIL
                         </button>
-                      )}
-                      {service.status === "qc_pending" && (
-                        <span className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 border border-purple-300 rounded-xl flex items-center gap-1 font-medium">
-                          <Clock className="w-3.5 h-3.5" /> QC
-                        </span>
-                      )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            takeProject(service);
+                          }}
+                          className="px-3 py-1.5 text-sm bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1"
+                        >
+                          <CheckCircle className="w-4 h-4" /> AMBIL
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {queueTab === 'available' && (
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
-            <Package className="w-4 h-4 text-white dark:text-gray-900" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            List Service ({pendingServices.length})
-          </h3>
-        </div>
-
-        {pendingServices.length === 0 ? (
-          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
-            <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-            <p className="text-sm font-medium text-gray-500">Tidak ada service baru</p>
-            <p className="text-xs text-gray-400 mt-1">Semua service sudah diambil</p>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {pendingServices.map((service, index) => (
-              <motion.div
-                key={service.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-gray-900 dark:hover:border-white"
-                onClick={() => viewServiceDetails(service)}
-              >
-                <div className="p-4">
-                  <div className="flex flex-wrap justify-between items-start gap-3">
+      {queueTab === "pending" && (
+        <div>
+          {teknisiPendingServices.length === 0 ? (
+            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
+              <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium text-gray-500">
+                Tidak ada service pending
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Service pending menunggu persetujuan QC
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {teknisiPendingServices.map((service, index) => (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
                           {service.invoice_number}
                         </span>
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">BARU</span>
-                      </div>
-
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium text-gray-900 dark:text-gray-100">{service.customer_name}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <Watch className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-600 dark:text-gray-400">{service.watch_brand || service.device_brand}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                          <AlertCircle className="w-4 h-4 text-gray-400" />
-                          <span className="line-clamp-1">{service.issue_description?.substring(0, 50)}...</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); viewServiceDetails(service); }}
-                        className="px-3 py-1.5 text-sm bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1">
-                        <Eye className="w-4 h-4" /> DETAIL
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); takeProject(service); }}
-                        className="px-3 py-1.5 text-sm bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" /> AMBIL
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-      )}
-
-      {queueTab === 'pending' && (
-        <div>
-          {teknisiPendingServices.length === 0 ? (
-            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
-              <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm font-medium text-gray-500">Tidak ada service pending</p>
-              <p className="text-xs text-gray-400 mt-1">Service pending menunggu persetujuan QC</p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {teknisiPendingServices.map((service, index) => (
-                <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">{service.invoice_number}</span>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${(service as any)._pendingStatus === 'pending_approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
-                          {(service as any)._pendingStatus === 'pending_approved' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                          {(service as any)._pendingStatus === 'pending_approved' ? 'DISETUJUI' : 'PENDING'}
+                        <span
+                          className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${(service as any)._pendingStatus === "pending_approved" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}
+                        >
+                          {(service as any)._pendingStatus ===
+                          "pending_approved" ? (
+                            <CheckCircle className="w-3 h-3" />
+                          ) : (
+                            <Clock className="w-3 h-3" />
+                          )}
+                          {(service as any)._pendingStatus ===
+                          "pending_approved"
+                            ? "DISETUJUI"
+                            : "PENDING"}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{service.customer_name}</span>
-                        <span className="text-sm text-gray-500">{service.watch_brand || service.device_brand}</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {service.customer_name}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {service.watch_brand || service.device_brand}
+                        </span>
                       </div>
                       <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-2.5 border border-amber-200 dark:border-amber-800 mt-2">
-                        <p className="text-xs font-medium text-amber-800 dark:text-amber-300">Alasan Pending:</p>
-                        <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">{(service as any)._pendingReason}</p>
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                          Alasan Pending:
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
+                          {(service as any)._pendingReason}
+                        </p>
                       </div>
-                      {(service as any)._pendingStatus === 'pending_approved' && (
-                        <button onClick={(e) => { e.stopPropagation(); resumeProject(service); }}
-                          className="mt-3 px-3 py-1.5 text-xs bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1">
+                      {(service as any)._pendingStatus ===
+                        "pending_approved" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            resumeProject(service);
+                          }}
+                          className="mt-3 px-3 py-1.5 text-xs bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1"
+                        >
                           <CheckCircle className="w-3.5 h-3.5" /> LANJUTKAN
                         </button>
                       )}
@@ -1026,20 +1313,49 @@ export default function QueueList({
 
       {/* PENDING REASON MODAL */}
       {showPendingReasonModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowPendingReasonModal(false)}>
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+          onClick={() => setShowPendingReasonModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-white/10 p-6"
-            onClick={(e) => e.stopPropagation()}>
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 bg-amber-600 rounded-xl flex items-center justify-center"><Clock className="w-4 h-4 text-white" /></div>
-              <div><h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Alasan Pending</h2><p className="text-xs text-gray-500">{pendingTargetService?.invoice_number}</p></div>
+              <div className="w-9 h-9 bg-amber-600 rounded-xl flex items-center justify-center">
+                <Clock className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  Alasan Pending
+                </h2>
+                <p className="text-xs text-gray-500">
+                  {pendingTargetService?.invoice_number}
+                </p>
+              </div>
             </div>
-            <textarea value={pendingReason} onChange={(e) => setPendingReason(e.target.value)}
-              rows={3} className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none mb-4"
-              placeholder="Jelaskan alasan pending..." />
+            <textarea
+              value={pendingReason}
+              onChange={(e) => setPendingReason(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none mb-4"
+              placeholder="Jelaskan alasan pending..."
+            />
             <div className="flex gap-3">
-              <button onClick={() => setShowPendingReasonModal(false)} className="flex-1 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5">Batal</button>
-              <button onClick={submitPending} className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-medium hover:bg-amber-700 transition-all">Kirim</button>
+              <button
+                onClick={() => setShowPendingReasonModal(false)}
+                className="flex-1 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+              >
+                Batal
+              </button>
+              <button
+                onClick={submitPending}
+                className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-medium hover:bg-amber-700 transition-all"
+              >
+                Kirim
+              </button>
             </div>
           </motion.div>
         </div>
@@ -1058,21 +1374,34 @@ export default function QueueList({
 
           {/* UPDATE MODAL — combines Timeline + Add Jasa + Add Sparepart */}
           {showUpdateModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowUpdateModal(false)}>
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+              onClick={() => setShowUpdateModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
-                onClick={(e) => e.stopPropagation()}>
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
                       <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Update Service</h2>
-                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                        Update Service
+                      </h2>
+                      <p className="text-xs text-gray-500">
+                        {selectedService.invoice_number}
+                      </p>
                     </div>
                   </div>
-                  <button onClick={() => setShowUpdateModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                  <button
+                    onClick={() => setShowUpdateModal(false)}
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                  >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
@@ -1086,11 +1415,24 @@ export default function QueueList({
                   />
 
                   <div className="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-white/10">
-                    <button onClick={() => { setShowUpdateModal(false); openAddJasa(selectedService); }}
-                      className="flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all text-sm">
+                    <button
+                      onClick={() => {
+                        setShowUpdateModal(false);
+                        openAddJasa(selectedService);
+                      }}
+                      className="flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all text-sm"
+                    >
                       <Wrench className="w-4 h-4" /> TAMBAH JASA
                     </button>
-
+                    <button
+                      onClick={() => {
+                        setShowUpdateModal(false);
+                        openAddSparepart(selectedService);
+                      }}
+                      className="flex items-center justify-center gap-2 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all text-sm"
+                    >
+                      <Package className="w-4 h-4" /> TAMBAH SPAREPART
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -1099,29 +1441,47 @@ export default function QueueList({
 
           {/* PROGRESS (legacy) MODAL */}
           {showProgressModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowProgressModal(false)}>
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+              onClick={() => setShowProgressModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
-                onClick={(e) => e.stopPropagation()}>
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
                       <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail Update</h2>
-                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                        Detail Update
+                      </h2>
+                      <p className="text-xs text-gray-500">
+                        {selectedService.invoice_number}
+                      </p>
                     </div>
                   </div>
-                  <button onClick={() => setShowProgressModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                  <button
+                    onClick={() => setShowProgressModal(false)}
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                  >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
-                  <ProgressUpdate service={selectedService} onUpdate={() => fetchQueues()}
-                    onAddJasa={() => { setShowProgressModal(false); openAddJasa(selectedService); }}
-                    onAddSparepart={() => { setShowProgressModal(false); openAddSparepart(selectedService); }}
-                    onSubmitToQC={() => handleSubmitToQC(selectedService)} />
+                  <ProgressUpdate
+                    service={selectedService}
+                    onUpdate={() => fetchQueues()}
+                    onAddJasa={() => {
+                      setShowProgressModal(false);
+                      openAddJasa(selectedService);
+                    }}
+                    onSubmitToQC={() => handleSubmitToQC(selectedService)}
+                  />
                 </div>
               </motion.div>
             </div>
@@ -1133,28 +1493,49 @@ export default function QueueList({
               service={selectedService}
               teknisiId={teknisiId}
               onClose={() => setShowSubmitQCModal(false)}
-              onSuccess={() => { setShowSubmitQCModal(false); fetchQueues(); }}
+              onSuccess={() => {
+                setShowSubmitQCModal(false);
+                fetchQueues();
+              }}
             />
           )}
 
           {/* SERVICE INFO MODAL — card click on my services */}
           {showServiceInfoModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => { setShowServiceInfoModal(false); setServiceInfoPhotos([]); }}>
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+              onClick={() => {
+                setShowServiceInfoModal(false);
+                setServiceInfoPhotos([]);
+              }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
-                onClick={(e) => e.stopPropagation()}>
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
                       <Watch className="w-4 h-4 text-white dark:text-gray-900" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail Service</h2>
-                      <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                        Detail Service
+                      </h2>
+                      <p className="text-xs text-gray-500">
+                        {selectedService.invoice_number}
+                      </p>
                     </div>
                   </div>
-                  <button onClick={() => { setShowServiceInfoModal(false); setServiceInfoPhotos([]); }}
-                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                  <button
+                    onClick={() => {
+                      setShowServiceInfoModal(false);
+                      setServiceInfoPhotos([]);
+                    }}
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                  >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
@@ -1163,7 +1544,9 @@ export default function QueueList({
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <Camera className="w-4 h-4 text-gray-600" />
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Dokumentasi Service</h4>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        Dokumentasi Service
+                      </h4>
                       {serviceInfoPhotos.length > 0 && (
                         <span className="text-xs text-gray-400 bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
                           {serviceInfoPhotos.length} foto
@@ -1173,19 +1556,30 @@ export default function QueueList({
                     {serviceInfoPhotosLoading ? (
                       <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-6 text-center border border-gray-200 dark:border-white/10">
                         <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto" />
-                        <p className="text-xs text-gray-400 mt-2">Memuat foto...</p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Memuat foto...
+                        </p>
                       </div>
                     ) : serviceInfoPhotos.length === 0 ? (
                       <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-6 text-center border border-dashed border-gray-200 dark:border-white/10">
                         <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-1" />
-                        <p className="text-xs text-gray-400">Belum ada foto dokumentasi</p>
+                        <p className="text-xs text-gray-400">
+                          Belum ada foto dokumentasi
+                        </p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-3 gap-2">
                         {serviceInfoPhotos.map((photo, i) => (
-                          <div key={i} className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(photo, "_blank")}>
-                            <img src={photo} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                          <div
+                            key={i}
+                            className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(photo, "_blank")}
+                          >
+                            <img
+                              src={photo}
+                              alt={`Foto ${i + 1}`}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
                         ))}
                       </div>
@@ -1196,35 +1590,58 @@ export default function QueueList({
                   <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-2">
                     <div className="flex justify-between">
                       <span className="text-xs text-gray-500">Invoice</span>
-                      <span className="text-xs font-mono font-medium text-gray-900 dark:text-gray-100">{selectedService.invoice_number}</span>
+                      <span className="text-xs font-mono font-medium text-gray-900 dark:text-gray-100">
+                        {selectedService.invoice_number}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-xs text-gray-500">Status</span>
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusBadge(selectedService.status).color}`}>
+                      <span
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusBadge(selectedService.status).color}`}
+                      >
                         {getStatusBadge(selectedService.status).label}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-xs text-gray-500">Customer</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{selectedService.customer_name}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {selectedService.customer_name}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-xs text-gray-500">Phone</span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">{selectedService.customer_phone}</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                        {selectedService.customer_phone}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-xs text-gray-500">Device</span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">{selectedService.watch_brand || selectedService.device_brand} {selectedService.watch_model || selectedService.device_model}</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                        {selectedService.watch_brand ||
+                          selectedService.device_brand}{" "}
+                        {selectedService.watch_model ||
+                          selectedService.device_model}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Tanggal Masuk</span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">{new Date(selectedService.created_at).toLocaleDateString("id-ID")}</span>
+                      <span className="text-xs text-gray-500">
+                        Tanggal Masuk
+                      </span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                        {new Date(
+                          selectedService.created_at,
+                        ).toLocaleDateString("id-ID")}
+                      </span>
                     </div>
                   </div>
 
                   <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
-                    <h4 className="text-xs font-semibold text-gray-900 dark:text-gray-100 mb-1">Deskripsi Kerusakan</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{selectedService.issue_description}</p>
+                    <h4 className="text-xs font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                      Deskripsi Kerusakan
+                    </h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {selectedService.issue_description}
+                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -1233,27 +1650,44 @@ export default function QueueList({
 
           {/* LEGACY TIMELINE MODAL */}
           {showTimelineModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowTimelineModal(false)}>
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
+              onClick={() => setShowTimelineModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
                 className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
-                onClick={(e) => e.stopPropagation()}>
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
                   <div>
-                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Timeline Service</h2>
-                    <p className="text-xs text-gray-500">{selectedService.invoice_number}</p>
+                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                      Timeline Service
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      {selectedService.invoice_number}
+                    </p>
                   </div>
-                  <button onClick={() => setShowTimelineModal(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+                  <button
+                    onClick={() => setShowTimelineModal(false)}
+                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                  >
                     <X className="w-4 h-4 text-gray-400" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
-                  <ServiceTimeline serviceId={selectedService.id} customerPhone={selectedService.customer_phone} customerName={selectedService.customer_name} invoiceNumber={selectedService.invoice_number} onUpdate={() => fetchQueues()} />
+                  <ServiceTimeline
+                    serviceId={selectedService.id}
+                    customerPhone={selectedService.customer_phone}
+                    customerName={selectedService.customer_name}
+                    invoiceNumber={selectedService.invoice_number}
+                    onUpdate={() => fetchQueues()}
+                  />
                 </div>
               </motion.div>
             </div>
           )}
-
-
 
           {showAddJasa && (
             <AddJasaModal

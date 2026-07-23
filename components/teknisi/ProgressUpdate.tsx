@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
-import { ServiceOrder, ServiceItem } from '@/types'
+import { ServiceOrder } from '@/types'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Camera, Plus, X, Save, Calendar, Clock, User, Package, DollarSign, CheckCircle, AlertCircle, Trash2, Wrench, ChevronDown, ChevronUp } from 'lucide-react'
@@ -12,16 +12,14 @@ import { useUpload } from '@/hooks/useUpload'
 interface ProgressUpdateProps {
   service: ServiceOrder
   onUpdate: () => void
-  onAddSparepart?: () => void
   onAddJasa?: () => void
   onSubmitToQC?: () => void
 }
 
-export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAddJasa, onSubmitToQC }: ProgressUpdateProps) {
+export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitToQC }: ProgressUpdateProps) {
   const [step, setStep] = useState(1)
   const [showDetail, setShowDetail] = useState(false)
-  const [items, setItems] = useState<ServiceItem[]>([])
-  const [newItem, setNewItem] = useState({ name: '', price: 0, quantity: 1, item_type: 'jasa' as 'jasa' | 'sparepart' })
+  const [items, setItems] = useState<any[]>([])
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [completionNotes, setCompletionNotes] = useState('')
@@ -35,7 +33,7 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
   const { user } = useAuthStore()
   const { uploadFile } = useUpload()
 
-  const calculateTotal = (itemsList: ServiceItem[]) =>
+  const calculateTotal = (itemsList: any[]) =>
     itemsList.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
   const finalCost = calculateTotal(items)
 
@@ -53,16 +51,9 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
     setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))
   }
 
-  const addItem = () => {
-    if (!newItem.name || newItem.price <= 0) { toast.error('Fill item name and price'); return }
-    const newItemObj: ServiceItem = { id: Date.now().toString(), name: newItem.name, price: newItem.price, quantity: newItem.quantity, item_type: newItem.item_type, service_order_id: service.id, created_at: new Date().toISOString() }
-    setItems([...items, newItemObj])
-    setNewItem({ name: '', price: 0, quantity: 1, item_type: 'jasa' })
-  }
-
   const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index))
 
-   const submitProgress = async () => {
+  const submitProgress = async () => {
      setLoading(true); setUploading(true)
      try {
        const newPhotoUrls: string[] = []
@@ -127,17 +118,11 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
 
   return (
     <div className="space-y-5">
-      {/* Primary actions: Add Jasa & Add Sparepart */}
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={onAddJasa}
-          className="flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all text-sm">
-          <Wrench className="w-4 h-4" /> TAMBAH JASA
-        </button>
-        <button onClick={onAddSparepart}
-          className="flex items-center justify-center gap-2 py-3 bg-white text-gray-900 font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all text-sm">
-          <Package className="w-4 h-4" /> TAMBAH SPAREPART
-        </button>
-      </div>
+      {/* Primary actions: Add Jasa */}
+      <button onClick={onAddJasa}
+        className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all text-sm">
+        <Wrench className="w-4 h-4" /> TAMBAH JASA
+      </button>
 
       {/* Submit to QC */}
       <button onClick={onSubmitToQC}
@@ -189,7 +174,7 @@ export default function ProgressUpdate({ service, onUpdate, onAddSparepart, onAd
                   <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                     <h4 className="font-semibold text-gray-900 mb-3 text-sm">Item Tersimpan</h4>
                     {items.length === 0 ? (
-                      <div className="text-center py-4 text-gray-400 text-sm">Belum ada item. Gunakan tombol TAMBAH JASA / TAMBAH SPAREPART di atas.</div>
+                      <div className="text-center py-4 text-gray-400 text-sm">Belum ada item. Gunakan tombol TAMBAH JASA di atas atau TAMBAH SPAREPART dari detail service.</div>
                     ) : (
                       <div className="space-y-1.5 mb-3">
                         {items.map((item, i) => (

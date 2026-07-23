@@ -71,10 +71,9 @@ export default function AddSparepartModal({
         quantity: e.quantity,
         price: e.price,
         item_type: "sparepart" as const,
-        notes: e.notes || null,
       }));
 
-      const { error: insertError } = await supabase.from("service_items").insert(items);
+      const { error: insertError } = await supabase.from("service_items").insert(items).select();
       if (insertError) throw insertError;
 
       // Auto-create timeline entry
