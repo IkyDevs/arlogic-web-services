@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
 import { Clock, Search, Download, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 
-type FilterPeriod = "hari" | "minggu" | "bulan";
+type FilterPeriod = "hari" | "minggu" | "bulan" | "tahun";
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("id-ID", {
@@ -41,6 +41,7 @@ export default function AttendanceReport() {
     start.setHours(0, 0, 0, 0);
     if (filterPeriod === "minggu") start.setDate(now.getDate() - 7);
     else if (filterPeriod === "bulan") start.setMonth(now.getMonth() - 1);
+    else if (filterPeriod === "tahun") start.setFullYear(now.getFullYear() - 1);
     return { start: start.toISOString(), end: now.toISOString() };
   };
 
@@ -78,6 +79,28 @@ export default function AttendanceReport() {
       )
     : records;
 
+  const exportCSV = () => {
+    const headers = ["Tanggal", "Staff", "Check In", "Check Out", "Durasi", "Status"];
+    const rows = filtered.map((r) => [
+      fmtDate(r.check_in),
+      r.profiles?.full_name || "-",
+      fmtTime(r.check_in),
+      r.check_out ? fmtTime(r.check_out) : "-",
+      calcDuration(r.check_in, r.check_out),
+      !r.check_out ? "Active" : r.is_overtime ? "Lembur" : "Selesai",
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `absensi_${filterPeriod}_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -91,20 +114,26 @@ export default function AttendanceReport() {
             <p className="text-sm text-slate-500">Rekap absensi semua staff</p>
           </div>
         </div>
-        <button onClick={fetchAttendance}
-          className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition-all">
-          <Download className="w-4 h-4" /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={exportCSV} disabled={filtered.length === 0}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-slate-900 text-white rounded-xl hover:bg-slate-700 transition-all disabled:opacity-50">
+            <Download className="w-4 h-4" /> Export CSV
+          </button>
+          <button onClick={fetchAttendance}
+            className="flex items-center gap-2 px-3 py-2 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition-all">
+            <Clock className="w-4 h-4" /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filter */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            {(["hari", "minggu", "bulan"] as FilterPeriod[]).map((p) => (
+            {(["hari", "minggu", "bulan", "tahun"] as FilterPeriod[]).map((p) => (
               <button key={p} onClick={() => setFilterPeriod(p)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filterPeriod === p ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}>
-                {p === "hari" ? "Harian" : p === "minggu" ? "Mingguan" : "Bulanan"}
+                {p === "hari" ? "Harian" : p === "minggu" ? "Mingguan" : p === "bulan" ? "Bulanan" : "Tahunan"}
               </button>
             ))}
           </div>

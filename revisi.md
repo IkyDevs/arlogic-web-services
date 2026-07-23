@@ -378,3 +378,76 @@ Tidak ada perubahan schema atau migration. Struktur data tetap:
 - [x] Grouping hanya memengaruhi tampilan UI
 - [x] Seluruh flow transaksi tetap konsisten mulai dari input hingga nota
 - [x] Tidak ada regression pada fitur transaksi lainnya
+
+---
+
+# Revision V27.1 — Scroll, Tab Done, QC Grid, Owner Redesign
+
+## 10 — Scroll List Daftar Transaksi
+
+**Problem**: Halaman yang scroll, bukan list transaksi.
+
+**Fix**: Ubah `min-h-screen` → `h-screen` pada content wrapper (`admin/page.tsx:831`), `overflow-hidden` → `overflow-y-auto` pada `<main>` agar tab lain tetap bisa scroll dalam viewport tetap.
+
+| File | Change |
+|------|--------|
+| `app/admin/page.tsx:831` | `min-h-screen` → `h-screen`, `overflow-x-hidden` → `overflow-hidden` |
+| `app/admin/page.tsx:991` | `overflow-hidden` → `overflow-y-auto` |
+
+## 11 — Tab Done & Detail Service
+
+**Done Card**: Tambah rincian item final (`items.map`) di card, tampilkan status "✓ LUNAS" bila sisa bayar = 0.
+
+**Detail Service**: Foto After mencakup stage `qc` selain `final_condition`.
+
+| File | Change |
+|------|--------|
+| `components/admin/DoneService.tsx` | Card: item names + LUNAS; after photos: include qc stage |
+
+## 11c — Konsistensi Nama Tab
+
+Samakan seluruh dashboard menjadi **"List Service"**:
+
+| File | Old | New |
+|------|-----|-----|
+| `app/admin/page.tsx:784` | "Service" | "List Service" |
+| `app/teknisi/page.tsx:440` | "Service Baru" | "List Service" |
+| `app/qc/page.tsx:325` | "Service" | "List Service" |
+
+## 12 — Dashboard QC Redesign
+
+- **QCServiceList**: Layout horizontal → card/grid (`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`)
+- **QC Header**: "Semua Service QC" → "List Service yang Harus Direview"
+- **Export Absensi**: Tambah filter "Tahunan" + tombol Export CSV
+- **Edit User**: Modal edit profile, Email & User ID read-only
+
+| File | Change |
+|------|--------|
+| `components/qc/QCServiceList.tsx` | Card/grid redesign |
+| `app/qc/page.tsx:420` | Header rename |
+| `components/qc/AttendanceReport.tsx` | Tahunan filter + CSV export |
+| `components/admin/RoleManagement.tsx` | Edit profile modal, email/user_id read-only |
+
+## 13 — Dashboard Owner
+
+Hapus metrik palsu:
+- `expenses = totalRevenue * 0.35` (estimasi tanpa dasar data)
+- `profit = totalRevenue - expenses` (tidak realistis)
+- `profit margin` (tidak didukung data)
+
+Ganti dengan statistik aktual: Pendapatan Hari Ini, Pengeluaran Hari Ini, Pengeluaran Bulan Ini, Jasa Aktif. Layout stats grid full-width.
+
+| File | Change |
+|------|--------|
+| `app/owner/page.tsx` | Hapus fake expenses/profit, tambah TodayRevenue/TodayExpenses/MonthExpenses/ActiveServices |
+
+## Files Modified (complete list)
+
+- `app/admin/page.tsx` — scroll fix, tab rename
+- `app/teknisi/page.tsx` — tab rename
+- `app/qc/page.tsx` — tab rename, header rename
+- `components/admin/DoneService.tsx` — card items, LUNAS, qc stage photos
+- `components/admin/RoleManagement.tsx` — edit modal, email/user_id read-only
+- `components/qc/QCServiceList.tsx` — card/grid redesign
+- `components/qc/AttendanceReport.tsx` — Tahunan filter, CSV export
+- `app/owner/page.tsx` — remove fake metrics, realistic stats

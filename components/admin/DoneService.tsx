@@ -90,7 +90,7 @@ export default function DoneService() {
 
     const beforePhotos = docs.filter((d: any) => d.stage === "initial_condition");
     const duringPhotos = docs.filter((d: any) => d.stage && d.stage !== "initial_condition" && d.stage !== "final_condition");
-    const afterPhotos = docs.filter((d: any) => d.stage === "final_condition");
+    const afterPhotos = docs.filter((d: any) => d.stage === "final_condition" || d.stage === "qc");
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4" onClick={() => setSelectedService(null)}>
@@ -409,11 +409,13 @@ export default function DoneService() {
     const totalCost = svc.final_cost || (items.length > 0
       ? items.reduce((s: number, it: any) => s + (parseFloat(it.price) || 0) * (it.quantity || 1), 0)
       : svc.estimated_cost || 0);
+    const dp = svc.down_payment || 0;
+    const remaining = Math.max(0, totalCost - dp - (svc.discount || 0));
     return (
       <motion.div key={svc.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
         className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden cursor-pointer hover:shadow-md hover:border-slate-300 transition-all"
         onClick={() => openDetail(svc)}>
-        <div className="p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
+        <div className="p-4 md:p-5 flex flex-col md:flex-row md:items-start gap-4">
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">{svc.invoice_number}</span>
@@ -428,15 +430,31 @@ export default function DoneService() {
               <span className="flex items-center gap-1.5"><Hash className="w-4 h-4 text-slate-400" /><span className="text-slate-600">{svc.customer_phone}</span></span>
               {svc.watch_brand && <span className="flex items-center gap-1.5"><Watch className="w-4 h-4 text-slate-400" /><span className="text-slate-600">{svc.watch_brand}</span></span>}
             </div>
+            {/* Rincian item final */}
+            {items.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {items.map((it: any, idx: number) => (
+                  <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded-md text-[11px] text-slate-700 border border-slate-200">
+                    {it.name || it.item_name}
+                    <span className="text-emerald-600 font-medium">{(Number(it.price) || 0) * (it.quantity || 1)}</span>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
               {svc.issue_description && <span className="line-clamp-1">{svc.issue_description}</span>}
               {items.length > 0 && (
                 <span className="flex items-center gap-1"><Package className="w-3 h-3" />{items.length} item</span>
               )}
               <span className="font-semibold text-emerald-600">{fmtRupiah(totalCost)}</span>
+              {totalCost > 0 && (
+                <span className={`font-semibold ${remaining === 0 ? 'text-green-600' : 'text-blue-600'}`}>
+                  {remaining === 0 ? '✓ LUNAS' : `Sisa: ${fmtRupiah(remaining)}`}
+                </span>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
              <button onClick={() => contactWA(svc)}
               className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-all text-sm flex-shrink-0">
               <Phone className="w-4 h-4" />

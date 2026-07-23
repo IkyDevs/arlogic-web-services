@@ -437,7 +437,7 @@ export default function TeknisiDashboard() {
     { id: "absensi", label: "Absensi", icon: Clock },
     { id: "customer", label: "Customer", icon: Users },
     { id: "kaspin", label: "Kaspin", icon: Package },
-    { id: "service", label: "Service Baru", icon: Wrench },
+    { id: "service", label: "List Service", icon: Wrench },
     { id: "layanan", label: "Transaksi", icon: FileText },
     { id: "done", label: "Done", icon: CheckCircle },
   ];

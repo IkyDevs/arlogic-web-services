@@ -781,7 +781,7 @@ export default function AdminDashboard() {
       label: "Management Transaction",
       icon: ShoppingCart,
     },
-    { id: "services", label: "Service", icon: ClipboardList },
+    { id: "services", label: "List Service", icon: ClipboardList },
     { id: "sparepart", label: "Request Sparepart", icon: Package },
     { id: "attendance", label: "Absensi", icon: Clock },
     { id: "users", label: "Users", icon: Users },
@@ -828,7 +828,7 @@ export default function AdminDashboard() {
       </button>
 
       {/* ==================== MAIN CONTENT ==================== */}
-      <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden pb-16 lg:pb-0">
+      <div className="flex-1 h-screen flex flex-col w-full max-w-full overflow-hidden pb-16 lg:pb-0">
         {/* Top Navbar */}
         <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
           <div className="bg-white dark:bg-[#1c1c1c] rounded-xl px-4 py-3 flex items-center justify-between border border-gray-200 gap-2 sm:gap-4">
@@ -988,7 +988,7 @@ export default function AdminDashboard() {
         </header>
 
         {/* ==================== CONTENT AREA ==================== */}
-        <main className="flex-1 p-2 sm:p-3 md:p-4 overflow-hidden min-h-0 flex flex-col">
+        <main className="flex-1 p-2 sm:p-3 md:p-4 overflow-y-auto min-h-0 flex flex-col">
           <ErrorBoundary name="Dashboard">
             <AnimatePresence mode="wait">
               <motion.div

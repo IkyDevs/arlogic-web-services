@@ -40,3 +40,14 @@
 | R2: Perbaiki Bug Edit Transaction (restore extraItems) | ✅ | 2026-07-24 |
 | R3: Konsistensi Seluruh Flow Transaksi | ✅ | 2026-07-24 |
 | Documentation | ✅ | 2026-07-24 |
+
+## Phase 5 — Revision V27.1
+
+| Task | Status | Date |
+|------|--------|------|
+| 10: Scroll List Daftar Transaksi | ✅ | 2026-07-24 |
+| 11: Tab Done & Detail Service (rincian final, LUNAS) | ✅ | 2026-07-24 |
+| 11c: Konsistensi nama tab → List Service | ✅ | 2026-07-24 |
+| 12: Dashboard QC — card/grid, export absensi, edit user | ✅ | 2026-07-24 |
+| 13: Dashboard Owner — realistic stats only | ✅ | 2026-07-24 |
+| Documentation | ✅ | 2026-07-24 |

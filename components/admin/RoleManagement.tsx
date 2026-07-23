@@ -28,6 +28,7 @@ import {
   Star,
   Wrench,
   User,
+  Lock,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -54,6 +55,9 @@ export default function RoleManagement() {
   const [deleting, setDeleting] = useState(false);
   const [showRoleStats, setShowRoleStats] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: "", role: "customer" as UserRole, gender: "male" });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const supabase = createClient();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -521,12 +525,23 @@ export default function RoleManagement() {
                         <div className="flex gap-1.5">
                           <button
                             onClick={() => {
+                              setEditingProfile(user);
+                              setEditForm({ full_name: user.full_name || "", role: user.role as UserRole, gender: (user as any).gender || "male" });
+                            }}
+                            className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            title="Edit Profile"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
                               setEditingUser(user.id);
                               setSelectedRole(user.role);
                             }}
                             className="p-1.5 text-[#4DB2FF] hover:bg-[#e6f4ff] rounded-lg transition-colors"
+                            title="Edit Role"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Shield className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setDeletingUser(user)}
@@ -555,6 +570,84 @@ export default function RoleManagement() {
           </div>
         )}
       </div>
+
+      {/* Edit Profile Modal */}
+      {editingProfile && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-xl w-full max-w-sm md:max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6 border border-slate-200 shadow-xl">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center">
+                <Edit2 className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Edit Profile</h3>
+                <p className="text-xs text-slate-400">Edit user profile information</p>
+              </div>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setSavingEdit(true);
+              const { error } = await supabase.from("profiles").update({
+                full_name: editForm.full_name,
+                role: editForm.role,
+                gender: editForm.gender,
+              }).eq("id", editingProfile.id);
+              if (error) { toast.error("Gagal update: " + error.message); setSavingEdit(false); return; }
+              toast.success("Profile updated");
+              setEditingProfile(null);
+              setSavingEdit(false);
+              fetchUsers();
+            }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">User ID</label>
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 font-mono">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  {editingProfile.id}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Email</label>
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  {editingProfile.email || editingProfile.id}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Full Name</label>
+                <input type="text" value={editForm.full_name}
+                  onChange={(e) => setEditForm((p) => ({ ...p, full_name: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm" required />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Role</label>
+                <select value={editForm.role} onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value as UserRole }))}
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm">
+                  {roles.map((role) => (<option key={role} value={role} className="capitalize">{role}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Gender</label>
+                <select value={editForm.gender} onChange={(e) => setEditForm((p) => ({ ...p, gender: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm">
+                  <option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
+                </select>
+              </div>
+              <div className="flex gap-3 pt-3">
+                <button type="submit" disabled={savingEdit}
+                  className="flex-1 bg-slate-900 text-white font-medium py-2.5 rounded-lg hover:bg-slate-700 transition-all text-sm disabled:opacity-50">
+                  {savingEdit ? "Menyimpan..." : "Simpan"}
+                </button>
+                <button type="button" onClick={() => setEditingProfile(null)}
+                  className="flex-1 bg-white text-slate-900 font-medium py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all text-sm">
+                  Batal
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {showAddUser && (

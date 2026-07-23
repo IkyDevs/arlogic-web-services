@@ -322,7 +322,7 @@ export default function QCDashboard() {
     { id: "customer", label: "Customer", icon: Users },
     { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
     { id: "done", label: "Done", icon: CheckCircle },
-    { id: "service", label: "Service", icon: ClipboardCheck },
+    { id: "service", label: "List Service", icon: ClipboardCheck },
     { id: "users", label: "Users", icon: Shield },
   ];
 
@@ -417,7 +417,7 @@ export default function QCDashboard() {
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
                 {activeTab === "absensi" ? "Rekap absensi staff"
-                  : activeTab === "all" ? "Semua Service QC"
+                  : activeTab === "all" ? "List Service yang Harus Direview"
                   : activeTab === "pending-approval" ? "Persetujuan Pending Teknisi"
                   : `Teknisi: ${activeTab}`}
               </p>
