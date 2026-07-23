@@ -58,6 +58,8 @@ export default function QCDashboard() {
   const [services, setServices] = useState<any[]>([]);
   const [filteredServices, setFilteredServices] = useState<any[]>([]);
   const [teknisiList, setTeknisiList] = useState<string[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -176,6 +178,73 @@ export default function QCDashboard() {
     setLoading(false);
   };
 
+  const fetchPendingApprovals = async () => {
+    // Cari service yang ada timeline pending_teknisi TANPA timeline pending_approved setelahnya
+    const { data: allServices } = await supabase
+      .from("service_orders")
+      .select("*, profiles:assigned_teknisi_id(full_name)")
+      .order("created_at", { ascending: false });
+
+    if (!allServices) return;
+
+    // Ambil semua timeline untuk service-service ini
+    const ids = allServices.map(s => s.id);
+    const { data: timelines } = await supabase
+      .from("service_timeline")
+      .select("service_order_id, status, created_at, message")
+      .in("service_order_id", ids)
+      .in("status", ["pending_teknisi", "pending_approved", "pending_rejected"])
+      .order("created_at", { ascending: false });
+
+    if (!timelines) { setPendingApprovals([]); return; }
+
+    // Cari service yang terakhir statusnya pending_teknisi (belum di-approve/reject)
+    const latestStatus: Record<string, { status: string; message?: string }> = {};
+    for (const t of timelines) {
+      if (!latestStatus[t.service_order_id]) {
+        latestStatus[t.service_order_id] = { status: t.status, message: t.message };
+      }
+    }
+
+    const needApproval = allServices.filter(s => {
+      if (latestStatus[s.id]?.status !== 'pending_teknisi') return false;
+      // Ambil alasan dari timeline message
+      const msg = latestStatus[s.id].message || '';
+      (s as any)._pendingReason = msg.replace('Ditunda oleh teknisi: ', '');
+      return true;
+    });
+    setPendingApprovals(needApproval);
+  };
+
+  useEffect(() => {
+    if (activeTab === "all" || activeTab === "pending-approval" || activeTab.startsWith("teknisi_")) {
+      fetchPendingApprovals();
+    }
+  }, [activeTab]);
+
+  const handleApprovePending = async (id: string, approve: boolean) => {
+    setApprovingId(id);
+    try {
+      const res = await fetch("/api/qc/approve-pending", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceOrderId: id, approve }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(json.message);
+        fetchPendingApprovals();
+        fetchServices();
+      } else {
+        toast.error(json.error);
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
   const filterByTeknisi = (teknisiName: string) => {
     if (teknisiName === "all") {
       setFilteredServices(services);
@@ -248,6 +317,7 @@ export default function QCDashboard() {
 
   const menuItems: { id: string; label: string; icon: any; count?: number }[] = [
     { id: "all", label: "Semua", icon: ClipboardCheck },
+    { id: "pending-approval", label: "Pending", icon: Clock, count: pendingApprovals.length },
     { id: "absensi", label: "Absensi", icon: Calendar },
     { id: "customer", label: "Customer", icon: Users },
     { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
@@ -308,7 +378,7 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "users") {
+          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "users" || tabId === "pending-approval") {
             setActiveTab(tabId);
           } else if (tabId === "all") {
             filterByTeknisi("all");
@@ -346,11 +416,10 @@ export default function QCDashboard() {
                 QC Dashboard
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                {activeTab === "absensi"
-                  ? "Rekap absensi staff"
-                  : activeTab === "all"
-                    ? "Semua service"
-                    : `Teknisi: ${activeTab}`}
+                {activeTab === "absensi" ? "Rekap absensi staff"
+                  : activeTab === "all" ? "Semua Service QC"
+                  : activeTab === "pending-approval" ? "Persetujuan Pending Teknisi"
+                  : `Teknisi: ${activeTab}`}
               </p>
             </div>
 
@@ -398,6 +467,44 @@ export default function QCDashboard() {
             <RoleManagement />
           ) : activeTab === "done" ? (
             <DoneService />
+          ) : activeTab === "pending-approval" ? (
+            <div className="space-y-3">
+              {pendingApprovals.length === 0 ? (
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
+                  <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm font-medium text-gray-500">Tidak ada pending approval</p>
+                </div>
+              ) : (
+                pendingApprovals.map((svc: any) => (
+                  <div key={svc.id} className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">{svc.invoice_number}</span>
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">Pending</span>
+                        </div>
+                        <p className="text-sm font-medium">{svc.customer_name} • {svc.watch_brand}</p>
+                        <p className="text-xs text-gray-500 mt-1">Teknisi: {svc.profiles?.full_name || '-'}</p>
+                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-2.5 mt-2 border border-amber-200 dark:border-amber-800">
+                          <p className="text-xs font-medium text-amber-800 dark:text-amber-300">Alasan:</p>
+                              <p className="text-sm text-amber-700 dark:text-amber-400">{svc._pendingReason || svc.message || '-'}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0 mt-1">
+                        <button onClick={() => handleApprovePending(svc.id, true)} disabled={approvingId === svc.id}
+                          className="px-3 py-1.5 text-xs bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 disabled:opacity-50">
+                          {approvingId === svc.id ? '...' : 'Setuju'}
+                        </button>
+                        <button onClick={() => handleApprovePending(svc.id, false)} disabled={approvingId === svc.id}
+                          className="px-3 py-1.5 text-xs bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 disabled:opacity-50">
+                          Tolak
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           ) : (
             <>
               <QCStats

@@ -48,6 +48,8 @@ interface QueueListProps {
 }
 
 interface ExtendedServiceOrder extends ServiceOrder {
+  teknisi_pending_reason?: string;
+  pending_teknisi_approved?: boolean | null;
   last_update?: {
     id: string;
     message: string;
@@ -66,15 +68,17 @@ export default function QueueList({
   teknisiId,
   onTakeProject,
 }: QueueListProps) {
-  const [pendingServices, setPendingServices] = useState<
-    ExtendedServiceOrder[]
-  >([]);
+  const [pendingServices, setPendingServices] = useState<ExtendedServiceOrder[]>([]);
   const [myServices, setMyServices] = useState<ExtendedServiceOrder[]>([]);
-  const [selectedService, setSelectedService] =
-    useState<ExtendedServiceOrder | null>(null);
+  const [teknisiPendingServices, setTeknisiPendingServices] = useState<ExtendedServiceOrder[]>([]);
+  const [selectedService, setSelectedService] = useState<ExtendedServiceOrder | null>(null);
+  const [queueTab, setQueueTab] = useState<'available' | 'my' | 'pending'>('available');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
   const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showPendingReasonModal, setShowPendingReasonModal] = useState(false);
+  const [pendingReason, setPendingReason] = useState("");
+  const [pendingTargetService, setPendingTargetService] = useState<ExtendedServiceOrder | null>(null);
 
   const [showAddJasa, setShowAddJasa] = useState(false);
   const [showAddSparepart, setShowAddSparepart] = useState(false);
@@ -104,90 +108,135 @@ export default function QueueList({
   useEffect(() => {
     fetchQueues();
 
-    const subscription = supabase
-      .channel("service_orders_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "service_orders" },
-        () => {
-          fetchQueues();
-        },
-      )
+    const channel = supabase
+      .channel("teknisi_queue_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, () => {
+        fetchQueues();
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_timeline" }, () => {
+        fetchQueues();
+      })
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      channel.unsubscribe();
     };
   }, [teknisiId]);
 
   const fetchQueues = async () => {
     setLoading(true);
 
-    const { data: pending } = await supabase
-      .from("service_orders")
-      .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: true });
+    const [pendingRes, assignedRes] = await Promise.all([
+      supabase.from("service_orders").select("*").eq("status", "pending").order("created_at", { ascending: true }),
+      supabase.from("service_orders").select("*").eq("assigned_teknisi_id", teknisiId)
+        .in("status", ["assigned","in_progress","req_sparepart_admin","po_pending","sparepart_ready","revision_required"])
+        .order("created_at", { ascending: false }),
+    ]);
 
-    const { data: assigned } = await supabase
-      .from("service_orders")
-      .select("*")
-      .eq("assigned_teknisi_id", teknisiId)
-      .in("status", [
-        "assigned",
-        "in_progress",
-        "req_sparepart_admin",
-        "po_pending",
-        "sparepart_ready",
-        "revision_required",
-      ])
-      .order("created_at", { ascending: false });
+    const assigned = assignedRes.data || [];
 
-    if (assigned && assigned.length > 0) {
-      for (const service of assigned) {
-        const { data: timeline } = await supabase
-          .from("service_timeline")
-          .select("*")
-          .eq("service_order_id", service.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
+    // Fetch latest timeline for all assigned services
+    if (assigned.length > 0) {
+      const ids = assigned.map(s => s.id);
+      const { data: timelines } = await supabase
+        .from("service_timeline").select("service_order_id, status, created_at, details, message")
+        .in("service_order_id", ids).order("created_at", { ascending: false });
 
-        if (timeline && timeline.length > 0) {
-          (service as ExtendedServiceOrder).last_update = timeline[0];
+      if (timelines) {
+        const latestTimeline: Record<string, any> = {};
+        for (const t of timelines) {
+          if (!latestTimeline[t.service_order_id]) {
+            latestTimeline[t.service_order_id] = t;
+          }
+        }
+        for (const s of assigned) {
+          (s as any).last_update = latestTimeline[s.id] || null;
         }
       }
     }
 
-    if (pending) setPendingServices(pending as ExtendedServiceOrder[]);
-    if (assigned) setMyServices(assigned as ExtendedServiceOrder[]);
+    // Split assigned into active vs pending by checking last_update (latest timeline)
+    let active: ExtendedServiceOrder[] = [];
+    let pendingTek: ExtendedServiceOrder[] = [];
+
+    for (const s of assigned) {
+      const tlStatus = (s as any).last_update?.status || '';
+
+      if (tlStatus === 'pending_teknisi' || tlStatus === 'pending_approved') {
+        (s as any)._pendingStatus = tlStatus;
+        (s as any)._pendingReason = (s as any).last_update?.details?.reason || (s as any).last_update?.message || '';
+        pendingTek.push(s as ExtendedServiceOrder);
+      } else {
+        active.push(s as ExtendedServiceOrder);
+      }
+    }
+
+    if (pendingRes.data) setPendingServices(pendingRes.data as ExtendedServiceOrder[]);
+    if (active) setMyServices(active);
+    if (pendingTek) setTeknisiPendingServices(pendingTek);
     setLoading(false);
   };
 
   const takeProject = async (service: ExtendedServiceOrder) => {
+    const activeCount = myServices.length;
+    if (activeCount >= 2) {
+      toast.error("Maksimal 2 proyek aktif. Selesaikan proyek lain dulu.");
+      return;
+    }
     const { error } = await supabase
       .from("service_orders")
-      .update({
-        assigned_teknisi_id: teknisiId,
-        status: "assigned",
-        start_date: new Date().toISOString(),
-      })
+      .update({ assigned_teknisi_id: teknisiId, status: "assigned", start_date: new Date().toISOString() })
       .eq("id", service.id);
 
     if (error) {
       toast.error("Gagal mengambil proyek");
     } else {
       await supabase.from("service_timeline").insert({
-        service_order_id: service.id,
-        teknisi_id: teknisiId,
-        status: "assigned",
-        message: `Service diambil oleh teknisi`,
-        details: { action: "take_project" },
+        service_order_id: service.id, teknisi_id: teknisiId, status: "assigned",
+        message: `Service diambil oleh teknisi`, details: { action: "take_project" },
       });
-
       toast.success("Proyek berhasil diambil!");
       fetchQueues();
       setShowDetailModal(false);
     }
+  };
+
+  const takeWithPending = async (service: ExtendedServiceOrder) => {
+    setPendingTargetService(service);
+    setPendingReason("");
+    setShowPendingReasonModal(true);
+  };
+
+  const submitPending = async () => {
+    if (!pendingTargetService || !pendingReason.trim()) { toast.error("Alasan pending harus diisi"); return; }
+
+    const { error: updateErr } = await supabase
+      .from("service_orders")
+      .update({ assigned_teknisi_id: teknisiId, status: "assigned" })
+      .eq("id", pendingTargetService.id);
+    if (updateErr) { toast.error("Gagal update: " + updateErr.message); return; }
+
+    const { error: tlErr } = await supabase.from("service_timeline").insert({
+      service_order_id: pendingTargetService.id, teknisi_id: teknisiId, status: "pending_teknisi",
+      message: `Ditunda oleh teknisi: ${pendingReason.trim()}`,
+      details: { action: "take_pending", reason: pendingReason.trim() },
+    });
+    if (tlErr) { toast.error("Gagal simpan alasan: " + tlErr.message); return; }
+
+    toast.success("Proyek ditunda, menunggu persetujuan QC.");
+    setShowPendingReasonModal(false); setPendingReason(""); setPendingTargetService(null);
+    fetchQueues();
+  };
+
+  const resumeProject = async (service: ExtendedServiceOrder) => {
+    const { error } = await supabase.from("service_timeline").insert({
+      service_order_id: service.id, teknisi_id: teknisiId, status: "pending_resumed",
+      message: `Service dilanjutkan oleh teknisi`,
+      details: { action: "pending_resumed" },
+    });
+    if (error) { toast.error("Gagal: " + error.message); return; }
+    toast.success("Service dilanjutkan!");
+    fetchQueues();
   };
 
   const sendReminderToAdmin = async (service: ExtendedServiceOrder) => {
@@ -250,9 +299,6 @@ export default function QueueList({
 
   const openSubmitQC = async (service: ExtendedServiceOrder) => {
     setSelectedService(service);
-    setQCPhotos([]);
-    setQCPhotoPreviews([]);
-    await fetchQCItems(service.id);
     setShowSubmitQCModal(true);
   };
 
@@ -701,16 +747,46 @@ export default function QueueList({
     );
   }
 
+  const activeCount = myServices.length;
+  const tabs = [
+    { id: 'available' as const, label: 'List Service', count: pendingServices.length },
+    { id: 'my' as const, label: 'Proyek Saya', count: activeCount },
+    { id: 'pending' as const, label: 'Pending', count: teknisiPendingServices.length },
+  ];
+  const groupedByCategory = (services: ExtendedServiceOrder[]) => {
+    const groups: Record<string, ExtendedServiceOrder[]> = {};
+    for (const s of services) {
+      const key = s.category || s.watch_movement || 'Lainnya';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(s);
+    }
+    return groups;
+  };
+
   return (
-    <div className="space-y-8">
-      {/* My Current Projects Section */}
+    <div className="space-y-6">
+      {/* Tab Switcher */}
+      <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1.5 shadow-sm flex gap-1">
+        {tabs.map(tab => (
+          <button key={tab.id} onClick={() => setQueueTab(tab.id)}
+            className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+              queueTab === tab.id
+                ? 'bg-gray-900 text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-white/5'
+            }`}>
+            {tab.label} {tab.count > 0 && <span className={`ml-1.5 text-xs ${queueTab === tab.id ? 'text-white/80' : 'text-gray-400'}`}>({tab.count})</span>}
+          </button>
+        ))}
+      </div>
+
+      {queueTab === 'my' && (
       <div>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
             <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
           </div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Proyek Saya ({myServices.length})
+            Proyek Saya ({activeCount})
           </h3>
         </div>
 
@@ -803,6 +879,10 @@ export default function QueueList({
                             className="px-3 py-1.5 text-xs bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1">
                             <CheckCircle className="w-3.5 h-3.5" /> SUBMIT QC
                           </button>
+                          <button onClick={(e) => { e.stopPropagation(); takeWithPending(service); }}
+                            className="px-3 py-1.5 text-xs bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-all flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" /> PENDING
+                          </button>
                         </>
                       )}
                       {(service.status === "req_sparepart_admin" || service.status === "po_pending") && (
@@ -824,15 +904,16 @@ export default function QueueList({
           </div>
         )}
       </div>
+      )}
 
-      {/* Available Queue Section - NEW SERVICES */}
+      {queueTab === 'available' && (
       <div>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
             <Package className="w-4 h-4 text-white dark:text-gray-900" />
           </div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Service Baru ({pendingServices.length})
+            List Service ({pendingServices.length})
           </h3>
         </div>
 
@@ -884,6 +965,10 @@ export default function QueueList({
                         className="px-3 py-1.5 text-sm bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1">
                         <Eye className="w-4 h-4" /> DETAIL
                       </button>
+                      <button onClick={(e) => { e.stopPropagation(); takeProject(service); }}
+                        className="px-3 py-1.5 text-sm bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4" /> AMBIL
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -892,6 +977,73 @@ export default function QueueList({
           </div>
         )}
       </div>
+      )}
+
+      {queueTab === 'pending' && (
+        <div>
+          {teknisiPendingServices.length === 0 ? (
+            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
+              <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm font-medium text-gray-500">Tidak ada service pending</p>
+              <p className="text-xs text-gray-400 mt-1">Service pending menunggu persetujuan QC</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {teknisiPendingServices.map((service, index) => (
+                <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}
+                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">{service.invoice_number}</span>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${(service as any)._pendingStatus === 'pending_approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                          {(service as any)._pendingStatus === 'pending_approved' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                          {(service as any)._pendingStatus === 'pending_approved' ? 'DISETUJUI' : 'PENDING'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{service.customer_name}</span>
+                        <span className="text-sm text-gray-500">{service.watch_brand || service.device_brand}</span>
+                      </div>
+                      <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-2.5 border border-amber-200 dark:border-amber-800 mt-2">
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-300">Alasan Pending:</p>
+                        <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">{(service as any)._pendingReason}</p>
+                      </div>
+                      {(service as any)._pendingStatus === 'pending_approved' && (
+                        <button onClick={(e) => { e.stopPropagation(); resumeProject(service); }}
+                          className="mt-3 px-3 py-1.5 text-xs bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1">
+                          <CheckCircle className="w-3.5 h-3.5" /> LANJUTKAN
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PENDING REASON MODAL */}
+      {showPendingReasonModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setShowPendingReasonModal(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-white/10 p-6"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 bg-amber-600 rounded-xl flex items-center justify-center"><Clock className="w-4 h-4 text-white" /></div>
+              <div><h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Alasan Pending</h2><p className="text-xs text-gray-500">{pendingTargetService?.invoice_number}</p></div>
+            </div>
+            <textarea value={pendingReason} onChange={(e) => setPendingReason(e.target.value)}
+              rows={3} className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none mb-4"
+              placeholder="Jelaskan alasan pending..." />
+            <div className="flex gap-3">
+              <button onClick={() => setShowPendingReasonModal(false)} className="flex-1 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5">Batal</button>
+              <button onClick={submitPending} className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-medium hover:bg-amber-700 transition-all">Kirim</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* All Modals */}
       {selectedService && (

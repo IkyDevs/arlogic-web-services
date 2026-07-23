@@ -220,47 +220,35 @@ export default function AdminDashboard() {
 
   // ==================== SEARCH FUNCTIONS ====================
 
-  const performSearch = (query: string) => {
+  const [searching, setSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const performSearch = async (query: string) => {
     if (!query.trim()) {
-      setSearchResults({
-        transactions: [],
-        services: [],
-        users: [],
-        inventory: [],
-      });
+      setSearchResults({ services: [], transactions: [], inventory: [], customers: [] });
       setShowSearchResults(false);
       return;
     }
 
-    const q = query.toLowerCase();
-
-    // Search in transactions (recentServices/service_orders)
-    const transactionsFound = recentServices.filter(
-      (s: any) =>
-        s.invoice_number?.toLowerCase().includes(q) ||
-        s.customer_name?.toLowerCase().includes(q) ||
-        s.customer_phone?.toLowerCase().includes(q) ||
-        s.watch_brand?.toLowerCase().includes(q) ||
-        s.watch_model?.toLowerCase().includes(q),
-    );
-
-    // Search in layanan (transactions)
-    const layananFound = inventoryItems.filter(
-      (i: any) =>
-        i.item_name?.toLowerCase().includes(q) ||
-        i.category?.toLowerCase().includes(q) ||
-        i.description?.toLowerCase().includes(q),
-    );
-
-    setSearchResults({
-      transactions: transactionsFound,
-      services: transactionsFound, // Same as transactions in this context
-      users: [], // Users search would need to fetch users
-      inventory: layananFound,
-    });
-
-    setShowSearchResults(true);
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/admin/search?q=${encodeURIComponent(query)}`);
+      const json = await res.json();
+      if (json.data) setSearchResults(json.data);
+      setShowSearchResults(true);
+    } catch {
+      setSearchResults({ services: [], transactions: [], inventory: [], customers: [] });
+    } finally {
+      setSearching(false);
+    }
   };
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(() => performSearch(searchQuery), 300);
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+  }, [searchQuery]);
 
   // ==================== TODAY STATS (separate fetch for reliability) ====================
   const [todayStats, setTodayStats] = useState({
@@ -862,16 +850,13 @@ export default function AdminDashboard() {
                   type="text"
                   placeholder="Search..."
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    performSearch(e.target.value);
-                  }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => searchQuery && setShowSearchResults(true)}
                   className="pl-9 pr-4 py-2 bg-slate-50 rounded-full text-sm border border-slate-200 focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition-all w-40 md:w-56 lg:w-64"
                 />
 
                 {/* Search Results Dropdown */}
-                <AnimatePresence>
+                    <AnimatePresence>
                   {showSearchResults && searchQuery && (
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
@@ -880,110 +865,27 @@ export default function AdminDashboard() {
                       className="absolute top-full mt-2 w-96 max-h-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
                     >
                       <div className="max-h-96 overflow-y-auto">
-                        {searchResults.transactions.length +
-                          searchResults.inventory.length ===
-                        0 ? (
-                          <div className="p-6 text-center text-slate-400">
-                            <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                            <p className="text-sm">Tidak ada hasil pencarian</p>
-                          </div>
-                        ) : (
-                          <>
-                            {/* Transactions Results */}
-                            {searchResults.transactions.length > 0 && (
-                              <>
-                                <div className="p-3 bg-slate-50 border-b border-slate-100 sticky top-0">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase">
-                                    Service ({searchResults.transactions.length}
-                                    )
-                                  </p>
-                                </div>
-                                {searchResults.transactions
-                                  .slice(0, 3)
-                                  .map((result: any) => (
-                                    <div
-                                      key={result.id}
-                                      className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
-                                      onClick={() => {
-                                        setSearchQuery("");
-                                        setShowSearchResults(false);
-                                        setActiveTab("services");
-                                      }}
-                                    >
-                                      <p className="text-sm font-medium text-slate-900">
-                                        {result.invoice_number}
-                                      </p>
-                                      <p className="text-xs text-slate-500">
-                                        {result.customer_name} •{" "}
-                                        {result.customer_phone}
-                                      </p>
-                                    </div>
-                                  ))}
-                                {searchResults.transactions.length > 3 && (
-                                  <div className="p-2 text-center border-b border-slate-100">
-                                    <button
-                                      onClick={() => {
-                                        setSearchQuery("");
-                                        setShowSearchResults(false);
-                                        setActiveTab("services");
-                                      }}
-                                      className="text-xs text-gray-600 hover:text-gray-900"
-                                    >
-                                      Lihat semua hasil (
-                                      {searchResults.transactions.length})
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            )}
-
-                            {/* Inventory Results */}
-                            {searchResults.inventory.length > 0 && (
-                              <>
-                                <div className="p-3 bg-slate-50 border-b border-slate-100 sticky top-0">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase">
-                                    Inventory ({searchResults.inventory.length})
-                                  </p>
-                                </div>
-                                {searchResults.inventory
-                                  .slice(0, 3)
-                                  .map((result: any) => (
-                                    <div
-                                      key={result.id}
-                                      className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all"
-                                      onClick={() => {
-                                        setSearchQuery("");
-                                        setShowSearchResults(false);
-                                        setActiveTab("inventory");
-                                      }}
-                                    >
-                                      <p className="text-sm font-medium text-slate-900">
-                                        {result.item_name}
-                                      </p>
-                                      <p className="text-xs text-slate-500">
-                                        {result.category}
-                                      </p>
-                                    </div>
-                                  ))}
-                                {searchResults.inventory.length > 3 && (
-                                  <div className="p-2 text-center">
-                                    <button
-                                      onClick={() => {
-                                        setSearchQuery("");
-                                        setShowSearchResults(false);
-                                        setActiveTab("inventory");
-                                      }}
-                                      className="text-xs text-gray-600 hover:text-gray-900"
-                                    >
-                                      Lihat semua hasil (
-                                      {searchResults.inventory.length})
-                                    </button>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </>
-                        )}
+                        {(() => {
+                          const count = searchResults.services.length + searchResults.transactions.length + searchResults.inventory.length + searchResults.customers.length;
+                          if (count === 0) return (
+                            <div className="p-6 text-center text-slate-400">
+                              <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                              {searching ? (
+                                <p className="text-sm">Mencari...</p>
+                              ) : (
+                                <p className="text-sm">Tidak ada hasil</p>
+                              )}
+                            </div>
+                          );
+                          return (
+                            <>
+                              {searchResults.services.length > 0 && (<><div className="p-2 bg-slate-50 border-b border-slate-100 sticky top-0"><p className="text-xs font-semibold text-slate-600 uppercase">Service ({searchResults.services.length})</p></div>{searchResults.services.map((r: any) => (<div key={r.id} className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => { setSearchQuery(""); setShowSearchResults(false); setActiveTab("services"); }}><p className="text-sm font-medium text-slate-900">{r.invoice_number}</p><p className="text-xs text-slate-500">{r.customer_name} • {r.customer_phone}</p></div>))}</>)}
+                              {searchResults.transactions.length > 0 && (<><div className="p-2 bg-slate-50 border-b border-slate-100 sticky top-0"><p className="text-xs font-semibold text-slate-600 uppercase">Transaksi ({searchResults.transactions.length})</p></div>{searchResults.transactions.map((r: any) => (<div key={r.id} className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => { setSearchQuery(""); setShowSearchResults(false); setActiveTab("management-transaction"); }}><p className="text-sm font-medium text-slate-900">{r.customer_name}</p><p className="text-xs text-slate-500">{r.jenis_layanan} • Rp {(r.nominal || 0).toLocaleString()}</p></div>))}</>)}
+                              {searchResults.inventory.length > 0 && (<><div className="p-2 bg-slate-50 border-b border-slate-100 sticky top-0"><p className="text-xs font-semibold text-slate-600 uppercase">Inventory ({searchResults.inventory.length})</p></div>{searchResults.inventory.map((r: any) => (<div key={r.id} className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => { setSearchQuery(""); setShowSearchResults(false); setActiveTab("inventory"); }}><p className="text-sm font-medium text-slate-900">{r.item_name}</p><p className="text-xs text-slate-500">{r.category} • SKU: {r.sku}</p></div>))}</>)}
+                              {searchResults.customers.length > 0 && (<><div className="p-2 bg-slate-50 border-b border-slate-100 sticky top-0"><p className="text-xs font-semibold text-slate-600 uppercase">Customer ({searchResults.customers.length})</p></div>{searchResults.customers.map((r: any) => (<div key={r.id} className="p-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => { setSearchQuery(""); setShowSearchResults(false); setActiveTab("customer"); }}><p className="text-sm font-medium text-slate-900">{r.name}</p><p className="text-xs text-slate-500">{r.phone}</p></div>))}</>)}
+                            </>
+                          );
+                        })()}
                       </div>
                     </motion.div>
                   )}
