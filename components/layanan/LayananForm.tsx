@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
-import { useUpload, compressFiles } from "@/hooks/useUpload";
+import { useUpload } from "@/hooks/useUpload";
 import { JenisLayanan, MetodePembayaran, LeadSource } from "@/types";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -288,7 +288,7 @@ export default memo(function LayananForm({
     if (data) setUsers(data);
   };
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
@@ -297,23 +297,10 @@ export default memo(function LayananForm({
     );
     if (rawFiles.length === 0) return;
 
-    setIsCompressing(true);
-    setCompressProgress({ done: 0, total: rawFiles.length });
-
-    try {
-      const compressed = await compressFiles(rawFiles, (done, total) => {
-        setCompressProgress({ done, total });
-      }, 'trx');
-      if (compressed.length === 0) return;
-      setPhotoFiles((prev) => [...prev, ...compressed]);
-      compressed.forEach((f) => {
-        setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]);
-      });
-    } catch (e: any) {
-      toast.error(e.message || 'Gagal memproses foto');
-    } finally {
-      setIsCompressing(false);
-    }
+    setPhotoFiles((prev) => [...prev, ...rawFiles]);
+    rawFiles.forEach((f) => {
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]);
+    });
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };

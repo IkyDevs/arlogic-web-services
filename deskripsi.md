@@ -38,3 +38,4 @@ Sistem manajemen toko service jam tangan dengan multi-role dashboard.
 - Framer Motion (Animations)
 - Recharts (Charts)
 - Telegram Bot API (Photos + Captions)
+- Upload System: Zero-compression, original quality preserved, batch upload, parallel processing, real-time profiling

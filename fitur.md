@@ -62,6 +62,20 @@
 | Photo Preview | Image preview modal with navigation |
 | QC Draft System | Auto-save/restore draft on QC Review |
 
+## Recent Changes (V30–V31)
+
+| Feature | Description |
+|---------|-------------|
+| Zero-Compression Strategy | All compression/resize removed. Files stored identical to original |
+| PhotoUploader Component | Reusable `<PhotoUploader>` with camera/gallery/drag-drop, real progress, status indicators |
+| usePhotoUpload Hook | Centralized `usePhotoUpload()` hook with validation, batch upload, profiling, cancel/retry |
+| Batch Upload Fix | ProgressUpdate changed from serial `uploadFile` loop to batch `uploadFiles` |
+| Backend Profiling | API returns `profiling` breakdown (readFormData, processFiles, uploadTelegram, uploadSupabase, total) |
+| Parallel Backend | Backend processes all files in parallel with `Promise.all` |
+| Blob URL Cleanup | Centralized `URL.revokeObjectURL` in PhotoUploader, leak fix in KaspinUpdate |
+| FileReader Fix | KaspinUpdate replaced `FileReader.readAsDataURL` with `URL.createObjectURL` for preview |
+| Increased Limits | Max total upload 50MB, max body 60MB, timeout 120s to accommodate raw files |
+
 ## Upcoming
 
 | Feature | Priority |

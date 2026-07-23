@@ -31,7 +31,7 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { user } = useAuthStore()
-  const { uploadFile } = useUpload()
+  const { uploadFiles } = useUpload()
 
   const calculateTotal = (itemsList: any[]) =>
     itemsList.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
@@ -56,27 +56,32 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
   const submitProgress = async () => {
      setLoading(true); setUploading(true)
      try {
+       const d = new Date();
+       const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+       const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+       const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+       const caption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${completionNotes || 'Progress service'}\nstatus: ${service?.status || 'in_progress'}`;
+
        const newPhotoUrls: string[] = []
-       for (let i = 0; i < photos.length; i++) {
-         setProgress(Math.round((i / photos.length) * 100))
-         const d = new Date();
-         const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-         const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-         const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
-         const caption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${completionNotes || 'Progress service'}\nstatus: ${service?.status || 'in_progress'}`;
-         const result = await uploadFile(photos[i], { type: 'service', caption })
-         if (result) {
-           newPhotoUrls.push(result.url);
-           await supabase.from('service_documentation').insert({
-             service_order_id: service.id,
-             photo_url: result.url,
-             stage: 'progress',
-             uploaded_by: user?.id,
-             telegram_chat_id: result.chat_id,
-             telegram_message_id: result.message_id,
-           });
-         } else {
-           console.warn(`⚠️ Upload foto ${i+1} gagal, skip...`);
+       if (photos.length > 0) {
+         setProgress(30)
+         // Batch upload all photos in one request
+         const results = await uploadFiles(photos, { type: 'service', caption })
+         setProgress(80)
+
+         for (let i = 0; i < results.length; i++) {
+           const result = results[i];
+           if (result) {
+             newPhotoUrls.push(result.url);
+             await supabase.from('service_documentation').insert({
+               service_order_id: service.id,
+               photo_url: result.url,
+               stage: 'progress',
+               uploaded_by: user?.id,
+               telegram_chat_id: result.chat_id,
+               telegram_message_id: result.message_id,
+             });
+           }
          }
        }
        setProgress(100)

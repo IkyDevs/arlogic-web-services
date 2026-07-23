@@ -40,9 +40,8 @@ export default function KaspinUpdate() {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhoto(file);
-    const reader = new FileReader();
-    reader.onload = () => setPhotoPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    const previewUrl = URL.createObjectURL(file);
+    setPhotoPreview(previewUrl);
   };
 
   const handleSubmit = async () => {
@@ -81,6 +80,7 @@ Teknisi : ${user?.full_name || "-"}`;
       toast.success("Update Kaspin terkirim ke Telegram!");
       setItems("");
       setPeruntukkan("");
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
       setPhoto(null);
       setPhotoPreview(null);
     } catch (e: any) {

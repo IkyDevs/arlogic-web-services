@@ -30,7 +30,7 @@ import {
   DollarSign,
   Trash2,
 } from "lucide-react";
-import { useUpload, compressFiles } from "@/hooks/useUpload";
+import { useUpload } from "@/hooks/useUpload";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
@@ -261,32 +261,18 @@ export default function ServiceInput({
     return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
   };
 
-  const handleAddPhoto = async (files: FileList | null) => {
+  const handleAddPhoto = (files: FileList | null) => {
     if (!files) return;
     const rawFiles = Array.from(files).filter(
       (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
     );
     if (rawFiles.length === 0) return;
 
-    setIsCompressing(true);
-    setCompressProgress({ done: 0, total: rawFiles.length });
-
-    try {
-      const compressed = await compressFiles(rawFiles, (done, total) => {
-        setCompressProgress({ done, total });
-      });
-
-      if (compressed.length === 0) return;
-      setPhotos((prev) => [...prev, ...compressed]);
-      compressed.forEach((f) => {
-        const url = URL.createObjectURL(f);
-        setPhotoPreviews((prev) => [...prev, url]);
-      });
-    } catch (e: any) {
-      toast.error(e.message || 'Gagal memproses foto');
-    } finally {
-      setIsCompressing(false);
-    }
+    setPhotos((prev) => [...prev, ...rawFiles]);
+    rawFiles.forEach((f) => {
+      const url = URL.createObjectURL(f);
+      setPhotoPreviews((prev) => [...prev, url]);
+    });
   };
 
   const removePhoto = (i: number) => {

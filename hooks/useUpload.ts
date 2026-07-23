@@ -1,86 +1,11 @@
+/**
+ * Legacy useUpload hook — backward compatible wrapper.
+ * No compression. Files pass through as-is.
+ * New code should use usePhotoUpload directly.
+ */
+
 import { useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Gagal memuat gambar ke memori browser'))
-    img.src = src
-  })
-}
-
-async function processOne(file: File, index: number, prefix = 'service'): Promise<File> {
-  let sourceBlob: Blob = file
-
-  if (/\.heic$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif') {
-    const heic2any = (await import('heic2any')).default
-    const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 })
-    sourceBlob = Array.isArray(result) ? result[0] : result
-  }
-
-  const imageSrc = URL.createObjectURL(sourceBlob)
-
-  const img = new Image()
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve()
-    img.onerror = () => reject(new Error('Gagal memuat gambar ke memori browser'))
-    img.src = imageSrc
-  })
-  URL.revokeObjectURL(imageSrc)
-
-  let { width, height } = img
-  const maxDim = 1600
-  if (width > maxDim || height > maxDim) {
-    if (width > height) {
-      height = Math.round((height * maxDim) / width)
-      width = maxDim
-    } else {
-      width = Math.round((width * maxDim) / height)
-      height = maxDim
-    }
-  }
-
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d', { willReadFrequently: false })
-  if (!ctx) throw new Error('Gagal menginisialisasi canvas')
-
-  ctx.fillStyle = '#FFFFFF'
-  ctx.fillRect(0, 0, width, height)
-  ctx.drawImage(img, 0, 0, width, height)
-
-  const compressedBlob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob)
-      else reject(new Error('Canvas gagal memproses biner gambar'))
-    }, 'image/jpeg', 0.70)
-  })
-
-  const cleanFile = new File([compressedBlob], `${prefix}_${Date.now()}_${index}.jpg`, { type: 'image/jpeg' })
-  return cleanFile
-}
-
-export async function compressFiles(
-  files: File[],
-  onProgress?: (done: number, total: number) => void,
-  prefix = 'service',
-): Promise<File[]> {
-  const compressed: File[] = []
-  for (let i = 0; i < files.length; i++) {
-    const result = await processOne(files[i], i, prefix)
-    compressed.push(result)
-    onProgress?.(i + 1, files.length)
-  }
-
-  const totalBytes = compressed.reduce((s, f) => s + f.size, 0)
-  if (totalBytes > 4 * 1024 * 1024) {
-    throw new Error(`Ukuran total foto terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Pilih foto dengan resolusi lebih rendah.`)
-  }
-
-  return compressed
-}
 
 export interface UploadFileResult {
   url: string
@@ -117,12 +42,6 @@ export function useUpload() {
       }
     }
 
-    const totalBytes = files.reduce((s, f) => s + f.size, 0)
-    if (totalBytes > 4 * 1024 * 1024) {
-      toast.error(`Ukuran total terlalu besar (${(totalBytes / 1024 / 1024).toFixed(1)}MB). Gunakan resolusi lebih rendah.`)
-      return []
-    }
-
     setUploading(true)
     setProgress(5)
 
@@ -134,7 +53,7 @@ export function useUpload() {
       if (options.caption) formData.append('caption', options.caption)
 
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 30000)
+      const timer = setTimeout(() => controller.abort(), 120000)
 
       let res: Response
       try {

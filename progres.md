@@ -65,3 +65,20 @@
 | 12: Dashboard QC — card/grid, export absensi, edit user | ✅ | 2026-07-24 |
 | 13: Dashboard Owner — realistic stats only | ✅ | 2026-07-24 |
 | Documentation | ✅ | 2026-07-24 |
+
+## Phase 6 — Revisions V30–V31: Upload Optimization
+
+| Task | Status | Date |
+|------|--------|------|
+| V30: Profiling instrumentation (backend timing) | ✅ | 2026-07-24 |
+| V30: Build usePhotoUpload hook (batch, parallel, profiling) | ✅ | 2026-07-24 |
+| V30: Build PhotoUploader reusable component with full UI | ✅ | 2026-07-24 |
+| V30: Fix ProgressUpdate serial → batch upload | ✅ | 2026-07-24 |
+| V30: Fix KaspinUpdate FileReader → createObjectURL | ✅ | 2026-07-24 |
+| V30: Backend optimization (Promise.all, profiling, increased limits) | ✅ | 2026-07-24 |
+| V30: Regression testing (68 tests pass) | ✅ | 2026-07-24 |
+| V31: Remove ALL compression/resize (no canvas, no sharp, no quality loss) | ✅ | 2026-07-24 |
+| V31: Remove compressFiles from ServiceInput + LayananForm | ✅ | 2026-07-24 |
+| V31: Update limits (50MB total, 60MB body, 120s timeout) | ✅ | 2026-07-24 |
+| V31: Regression testing (71 tests pass, TypeScript 0 errors) | ✅ | 2026-07-24 |
+| V31: Documentation update | ✅ | 2026-07-24 |
