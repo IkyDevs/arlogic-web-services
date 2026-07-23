@@ -62,19 +62,21 @@
 | Photo Preview | Image preview modal with navigation |
 | QC Draft System | Auto-save/restore draft on QC Review |
 
-## Recent Changes (V30–V31)
+## Recent Changes (V30–V32)
 
 | Feature | Description |
 |---------|-------------|
 | Zero-Compression Strategy | All compression/resize removed. Files stored identical to original |
-| PhotoUploader Component | Reusable `<PhotoUploader>` with camera/gallery/drag-drop, real progress, status indicators |
-| usePhotoUpload Hook | Centralized `usePhotoUpload()` hook with validation, batch upload, profiling, cancel/retry |
-| Batch Upload Fix | ProgressUpdate changed from serial `uploadFile` loop to batch `uploadFiles` |
-| Backend Profiling | API returns `profiling` breakdown (readFormData, processFiles, uploadTelegram, uploadSupabase, total) |
-| Parallel Backend | Backend processes all files in parallel with `Promise.all` |
-| Blob URL Cleanup | Centralized `URL.revokeObjectURL` in PhotoUploader, leak fix in KaspinUpdate |
-| FileReader Fix | KaspinUpdate replaced `FileReader.readAsDataURL` with `URL.createObjectURL` for preview |
-| Increased Limits | Max total upload 50MB, max body 60MB, timeout 120s to accommodate raw files |
+| Centralized Upload Config | `lib/uploadConfig.ts` — all parameters configurable via env vars, no hardcoded values |
+| PhotoUploader Component | Reusable `<PhotoUploader>` with camera/gallery/drag-drop, real progress, speed/ETA, status |
+| usePhotoUpload Hook | Centralized hook with validation (from config), batch upload, profiling, cancel/retry |
+| Structured Logging | Consistent `[Upload]` / `[Upload API]` prefix logging for all upload events |
+| Dev-Only Profiling | Backend returns `profiling` timing breakdown only in development mode |
+| Batch Upload Fix | ProgressUpdate: serial `uploadFile` loop → batch `uploadFiles` (N requests → 1) |
+| Migration: Raw Fetch → Hook | SparepartReadyModal, KaspinUpdate, SubmitQCModal, QueueList (inline QC) migrated from raw `fetch('/api/upload')` to `usePhotoUpload` |
+| Parallel Backend | Backend reads all files in parallel via `Promise.all`, Supabase uploads in parallel |
+| Blob URL Cleanup | Centralized `URL.revokeObjectURL` in PhotoUploader, all components clean up |
+| Increased Limits | Max total 50MB, body 60MB, timeout 120s |
 
 ## Upcoming
 

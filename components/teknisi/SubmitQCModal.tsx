@@ -9,11 +9,13 @@ import {
   Check, Trash2, Clock, User, Watch,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { uploadConfig } from "@/lib/uploadConfig";
 
-const MAX_FILES = 10;
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-const MAX_TOTAL_SIZE = 4 * 1024 * 1024;
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
+const MAX_FILES = uploadConfig.IMAGE_MAX_FILES;
+const MAX_FILE_SIZE = uploadConfig.IMAGE_MAX_SIZE_BYTES;
+const MAX_TOTAL_SIZE = uploadConfig.IMAGE_MAX_SIZE_MB * uploadConfig.IMAGE_MAX_FILES * 1024 * 1024;
+const ALLOWED_TYPES = uploadConfig.IMAGE_ALLOWED_TYPES;
 
 interface SubmitQCModalProps {
   service: any;
@@ -34,6 +36,7 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { user } = useAuthStore();
+  const { addAndUpload } = usePhotoUpload();
 
   useEffect(() => {
     fetchItems();
@@ -137,26 +140,20 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
         notes.trim() ? `Keterangan Teknisi :\n${notes.trim()}` : null,
       ].filter(Boolean).join("\n\n");
 
-      const formData = new FormData();
-      for (const f of photos) formData.append("files", f);
-      formData.append("type", "qc_update");
-      formData.append("caption", sections);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await res.json();
+      const results = await addAndUpload(photos, { type: 'qc_update', caption: sections });
 
       const uploadedUrls: string[] = [];
-      if (data.urls) {
-        for (let i = 0; i < data.urls.length; i++) {
-          const chatId = data.messages?.[i]?.chat_id || '';
-          const messageId = data.messages?.[i]?.message_id || 0;
-          uploadedUrls.push(data.urls[i]);
+      if (results.length > 0) {
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          uploadedUrls.push(r.url);
           await supabase.from("service_documentation").insert({
             service_order_id: service.id,
-            photo_url: data.urls[i],
+            photo_url: r.url,
             stage: "qc",
             uploaded_by: user.id,
-            telegram_chat_id: chatId,
-            telegram_message_id: messageId,
+            telegram_chat_id: r.chat_id,
+            telegram_message_id: r.message_id,
           });
         }
       }

@@ -6,10 +6,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { motion } from "framer-motion";
 import { Package, Camera, Store, Warehouse, User, Watch, Send, X, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 
 export default function KaspinUpdate() {
   const supabase = createClient();
   const { user } = useAuthStore();
+  const { uploadFile } = usePhotoUpload();
   const [services, setServices] = useState<any[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [location, setLocation] = useState<"gudang" | "toko">("gudang");
@@ -68,13 +70,8 @@ Peruntukkan : ${peruntukkan}
 Teknisi : ${user?.full_name || "-"}`;
 
       if (photo) {
-        const formData = new FormData();
-        formData.append("files", photo);
-        formData.append("type", "kaspin");
-        formData.append("caption", caption);
-        const res = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || "Gagal upload");
+        const result = await uploadFile(photo, { type: "kaspin", caption });
+        if (!result) throw new Error("Gagal upload");
       }
 
       toast.success("Update Kaspin terkirim ke Telegram!");

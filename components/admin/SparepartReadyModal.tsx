@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { X, Camera, CheckCircle, Loader, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { usePhotoUpload } from '@/hooks/usePhotoUpload'
 
 interface SparepartReadyModalProps {
   isOpen: boolean
@@ -24,6 +25,7 @@ export default function SparepartReadyModal({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
+  const { uploadFile } = usePhotoUpload()
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -48,12 +50,8 @@ export default function SparepartReadyModal({
     try {
       let photoUrl = null
       if (photoFile) {
-        const formData = new FormData()
-        formData.append('file', photoFile)
-        formData.append('type', 'service')
-        const response = await fetch('/api/upload', { method: 'POST', body: formData })
-        const data = await response.json()
-        if (data.url) photoUrl = data.url
+        const result = await uploadFile(photoFile, { type: 'service' })
+        if (result) photoUrl = result.url
       }
 
       // Update dengan po_status yang valid

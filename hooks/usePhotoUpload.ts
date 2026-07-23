@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import { uploadConfig, isAllowedFile } from '@/lib/uploadConfig'
 
 export type UploadType = 'attendance' | 'service' | 'layanan' | 'inventory' | 'kaspin' | 'teknisi_update' | 'qc_update'
 
@@ -31,12 +32,33 @@ export interface PhotoUploadOptions {
   maxTotalSize?: number
 }
 
+export interface UploadProfiling {
+  validation: number
+  preview: number
+  upload: number
+  telegram: number
+  supabase: number
+  database: number
+  total: number
+}
+
+const LOG_PREFIX = '[Upload]'
 const MB = 1024 * 1024
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif']
-const ALLOWED_EXT = /\.(jpg|jpeg|png|webp|heic|heif|avif)$/i
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+}
+
+function log(...args: any[]) {
+  if (uploadConfig.isDev) console.log(LOG_PREFIX, ...args)
+}
+
+function warn(...args: any[]) {
+  console.warn(LOG_PREFIX, ...args)
+}
+
+function error(...args: any[]) {
+  console.error(LOG_PREFIX, ...args)
 }
 
 export function usePhotoUpload() {
@@ -45,48 +67,65 @@ export function usePhotoUpload() {
   const [overallProgress, setOverallProgress] = useState(0)
   const abortRef = useRef(false)
   const previewUrlsRef = useRef<Set<string>>(new Set())
+  const [profiling, setProfiling] = useState<UploadProfiling | null>(null)
+  const uploadStartRef = useRef(0)
 
   const trackPreview = useCallback((url: string) => {
     previewUrlsRef.current.add(url)
   }, [])
 
   const cleanupPreviews = useCallback(() => {
+    const count = previewUrlsRef.current.size
     previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
     previewUrlsRef.current.clear()
+    if (count > 0) log(`Cleaned ${count} blob URLs`)
   }, [])
 
   useEffect(() => {
-    return () => cleanupPreviews()
+    return () => {
+      cleanupPreviews()
+    }
   }, [cleanupPreviews])
 
   const validateFiles = useCallback((
     rawFiles: File[],
     options: PhotoUploadOptions,
   ): File[] => {
-    const maxFiles = options.maxFiles || 10
+    const t0 = performance.now()
+    const maxFiles = options.maxFiles || uploadConfig.IMAGE_MAX_FILES
 
     if (photos.length + rawFiles.length > maxFiles) {
       toast.error(`Maksimal ${maxFiles} foto per upload`)
+      warn(`VALIDATION FAILED: max files exceeded (${photos.length + rawFiles.length} > ${maxFiles})`)
       return []
     }
 
-    return rawFiles.filter((f) => {
-      if (!ALLOWED_MIMES.includes(f.type) && !ALLOWED_EXT.test(f.name)) {
+    const valid = rawFiles.filter((f) => {
+      if (!isAllowedFile(f)) {
         toast.error(`"${f.name}" bukan format gambar yang didukung`)
+        warn(`VALIDATION FAILED: unsupported format "${f.name}" (${f.type})`)
         return false
       }
-      if (f.size > 20 * MB) {
-        toast.error(`"${f.name}" terlalu besar (max 20MB)`)
+      if (f.size > uploadConfig.IMAGE_MAX_SIZE_BYTES) {
+        toast.error(`"${f.name}" terlalu besar (max ${uploadConfig.IMAGE_MAX_SIZE_MB}MB)`)
+        warn(`VALIDATION FAILED: file too large "${f.name}" (${(f.size / MB).toFixed(1)}MB)`)
         return false
       }
       return true
     })
+
+    const dt = Math.round(performance.now() - t0)
+    if (uploadConfig.isDev) setProfiling((p) => p ? { ...p, validation: dt } : null)
+    log(`VALIDATION: ${valid.length}/${rawFiles.length} passed (${dt}ms)`)
+
+    return valid
   }, [photos.length])
 
   const addPhotos = useCallback(async (
     rawFiles: File[],
     options: PhotoUploadOptions = { type: 'service' },
   ): Promise<PhotoFile[]> => {
+    const t0 = performance.now()
     const valid = validateFiles(rawFiles, options)
     if (!valid.length) return []
 
@@ -100,6 +139,7 @@ export function usePhotoUpload() {
       progress: 0,
     }))
 
+    const tPreviewStart = performance.now()
     const previewPhotos: PhotoFile[] = newPhotos.map((p) => {
       const url = URL.createObjectURL(p.file)
       trackPreview(url)
@@ -107,6 +147,12 @@ export function usePhotoUpload() {
     })
 
     setPhotos((prev) => [...prev, ...previewPhotos])
+
+    const previewTime = Math.round(performance.now() - tPreviewStart)
+    const totalTime = Math.round(performance.now() - t0)
+    if (uploadConfig.isDev) setProfiling({ validation: 0, preview: previewTime, upload: 0, telegram: 0, supabase: 0, database: 0, total: 0 })
+
+    log(`PREVIEW: ${previewPhotos.length} photos (${totalTime}ms)`)
     return previewPhotos
   }, [validateFiles, trackPreview])
 
@@ -114,18 +160,24 @@ export function usePhotoUpload() {
     files: PhotoFile[],
     options: PhotoUploadOptions,
   ): Promise<PhotoFile[]> => {
-    if (!files?.length || abortRef.current) return []
+    const t0 = performance.now()
+    if (!files?.length || abortRef.current) {
+      log('UPLOAD CANCELED: no files or aborted')
+      return []
+    }
 
-    const maxTotalSize = options.maxTotalSize || 50 * MB
+    const maxTotalSize = options.maxTotalSize || (uploadConfig.IMAGE_MAX_SIZE_MB * MB)
     const totalSize = files.reduce((s, f) => s + f.file.size, 0)
     if (totalSize > maxTotalSize) {
       toast.error(`Ukuran total terlalu besar (${(totalSize / MB).toFixed(1)}MB)`)
+      warn(`VALIDATION FAILED: total size ${(totalSize / MB).toFixed(1)}MB exceeds ${maxTotalSize / MB}MB`)
       return []
     }
 
     setUploading(true)
     setOverallProgress(10)
     abortRef.current = false
+    uploadStartRef.current = Date.now()
 
     const uploadFiles = files.map((f) => f.file)
 
@@ -135,6 +187,8 @@ export function usePhotoUpload() {
       ),
     )
 
+    log(`UPLOAD START: ${files.length} files, ${(totalSize / MB).toFixed(1)}MB total, type=${options.type}`)
+
     try {
       const formData = new FormData()
       for (const f of uploadFiles) formData.append('files', f, f.name)
@@ -142,9 +196,14 @@ export function usePhotoUpload() {
       if (options.caption) formData.append('caption', options.caption)
 
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 120000)
+      const timeoutSec = uploadConfig.IMAGE_UPLOAD_TIMEOUT
+      const timer = setTimeout(() => {
+        warn(`UPLOAD FAILED: timeout after ${timeoutSec}s`)
+        controller.abort()
+      }, timeoutSec * 1000)
 
-      setOverallProgress(40)
+      setOverallProgress(30)
+      const tUploadStart = performance.now()
 
       let res: Response
       try {
@@ -156,26 +215,42 @@ export function usePhotoUpload() {
         clearTimeout(timer)
       } catch (fetchErr: any) {
         clearTimeout(timer)
-        throw new Error(
-          fetchErr.name === 'AbortError'
-            ? 'Koneksi tidak stabil. Coba lagi.'
-            : 'Tidak dapat terhubung ke server.',
-        )
+        const isAbort = fetchErr.name === 'AbortError'
+        const msg = isAbort
+          ? 'Koneksi tidak stabil. Coba lagi.'
+          : 'Tidak dapat terhubung ke server.'
+        if (isAbort) warn(`UPLOAD FAILED: abort (${timeoutSec}s timeout)`)
+        else warn(`UPLOAD FAILED: network (${fetchErr.message})`)
+        throw new Error(msg)
       }
 
-      if (abortRef.current) return []
+      if (abortRef.current) {
+        log('UPLOAD CANCELED: user cancelled')
+        return []
+      }
+
+      const uploadTime = Math.round(performance.now() - tUploadStart)
 
       const text = await res.text()
       let data: any
       try {
         data = JSON.parse(text)
       } catch {
+        error(`UPLOAD FAILED: non-JSON response (HTTP ${res.status})`)
         throw new Error(`Server error (HTTP ${res.status}). ${text.slice(0, 150).replace(/\n/g, ' ')}`)
       }
-      if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
-      if (!data.urls?.length) throw new Error('Foto gagal dikirim. Coba lagi.')
+      if (!res.ok) {
+        error(`UPLOAD FAILED: server error (${res.status})`, data)
+        throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
+      }
+      if (!data.urls?.length) {
+        error('UPLOAD FAILED: no URLs in response')
+        throw new Error('Foto gagal dikirim. Coba lagi.')
+      }
 
       setOverallProgress(100)
+
+      const backendProfile = data.profiling || {}
 
       const results: PhotoFile[] = files.map((f, i) => ({
         ...f,
@@ -196,10 +271,27 @@ export function usePhotoUpload() {
         }),
       )
 
+      const totalTime = Math.round(performance.now() - t0)
+
+      const prof: UploadProfiling = {
+        validation: 0,
+        preview: 0,
+        upload: uploadTime,
+        telegram: backendProfile.uploadTelegram || 0,
+        supabase: backendProfile.uploadSupabase || 0,
+        database: 0,
+        total: totalTime,
+      }
+      if (uploadConfig.isDev) setProfiling(prof)
+
+      const elapsed = ((Date.now() - uploadStartRef.current) / 1000).toFixed(1)
+      log(`UPLOAD SUCCESS: ${results.length} photos in ${elapsed}s (telegram=${prof.telegram}ms, supabase=${prof.supabase}ms)`)
+
       toast.success(`${results.length} foto berhasil diupload`)
       return results
     } catch (e: any) {
       const msg = e.message || ''
+      error(`UPLOAD FAILED: ${msg}`)
       setPhotos((prev) =>
         prev.map((p) =>
           files.some((f) => f.id === p.id)
@@ -262,6 +354,7 @@ export function usePhotoUpload() {
     abortRef.current = true
     setUploading(false)
     setOverallProgress(0)
+    log('UPLOAD CANCELED: user pressed cancel')
   }, [])
 
   const reset = useCallback(() => {
@@ -269,12 +362,15 @@ export function usePhotoUpload() {
     setPhotos([])
     setUploading(false)
     setOverallProgress(0)
+    setProfiling(null)
     abortRef.current = false
+    log('RESET: cleared all photos')
   }, [cleanupPreviews])
 
   const retryFailed = useCallback(async (options: PhotoUploadOptions) => {
     const failed = photos.filter((p) => p.status === 'error')
     if (!failed.length) return
+    log(`RETRY: ${failed.length} failed photos`)
     await uploadPhotos(failed, options)
   }, [photos, uploadPhotos])
 
@@ -286,6 +382,7 @@ export function usePhotoUpload() {
     photos,
     uploading,
     overallProgress,
+    profiling,
     hasChanges,
     hasSuccess,
     hasError,

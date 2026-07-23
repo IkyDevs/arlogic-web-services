@@ -4,10 +4,12 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Camera, Upload, X, Image, FileImage, AlertCircle,
-  CheckCircle, Loader, RefreshCw, Grid, List,
+  CheckCircle, Loader, RefreshCw, Grid, List, Clock,
+  AlertTriangle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePhotoUpload, PhotoFile, PhotoUploadOptions, UploadType } from '@/hooks/usePhotoUpload'
+import { uploadConfig } from '@/lib/uploadConfig'
 
 interface PhotoUploaderProps {
   type: UploadType
@@ -25,6 +27,22 @@ function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatSpeed(bytes: number, ms: number): string {
+  if (ms <= 0) return ''
+  const bps = (bytes / ms) * 1000
+  if (bps > 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`
+  if (bps > 1024) return `${(bps / 1024).toFixed(1)} KB/s`
+  return `${bps.toFixed(0)} B/s`
+}
+
+function formatETA(remainingBytes: number, speedBps: number): string {
+  if (speedBps <= 0) return ''
+  const seconds = remainingBytes / speedBps
+  if (seconds < 60) return `${Math.ceil(seconds)}d`
+  if (seconds < 3600) return `${Math.ceil(seconds / 60)}m`
+  return `${Math.floor(seconds / 3600)}j ${Math.ceil((seconds % 3600) / 60)}m`
 }
 
 const statusConfig: Record<string, { color: string; bg: string; icon: any; label: string }> = {
@@ -117,7 +135,7 @@ function PhotoThumbnail({ photo, onRemove, viewMode }: {
       </div>
 
       {photo.status === 'error' && photo.error && (
-        <div className="absolute bottom-1 left-1 right-1">
+        <div className="absolute bottom-6 left-1 right-1">
           <div className="px-1.5 py-0.5 bg-red-500/90 rounded text-[8px] text-white truncate">
             {photo.error}
           </div>
@@ -142,7 +160,7 @@ function PhotoThumbnail({ photo, onRemove, viewMode }: {
 export default function PhotoUploader({
   type,
   caption,
-  maxFiles = 10,
+  maxFiles = uploadConfig.IMAGE_MAX_FILES,
   onPhotosChange,
   onUploadComplete,
   onError,
@@ -154,6 +172,7 @@ export default function PhotoUploader({
     photos,
     uploading,
     overallProgress,
+    profiling,
     hasChanges,
     hasSuccess,
     hasError,
@@ -171,10 +190,38 @@ export default function PhotoUploader({
   const [dragOver, setDragOver] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showExisting, setShowExisting] = useState(true)
+  const uploadStartRef = useRef(0)
+  const [speed, setSpeed] = useState('')
+  const [eta, setEta] = useState('')
+  const speedIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     onPhotosChange?.(photos)
   }, [photos, onPhotosChange])
+
+  useEffect(() => {
+    if (uploading && uploadStartRef.current > 0) {
+      speedIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - uploadStartRef.current
+        if (elapsed > 0) {
+          const totalBytes = photos.reduce((s, p) => s + p.size, 0)
+          const uploadedBytes = Math.round((overallProgress / 100) * totalBytes)
+          const remainingBytes = totalBytes - uploadedBytes
+          const speedStr = formatSpeed(uploadedBytes, elapsed)
+          setSpeed(speedStr)
+          const bps = (uploadedBytes / elapsed) * 1000
+          setEta(formatETA(remainingBytes, bps))
+        }
+      }, 1000)
+    } else {
+      if (speedIntervalRef.current) clearInterval(speedIntervalRef.current)
+      setSpeed('')
+      setEta('')
+    }
+    return () => {
+      if (speedIntervalRef.current) clearInterval(speedIntervalRef.current)
+    }
+  }, [uploading, overallProgress, photos])
 
   const handleFiles = useCallback(async (files: FileList | null) => {
     if (!files?.length) return
@@ -216,6 +263,7 @@ export default function PhotoUploader({
       return
     }
     const toUpload = hasError ? photos.filter((p) => p.status !== 'success') : ready
+    uploadStartRef.current = Date.now()
     const results = await uploadPhotos(toUpload, { type, caption })
     if (results.length > 0) {
       onUploadComplete?.(results)
@@ -228,8 +276,8 @@ export default function PhotoUploader({
 
   const totalReady = photos.filter((p) => p.status === 'ready' || p.status === 'pending').length
   const totalError = photos.filter((p) => p.status === 'error').length
-
   const hasExistingUrls = existingUrls && existingUrls.length > 0
+  const totalUploaded = photos.filter((p) => p.status === 'success').length
 
   return (
     <div className="space-y-3">
@@ -272,32 +320,35 @@ export default function PhotoUploader({
         ) : (
           <div className="p-4">
             {photos.length === 0 && !hasExistingUrls ? (
-              <div className="text-center py-6">
+              <div
+                className="text-center py-6 cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 flex items-center justify-center">
                   <Upload className="w-6 h-6 text-slate-400" />
                 </div>
                 <p className="text-sm font-medium text-slate-700 mb-1">Upload Foto</p>
                 <p className="text-xs text-slate-500 mb-4">
-                  Pilih foto dari galeri atau ambil langsung dari kamera
+                  Drag & drop, pilih dari galeri, atau ambil langsung dari kamera
                 </p>
                 <div className="flex justify-center gap-2">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}
                     className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all flex items-center gap-2"
                   >
                     <Image className="w-4 h-4" /> Galeri
                   </button>
                   <button
                     type="button"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click() }}
                     className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-all flex items-center gap-2"
                   >
                     <Camera className="w-4 h-4" /> Kamera
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-3">
-                  atau drag & drop foto ke sini
+                  Format: JPG, PNG, WebP, HEIC (max {uploadConfig.IMAGE_MAX_SIZE_MB}MB per file)
                 </p>
               </div>
             ) : (
@@ -348,9 +399,19 @@ export default function PhotoUploader({
                 {photos.length > 0 && (
                   <>
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-slate-500">
-                        {photos.length} foto
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-medium text-slate-500">
+                          {photos.length} file
+                          {uploading && (
+                            <span className="ml-1 text-indigo-600">
+                              ({totalUploaded} berhasil)
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {formatSize(photos.reduce((s, p) => s + p.size, 0))}
+                        </p>
+                      </div>
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setViewMode('grid')}
@@ -425,10 +486,17 @@ export default function PhotoUploader({
       </div>
 
       {uploading && (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-slate-600">
-            <span>Mengupload...</span>
-            <span>{overallProgress}%</span>
+            <span className="flex items-center gap-1">
+              <Loader className="w-3 h-3 animate-spin" />
+              Mengupload {totalUploaded}/{photos.length}...
+            </span>
+            <span className="flex items-center gap-3">
+              {speed && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{speed}</span>}
+              {eta && <span className="text-slate-400">~{eta}</span>}
+              <span>{overallProgress}%</span>
+            </span>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
             <motion.div
@@ -438,6 +506,15 @@ export default function PhotoUploader({
               transition={{ duration: 0.3 }}
             />
           </div>
+        </div>
+      )}
+
+      {/* Profiling (dev only) */}
+      {profiling && uploadConfig.isDev && (
+        <div className="p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <p className="text-[9px] font-mono text-slate-400">
+            Upload:{profiling.upload}ms · Telegram:{profiling.telegram}ms · Supabase:{profiling.supabase}ms · Total:{profiling.total}ms
+          </p>
         </div>
       )}
 
@@ -480,7 +557,7 @@ export default function PhotoUploader({
             onClick={() => retryFailed({ type, caption })}
             className="px-4 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-medium hover:bg-amber-600 transition-all flex items-center gap-2"
           >
-            <RefreshCw className="w-4 h-4" /> Retry Gagal
+            <AlertTriangle className="w-4 h-4" /> Retry Gagal
           </button>
         )}
       </div>

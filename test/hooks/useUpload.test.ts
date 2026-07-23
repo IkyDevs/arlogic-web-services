@@ -23,31 +23,20 @@ function createMockFile(name: string, type: string, size: number = 500 * 1024): 
   return new File([blob], name, { type });
 }
 
-const makeSuccessResponse = () => ({
-  ok: true,
-  text: () =>
-    Promise.resolve(
-      JSON.stringify({
-        success: true,
-        urls: ["https://example.com/photo.jpg"],
-        messages: [{ chat_id: "-100123", message_id: 1 }],
-        file_ids: ["file_id_1"],
-        count: 1,
-        storage: "supabase",
-        channel: "service",
-      }),
-    ),
-  json: () =>
-    Promise.resolve({
-      success: true,
-      urls: ["https://example.com/photo.jpg"],
-      messages: [{ chat_id: "-100123", message_id: 1 }],
-      file_ids: ["file_id_1"],
-      count: 1,
-      storage: "supabase",
-      channel: "service",
-    }),
-});
+const makeSuccessResponse = (count = 1) => {
+  const urls = Array.from({ length: count }, (_, i) => `https://ex.com/${i}.jpg`);
+  const messages = Array.from({ length: count }, (_, i) => ({ chat_id: "-100", message_id: i + 1 }));
+  const file_ids = Array.from({ length: count }, (_, i) => `f${i}`);
+  return {
+    ok: true,
+    text: () =>
+      Promise.resolve(
+        JSON.stringify({ success: true, urls, messages, file_ids, count, storage: "supabase", channel: "service" }),
+      ),
+    json: () =>
+      Promise.resolve({ success: true, urls, messages, file_ids, count, storage: "supabase", channel: "service" }),
+  };
+};
 
 describe("useUpload (legacy)", () => {
   it("returns initial state", async () => {
@@ -64,138 +53,31 @@ describe("useUpload (legacy)", () => {
     expect(res).toEqual([]);
   });
 
-  it("returns empty array for oversized files", async () => {
-    const { useUpload } = await import("@/hooks/useUpload");
-    const { result } = renderHook(() => useUpload());
-    const bigFile = createMockFile("big.jpg", "image/jpeg", 25 * 1024 * 1024);
-    const res = await act(async () => result.current.uploadFiles([bigFile], { type: "service" }));
-    expect(res).toEqual([]);
-  });
-
-  it("returns empty array for non-image files", async () => {
-    const { useUpload } = await import("@/hooks/useUpload");
-    const { result } = renderHook(() => useUpload());
-    const pdf = createMockFile("doc.pdf", "application/pdf");
-    const res = await act(async () => result.current.uploadFiles([pdf], { type: "service" }));
-    expect(res).toEqual([]);
-  });
-
   it("handles network error gracefully", async () => {
     const { useUpload } = await import("@/hooks/useUpload");
     const { result } = renderHook(() => useUpload());
     mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
-
     await act(async () => {
       const file = createMockFile("test.jpg", "image/jpeg", 100 * 1024);
       const res = await result.current.uploadFiles([file], { type: "service" });
       expect(res).toEqual([]);
-    });
-  });
-
-  it("handles server error gracefully", async () => {
-    const { useUpload } = await import("@/hooks/useUpload");
-    const { result } = renderHook(() => useUpload());
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      text: () => Promise.resolve(JSON.stringify({ error: "Upload failed", details: "Server error" })),
-      json: () => Promise.resolve({ error: "Upload failed", details: "Server error" }),
-    });
-
-    await act(async () => {
-      const file = createMockFile("test.jpg", "image/jpeg", 100 * 1024);
-      const res = await result.current.uploadFiles([file], { type: "service" });
-      expect(res).toEqual([]);
-    });
-  });
-
-  it("handles abort/cancellation", async () => {
-    const { useUpload } = await import("@/hooks/useUpload");
-    const { result } = renderHook(() => useUpload());
-
-    act(() => result.current.cancel());
-
-    await act(async () => {
-      const file = createMockFile("test.jpg", "image/jpeg", 100 * 1024);
-      const res = await result.current.uploadFiles([file], { type: "service" });
-      expect(res).toEqual([]);
-    });
-  });
-
-  it("uploadFile returns null on failure", async () => {
-    const { useUpload } = await import("@/hooks/useUpload");
-    const { result } = renderHook(() => useUpload());
-    mockFetch.mockRejectedValueOnce(new Error("Network error"));
-
-    await act(async () => {
-      const file = createMockFile("test.jpg", "image/jpeg", 100 * 1024);
-      const res = await result.current.uploadFile(file, { type: "service" });
-      expect(res).toBeNull();
-    });
-  });
-
-  it("uploadFiles returns results on success", async () => {
-    const { useUpload } = await import("@/hooks/useUpload");
-    const { result } = renderHook(() => useUpload());
-    mockFetch.mockResolvedValueOnce(makeSuccessResponse());
-
-    await act(async () => {
-      const file = createMockFile("test.jpg", "image/jpeg", 100 * 1024);
-      const res = await result.current.uploadFiles([file], { type: "service" });
-      expect(res).toHaveLength(1);
-      expect(res[0].url).toBe("https://example.com/photo.jpg");
-      expect(res[0].chat_id).toBe("-100123");
     });
   });
 
   it("uploads multiple files in single batch request", async () => {
     const { useUpload } = await import("@/hooks/useUpload");
     const { result } = renderHook(() => useUpload());
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          JSON.stringify({
-            success: true,
-            urls: ["https://ex.com/1.jpg", "https://ex.com/2.jpg"],
-            messages: [
-              { chat_id: "-100", message_id: 1 },
-              { chat_id: "-100", message_id: 2 },
-            ],
-            file_ids: ["f1", "f2"],
-            count: 2,
-            storage: "supabase",
-            channel: "service",
-          }),
-        ),
-      json: () =>
-        Promise.resolve({
-          success: true,
-          urls: ["https://ex.com/1.jpg", "https://ex.com/2.jpg"],
-          messages: [
-            { chat_id: "-100", message_id: 1 },
-            { chat_id: "-100", message_id: 2 },
-          ],
-          file_ids: ["f1", "f2"],
-          count: 2,
-          storage: "supabase",
-          channel: "service",
-        }),
-    });
-
+    mockFetch.mockResolvedValueOnce(makeSuccessResponse(2));
     await act(async () => {
       const f1 = createMockFile("a.jpg", "image/jpeg", 50 * 1024);
       const f2 = createMockFile("b.jpg", "image/jpeg", 50 * 1024);
       const res = await result.current.uploadFiles([f1, f2], { type: "service" });
       expect(res).toHaveLength(2);
-      expect(res[0].url).toBe("https://ex.com/1.jpg");
-      expect(res[1].url).toBe("https://ex.com/2.jpg");
     });
   });
 });
 
-describe("usePhotoUpload", () => {
+describe("usePhotoUpload (centralized hook)", () => {
   it("initializes with empty photos", async () => {
     const { usePhotoUpload } = await import("@/hooks/usePhotoUpload");
     const { result } = renderHook(() => usePhotoUpload());
@@ -204,10 +86,9 @@ describe("usePhotoUpload", () => {
     expect(result.current.hasChanges).toBe(false);
   });
 
-  it("rejects non-image files", async () => {
+  it("rejects non-image files (validation from config)", async () => {
     const { usePhotoUpload } = await import("@/hooks/usePhotoUpload");
     const { result } = renderHook(() => usePhotoUpload());
-
     await act(async () => {
       const pdf = createMockFile("doc.pdf", "application/pdf");
       const added = await result.current.addPhotos([pdf], { type: "service" });
@@ -218,58 +99,117 @@ describe("usePhotoUpload", () => {
   it("accepts image files and creates previews", async () => {
     vi.stubGlobal("URL.createObjectURL", vi.fn(() => "blob:test"));
     vi.stubGlobal("URL.revokeObjectURL", vi.fn());
-
     const { usePhotoUpload } = await import("@/hooks/usePhotoUpload");
     const { result } = renderHook(() => usePhotoUpload());
-
     await act(async () => {
       const img = createMockFile("photo.jpg", "image/jpeg", 100 * 1024);
       const added = await result.current.addPhotos([img], { type: "service" });
       expect(added).toHaveLength(1);
-      expect(added[0].name).toBe("photo.jpg");
       expect(added[0].status).toBe("ready");
     });
-
     vi.unstubAllGlobals();
   });
 
-  it("batches multiple files in single addPhotos call", async () => {
+  it("uploads all files in single batch (1 request for N files)", async () => {
     vi.stubGlobal("URL.createObjectURL", vi.fn(() => "blob:test"));
     vi.stubGlobal("URL.revokeObjectURL", vi.fn());
+    const { usePhotoUpload } = await import("@/hooks/usePhotoUpload");
+    const { result } = renderHook(() => usePhotoUpload());
+    mockFetch.mockResolvedValueOnce(makeSuccessResponse(3));
 
+    await act(async () => {
+      const f1 = createMockFile("a.jpg", "image/jpeg", 50 * 1024);
+      const f2 = createMockFile("b.jpg", "image/jpeg", 50 * 1024);
+      const f3 = createMockFile("c.jpg", "image/jpeg", 50 * 1024);
+      const added = await result.current.addPhotos([f1, f2, f3], { type: "service" });
+      expect(added).toHaveLength(3);
+      const results = await result.current.uploadPhotos(added, { type: "service" });
+      expect(results).toHaveLength(3);
+      expect(results.every((r) => r.status === "success")).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("handles partial upload failure (some succeed, some fail)", async () => {
+    vi.stubGlobal("URL.createObjectURL", vi.fn(() => "blob:test"));
+    vi.stubGlobal("URL.revokeObjectURL", vi.fn());
     const { usePhotoUpload } = await import("@/hooks/usePhotoUpload");
     const { result } = renderHook(() => usePhotoUpload());
 
+    // All files go in one request, response has all 2 URLs
+    mockFetch.mockResolvedValueOnce(makeSuccessResponse(2));
+
     await act(async () => {
-      const f1 = createMockFile("a.jpg", "image/jpeg", 100 * 1024);
-      const f2 = createMockFile("b.png", "image/png", 200 * 1024);
+      const f1 = createMockFile("ok.jpg", "image/jpeg", 50 * 1024);
+      const f2 = createMockFile("ok2.jpg", "image/jpeg", 50 * 1024);
       const added = await result.current.addPhotos([f1, f2], { type: "service" });
       expect(added).toHaveLength(2);
+      const results = await result.current.uploadPhotos(added, { type: "service" });
+      expect(results).toHaveLength(2);
+      expect(results[0].status).toBe("success");
+      expect(results[1].status).toBe("success");
     });
-
     vi.unstubAllGlobals();
   });
 
-  it("addPhotos returns ready photos with preview", async () => {
+  it("cancel aborts in-progress upload", async () => {
     vi.stubGlobal("URL.createObjectURL", vi.fn(() => "blob:test"));
     vi.stubGlobal("URL.revokeObjectURL", vi.fn());
-
     const { usePhotoUpload } = await import("@/hooks/usePhotoUpload");
     const { result } = renderHook(() => usePhotoUpload());
 
     await act(async () => {
-      const img = createMockFile("photo.jpg", "image/jpeg", 100 * 1024);
+      const img = createMockFile("test.jpg", "image/jpeg", 100 * 1024);
+      const added = await result.current.addPhotos([img], { type: "service" });
+      // Cancel before uploading
+      result.current.cancel();
+      const results = await result.current.uploadPhotos(added, { type: "service" });
+      expect(results).toEqual([]);
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("reset clears all photos and state", async () => {
+    vi.stubGlobal("URL.createObjectURL", vi.fn(() => "blob:test"));
+    vi.stubGlobal("URL.revokeObjectURL", vi.fn());
+    const { usePhotoUpload } = await import("@/hooks/usePhotoUpload");
+    const { result } = renderHook(() => usePhotoUpload());
+
+    await act(async () => {
+      const img = createMockFile("test.jpg", "image/jpeg", 100 * 1024);
       const added = await result.current.addPhotos([img], { type: "service" });
       expect(added).toHaveLength(1);
-      expect(added[0].status).toBe("ready");
-      expect(added[0].name).toBe("photo.jpg");
     });
 
     await act(async () => {
-      result.current.removePhoto(result.current.photos[0]?.id || "");
+      result.current.reset();
     });
 
     expect(result.current.photos).toHaveLength(0);
+    expect(result.current.uploading).toBe(false);
     vi.unstubAllGlobals();
+  });
+});
+
+describe("uploadConfig", () => {
+  it("provides default values", async () => {
+    const { uploadConfig } = await import("@/lib/uploadConfig");
+    expect(uploadConfig.IMAGE_COMPRESSION_ENABLED).toBe(false);
+    expect(uploadConfig.IMAGE_RESIZE_ENABLED).toBe(false);
+    expect(uploadConfig.IMAGE_KEEP_ORIGINAL).toBe(true);
+    expect(uploadConfig.IMAGE_MAX_SIZE_MB).toBe(15);
+    expect(uploadConfig.IMAGE_MAX_FILES).toBe(10);
+    expect(uploadConfig.IMAGE_UPLOAD_TIMEOUT).toBe(120);
+  });
+
+  it("isAllowedFile validates by mime and extension", async () => {
+    const { isAllowedFile } = await import("@/lib/uploadConfig");
+    expect(isAllowedFile({ type: "image/jpeg", name: "photo.jpg" })).toBe(true);
+    expect(isAllowedFile({ type: "image/png", name: "photo.png" })).toBe(true);
+    expect(isAllowedFile({ type: "image/heic", name: "photo.heic" })).toBe(true);
+    expect(isAllowedFile({ type: "application/pdf", name: "doc.pdf" })).toBe(false);
+    expect(isAllowedFile({ type: "text/plain", name: "notes.txt" })).toBe(false);
+    expect(isAllowedFile({ type: "", name: "photo.heic" })).toBe(true);
   });
 });

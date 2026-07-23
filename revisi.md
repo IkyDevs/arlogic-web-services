@@ -782,3 +782,66 @@ Keputusan strategis: **TIDAK menggunakan kompresi gambar**. Website ini adalah s
 - [x] Supabase unchanged (secondary storage)
 - [x] All upload features pass regression tests (71/71 tests pass)
 - [x] Upload performance improved without sacrificing photo quality
+
+---
+
+# Revision V32 — Future-Proof Upload Configuration & Standardization
+
+## Centralized Configuration
+
+All upload parameters moved to `lib/uploadConfig.ts`. No hardcoded values remain in source code.
+
+| Env Variable | Default | Description |
+|--------------|---------|-------------|
+| `IMAGE_COMPRESSION_ENABLED` | `false` | Compression toggle (disabled) |
+| `IMAGE_RESIZE_ENABLED` | `false` | Resize toggle (disabled) |
+| `IMAGE_KEEP_ORIGINAL` | `true` | Preserve original file |
+| `IMAGE_KEEP_EXIF` | `true` | Preserve EXIF metadata |
+| `IMAGE_MAX_SIZE_MB` | `15` | Max file size in MB |
+| `IMAGE_MAX_FILES` | `10` | Max files per batch |
+| `IMAGE_PARALLEL_UPLOAD` | `true` | Parallel upload to storage |
+| `IMAGE_PARALLEL_PROCESSING` | `true` | Parallel file processing |
+| `IMAGE_UPLOAD_TIMEOUT` | `120` | Upload timeout in seconds |
+| `IMAGE_REAL_PROGRESS` | `true` | Real progress tracking |
+| `IMAGE_ALLOWED_TYPES` | `image/jpeg,...` | Allowed MIME types |
+
+## Migration Complete
+
+All 4 remaining components with raw `fetch('/api/upload')` migrated to `usePhotoUpload`:
+- `SparepartReadyModal.tsx` → `uploadFile()`
+- `KaspinUpdate.tsx` → `uploadFile()`
+- `SubmitQCModal.tsx` → `addAndUpload()`
+- `QueueList.tsx` (inline QC) → `addAndUpload()`
+
+Total: **12 components** now use centralized upload system.
+
+## Logging
+
+All upload logging uses consistent `[Upload]` / `[Upload API]` prefix:
+- `UPLOAD START` — files, size, type
+- `UPLOAD SUCCESS` — count, timing breakdown
+- `UPLOAD FAILED` — error message
+- `UPLOAD CANCELED` — user abort
+- `VALIDATION FAILED` — file rejected
+- `TELEGRAM FAILED` / `SUPABASE FAILED` — storage errors
+
+## Profiling
+
+Backend profiling only active in development (`NODE_ENV=development`):
+- `readFormData`, `processFiles`, `uploadTelegram`, `uploadSupabase`, `databaseInsert`, `total`
+- Suppressed in production — no overhead
+
+## UI Improvements
+
+- Upload speed display (KB/s or MB/s)
+- ETA (estimated time remaining)
+- File count + total size in header
+- Drag & drop works on full empty state area (click also triggers file picker)
+- Dev-only profiling bar for debugging
+
+## Error Recovery
+
+Partial upload failure handling:
+- Failed files can be retried individually via `retryFailed()`
+- Successful files are not re-uploaded
+- UI shows per-file status badge (ready/success/error)

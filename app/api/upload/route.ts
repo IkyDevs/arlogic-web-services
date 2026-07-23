@@ -4,13 +4,10 @@ import { uploadMultipleToTelegram } from '@/lib/telegram'
 import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
 import { UploadType } from '@/lib/validation/schemas'
+import { uploadConfig, isAllowedFile } from '@/lib/uploadConfig'
 
 const BUCKET_NAME = 'uploads'
-const MAX_FILES = 10
-const MAX_FILE_SIZE = 20 * 1024 * 1024
-const MAX_TOTAL_SIZE = 50 * 1024 * 1024
-const MAX_BODY_SIZE = 60 * 1024 * 1024
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/avif']
+const MB = 1024 * 1024
 
 const CHANNEL_MAP: Record<string, 'attendance' | 'service' | 'layanan' | 'inventory' | 'kaspin' | 'teknisi_update' | 'qc_update'> = {
   attendance: 'attendance',
@@ -22,12 +19,25 @@ const CHANNEL_MAP: Record<string, 'attendance' | 'service' | 'layanan' | 'invent
   qc_update: 'qc_update',
 }
 
+function log(...args: any[]) {
+  if (uploadConfig.isDev) console.log('[Upload API]', ...args)
+}
+
+function warn(...args: any[]) {
+  console.warn('[Upload API]', ...args)
+}
+
+function err(...args: any[]) {
+  console.error('[Upload API]', ...args)
+}
+
 async function ensureBucket() {
   const sb = getSupabaseAdmin()
   try {
     const { data: buckets } = await sb.storage.listBuckets()
-    if (!buckets?.find(b => b.name === BUCKET_NAME)) {
-      await sb.storage.createBucket(BUCKET_NAME, { public: true, fileSizeLimit: MAX_FILE_SIZE })
+    if (!buckets?.find((b: any) => b.name === BUCKET_NAME)) {
+      await sb.storage.createBucket(BUCKET_NAME, { public: true, fileSizeLimit: uploadConfig.IMAGE_MAX_SIZE_BYTES })
+      log(`Created bucket "${BUCKET_NAME}"`)
     }
     return true
   } catch {
@@ -47,7 +57,7 @@ async function uploadToSupabase(buffer: Buffer, fileName: string): Promise<strin
     const { data: { publicUrl } } = sb.storage.from(BUCKET_NAME).getPublicUrl(fileName)
     return publicUrl
   } catch (e) {
-    console.warn('Supabase storage upload failed:', e)
+    warn(`SUPABASE FAILED: ${(e as Error).message}`)
     return null
   }
 }
@@ -58,8 +68,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const contentLength = parseInt(request.headers.get('content-length') || '0', 10)
-    if (contentLength > MAX_BODY_SIZE) {
-      return NextResponse.json({ error: `Request terlalu besar (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maksimal ${MAX_BODY_SIZE / 1024 / 1024}MB.` }, { status: 413 })
+    const maxBody = uploadConfig.IMAGE_MAX_SIZE_MB * 4 * 1024 * 1024
+    if (contentLength > maxBody) {
+      return NextResponse.json({ error: `Request terlalu besar (${(contentLength / 1024 / 1024).toFixed(1)}MB). Maksimal ${maxBody / 1024 / 1024}MB.` }, { status: 413 })
     }
 
     if (!validateOrigin(request)) {
@@ -67,6 +78,7 @@ export async function POST(request: NextRequest) {
     }
     const rl = rateLimitIP(request)
     if (!rl.allowed) {
+      warn(`RATE LIMITED: ${request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'}`)
       return NextResponse.json(
         { error: 'Too many requests' },
         { status: 429, headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } },
@@ -88,28 +100,31 @@ export async function POST(request: NextRequest) {
     if (!files.length) {
       return NextResponse.json({ error: 'Tidak ada file yang diupload' }, { status: 400 })
     }
-    if (files.length > MAX_FILES) {
-      return NextResponse.json({ error: `Maksimal ${MAX_FILES} foto per upload.` }, { status: 400 })
+
+    const maxFiles = uploadConfig.IMAGE_MAX_FILES
+    if (files.length > maxFiles) {
+      return NextResponse.json({ error: `Maksimal ${maxFiles} foto per upload.` }, { status: 400 })
     }
 
-    const totalSize = files.reduce((s, f) => s + f.size, 0)
-    if (totalSize > MAX_TOTAL_SIZE) {
-      return NextResponse.json({ error: `Total ukuran terlalu besar (${(totalSize / 1024 / 1024).toFixed(1)}MB). Maksimal ${MAX_TOTAL_SIZE / 1024 / 1024}MB.` }, { status: 400 })
-    }
-
+    let totalSize = 0
     for (const f of files) {
-      if (f.size > MAX_FILE_SIZE) {
-        return NextResponse.json({ error: `"${f.name}" terlalu besar (max ${MAX_FILE_SIZE / 1024 / 1024}MB)` }, { status: 400 })
+      if (f.size > uploadConfig.IMAGE_MAX_SIZE_BYTES) {
+        return NextResponse.json({ error: `"${f.name}" terlalu besar (max ${uploadConfig.IMAGE_MAX_SIZE_MB}MB)` }, { status: 400 })
       }
-      if (!ALLOWED_TYPES.includes(f.type) && !f.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)) {
+      if (!isAllowedFile(f)) {
         return NextResponse.json({ error: `"${f.name}" bukan format gambar yang didukung` }, { status: 400 })
       }
+      totalSize += f.size
+    }
+
+    if (totalSize > uploadConfig.IMAGE_MAX_SIZE_MB * MB) {
+      return NextResponse.json({ error: `Total ukuran terlalu besar (${(totalSize / 1024 / 1024).toFixed(1)}MB). Maksimal ${uploadConfig.IMAGE_MAX_SIZE_MB * uploadConfig.IMAGE_MAX_FILES / 1024 / 1024}MB.` }, { status: 400 })
     }
 
     const typeResult = UploadType.safeParse(type)
     const channelType = typeResult.success ? typeResult.data : 'service'
 
-    // Read all files in parallel, pass through as-is (no compression, no conversion)
+    // Parallel file reading — no compression, no conversion
     const tProcess = performance.now()
     const timestamp = Date.now()
     const processedFiles: Array<{ buffer: Buffer; name: string }> = []
@@ -137,17 +152,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal memproses file' }, { status: 500 })
     }
 
-    // Upload to Telegram (parallel via sendMediaGroup)
+    log(`Processing ${processedFiles.length} files (${(totalSize / (1024 * 1024)).toFixed(1)}MB), type=${type}`)
+
+    // Upload to Telegram
     const tTelegram = performance.now()
     const telegramResults = await uploadMultipleToTelegram(processedFiles, caption, channelType)
     profile.uploadTelegram = Math.round(performance.now() - tTelegram)
 
     if (telegramResults.length === 0) {
+      err('TELEGRAM FAILED: no results returned')
       return NextResponse.json({ error: 'Foto gagal dikirim ke Telegram. Coba lagi dengan file lebih kecil.' }, { status: 502 })
     }
 
     if (telegramResults.length < processedFiles.length) {
-      console.warn(`Only ${telegramResults.length}/${processedFiles.length} photos uploaded to Telegram`)
+      warn(`TELEGRAM PARTIAL: ${telegramResults.length}/${processedFiles.length} uploaded`)
+    } else {
+      log(`TELEGRAM OK: ${telegramResults.length} photos`)
     }
 
     // Upload to Supabase Storage in parallel
@@ -157,10 +177,16 @@ export async function POST(request: NextRequest) {
     )
     profile.uploadSupabase = Math.round(performance.now() - tSupabase)
 
+    const supabaseSuccess = supabaseUrls.filter(Boolean).length
+    if (supabaseSuccess < processedFiles.length) {
+      warn(`SUPABASE PARTIAL: ${supabaseSuccess}/${processedFiles.length} uploaded`)
+    }
+
     const permanentUrls = supabaseUrls.map((u, i) => u || telegramResults[i]?.url || '')
     const fileIds = telegramResults.map(r => r.file_id || '')
 
     // Save to photos table (fire-and-forget, non-blocking)
+    const tDb = performance.now()
     const sb = getSupabaseAdmin()
     const photoRecords = processedFiles.map((f, i) => ({
       file_id: telegramResults[i]?.file_id || '',
@@ -173,12 +199,15 @@ export async function POST(request: NextRequest) {
     }))
 
     ;(sb.from('photos') as any).insert(photoRecords).then().catch((e: any) => {
-      console.warn('[Upload] Failed to save photo records:', e.message)
+      warn(`DATABASE FAILED: ${e.message}`)
     })
+    profile.databaseInsert = Math.round(performance.now() - tDb)
 
     profile.total = Math.round(performance.now() - tStart)
 
-    return NextResponse.json({
+    log(`UPLOAD COMPLETE: ${telegramResults.length} photos in ${(profile.total / 1000).toFixed(1)}s`)
+
+    const response = {
       success: true,
       urls: permanentUrls,
       telegram_urls: telegramResults.map(r => r.url),
@@ -187,18 +216,24 @@ export async function POST(request: NextRequest) {
       count: telegramResults.length,
       storage: 'supabase',
       channel: type,
-      profiling: profile,
-    })
+    }
+
+    // Profiling only in development
+    if (uploadConfig.isDev) {
+      return NextResponse.json({ ...response, profiling: profile })
+    }
+
+    return NextResponse.json(response)
   } catch (error: any) {
     const msg = error?.message || ''
+    err(`ERROR: ${msg}`)
     if (msg.includes('TELEGRAM_BOT_TOKEN') || msg.includes('not configured')) {
       return NextResponse.json({ error: 'Konfigurasi Telegram tidak lengkap' }, { status: 500 })
     }
     if (msg.includes('timeout') || msg.includes('abort')) {
       return NextResponse.json({ error: 'Koneksi ke Telegram timeout. Coba lagi.' }, { status: 504 })
     }
-    console.error('[Upload API Error]', error)
-    return NextResponse.json({ error: 'Upload gagal', details: msg, profiling: { total: Math.round(performance.now() - tStart) } }, { status: 500 })
+    return NextResponse.json({ error: 'Upload gagal', details: msg }, { status: 500 })
   }
 }
 

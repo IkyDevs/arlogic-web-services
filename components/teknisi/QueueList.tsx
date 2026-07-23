@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { ServiceOrder } from "@/types";
 import toast from "react-hot-toast";
+import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
@@ -121,6 +122,7 @@ export default function QueueList({
 
   const supabase = createClient();
   const { user } = useAuthStore();
+  const { addAndUpload: qcUpload } = usePhotoUpload();
 
   useEffect(() => {
     fetchQueues();
@@ -680,33 +682,25 @@ export default function QueueList({
       const uploadedUrls: string[] = [];
       let firstChatId = "";
       let firstMessageId = 0;
-      const formData = new FormData();
-      for (let i = 0; i < qcPhotos.length; i++) {
-        formData.append("files", qcPhotos[i]);
-      }
-      formData.append("type", "qc_update");
-      formData.append("caption", caption);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      const results = await qcUpload(qcPhotos, {
+        type: 'qc_update',
+        caption,
       });
-      const data = await res.json();
-      if (data.urls && data.urls.length > 0) {
-        for (let i = 0; i < data.urls.length; i++) {
-          const chatId = data.messages?.[i]?.chat_id || "";
-          const messageId = data.messages?.[i]?.message_id || 0;
-          uploadedUrls.push(data.urls[i]);
-          if (!firstChatId && chatId) {
-            firstChatId = chatId;
-            firstMessageId = messageId;
+      if (results.length > 0) {
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          uploadedUrls.push(r.url);
+          if (!firstChatId && r.chat_id) {
+            firstChatId = r.chat_id;
+            firstMessageId = r.message_id;
           }
           await supabase.from("service_documentation").insert({
             service_order_id: selectedService.id,
-            photo_url: data.urls[i],
+            photo_url: r.url,
             stage: "qc",
             uploaded_by: user.id,
-            telegram_chat_id: chatId,
-            telegram_message_id: messageId,
+            telegram_chat_id: r.chat_id,
+            telegram_message_id: r.message_id,
           });
         }
       }
