@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { uploadConfig, isAllowedFile } from '@/lib/uploadConfig'
+import { compressFiles } from '@/lib/compressImage'
 
 export type UploadType = 'attendance' | 'service' | 'layanan' | 'inventory' | 'kaspin' | 'teknisi_update' | 'qc_update'
 
@@ -179,13 +180,16 @@ export function usePhotoUpload() {
     abortRef.current = false
     uploadStartRef.current = Date.now()
 
-    const uploadFiles = files.map((f) => f.file)
+    let uploadFiles = files.map((f) => f.file)
 
     setPhotos((prev) =>
       prev.map((p) =>
         files.some((f) => f.id === p.id) ? { ...p, status: 'uploading' as const, progress: 10 } : p,
       ),
     )
+
+    const compressed = await compressFiles(uploadFiles)
+    uploadFiles = compressed
 
     log(`UPLOAD START: ${files.length} files, ${(totalSize / MB).toFixed(1)}MB total, type=${options.type}`)
 

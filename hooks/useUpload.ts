@@ -6,6 +6,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
+import { compressFiles } from '@/lib/compressImage'
 
 export interface UploadFileResult {
   url: string
@@ -42,13 +43,15 @@ export function useUpload() {
       }
     }
 
+    const compressed = await compressFiles(files)
+
     setUploading(true)
     setProgress(5)
 
     try {
       setProgress(30)
       const formData = new FormData()
-      for (const f of files) formData.append('files', f, f.name)
+      for (const f of compressed) formData.append('files', f, f.name)
       formData.append('type', options.type)
       if (options.caption) formData.append('caption', options.caption)
 
