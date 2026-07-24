@@ -5,6 +5,7 @@ import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
 import { UploadType } from '@/lib/validation/schemas'
 import { uploadConfig, isAllowedFile } from '@/lib/uploadConfig'
+import sharp from 'sharp'
 
 const BUCKET_NAME = 'uploads'
 const MB = 1024 * 1024
@@ -117,24 +118,39 @@ export async function POST(request: NextRequest) {
       totalSize += f.size
     }
 
-    if (totalSize > uploadConfig.IMAGE_MAX_SIZE_MB * MB) {
-      return NextResponse.json({ error: `Total ukuran terlalu besar (${(totalSize / 1024 / 1024).toFixed(1)}MB). Maksimal ${uploadConfig.IMAGE_MAX_SIZE_MB * uploadConfig.IMAGE_MAX_FILES / 1024 / 1024}MB.` }, { status: 400 })
+    if (totalSize > uploadConfig.IMAGE_MAX_SIZE_MB * uploadConfig.IMAGE_MAX_FILES * MB) {
+      return NextResponse.json({ error: `Total ukuran terlalu besar (${(totalSize / 1024 / 1024).toFixed(1)}MB). Maksimal ${uploadConfig.IMAGE_MAX_SIZE_MB * uploadConfig.IMAGE_MAX_FILES}MB.` }, { status: 400 })
     }
 
     const typeResult = UploadType.safeParse(type)
     const channelType = typeResult.success ? typeResult.data : 'service'
 
-    // Parallel file reading — no compression, no conversion
+    // Parallel file reading with auto-compression for files > 2MB
     const tProcess = performance.now()
     const timestamp = Date.now()
     const processedFiles: Array<{ buffer: Buffer; name: string }> = []
 
+    const COMPRESS_THRESHOLD = 2 * 1024 * 1024
     const fileBuffers = await Promise.all(
       files.map(async (file) => {
         try {
           const arrayBuffer = await file.arrayBuffer()
-          const buffer = Buffer.from(arrayBuffer)
-          const ext = file.name.split('.').pop() || 'jpg'
+          let buffer = Buffer.from(arrayBuffer)
+          let ext = file.name.split('.').pop() || 'jpg'
+          if (buffer.length > COMPRESS_THRESHOLD) {
+            try {
+              const compressed = await sharp(buffer)
+                .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
+                .jpeg({ quality: 80 })
+                .toBuffer()
+              if (compressed.length < buffer.length) {
+                buffer = compressed
+                ext = 'jpg'
+              }
+            } catch {
+              // compression gagal, pakai original
+            }
+          }
           const name = `${type}/${timestamp}_${Math.random().toString(36).substring(2, 8)}.${ext}`
           return { buffer, name }
         } catch {

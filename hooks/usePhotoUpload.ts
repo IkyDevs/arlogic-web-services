@@ -166,7 +166,7 @@ export function usePhotoUpload() {
       return []
     }
 
-    const maxTotalSize = options.maxTotalSize || (uploadConfig.IMAGE_MAX_SIZE_MB * MB)
+    const maxTotalSize = options.maxTotalSize || (uploadConfig.IMAGE_MAX_SIZE_MB * uploadConfig.IMAGE_MAX_FILES * MB)
     const totalSize = files.reduce((s, f) => s + f.file.size, 0)
     if (totalSize > maxTotalSize) {
       toast.error(`Ukuran total terlalu besar (${(totalSize / MB).toFixed(1)}MB)`)
