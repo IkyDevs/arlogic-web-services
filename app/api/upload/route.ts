@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       files.map(async (file) => {
         try {
           const arrayBuffer = await file.arrayBuffer()
-          let buffer = Buffer.from(arrayBuffer)
+          let buffer: Buffer = Buffer.from(arrayBuffer)
           let ext = file.name.split('.').pop() || 'jpg'
           if (buffer.length > COMPRESS_THRESHOLD) {
             try {
