@@ -7,6 +7,7 @@ import { useUpload } from "@/hooks/useUpload";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { X, Camera, Loader2, Send, User, Wallet, Hash, DollarSign, Phone } from "lucide-react";
+import { useTransactionStore } from "@/stores/transaction-store";
 
 interface CashdrawFormProps {
   onSuccess?: () => void;
@@ -17,6 +18,7 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
   const { user } = useAuthStore();
   const supabase = createClient();
   const { uploadFile, uploading, progress } = useUpload();
+  const fetchTransactions = useTransactionStore((s) => s.fetch);
 
   const [formData, setFormData] = useState({
     staff_name: user?.full_name || "",
@@ -116,6 +118,7 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
       }
 
       toast.success("Cashdraw berhasil");
+      fetchTransactions();
       onSuccess?.();
       onClose?.();
     } catch (err: any) {

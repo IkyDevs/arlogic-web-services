@@ -92,7 +92,6 @@ export default function TeknisiDashboard() {
   const [showLayananForm, setShowLayananForm] = useState(false);
   const [showServiceForm, setShowServiceForm] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [refreshLayanan, setRefreshLayanan] = useState(0);
   const [filterPeriod, setFilterPeriod] = useState<
     "hari" | "bulan" | "tahun" | undefined
   >("hari");
@@ -390,7 +389,6 @@ export default function TeknisiDashboard() {
 
   const handleLayananSuccess = () => {
     setShowLayananForm(false);
-    setRefreshLayanan((prev) => prev + 1);
     toast.success("Layanan berhasil ditambahkan!");
   };
 
@@ -1191,7 +1189,7 @@ export default function TeknisiDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <TransactionManagement key={refreshLayanan} />
+                <TransactionManagement />
               </motion.div>
             )}
             {activeTab === "done" && (

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { hasDraft } from "@/lib/draftStorage";
+import { useTransactionStore } from "@/stores/transaction-store";
+import { realtimeService } from "@/lib/realtime";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -700,7 +702,7 @@ export default function AdminDashboard() {
     fetchAllData();
   }, []);
 
-  // Auto-refresh on new service_orders or layanan (realtime)
+  // Auto-refresh on new orders (realtime)
   const fetchAllDataRef = useRef(fetchAllData);
   fetchAllDataRef.current = fetchAllData;
 
@@ -711,11 +713,6 @@ export default function AdminDashboard() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "service_orders" },
-        refresh,
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "layanan" },
         refresh,
       )
       .on(
@@ -948,7 +945,7 @@ export default function AdminDashboard() {
 
               {activeTab === "management-transaction" && (
                 <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                  <TransactionManagement isDark={isDark} key={refreshLayanan} />
+                  <TransactionManagement isDark={isDark} />
                 </div>
               )}
 

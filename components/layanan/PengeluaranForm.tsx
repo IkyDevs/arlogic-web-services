@@ -6,24 +6,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
 import { MetodePembayaran } from "@/types";
 import toast from "react-hot-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
+import { useTransactionStore } from "@/stores/transaction-store";
 import {
-  User,
-  Phone,
-  DollarSign,
-  FileText,
-  Send,
-  X,
-  Camera,
-  Loader2,
-  Trash2,
-  AlertCircle,
-  Calendar,
-  Hash,
-  Wrench,
-  Plus,
-  ChevronDown,
+  User, DollarSign, FileText, Send, X, Camera, Loader2,
+  Trash2, AlertCircle, Calendar, Wrench, Plus, ChevronDown,
 } from "lucide-react";
 
 const metodePembayaranOptions = [
@@ -52,6 +40,7 @@ export default memo(function PengeluaranForm({
   const { user } = useAuthStore();
   const supabase = createClient();
   const { uploadFiles, uploading, progress } = useUpload();
+  const fetchTransactions = useTransactionStore((s) => s.fetch);
 
   const [formData, setFormData] = useState({
     item_name: initialData?.item_name || initialData?.customer_name || "",
@@ -374,6 +363,7 @@ operator: ${handlerName}`;
 
       if (user?.id) { clearingDraft.current = true; clearDraft("pengeluaran", user.id); }
       restoredRef.current = false;
+      fetchTransactions();
       onSuccess?.();
       onClose?.();
     } catch (err: any) {

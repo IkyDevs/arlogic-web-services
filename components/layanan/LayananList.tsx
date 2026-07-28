@@ -1,422 +1,308 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useAuthStore } from "@/stores/authStore";
-import {
-  Layanan,
-  JenisLayanan,
-  jenisLayananLabels,
-  metodePembayaranLabels,
-  leadSourceLabels,
-} from "@/types";
 import { motion } from "framer-motion";
 import {
-  Search,
-  Filter,
-  Download,
-  Eye,
-  CheckCircle,
-  XCircle,
-  Calendar,
-  DollarSign,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  RefreshCw,
-  Clock,
-  TrendingUp,
-  Users,
-  Trash2,
+  Search, Eye, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp,
+  Trash2, RefreshCw, X, Plus, Camera,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useTransactionStore } from "@/stores/transaction-store";
+import { realtimeService } from "@/lib/realtime";
+import { formatRupiah, mapLegacyTransaction, calculateTransactionTotal, type TransactionData, type TransactionServiceItem, type SKUItem } from "@/lib/transaction-service";
+import { jenisLayananLabels, metodePembayaranLabels, leadSourceLabels } from "@/types";
 
 interface LayananListProps {
   isAdmin?: boolean;
   compact?: boolean;
   dateFilter?: string;
-  onEdit?: (layanan: Layanan) => void;
-  onStatsUpdate?: (stats: { total: number; totalNominal: number; active: number; completed: number; jenisCount: Record<string, number>; metodeRevenue: Record<string, number> }) => void;
+  onEdit?: (layanan: any) => void;
 }
 
-interface LayananWithPhoto extends Layanan {
-  photo_url?: string;
+const jenisLayananOptions = [
+  { value: "ambil_jam_service", label: "Ambil Jam Service" },
+  { value: "order_online", label: "Order Online" },
+  { value: "beli_jam", label: "Beli Jam" },
+  { value: "service_langsung", label: "Service Langsung" },
+  { value: "pengeluaran", label: "Pengeluaran" },
+  { value: "cashdraw", label: "Cashdraw" },
+];
+
+function getJenisStyle(jenis: string): string {
+  const styles: Record<string, string> = {
+    ambil_jam_service: "bg-blue-100 text-blue-700 border-blue-200",
+    order_online: "bg-amber-100 text-amber-700 border-amber-200",
+    beli_jam: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    dp_service: "bg-purple-100 text-purple-700 border-purple-200",
+    service_langsung: "bg-slate-100 text-slate-700 border-slate-200",
+    pengeluaran: "bg-red-100 text-red-700 border-red-200",
+    cashdraw: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  };
+  return styles[jenis] || "bg-slate-100 text-slate-700 border-slate-200";
 }
 
-export default function LayananList({
-  isAdmin = false,
-  compact = false,
-  dateFilter,
-  onEdit,
-  onStatsUpdate,
-}: LayananListProps) {
-  const { user } = useAuthStore();
-  const [layanan, setLayanan] = useState<LayananWithPhoto[]>([]);
-  const [displayRows, setDisplayRows] = useState<any[]>([]);
-  const [filteredLayanan, setFilteredLayanan] = useState<LayananWithPhoto[]>(
-    [],
+function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
+  const [index, setIndex] = useState(0);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl border border-gray-200 dark:border-white/10"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Foto Transaksi</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+        <div className="p-4">
+          <div className="bg-black flex items-center justify-center min-h-[300px] rounded-xl overflow-hidden">
+            <img src={photos[index]} alt={`Foto ${index + 1}`} className="max-w-full max-h-[500px] object-contain" />
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-xs text-gray-500">Foto {index + 1} dari {photos.length}</span>
+            <div className="flex gap-2">
+              {photos.map((p, i) => (
+                <button key={i} onClick={() => setIndex(i)}
+                  className={`w-12 h-12 rounded-lg overflow-hidden border-2 ${i === index ? "border-gray-900" : "border-gray-200"} hover:border-gray-400 transition-all`}>
+                  <img src={p} alt={`thumb-${i}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+          {photos.length > 1 && (
+            <div className="flex justify-between mt-3">
+              <button onClick={() => setIndex((i) => (i === 0 ? photos.length - 1 : i - 1))}
+                className="px-4 py-2 bg-gray-100 dark:bg-white/10 rounded-lg text-xs font-medium hover:bg-gray-200">← Previous</button>
+              <button onClick={() => setIndex((i) => (i + 1) % photos.length)}
+                className="px-4 py-2 bg-gray-100 dark:bg-white/10 rounded-lg text-xs font-medium hover:bg-gray-200">Next →</button>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
   );
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+}
+
+function TransactionDetailModal({ transaction, onClose }: { transaction: TransactionData; onClose: () => void }) {
+  const total = calculateTransactionTotal(transaction.items || []);
+  const photos = transaction.photo_urls || [];
+  const [showPhoto, setShowPhoto] = useState(false);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={onClose}>
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Detail Transaksi</h2>
+              <p className="text-xs text-gray-500">{transaction.customer_name}</p>
+            </div>
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-100 dark:border-blue-800">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Customer</p>
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{transaction.customer_name}</p>
+                {transaction.customer_whatsapp && <p className="text-xs text-gray-500">{transaction.customer_whatsapp}</p>}
+              </div>
+            </div>
+
+            {transaction.items?.map((item, i) => (
+              <div key={i} className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
+                <div className={`px-4 py-2 border-b border-gray-200 dark:border-white/10 ${getJenisStyle(item.jenis_layanan)}`}>
+                  <span className="text-xs font-bold uppercase">{jenisLayananLabels[item.jenis_layanan as keyof typeof jenisLayananLabels] || item.jenis_layanan}</span>
+                </div>
+                <div className="p-4 space-y-2">
+                  {item.skus?.map((sku, j) => (
+                    <div key={j} className="flex items-center justify-between py-1 border-b border-gray-100 dark:border-white/5 last:border-0">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{sku.sku || "-"}</span>
+                      <span className="text-sm font-semibold text-blue-600">{formatRupiah(sku.nominal)}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Subtotal</span>
+                    <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                      {formatRupiah(item.skus?.reduce((s, sku) => s + sku.nominal, 0) || 0)}
+                    </span>
+                  </div>
+                  {item.notes && <p className="text-xs text-gray-400 italic mt-1">{item.notes}</p>}
+                </div>
+              </div>
+            ))}
+
+            <div className="flex items-center justify-between p-4 bg-gray-900 dark:bg-white rounded-xl">
+              <span className="text-sm font-bold text-white dark:text-gray-900 uppercase">Grand Total</span>
+              <span className="text-lg font-bold text-white dark:text-gray-900">{formatRupiah(total)}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Pembayaran</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {transaction.split_payment ? "Split Payment" : metodePembayaranLabels[transaction.metode_pembayaran as keyof typeof metodePembayaranLabels] || transaction.metode_pembayaran}
+                </p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Staff</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{transaction.handled_by_name || "-"}</p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Status</p>
+                <p className={`text-sm font-semibold ${transaction.status === "active" ? "text-amber-600" : transaction.status === "completed" ? "text-emerald-600" : "text-red-600"}`}>
+                  {transaction.status?.toUpperCase()}
+                </p>
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Waktu</p>
+                <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                  {new Date(transaction.created_at || "").toLocaleDateString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+            </div>
+
+            {photos.length > 0 && (
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Foto ({photos.length})</p>
+                <div className="flex gap-2 overflow-x-auto">
+                  {photos.map((p, i) => (
+                    <button key={i} onClick={() => setShowPhoto(true)}
+                      className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 flex-shrink-0 hover:opacity-80 transition-opacity">
+                      <img src={p} alt={`foto-${i}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {transaction.split_payment && (
+              <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800 space-y-1">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Split Payment</p>
+                <div className="flex justify-between text-sm">
+                  <span>{metodePembayaranLabels[transaction.metode_pembayaran_1 as keyof typeof metodePembayaranLabels] || transaction.metode_pembayaran_1}</span>
+                  <span className="font-semibold">{formatRupiah(transaction.nominal_1 || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>{metodePembayaranLabels[transaction.metode_pembayaran_2 as keyof typeof metodePembayaranLabels] || transaction.metode_pembayaran_2}</span>
+                  <span className="font-semibold">{formatRupiah(transaction.nominal_2 || 0)}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="text-center">
+              <button onClick={onClose}
+                className="px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 transition-all text-sm">
+                Tutup
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+      {showPhoto && <PhotoGalleryModal photos={photos} onClose={() => setShowPhoto(false)} />}
+    </>
+  );
+}
+
+export default function LayananList({ isAdmin = false, compact = false, dateFilter, onEdit }: LayananListProps) {
+  const { transactions, loading, updateStatus, remove } = useTransactionStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterJenis, setFilterJenis] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterMetode, setFilterMetode] = useState("");
-  const [filterStaff, setFilterStaff] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [totalNominal, setTotalNominal] = useState(0);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
-  const [photoGalleryIndex, setPhotoGalleryIndex] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
-  const [staffList, setStaffList] = useState<any[]>([]);
-  const [splitPaymentDetail, setSplitPaymentDetail] = useState<any | null>(null);
-  const supabase = createClient();
+  const [detailTx, setDetailTx] = useState<TransactionData | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [photoGallery, setPhotoGallery] = useState<string[] | null>(null);
 
-  // Check if user is admin
-  const isUserAdmin = user?.role === "admin";
-
-  useEffect(() => {
-    fetchLayanan();
-    fetchStaffList();
-  }, [dateFilter]);
-
-  useEffect(() => {
-    filterLayanan();
-  }, [
-    searchQuery,
-    filterJenis,
-    filterStatus,
-    filterMetode,
-    filterStaff,
-    startDate,
-    endDate,
-    layanan,
-  ]);
-
-  const fetchStaffList = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, role")
-      .in("role", ["admin", "teknisi", "supervisor"])
-      .order("full_name");
-    if (data) setStaffList(data);
-  };
-
-  const buildDisplayRows = (data: any[]) => {
-    const rows: any[] = [];
-    for (const tx of data) {
-      rows.push({ ...tx, _isItem: false });
+  const filtered = useMemo(() => {
+    let data = transactions;
+    if (dateFilter) {
+      data = data.filter((d) => d.created_at?.startsWith(dateFilter));
     }
-    return rows;
-  };
-
-  const fetchLayanan = async () => {
-    setLoading(true);
-    try {
-      let query = supabase.from("layanan").select("*, layanan_items(*)");
-      if (dateFilter) {
-        query = query
-          .gte("created_at", dateFilter + "T00:00:00")
-          .lte("created_at", dateFilter + "T23:59:59");
-      }
-      query = query.order("created_at", { ascending: false }).limit(200);
-      const res = await query;
-      if (res.error) {
-        // Fallback tanpa join jika tabel layanan_items belum ada
-        let fallback = supabase.from("layanan").select("*");
-        if (dateFilter) {
-          fallback = fallback
-            .gte("created_at", dateFilter + "T00:00:00")
-            .lte("created_at", dateFilter + "T23:59:59");
-        }
-        const fb = await fallback.order("created_at", { ascending: false }).limit(200);
-        if (fb.data) {
-          setLayanan(fb.data);
-          const rows = buildDisplayRows(fb.data);
-          setDisplayRows(rows);
-          setFilteredLayanan(rows);
-          calculateTotal(rows);
-        }
-      } else if (res.data) {
-        setLayanan(res.data);
-        const rows = buildDisplayRows(res.data);
-        setDisplayRows(rows);
-        setFilteredLayanan(rows);
-        calculateTotal(rows);
-      }
-    } catch (err) {
-      console.error("Gagal fetch layanan:", err);
-    }
-    setLoading(false);
-  };
-
-  const refreshData = async () => {
-    setRefreshing(true);
-    await fetchLayanan();
-    setRefreshing(false);
-    toast.success("Data refreshed");
-  };
-
-  const emitStats = (data: any[]) => {
-    let total = 0, totalRevenue = 0, totalExpenses = 0;
-    const jenisCount: Record<string, number> = {};
-    const metodeRevenue: Record<string, number> = {};
-    let active = 0, completed = 0;
-    for (const item of data) {
-      if (item.status === "active") active++;
-      if (item.status === "completed") completed++;
-      const j = item.jenis_layanan || "Lainnya";
-      jenisCount[j] = (jenisCount[j] || 0) + 1;
-      const nominal = item.nominal || 0;
-      total += nominal;
-      if (item.jenis_layanan === "pengeluaran") totalExpenses += nominal;
-      else totalRevenue += nominal;
-      const m = item.metode_pembayaran || "unknown";
-      metodeRevenue[m] = (metodeRevenue[m] || 0) + (item.jenis_layanan === "pengeluaran" ? -nominal : nominal);
-    }
-    const netTotal = totalRevenue - totalExpenses;
-    onStatsUpdate?.({ total: data.length, totalNominal: netTotal, active, completed, jenisCount, metodeRevenue });
-    setTotalNominal(netTotal);
-  };
-
-  const calculateTotal = (data: LayananWithPhoto[]) => {
-    emitStats(data);
-  };
-
-  const filterLayanan = () => {
-    let filtered = [...displayRows];
-
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          item.customer_name.toLowerCase().includes(query) ||
-          item.customer_whatsapp.includes(query) ||
-          item.detail_sku?.toLowerCase().includes(query) ||
-          item.handled_by_name?.toLowerCase().includes(query),
+      const q = searchQuery.toLowerCase();
+      data = data.filter(
+        (t) =>
+          t.customer_name.toLowerCase().includes(q) ||
+          t.customer_whatsapp?.includes(q) ||
+          t.items?.some((i) => i.jenis_layanan.toLowerCase().includes(q) || i.skus?.some((s) => s.sku.toLowerCase().includes(q)))
       );
     }
-
     if (filterJenis) {
-      filtered = filtered.filter((item) => item.jenis_layanan === filterJenis);
+      data = data.filter((t) => t.items?.some((i) => i.jenis_layanan === filterJenis));
     }
-
     if (filterStatus) {
-      filtered = filtered.filter((item) => item.status === filterStatus);
+      data = data.filter((t) => t.status === filterStatus);
     }
-
     if (filterMetode) {
-      filtered = filtered.filter(
-        (item) => item.metode_pembayaran === filterMetode,
-      );
+      data = data.filter((t) => t.metode_pembayaran === filterMetode);
     }
+    return data;
+  }, [transactions, dateFilter, searchQuery, filterJenis, filterStatus, filterMetode]);
 
-    if (filterStaff) {
-      filtered = filtered.filter((item) => item.handled_by === filterStaff);
-    }
+  const handleDelete = async (item: TransactionData) => {
+    const total = calculateTransactionTotal(item.items || []);
+    if (!confirm(`Hapus transaksi "${item.customer_name}" (${formatRupiah(total)})?`)) return;
 
-    if (startDate) {
-      filtered = filtered.filter(
-        (item) => new Date(item.created_at) >= new Date(startDate),
-      );
-    }
-
-    if (endDate) {
-      filtered = filtered.filter(
-        (item) => new Date(item.created_at) <= new Date(endDate + "T23:59:59"),
-      );
-    }
-
-    setFilteredLayanan(filtered);
-    calculateTotal(filtered);
-  };
-
-  const updateStatus = async (
-    id: string,
-    status: "cancelled" | "completed",
-  ) => {
-    const { error } = await supabase
-      .from("layanan")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) {
-      toast.error("Failed to update status");
-    } else {
-      toast.success(
-        `Status updated to ${status === "completed" ? "COMPLETED" : "CANCELLED"}`,
-      );
-      fetchLayanan();
-    }
-  };
-
-  const handleDelete = async (item: any) => {
-    if (!confirm(`Hapus transaksi "${item.customer_name}" (Rp ${Number(item.nominal).toLocaleString("id-ID")})?`)) return;
-
-    // Hapus pesan Telegram jika ada
-    if (item.telegram_chat_id && item.telegram_message_id) {
+    if ((item as any).telegram_chat_id && (item as any).telegram_message_id) {
       try {
         await fetch("/api/telegram/delete-message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: item.telegram_chat_id,
-            message_id: item.telegram_message_id,
-          }),
+          body: JSON.stringify({ chat_id: (item as any).telegram_chat_id, message_id: (item as any).telegram_message_id }),
         });
-      } catch (e) {
-        console.warn("Gagal hapus pesan Telegram:", e);
-      }
+      } catch {}
     }
-
-    const { error } = await supabase.from("layanan").delete().eq("id", item.id);
-    if (error) {
-      toast.error("Gagal hapus transaksi: " + error.message);
-    } else {
+    try {
+      await remove(item.id!);
       toast.success("Transaksi berhasil dihapus");
-      fetchLayanan();
+    } catch (err: any) {
+      toast.error("Gagal hapus: " + err.message);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <span className="badge badge-warning">Active</span>;
-      case "completed":
-        return <span className="badge badge-success">Completed</span>;
-      case "cancelled":
-        return <span className="badge badge-danger">Cancelled</span>;
-      default:
-        return <span className="badge badge-neutral">{status}</span>;
+  const handleStatusUpdate = async (id: string, status: "completed" | "cancelled") => {
+    try {
+      await updateStatus(id, status);
+      toast.success(`Status updated to ${status.toUpperCase()}`);
+    } catch (err: any) {
+      toast.error("Gagal update status: " + err.message);
     }
   };
 
-  const getJenisLayananStyle = (jenis: string) => {
-    const styles: Record<string, string> = {
-      ambil_jam_service: "badge-info",
-      order_online: "badge-warning",
-      beli_jam: "badge-success",
-      pengeluaran: "badge-danger",
-      dp_service: "badge-primary",
-      service_langsung: "badge-neutral",
-      cashdraw: "badge-success",
-    };
-    return styles[jenis] || "badge-neutral";
-  };
-
-  const formatRupiah = (nominal: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(nominal);
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const exportToCSV = () => {
-    const headers = [
-      "Date",
-      "Customer",
-      "WhatsApp",
-      "Service Type",
-      "Handled By",
-      "Payment Method",
-      "Lead Source",
-      "SKU",
-      "Amount",
-      "Status",
-      "Notes",
-    ];
-    const rows = filteredLayanan.map((item) => {
-      const paymentMethod = (item as any).split_payment
-        ? `Split Payment (${metodePembayaranLabels[(item as any).metode_pembayaran_1 as keyof typeof metodePembayaranLabels] || (item as any).metode_pembayaran_1}: Rp ${(item as any).nominal_1?.toLocaleString("id-ID") || 0} + ${metodePembayaranLabels[(item as any).metode_pembayaran_2 as keyof typeof metodePembayaranLabels] || (item as any).metode_pembayaran_2}: Rp ${(item as any).nominal_2?.toLocaleString("id-ID") || 0})`
-        : metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran;
-      return [
-        formatDate(item.created_at),
-        item.customer_name,
-        item.customer_whatsapp,
-        jenisLayananLabels[item.jenis_layanan as JenisLayanan] || item.jenis_layanan,
-        item.handled_by_name,
-        paymentMethod,
-        item.lead_source === "tulis_sendiri"
-          ? item.lead_source_custom
-          : leadSourceLabels[item.lead_source],
-        item.detail_sku || "-",
-        item.nominal,
-        item.status === "active"
-          ? "ACTIVE"
-          : item.status === "completed"
-            ? "COMPLETED"
-            : "CANCELLED",
-        item.notes || "-",
-      ];
-    });
-
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-    const blob = new Blob(["\uFEFF" + csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const link = document.createElement("a");
+  const handleExport = () => {
+    const headers = ["Date", "Customer", "WhatsApp", "Service Types", "Handled By", "Payment", "Lead Source", "SKUs", "Amount", "Status"];
+    const rows = filtered.map((tx) => [
+      new Date(tx.created_at || "").toLocaleDateString("id-ID"),
+      tx.customer_name,
+      tx.customer_whatsapp,
+      tx.items?.map((i) => jenisLayananLabels[i.jenis_layanan as keyof typeof jenisLayananLabels] || i.jenis_layanan).join(", ") || "",
+      tx.handled_by_name,
+      tx.split_payment ? "Split Payment" : metodePembayaranLabels[tx.metode_pembayaran as keyof typeof metodePembayaranLabels] || tx.metode_pembayaran,
+      tx.lead_source === "tulis_sendiri" ? tx.lead_source_custom : leadSourceLabels[tx.lead_source as keyof typeof leadSourceLabels],
+      tx.items?.flatMap((i) => i.skus?.map((s) => s.sku)).filter(Boolean).join(", ") || "-",
+      calculateTransactionTotal(tx.items || []),
+      tx.status?.toUpperCase(),
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `transactions_${new Date().toISOString().split("T")[0]}.csv`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transactions_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
     toast.success("CSV exported!");
   };
-
-  const resetFilters = () => {
-    setSearchQuery("");
-    setFilterJenis("");
-    setFilterStatus("");
-    setFilterMetode("");
-    setFilterStaff("");
-    setStartDate("");
-    setEndDate("");
-    toast.success("Filters reset");
-  };
-
-  const jenisLayananOptions = [
-    { value: "ambil_jam_service", label: "Ambil Jam Service" },
-    { value: "order_online", label: "Order Online" },
-    { value: "beli_jam", label: "Beli Jam" },
-    { value: "service_langsung", label: "Service Langsung" },
-    { value: "pengeluaran", label: "Pengeluaran" },
-    { value: "cashdraw", label: "Cashdraw" },
-  ];
-
-  const metodePembayaranOptions = [
-    { value: "cash", label: "Cash" },
-    { value: "qris", label: "QRIS" },
-    { value: "edc", label: "EDC" },
-    { value: "transfer", label: "Transfer" },
-    { value: "edc_mandiri", label: "EDC Mandiri" },
-    { value: "tf_bca", label: "Transfer BCA" },
-    { value: "bri", label: "BRI" },
-    { value: "kudus", label: "Kudus" },
-    { value: "edc_bca", label: "EDC BCA" },
-    { value: "tf_mandiri", label: "Transfer Mandiri" },
-  ];
 
   if (loading) {
     return (
@@ -429,94 +315,43 @@ export default function LayananList({
 
   return (
     <div className="space-y-5">
-
-
-      {/* ==================== SEARCH & FILTER ==================== */}
       <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 md:p-5 shadow-sm">
         <div className="flex flex-wrap gap-2 sm:gap-3 md:gap-4 items-end">
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-              Search
-            </label>
+            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-                placeholder="Name / WA / SKU..."
-              />
+                placeholder="Name / WA / SKU..." />
             </div>
           </div>
-
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium"
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-            {showFilters ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
+          <button onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium">
+            <span>Filters</span>
+            {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
-
-          <button
-            onClick={exportToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium"
-          >
-            <Download className="w-4 h-4" />
+          <button onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium">
             Export
-          </button>
-
-          <button
-            onClick={refreshData}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-            />
-            Refresh
           </button>
         </div>
 
-        {/* Filter Panel */}
         {showFilters && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
-          >
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+            className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                Service Type
-              </label>
-              <select
-                value={filterJenis}
-                onChange={(e) => setFilterJenis(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              >
+              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">Service Type</label>
+              <select value={filterJenis} onChange={(e) => setFilterJenis(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm">
                 <option value="">All</option>
-                {jenisLayananOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
+                {jenisLayananOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                Status
-              </label>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              >
+              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">Status</label>
+              <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none">
                 <option value="">All</option>
                 <option value="active">Active</option>
                 <option value="completed">Completed</option>
@@ -524,449 +359,152 @@ export default function LayananList({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                Payment Method
-              </label>
-              <select
-                value={filterMetode}
-                onChange={(e) => setFilterMetode(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              >
+              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">Payment</label>
+              <select value={filterMetode} onChange={(e) => setFilterMetode(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none">
                 <option value="">All</option>
-                {metodePembayaranOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
+                {Object.entries(metodePembayaranLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                Staff / Handler
-              </label>
-              <select
-                value={filterStaff}
-                onChange={(e) => setFilterStaff(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              >
-                <option value="">All</option>
-                {staffList.map((staff) => (
-                  <option key={staff.id} value={staff.id}>
-                    {staff.full_name} ({staff.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                From Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5">
-                To Date
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 transition-all text-sm"
-              />
-            </div>
-            <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-6 flex justify-end">
-              <button
-                onClick={resetFilters}
-                className="text-sm text-blue-600 hover:underline font-medium"
-              >
-                Reset Filters
-              </button>
             </div>
           </motion.div>
         )}
       </div>
 
-      {/* ==================== TABLE ==================== */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                  Customer
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                  Type
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                  Handled
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                  Payment
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                  Lead Source
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                  Amount
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                  Photo
-                </th>
-                <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                  Status
-                </th>
-                {isUserAdmin && (
-                  <th className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                )}
+                <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Customer / SKU</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Type</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden sm:table-cell">Handled</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Payment</th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">Amount</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Photo</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                {isAdmin && <th className="px-3 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredLayanan.map((item, index) => (
-                <motion.tr
-                  key={item.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.02 }}
-                  className="hover:bg-slate-50 transition-all"
-                >
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs">
-                    <p className="font-medium">
-                      {new Date(item.created_at).toLocaleDateString("id-ID")}
-                    </p>
-                    <p className="text-[10px] text-slate-400">
-                      {new Date(item.created_at).toLocaleTimeString("id-ID", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
-                    <p className="font-medium text-xs sm:text-sm dark:text-white">{item.customer_name}</p>
-                    <p className="text-[10px] sm:text-xs text-slate-400 dark:!text-slate-300">
-                      {item.customer_whatsapp}
-                    </p>
-                    {(() => {
-                      // Main item is on the layanan row; extra items are in layanan_items.
-                      // Merge both so the first SKU is never lost.
-                      const allSkuItems: { sku: string; nominal: number }[] = [];
-                      if (item.detail_sku) {
-                        allSkuItems.push({ sku: item.detail_sku, nominal: item.nominal || 0 });
-                      }
-                      const layananItems = (item as any).layanan_items || [];
-                      layananItems.forEach((li: any) => {
-                        allSkuItems.push({ sku: li.detail_sku || '-', nominal: li.nominal || 0 });
-                      });
-                      if (allSkuItems.length === 0) return null;
-                      return (
-                        <div className="mt-1 space-y-0.5">
-                          {allSkuItems.map((s, idx) => (
-                            <p key={idx} className="text-[10px] text-slate-500 dark:!text-slate-400 max-w-[200px] whitespace-normal break-words leading-tight">
-                              • {s.sku}
-                              <span className="text-blue-500 font-medium">
-                                {' '}Rp {s.nominal.toLocaleString('id-ID')}
-                              </span>
+              {filtered.map((tx, idx) => {
+                const total = calculateTransactionTotal(tx.items || []);
+                const isExpanded = expandedRows.has(tx.id!);
+                const allJenis = tx.items?.map((i) => jenisLayananLabels[i.jenis_layanan as keyof typeof jenisLayananLabels] || i.jenis_layanan) || [];
+                const allSkus = tx.items?.flatMap((i) => i.skus || []) || [];
+                const showExpand = (tx.items?.length || 0) > 1 || allSkus.length > 1;
+                const photos = tx.photo_urls || [];
+
+                return (
+                  <motion.tr key={tx.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.02 }}
+                    className={`hover:bg-slate-50 transition-all ${isExpanded ? "bg-slate-50" : ""}`}>
+                    <td className="px-3 py-3 text-xs">
+                      <p className="font-medium">{new Date(tx.created_at || "").toLocaleDateString("id-ID")}</p>
+                      <p className="text-[10px] text-slate-400">{new Date(tx.created_at || "").toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <p className="font-medium text-xs sm:text-sm">{tx.customer_name}</p>
+                      <p className="text-[10px] text-slate-400">{tx.customer_whatsapp}</p>
+                      <div className="mt-1 space-y-0.5">
+                        {allSkus.length > 0 && (
+                          isExpanded ? (
+                            allSkus.map((s, i) => (
+                              <p key={i} className="text-[10px] text-slate-500 leading-tight">
+                                • {s.sku || "-"} <span className="text-blue-500 font-medium">{formatRupiah(s.nominal)}</span>
+                              </p>
+                            ))
+                          ) : (
+                            <p className="text-[10px] text-slate-500 truncate max-w-[200px]">
+                              • {allSkus[0]?.sku || "-"} {allSkus.length > 1 && `+${allSkus.length - 1} lainnya`}
                             </p>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
-                    {(() => {
-                      const layananItems = (item as any).layanan_items || [];
-                      const uniqueTypes = new Set<string>();
-                      const mainType = item.jenis_layanan;
-                      const isValidMain = jenisLayananOptions.some(o => o.value === mainType);
-                      if (isValidMain) uniqueTypes.add(mainType);
-                      layananItems.forEach((li: any) => {
-                        if (li.jenis_layanan) uniqueTypes.add(li.jenis_layanan);
-                      });
-                      if (uniqueTypes.size === 0 && mainType) uniqueTypes.add(mainType);
-                      return Array.from(uniqueTypes).map((type, idx) => (
-                        <span key={idx} className={`badge text-[10px] sm:text-xs ${getJenisLayananStyle(type)}`}>
-                          {jenisLayananLabels[type as JenisLayanan] || type}
-                        </span>
-                      ));
-                    })()}
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
-                    {item.handled_by_name || "-"}
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
-                    {(item as any).split_payment ? (
-                      <button
-                        onClick={() => setSplitPaymentDetail(item)}
-                        className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all text-xs font-medium border border-purple-200"
-                      >
-                        Split Payment
-                      </button>
-                    ) : (
-                      metodePembayaranLabels[item.metode_pembayaran] || item.metode_pembayaran
-                    )}
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
-                    {item.lead_source === "tulis_sendiri"
-                      ? (item.lead_source_custom || "Tulis Sendiri")
-                      : leadSourceLabels[item.lead_source] || item.lead_source || "-"}
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 font-bold text-blue-600 whitespace-nowrap text-xs sm:text-sm md:text-base">
-                    {formatRupiah(item.nominal)}
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3 whitespace-nowrap">
-                    {(item as any).photo_urls &&
-                    (item as any).photo_urls.length > 0 ? (
-                      <button
-                        onClick={() => {
-                          setSelectedPhotos((item as any).photo_urls || []);
-                          setPhotoGalleryIndex(0);
-                        }}
-                        className="px-2 py-1 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-xs font-medium"
-                        title={`View ${(item as any).photo_urls.length} photos`}
-                      >
-                        <Eye className="w-3 h-3 inline mr-0.5" />
-                        {(item as any).photo_urls.length}
-                      </button>
-                    ) : (item as any).photo_url ? (
-                      <button
-                        onClick={() => {
-                          setSelectedPhotos([(item as any).photo_url]);
-                          setPhotoGalleryIndex(0);
-                        }}
-                        className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
-                        title="View Photo"
-                      >
-                        <Eye className="w-3 h-3" />
-                      </button>
-                    ) : (
-                      <span className="text-xs text-slate-300">-</span>
-                    )}
-                  </td>
-                  <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3">
-                    {getStatusBadge(item.status)}
-                  </td>
-                  {isUserAdmin && (
-                    <td className="px-2 sm:px-3 md:px-4 py-2.5 sm:py-3">
-                      <div className="flex gap-2">
-                        {item.status === "active" && (
-                          <>
-                            <button
-                              onClick={() => updateStatus(item.id, "completed")}
-                              className="p-1.5 text-[#2ECC71] hover:bg-green-50 rounded-lg transition-all"
-                              title="Mark as Completed"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => updateStatus(item.id, "cancelled")}
-                              className="p-1.5 text-blue-600 hover:bg-red-50 rounded-lg transition-all"
-                              title="Cancel"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
+                          )
                         )}
-                        <button
-                          onClick={() => onEdit?.(item)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                          title="Edit"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          title="Hapus transaksi"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
-                  )}
-                </motion.tr>
-              ))}
+                    <td className="px-3 py-3 cursor-pointer" onClick={() => setDetailTx(tx)}>
+                      <div className="flex flex-col gap-0.5">
+                        {isExpanded
+                          ? allJenis.map((j, i) => <span key={i} className={`badge text-[10px] ${getJenisStyle(tx.items?.[i]?.jenis_layanan || "")}`}>{j}</span>)
+                          : <span className={`badge text-[10px] ${getJenisStyle(tx.items?.[0]?.jenis_layanan || "")}`}>{allJenis[0]}{allJenis.length > 1 ? ` +${allJenis.length - 1}` : ""}</span>
+                        }
+                      </div>
+                      {showExpand && (
+                        <button onClick={(e) => { e.stopPropagation(); setExpandedRows((prev) => { const n = new Set(prev); n.has(tx.id!) ? n.delete(tx.id!) : n.add(tx.id!); return n; }); }}
+                          className="text-[10px] text-blue-500 hover:underline mt-1 flex items-center gap-0.5">
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {isExpanded ? "Sembunyikan" : "Expand"}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-xs hidden sm:table-cell">{tx.handled_by_name || "-"}</td>
+                    <td className="px-3 py-3 text-xs hidden md:table-cell">
+                      {tx.split_payment ? (
+                        <button onClick={() => setDetailTx(tx)}
+                          className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all text-xs font-medium border border-purple-200 cursor-pointer">
+                          Split Payment
+                        </button>
+                      ) : (
+                        metodePembayaranLabels[tx.metode_pembayaran as keyof typeof metodePembayaranLabels] || tx.metode_pembayaran
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right font-bold text-blue-600 text-xs sm:text-sm whitespace-nowrap">{formatRupiah(total)}</td>
+                    <td className="px-3 py-3 text-center">
+                      {photos.length > 0 ? (
+                        <button onClick={() => setPhotoGallery(photos)}
+                          className="px-2 py-1 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-[10px] font-medium flex items-center gap-1 mx-auto">
+                          <Camera className="w-3 h-3" /> {photos.length}
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span className={`badge text-[10px] ${tx.status === "active" ? "badge-warning" : tx.status === "completed" ? "badge-success" : "badge-danger"}`}>
+                        {tx.status?.toUpperCase()}
+                      </span>
+                    </td>
+                    {isAdmin && (
+                      <td className="px-3 py-3">
+                        <div className="flex gap-1 justify-center">
+                          <button onClick={() => setDetailTx(tx)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Detail">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {tx.status === "active" && (
+                            <>
+                              <button onClick={() => handleStatusUpdate(tx.id!, "completed")} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Complete">
+                                <CheckCircle className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleStatusUpdate(tx.id!, "cancelled")} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Cancel">
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                          <button onClick={() => onEdit?.(tx)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
+                            <FileText className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(tx)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </motion.tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-
-        {filteredLayanan.length === 0 && (
+        {filtered.length === 0 && (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
             <p className="text-slate-400 font-medium">No transactions found</p>
-            <p className="text-sm text-slate-400 mt-1">
-              Try adjusting your filters
-            </p>
           </div>
         )}
       </div>
 
-
-
-      {/* ==================== MODAL PREVIEW PHOTO GALLERY ==================== */}
-      {selectedPhotos.length > 0 && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
-          onClick={() => setSelectedPhotos([])}
-        >
-          <div
-            className="max-w-4xl w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-white rounded-xl overflow-hidden border border-slate-200 shadow-xl">
-              {/* Main Image */}
-              <div className="bg-black flex items-center justify-center min-h-[400px] md:min-h-[500px]">
-                <img
-                  src={selectedPhotos[photoGalleryIndex]}
-                  alt={`Photo ${photoGalleryIndex + 1}`}
-                  className="max-w-full max-h-[500px] object-contain"
-                />
-              </div>
-
-              {/* Navigation */}
-              <div className="p-4 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-medium text-slate-900">
-                    Photo {photoGalleryIndex + 1} of {selectedPhotos.length}
-                  </p>
-                  <button
-                    onClick={() => setSelectedPhotos([])}
-                    className="px-3 py-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-xs font-medium"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                {/* Thumbnail Gallery */}
-                {selectedPhotos.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {selectedPhotos.map((photo, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setPhotoGalleryIndex(index)}
-                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                          index === photoGalleryIndex
-                            ? "border-slate-900"
-                            : "border-slate-200 hover:border-slate-400"
-                        }`}
-                      >
-                        <img
-                          src={photo}
-                          alt={`Thumbnail ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Arrow Navigation */}
-                {selectedPhotos.length > 1 && (
-                  <div className="flex justify-between items-center mt-3">
-                    <button
-                      onClick={() =>
-                        setPhotoGalleryIndex(
-                          photoGalleryIndex === 0
-                            ? selectedPhotos.length - 1
-                            : photoGalleryIndex - 1,
-                        )
-                      }
-                      className="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-all text-sm font-medium"
-                    >
-                      ← Previous
-                    </button>
-                    <span className="text-xs text-slate-400">
-                      Use arrow keys or thumbnails to navigate
-                    </span>
-                    <button
-                      onClick={() =>
-                        setPhotoGalleryIndex(
-                          (photoGalleryIndex + 1) % selectedPhotos.length,
-                        )
-                      }
-                      className="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition-all text-sm font-medium"
-                    >
-                      Next →
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== SPLIT PAYMENT DETAIL MODAL ==================== */}
-      {splitPaymentDetail && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4"
-          onClick={() => setSplitPaymentDetail(null)}
-        >
-          <div
-            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-sm border border-gray-200 dark:border-white/10"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10">
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                Detail Split Payment
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {splitPaymentDetail?.customer_name}
-              </p>
-            </div>
-            <div className="p-6 space-y-3">
-              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">
-                    {splitPaymentDetail?.metode_pembayaran_1
-                      ? (metodePembayaranLabels[splitPaymentDetail.metode_pembayaran_1 as keyof typeof metodePembayaranLabels] || splitPaymentDetail.metode_pembayaran_1)
-                      : "-"}
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    Rp {(splitPaymentDetail?.nominal_1 || 0).toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    {splitPaymentDetail?.metode_pembayaran_2
-                      ? (metodePembayaranLabels[splitPaymentDetail.metode_pembayaran_2 as keyof typeof metodePembayaranLabels] || splitPaymentDetail.metode_pembayaran_2)
-                      : "-"}
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    Rp {(splitPaymentDetail?.nominal_2 || 0).toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div className="border-t border-gray-200 dark:border-white/10 pt-2 mt-2 flex justify-between text-sm font-bold">
-                  <span>Total</span>
-                  <span className="text-blue-600">
-                    Rp {(
-                      (splitPaymentDetail?.nominal_1 || 0) +
-                      (splitPaymentDetail?.nominal_2 || 0)
-                    ).toLocaleString("id-ID")}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10">
-              <button
-                onClick={() => setSplitPaymentDetail(null)}
-                className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all text-sm"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {detailTx && <TransactionDetailModal transaction={detailTx} onClose={() => setDetailTx(null)} />}
+      {photoGallery && <PhotoGalleryModal photos={photoGallery} onClose={() => setPhotoGallery(null)} />}
     </div>
   );
 }
