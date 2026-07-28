@@ -135,6 +135,21 @@ Role enforcement dilakukan di level aplikasi (middleware + API routes + client).
 
 ## 3. RINGKASAN REVISI
 
+### v.26 — 2026-07-28
+
+**Issue: Nominal Amount Overflow di Mobile (Teknisi Transaksi Tab)**
+
+Ketika teknisi membuka tab "Transaksi" di mobile, kolom nominal/amount overflow ke samping karena terlalu panjang (Rp format).
+
+**Fix:**
+1. Ubah struktur SKU display dari `flex items-center justify-between` menjadi `flex flex-col` (vertikal)
+2. Nominal sekarang ditampilkan di bawah SKU dengan indentasi (`pl-3`)
+3. Pada mode collapsed, nominal diambil dari `total` dan ditampilkan sebagai `<p>` berada di bawah SKU hanya di mobile (`sm:hidden`)
+4. Hide kolom Amount di mobile dengan class `hidden sm:table-cell` agar tidak double-display
+5. Nominal tetap visible di desktop view di kolom Amount
+
+**Files:** `components/layanan/LayananList.tsx`
+
 ### v.25 — 2026-07-15
 
 **Issue 1: Add New Service Error "No URLs returned from server"**
@@ -190,10 +205,10 @@ Fix:
 **Issue: Telegram Photo Deleted After QC Edit + Sparepart/Service Price Update Tidak Masuk ke Timeline**
 
 Fix:
-1. **Sparepart/jasa price update tidak masuk ke timeline**: 
+1. **Sparepart/jasa price update tidak masuk ke timeline**:
    - `AddSparepartModal.tsx`: Add required fields: `price`, `total`, `sku`
    - `QueueList.tsx`: Save sparepart details (price, qty, total, sku) ke timeline saat submit QC
-   
+
 2. **Foto Telegram terhapus setelah QC edit**:
    - `editMessageCaption` hanya edit caption, tidak perlu re-upload foto
    - Problem: caption di-generate ulang tanpa include semua item yang sudah ditambah
@@ -241,7 +256,7 @@ flowchart TD
     B --> C[getFile → file_path]
     C --> D[Simpan photo_url di service_documentation]
     D --> E[Tampilkan di UI]
-    
+
     F[Masalah: Foto tidak muncul] --> G{Cek DB}
     G --> H[photo_url null?]
     H -->|Ya| I[Upload gagal, cek Telegram Bot]

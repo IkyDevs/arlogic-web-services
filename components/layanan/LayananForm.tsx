@@ -4,18 +4,53 @@ import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
-import { jenisLayananLabels, metodePembayaranLabels } from "@/lib/domain/transaction/enums";
-import type { TransactionServiceItem, SKUItem, TransactionData } from "@/lib/domain/transaction/types";
-import type { JenisLayanan, MetodePembayaran, LeadSource } from "@/lib/domain/transaction/enums";
+import {
+  jenisLayananLabels,
+  metodePembayaranLabels,
+} from "@/lib/domain/transaction/enums";
+import type {
+  TransactionServiceItem,
+  SKUItem,
+  TransactionData,
+} from "@/lib/domain/transaction/types";
+import type {
+  JenisLayanan,
+  MetodePembayaran,
+  LeadSource,
+} from "@/lib/domain/transaction/enums";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
 import { validateTransaction } from "@/lib/domain/shared/validation";
-import { calculateTransactionTotal, calculateItemSubtotal, serializeSKUs, parseSKUs, syncCustomer } from "@/lib/domain/transaction/service";
+import {
+  calculateTransactionTotal,
+  calculateItemSubtotal,
+  serializeSKUs,
+  parseSKUs,
+  syncCustomer,
+} from "@/lib/domain/transaction/service";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
-import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
 import {
-  User, Phone, DollarSign, FileText, Send, X, Camera, Loader2, Trash2,
-  AlertCircle, Calendar, Wrench, Plus, ChevronDown,
+  hasDraft,
+  loadDraft,
+  saveDraft,
+  clearDraft,
+  saveDraftTextSync,
+} from "@/lib/draftStorage";
+import {
+  User,
+  Phone,
+  DollarSign,
+  FileText,
+  Send,
+  X,
+  Camera,
+  Loader2,
+  Trash2,
+  AlertCircle,
+  Calendar,
+  Wrench,
+  Plus,
+  ChevronDown,
 } from "lucide-react";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import { useTransactionStore } from "@/stores/transaction-store";
@@ -36,36 +71,63 @@ const jenisLayananOptions = [
 ];
 
 const metodePembayaranOptions = [
-  { value: "cash", label: "Cash" }, { value: "qris", label: "QRIS" },
-  { value: "edc", label: "EDC" }, { value: "tf_bca", label: "Transfer BCA" },
-  { value: "tf_mandiri", label: "Transfer Mandiri" }, { value: "edc_bca", label: "EDC BCA" },
-  { value: "edc_mandiri", label: "EDC Mandiri" }, { value: "bri", label: "BRI" },
-  { value: "kudus", label: "Kudus" }, { value: "split_payment", label: "Split Payment" },
+  { value: "cash", label: "Cash" },
+  { value: "qris", label: "QRIS" },
+  { value: "edc", label: "EDC" },
+  { value: "tf_bca", label: "Transfer BCA" },
+  { value: "tf_mandiri", label: "Transfer Mandiri" },
+  { value: "edc_bca", label: "EDC BCA" },
+  { value: "edc_mandiri", label: "EDC Mandiri" },
+  { value: "bri", label: "BRI" },
+  { value: "kudus", label: "Kudus" },
+  { value: "split_payment", label: "Split Payment" },
 ];
 
-const splitMetodeOptions = metodePembayaranOptions.filter((o) => o.value !== "split_payment");
+const splitMetodeOptions = metodePembayaranOptions.filter(
+  (o) => o.value !== "split_payment",
+);
 
 const leadSourceOptions = [
-  { value: "instagram", label: "Instagram" }, { value: "wom", label: "WOM (Word of Mouth)" },
-  { value: "dekat_lewat", label: "Dekat / Lewat" }, { value: "google", label: "Google" },
-  { value: "facebook", label: "Facebook" }, { value: "old", label: "Old Customer" },
-  { value: "tiktok", label: "TikTok" }, { value: "dash", label: "-" },
+  { value: "instagram", label: "Instagram" },
+  { value: "wom", label: "WOM (Word of Mouth)" },
+  { value: "dekat_lewat", label: "Dekat / Lewat" },
+  { value: "google", label: "Google" },
+  { value: "facebook", label: "Facebook" },
+  { value: "old", label: "Old Customer" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "dash", label: "-" },
   { value: "tulis_sendiri", label: "Tulis Sendiri" },
 ];
 
-export default memo(function LayananForm({ onSuccess, onClose, initialData }: LayananFormProps) {
+export default memo(function LayananForm({
+  onSuccess,
+  onClose,
+  initialData,
+}: LayananFormProps) {
   const { user } = useAuthStore();
   const supabase = createClient();
   const { uploadFile, uploadFiles, uploading, progress } = useUpload();
   const createTx = useTransactionStore((s) => s.create);
   const updateTx = useTransactionStore((s) => s.update);
 
-  const [customerName, setCustomerName] = useState(initialData?.customer_name || "");
-  const [customerWhatsapp, setCustomerWhatsapp] = useState(initialData?.customer_whatsapp || "");
-  const [handledBy, setHandledBy] = useState(initialData?.handled_by || user?.id || "");
-  const [metodePembayaran, setMetodePembayaran] = useState<string>(initialData?.metode_pembayaran || "cash");
-  const [leadSource, setLeadSource] = useState<string>(initialData?.lead_source || "instagram");
-  const [leadSourceCustom, setLeadSourceCustom] = useState(initialData?.lead_source_custom || "");
+  const [customerName, setCustomerName] = useState(
+    initialData?.customer_name || "",
+  );
+  const [customerWhatsapp, setCustomerWhatsapp] = useState(
+    initialData?.customer_whatsapp || "",
+  );
+  const [handledBy, setHandledBy] = useState(
+    initialData?.handled_by || user?.id || "",
+  );
+  const [metodePembayaran, setMetodePembayaran] = useState<string>(
+    initialData?.metode_pembayaran || "cash",
+  );
+  const [leadSource, setLeadSource] = useState<string>(
+    initialData?.lead_source || "instagram",
+  );
+  const [leadSourceCustom, setLeadSourceCustom] = useState(
+    initialData?.lead_source_custom || "",
+  );
   const [notes, setNotes] = useState(initialData?.notes || "");
 
   const [items, setItems] = useState<TransactionServiceItem[]>(() => {
@@ -73,23 +135,43 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
     if (initialData?.id) {
       const mapped = [];
       const mainJenis = initialData.jenis_layanan;
-      if (mainJenis && mainJenis !== "pengeluaran" && mainJenis !== "cashdraw") {
+      if (
+        mainJenis &&
+        mainJenis !== "pengeluaran" &&
+        mainJenis !== "cashdraw"
+      ) {
         const mainSkus = parseSKUs(initialData.detail_sku, initialData.nominal);
-        mapped.push({ jenis_layanan: mainJenis, skus: mainSkus, notes: initialData.notes || "" });
+        mapped.push({
+          jenis_layanan: mainJenis,
+          skus: mainSkus,
+          notes: initialData.notes || "",
+        });
       }
       if (Array.isArray(initialData.layanan_items)) {
         for (const li of initialData.layanan_items) {
-          const existing = mapped.find((i) => i.jenis_layanan === li.jenis_layanan);
+          const existing = mapped.find(
+            (i) => i.jenis_layanan === li.jenis_layanan,
+          );
           if (existing) {
             existing.skus.push(...parseSKUs(li.detail_sku, li.nominal));
           } else {
-            mapped.push({ jenis_layanan: li.jenis_layanan, skus: parseSKUs(li.detail_sku, li.nominal), notes: li.notes || "" });
+            mapped.push({
+              jenis_layanan: li.jenis_layanan,
+              skus: parseSKUs(li.detail_sku, li.nominal),
+              notes: li.notes || "",
+            });
           }
         }
       }
       return mapped;
     }
-    return [{ jenis_layanan: "service_langsung", skus: [{ sku: "", nominal: 0 }], notes: "" }];
+    return [
+      {
+        jenis_layanan: "service_langsung",
+        skus: [{ sku: "", nominal: 0 }],
+        notes: "",
+      },
+    ];
   });
 
   const [splitPayment, setSplitPayment] = useState({
@@ -111,7 +193,10 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
     return [];
   });
   const [isCompressing, setIsCompressing] = useState(false);
-  const [compressProgress, setCompressProgress] = useState({ done: 0, total: 0 });
+  const [compressProgress, setCompressProgress] = useState({
+    done: 0,
+    total: 0,
+  });
   const [showPhotoSource, setShowPhotoSource] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -131,7 +216,14 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
   }, [metodePembayaran, splitPayment.nominal_1, total]);
 
   const addItem = useCallback(() => {
-    setItems((prev) => [...prev, { jenis_layanan: "service_langsung" as JenisLayanan, skus: [{ sku: "", nominal: 0 }], notes: "" }]);
+    setItems((prev) => [
+      ...prev,
+      {
+        jenis_layanan: "service_langsung" as JenisLayanan,
+        skus: [{ sku: "", nominal: 0 }],
+        notes: "",
+      },
+    ]);
   }, []);
 
   const removeItem = useCallback((idx: number) => {
@@ -139,34 +231,70 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
   }, []);
 
   const updateItemJenis = useCallback((idx: number, jenis: string) => {
-    setItems((prev) => prev.map((item, i) => i === idx ? { ...item, jenis_layanan: jenis as JenisLayanan } : item));
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === idx ? { ...item, jenis_layanan: jenis as JenisLayanan } : item,
+      ),
+    );
   }, []);
 
   const updateItemNotes = useCallback((idx: number, notes: string) => {
-    setItems((prev) => prev.map((item, i) => i === idx ? { ...item, notes } : item));
+    setItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, notes } : item)),
+    );
   }, []);
 
   const addSku = useCallback((itemIdx: number) => {
-    setItems((prev) => prev.map((item, i) => i === itemIdx ? { ...item, skus: [...item.skus, { sku: "", nominal: 0 }] } : item));
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === itemIdx
+          ? { ...item, skus: [...item.skus, { sku: "", nominal: 0 }] }
+          : item,
+      ),
+    );
   }, []);
 
   const removeSku = useCallback((itemIdx: number, skuIdx: number) => {
-    setItems((prev) => prev.map((item, i) => i === itemIdx ? { ...item, skus: item.skus.filter((_, j) => j !== skuIdx) } : item));
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === itemIdx
+          ? { ...item, skus: item.skus.filter((_, j) => j !== skuIdx) }
+          : item,
+      ),
+    );
   }, []);
 
-  const updateSku = useCallback((itemIdx: number, skuIdx: number, field: keyof SKUItem, value: string) => {
-    setItems((prev) => prev.map((item, i) =>
-      i === itemIdx ? {
-        ...item,
-        skus: item.skus.map((sku, j) =>
-          j === skuIdx ? { ...sku, [field]: field === "nominal" ? parseInt(value.replace(/\D/g, "")) || 0 : value } : sku
+  const updateSku = useCallback(
+    (itemIdx: number, skuIdx: number, field: keyof SKUItem, value: string) => {
+      setItems((prev) =>
+        prev.map((item, i) =>
+          i === itemIdx
+            ? {
+                ...item,
+                skus: item.skus.map((sku, j) =>
+                  j === skuIdx
+                    ? {
+                        ...sku,
+                        [field]:
+                          field === "nominal"
+                            ? parseInt(value.replace(/\D/g, "")) || 0
+                            : value,
+                      }
+                    : sku,
+                ),
+              }
+            : item,
         ),
-      } : item
-    ));
-  }, []);
+      );
+    },
+    [],
+  );
 
   const handleCancel = useCallback(() => {
-    if (!initialData && user?.id) { clearingDraft.current = true; clearDraft("layanan", user.id); }
+    if (!initialData && user?.id) {
+      clearingDraft.current = true;
+      clearDraft("layanan", user.id);
+    }
     restoredRef.current = false;
     onClose?.();
   }, [initialData, user?.id, onClose]);
@@ -179,13 +307,18 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
       if (draft.data && !restoredRef.current) {
         restoredRef.current = true;
         if (draft.data.customer_name) setCustomerName(draft.data.customer_name);
-        if (draft.data.customer_whatsapp) setCustomerWhatsapp(draft.data.customer_whatsapp);
+        if (draft.data.customer_whatsapp)
+          setCustomerWhatsapp(draft.data.customer_whatsapp);
         if (draft.data.items) setItems(draft.data.items);
         if (draft.photoFiles?.length) {
           setPhotoFiles(draft.photoFiles);
-          setPhotoPreviews(draft.photoFiles.map((f: File) => URL.createObjectURL(f)));
+          setPhotoPreviews(
+            draft.photoFiles.map((f: File) => URL.createObjectURL(f)),
+          );
         }
-        toast.success("Draft transaksi ditemukan dan dipulihkan", { duration: 3000 });
+        toast.success("Draft transaksi ditemukan dan dipulihkan", {
+          duration: 3000,
+        });
       }
     };
     checkDraft();
@@ -193,21 +326,45 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
 
   useEffect(() => {
     if (initialData || !user?.id) return;
-    const d = { customer_name: customerName, customer_whatsapp: customerWhatsapp, items, lead_source: leadSource, lead_source_custom: leadSourceCustom, notes };
+    const d = {
+      customer_name: customerName,
+      customer_whatsapp: customerWhatsapp,
+      items,
+      lead_source: leadSource,
+      lead_source_custom: leadSourceCustom,
+      notes,
+    };
     if (customerName || items.length > 0) {
       saveDraftTextSync("layanan", user.id, d);
     }
-  }, [customerName, customerWhatsapp, items, leadSource, leadSourceCustom, notes, user?.id]);
+  }, [
+    customerName,
+    customerWhatsapp,
+    items,
+    leadSource,
+    leadSourceCustom,
+    notes,
+    user?.id,
+  ]);
 
   const photoTimer = useRef<any>(null);
   useEffect(() => {
     if (initialData || !user?.id || photoFiles.length === 0) return;
     if (photoTimer.current) clearTimeout(photoTimer.current);
     photoTimer.current = setTimeout(() => {
-      const d = { customer_name: customerName, customer_whatsapp: customerWhatsapp, items, lead_source: leadSource, lead_source_custom: leadSourceCustom, notes };
+      const d = {
+        customer_name: customerName,
+        customer_whatsapp: customerWhatsapp,
+        items,
+        lead_source: leadSource,
+        lead_source_custom: leadSourceCustom,
+        notes,
+      };
       saveDraft("layanan", user.id, d, photoFiles).catch(() => {});
     }, 2000);
-    return () => { if (photoTimer.current) clearTimeout(photoTimer.current); };
+    return () => {
+      if (photoTimer.current) clearTimeout(photoTimer.current);
+    };
   }, [photoFiles, user?.id]);
 
   useEffect(() => {
@@ -220,15 +377,23 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
   }, [user?.id]);
 
   const fetchUsers = async () => {
-    const { data } = await supabase.from("profiles").select("id, full_name, role").in("role", ["admin", "teknisi", "supervisor"]).order("full_name");
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, role")
+      .in("role", ["admin", "teknisi", "supervisor"])
+      .order("full_name");
     if (data) setUsers(data);
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+    const files = Array.from(e.target.files || []).filter(
+      (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
+    );
     if (!files.length) return;
     setPhotoFiles((prev) => [...prev, ...files]);
-    files.forEach((f) => setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]));
+    files.forEach((f) =>
+      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]),
+    );
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -249,8 +414,15 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
       handled_by: handledBy,
     });
 
-    if (photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id) {
-      validationErrors.push({ field: "photo", message: "Wajib upload minimal 1 foto" });
+    if (
+      photoFiles.length === 0 &&
+      photoPreviews.length === 0 &&
+      !initialData?.id
+    ) {
+      validationErrors.push({
+        field: "photo",
+        message: "Wajib upload minimal 1 foto",
+      });
     }
 
     if (validationErrors.length > 0) {
@@ -260,9 +432,13 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
     }
 
     if (metodePembayaran === "split_payment") {
-      const paymentTotal = (parseInt(splitPayment.nominal_1) || 0) + (parseInt(derivedNominal2) || 0);
+      const paymentTotal =
+        (parseInt(splitPayment.nominal_1) || 0) +
+        (parseInt(derivedNominal2) || 0);
       if (paymentTotal !== total) {
-        toast.error(`Total pembayaran (${formatRupiah(paymentTotal)}) harus sama dengan total (${formatRupiah(total)})`);
+        toast.error(
+          `Total pembayaran (${formatRupiah(paymentTotal)}) harus sama dengan total (${formatRupiah(total)})`,
+        );
         return;
       }
     }
@@ -277,14 +453,47 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
       const selectedUser = users.find((u) => u.id === handledBy);
 
       const now = new Date();
-      const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-      const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const dayNames = [
+        "Minggu",
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat",
+        "Sabtu",
+      ];
+      const monthNames = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
       const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
 
-      const allJenisLabels = items.map((item) => jenisLayananOptions.find((o) => o.value === item.jenis_layanan)?.label || item.jenis_layanan);
-      const metodeLabel = metodePembayaranOptions.find((o) => o.value === metodePembayaran)?.label || metodePembayaran;
-      const allSkusForCaption = items.flatMap((item) => item.skus.map((s) => s.sku)).filter(Boolean).join(", ");
-      const allNotesForCaption = items.map((item) => item.notes).filter(Boolean).join("; ");
+      const allJenisLabels = items.map(
+        (item) =>
+          jenisLayananOptions.find((o) => o.value === item.jenis_layanan)
+            ?.label || item.jenis_layanan,
+      );
+      const metodeLabel =
+        metodePembayaranOptions.find((o) => o.value === metodePembayaran)
+          ?.label || metodePembayaran;
+      const allSkusForCaption = items
+        .flatMap((item) => item.skus.map((s) => s.sku))
+        .filter(Boolean)
+        .join(", ");
+      const allNotesForCaption = items
+        .map((item) => item.notes)
+        .filter(Boolean)
+        .join("; ");
 
       const mainCaption = [
         "📊 TRANSAKSI",
@@ -301,12 +510,17 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
         `\n⏰ ${fmtDateTime}`,
       ].join("\n");
 
-      let photoUrls: string[] = photoPreviews.filter((p) => p.startsWith("http"));
+      let photoUrls: string[] = photoPreviews.filter((p) =>
+        p.startsWith("http"),
+      );
       let tgChatId: string | undefined;
       let tgMessageId: number | undefined;
 
       if (photoFiles.length > 0) {
-        const results = await uploadFiles(photoFiles, { type: "layanan", caption: mainCaption });
+        const results = await uploadFiles(photoFiles, {
+          type: "layanan",
+          caption: mainCaption,
+        });
         if (results?.length) {
           photoUrls = results.map((r) => r.url);
           if (results[0].chat_id && results[0].message_id) {
@@ -320,7 +534,10 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
       }
 
       if (photoFiles.length === 0 && initialData?.id) {
-        if ((initialData as any).telegram_chat_id && (initialData as any).telegram_message_id) {
+        if (
+          (initialData as any).telegram_chat_id &&
+          (initialData as any).telegram_message_id
+        ) {
           try {
             await fetch("/api/telegram/edit-message", {
               method: "POST",
@@ -336,8 +553,12 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
         } else {
           try {
             const res = await fetch("/api/telegram", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ type: "transaction", message: mainCaption }),
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "transaction",
+                message: mainCaption,
+              }),
             });
             const data = await res.json();
             if (data.success && data.chat_id && data.message_id) {
@@ -359,14 +580,27 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
           handled_by_name: selectedUser?.full_name || user?.full_name,
           metode_pembayaran: metodePembayaran as MetodePembayaran,
           lead_source: leadSource as LeadSource,
-          lead_source_custom: leadSource === "tulis_sendiri" ? leadSourceCustom : null,
+          lead_source_custom:
+            leadSource === "tulis_sendiri" ? leadSourceCustom : null,
           notes,
           photo_urls: photoUrls,
           split_payment: metodePembayaran === "split_payment",
-          metode_pembayaran_1: metodePembayaran === "split_payment" ? splitPayment.metode_1 : undefined,
-          nominal_1: metodePembayaran === "split_payment" ? parseInt(splitPayment.nominal_1) || 0 : undefined,
-          metode_pembayaran_2: metodePembayaran === "split_payment" ? splitPayment.metode_2 : undefined,
-          nominal_2: metodePembayaran === "split_payment" ? parseInt(derivedNominal2) || 0 : undefined,
+          metode_pembayaran_1:
+            metodePembayaran === "split_payment"
+              ? splitPayment.metode_1
+              : undefined,
+          nominal_1:
+            metodePembayaran === "split_payment"
+              ? parseInt(splitPayment.nominal_1) || 0
+              : undefined,
+          metode_pembayaran_2:
+            metodePembayaran === "split_payment"
+              ? splitPayment.metode_2
+              : undefined,
+          nominal_2:
+            metodePembayaran === "split_payment"
+              ? parseInt(derivedNominal2) || 0
+              : undefined,
         });
         toast.success("Transaksi berhasil diubah!");
       } else {
@@ -379,16 +613,29 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
           handled_by_name: selectedUser?.full_name || user?.full_name || "",
           metode_pembayaran: metodePembayaran as MetodePembayaran,
           lead_source: leadSource as LeadSource,
-          lead_source_custom: leadSource === "tulis_sendiri" ? leadSourceCustom : null,
+          lead_source_custom:
+            leadSource === "tulis_sendiri" ? leadSourceCustom : null,
           notes,
           photo_urls: photoUrls,
           telegram_chat_id: tgChatId,
           telegram_message_id: tgMessageId,
           split_payment: metodePembayaran === "split_payment",
-          metode_pembayaran_1: metodePembayaran === "split_payment" ? splitPayment.metode_1 as MetodePembayaran : undefined,
-          nominal_1: metodePembayaran === "split_payment" ? parseInt(splitPayment.nominal_1) || 0 : 0,
-          metode_pembayaran_2: metodePembayaran === "split_payment" ? splitPayment.metode_2 as MetodePembayaran : undefined,
-          nominal_2: metodePembayaran === "split_payment" ? parseInt(derivedNominal2) || 0 : 0,
+          metode_pembayaran_1:
+            metodePembayaran === "split_payment"
+              ? (splitPayment.metode_1 as MetodePembayaran)
+              : undefined,
+          nominal_1:
+            metodePembayaran === "split_payment"
+              ? parseInt(splitPayment.nominal_1) || 0
+              : 0,
+          metode_pembayaran_2:
+            metodePembayaran === "split_payment"
+              ? (splitPayment.metode_2 as MetodePembayaran)
+              : undefined,
+          nominal_2:
+            metodePembayaran === "split_payment"
+              ? parseInt(derivedNominal2) || 0
+              : 0,
         };
         const result = await createTx(txData, user!.id, user!.full_name || "");
         toast.success("Transaksi berhasil ditambahkan!");
@@ -399,16 +646,21 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
       if (user?.id) {
         const notifType = isEdit ? "transaction_update" : "transaction";
         await fetch("/api/notifications/trigger", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: notifType, title: isEdit ? "Transaksi Diubah" : "Transaksi Baru",
+            type: notifType,
+            title: isEdit ? "Transaksi Diubah" : "Transaksi Baru",
             message: `${customerName} - Rp ${total.toLocaleString("id-ID")}`,
             targetRoles: ["admin", "owner"],
           }),
         }).catch(() => {});
       }
 
-      if (user?.id) { clearingDraft.current = true; clearDraft("layanan", user.id); }
+      if (user?.id) {
+        clearingDraft.current = true;
+        clearDraft("layanan", user.id);
+      }
       restoredRef.current = false;
       onSuccess?.();
       onClose?.();
@@ -419,29 +671,67 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
     }
   };
 
-  const inputClass = "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition-all text-sm dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100 dark:focus:border-white";
-  const labelClass = "block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5";
-  const sectionClass = "bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-4";
+  const inputClass =
+    "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition-all text-sm dark:bg-[#1c1c1c] dark:border-white/10 dark:text-gray-100 dark:focus:border-white";
+  const labelClass =
+    "block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5";
+  const sectionClass =
+    "bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-4";
 
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
-      className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+    >
       <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-10 flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-white/10">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
             <FileText className="w-4 h-4 text-white dark:text-gray-900" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">{initialData ? "Edit Transaction" : "New Transaction"}</h2>
-            <p className="text-xs text-gray-500">{initialData ? "Edit data transaksi customer" : "Input transaksi customer"}</p>
+            <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              {initialData ? "Edit Transaction" : "New Transaction"}
+            </h2>
+            <p className="text-xs text-gray-500">
+              {initialData
+                ? "Edit data transaksi customer"
+                : "Input transaksi customer"}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {!initialData && user?.id && hasDraft("layanan", user.id) && (
-            <button type="button" onClick={() => { clearDraft("layanan", user.id); setItems([{ jenis_layanan: "service_langsung", skus: [{ sku: "", nominal: 0 }], notes: "" }]); setPhotoFiles([]); setPhotoPreviews([]); toast.success("Draft berhasil dihapus", { duration: 2000 }); }}
-              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Hapus draft"><Trash2 className="w-4 h-4" /></button>
+            <button
+              type="button"
+              onClick={() => {
+                clearDraft("layanan", user.id);
+                setItems([
+                  {
+                    jenis_layanan: "service_langsung",
+                    skus: [{ sku: "", nominal: 0 }],
+                    notes: "",
+                  },
+                ]);
+                setPhotoFiles([]);
+                setPhotoPreviews([]);
+                toast.success("Draft berhasil dihapus", { duration: 2000 });
+              }}
+              className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              title="Hapus draft"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
-          {onClose && <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"><X className="w-4 h-4 text-gray-400" /></button>}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -452,17 +742,35 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Nama Customer <span className="text-red-500">*</span></label>
-              <CustomerAutocomplete value={customerName} onChange={setCustomerName}
-                onSelect={(name, phone) => { setCustomerName(name); setCustomerWhatsapp(phone); setLeadSource("old"); }}
-                placeholder="Nama lengkap customer" autoFocus />
+              <label className={labelClass}>
+                Nama Customer <span className="text-red-500">*</span>
+              </label>
+              <CustomerAutocomplete
+                value={customerName}
+                onChange={setCustomerName}
+                onSelect={(name, phone) => {
+                  setCustomerName(name);
+                  setCustomerWhatsapp(phone);
+                  setLeadSource("old");
+                }}
+                placeholder="Nama lengkap customer"
+                autoFocus
+              />
             </div>
             <div>
-              <label className={labelClass}>WhatsApp <span className="text-red-500">*</span></label>
+              <label className={labelClass}>
+                WhatsApp <span className="text-red-500">*</span>
+              </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="tel" value={customerWhatsapp} onChange={(e) => setCustomerWhatsapp(e.target.value)}
-                  className={`${inputClass} pl-9`} placeholder="081234567890" required />
+                <input
+                  type="tel"
+                  value={customerWhatsapp}
+                  onChange={(e) => setCustomerWhatsapp(e.target.value)}
+                  className={`${inputClass} pl-9`}
+                  placeholder="081234567890"
+                  required
+                />
               </div>
             </div>
           </div>
@@ -474,52 +782,104 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
           </p>
           <div className="space-y-3">
             {items.map((item, itemIdx) => (
-              <div key={itemIdx} className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
+              <div
+                key={itemIdx}
+                className="border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden"
+              >
                 <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-white/10 border-b border-gray-200 dark:border-white/10">
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Layanan #{itemIdx + 1}</span>
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    Layanan #{itemIdx + 1}
+                  </span>
                   {items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(itemIdx)} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => removeItem(itemIdx)}
+                      className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                    >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
                 <div className="p-4 space-y-3 bg-white dark:bg-[#1c1c1c]">
-                  <select value={item.jenis_layanan} onChange={(e) => updateItemJenis(itemIdx, e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10">
-                    {jenisLayananOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  <select
+                    value={item.jenis_layanan}
+                    onChange={(e) => updateItemJenis(itemIdx, e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                  >
+                    {jenisLayananOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
                   </select>
 
                   <div className="space-y-2">
                     {item.skus.map((sku, skuIdx) => (
-                      <div key={skuIdx} className="flex items-center gap-2">
-                        <input type="text" value={sku.sku} onChange={(e) => updateSku(itemIdx, skuIdx, "sku", e.target.value)}
-                          placeholder="SKU / Invoice" className="flex-1 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10" />
-                        <div className="relative w-32">
+                      <div
+                        key={skuIdx}
+                        className="flex flex-col md:flex-row items-start md:items-center gap-2"
+                      >
+                        <input
+                          type="text"
+                          value={sku.sku}
+                          onChange={(e) =>
+                            updateSku(itemIdx, skuIdx, "sku", e.target.value)
+                          }
+                          placeholder="SKU / Invoice"
+                          className="w-full md:flex-1 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                        />
+                        <div className="relative w-full md:w-32">
                           <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                          <input type="text" value={sku.nominal || ""} onChange={(e) => updateSku(itemIdx, skuIdx, "nominal", e.target.value)}
-                            placeholder="Nominal" className="w-full pl-7 pr-2 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10 text-right" />
+                          <input
+                            type="text"
+                            value={sku.nominal || ""}
+                            onChange={(e) =>
+                              updateSku(
+                                itemIdx,
+                                skuIdx,
+                                "nominal",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Nominal"
+                            className="w-full pl-7 pr-2 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                          />
                         </div>
                         {item.skus.length > 1 && (
-                          <button type="button" onClick={() => removeSku(itemIdx, skuIdx)}
-                            className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                          <button
+                            type="button"
+                            onClick={() => removeSku(itemIdx, skuIdx)}
+                            className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors self-start md:self-center"
+                          >
                             <X className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
                     ))}
-                    <button type="button" onClick={() => addSku(itemIdx)}
-                      className="flex items-center justify-center gap-1 w-full px-3 py-1.5 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+                    <button
+                      type="button"
+                      onClick={() => addSku(itemIdx)}
+                      className="flex items-center justify-center gap-1 w-full px-3 py-1.5 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+                    >
                       <Plus className="w-3 h-3" /> Tambah SKU
                     </button>
                   </div>
 
-                  <input type="text" value={item.notes} onChange={(e) => updateItemNotes(itemIdx, e.target.value)}
-                    placeholder="Catatan (opsional)" className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10" />
+                  <input
+                    type="text"
+                    value={item.notes}
+                    onChange={(e) => updateItemNotes(itemIdx, e.target.value)}
+                    placeholder="Catatan (opsional)"
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                  />
                 </div>
               </div>
             ))}
-            <button type="button" onClick={addItem}
-              className="flex items-center justify-center gap-1.5 w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+            <button
+              type="button"
+              onClick={addItem}
+              className="flex items-center justify-center gap-1.5 w-full px-3 py-2 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+            >
               <Plus className="w-3.5 h-3.5" /> Tambah Layanan
             </button>
           </div>
@@ -530,19 +890,40 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
             <User className="w-3.5 h-3.5" /> Handler
           </p>
           <div className="flex gap-2 mb-2">
-            <button type="button" onClick={() => { setShowOtherHandler(false); setHandledBy(user?.id || ""); }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${!showOtherHandler ? "bg-gray-900 text-white border-gray-900" : "bg-white dark:bg-[#1c1c1c] text-gray-600 border-gray-200 dark:border-white/10 hover:bg-gray-50"}`}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowOtherHandler(false);
+                setHandledBy(user?.id || "");
+              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${!showOtherHandler ? "bg-gray-900 text-white border-gray-900" : "bg-white dark:bg-[#1c1c1c] text-gray-600 border-gray-200 dark:border-white/10 hover:bg-gray-50"}`}
+            >
               Saya ({user?.full_name || "Saya"})
             </button>
-            <button type="button" onClick={() => { setShowOtherHandler(true); setHandledBy(""); }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all flex items-center justify-center gap-1 ${showOtherHandler ? "bg-gray-900 text-white border-gray-900" : "bg-white dark:bg-[#1c1c1c] text-gray-600 border-gray-200 dark:border-white/10 hover:bg-gray-50"}`}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowOtherHandler(true);
+                setHandledBy("");
+              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all flex items-center justify-center gap-1 ${showOtherHandler ? "bg-gray-900 text-white border-gray-900" : "bg-white dark:bg-[#1c1c1c] text-gray-600 border-gray-200 dark:border-white/10 hover:bg-gray-50"}`}
+            >
               <ChevronDown className="w-3.5 h-3.5" /> Orang Lain
             </button>
           </div>
           {showOtherHandler && (
-            <select value={handledBy} onChange={(e) => setHandledBy(e.target.value)} className={inputClass} required>
+            <select
+              value={handledBy}
+              onChange={(e) => setHandledBy(e.target.value)}
+              className={inputClass}
+              required
+            >
               <option value="">Pilih handler...</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name} ({u.role})
+                </option>
+              ))}
             </select>
           )}
         </div>
@@ -554,27 +935,81 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Metode Pembayaran</label>
-              <select value={metodePembayaran} onChange={(e) => setMetodePembayaran(e.target.value)} className={inputClass}>
-                {metodePembayaranOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              <select
+                value={metodePembayaran}
+                onChange={(e) => setMetodePembayaran(e.target.value)}
+                className={inputClass}
+              >
+                {metodePembayaranOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
             </div>
             {metodePembayaran === "split_payment" ? (
               <div className="md:col-span-2 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl space-y-2">
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Pembayaran 1</label>
-                    <select value={splitPayment.metode_1} onChange={(e) => setSplitPayment((p) => ({ ...p, metode_1: e.target.value }))} className={inputClass}>
-                      {splitMetodeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      Pembayaran 1
+                    </label>
+                    <select
+                      value={splitPayment.metode_1}
+                      onChange={(e) =>
+                        setSplitPayment((p) => ({
+                          ...p,
+                          metode_1: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    >
+                      {splitMetodeOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
-                    <input type="text" value={splitPayment.nominal_1} onChange={(e) => setSplitPayment((p) => ({ ...p, nominal_1: e.target.value.replace(/\D/g, "") }))}
-                      className={inputClass} placeholder="0" />
+                    <input
+                      type="text"
+                      value={splitPayment.nominal_1}
+                      onChange={(e) =>
+                        setSplitPayment((p) => ({
+                          ...p,
+                          nominal_1: e.target.value.replace(/\D/g, ""),
+                        }))
+                      }
+                      className={inputClass}
+                      placeholder="0"
+                    />
                   </div>
                   <div className="p-3 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl space-y-2">
-                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Pembayaran 2</label>
-                    <select value={splitPayment.metode_2} onChange={(e) => setSplitPayment((p) => ({ ...p, metode_2: e.target.value }))} className={inputClass}>
-                      {splitMetodeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      Pembayaran 2
+                    </label>
+                    <select
+                      value={splitPayment.metode_2}
+                      onChange={(e) =>
+                        setSplitPayment((p) => ({
+                          ...p,
+                          metode_2: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    >
+                      {splitMetodeOptions.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
-                    <input type="text" value={derivedNominal2} readOnly className={`${inputClass} bg-gray-50`} placeholder="0" />
+                    <input
+                      type="text"
+                      value={derivedNominal2}
+                      readOnly
+                      className={`${inputClass} bg-gray-50`}
+                      placeholder="0"
+                    />
                   </div>
                 </div>
               </div>
@@ -588,14 +1023,28 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
                 </div>
                 <div>
                   <label className={labelClass}>Lead Source</label>
-                  <select value={leadSource} onChange={(e) => setLeadSource(e.target.value)} className={inputClass}>
-                    {leadSourceOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  <select
+                    value={leadSource}
+                    onChange={(e) => setLeadSource(e.target.value)}
+                    className={inputClass}
+                  >
+                    {leadSourceOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 {showCustomLeadSource && (
                   <div>
                     <label className={labelClass}>Custom Lead Source</label>
-                    <input type="text" value={leadSourceCustom} onChange={(e) => setLeadSourceCustom(e.target.value)} className={inputClass} placeholder="Tulis sumber..." />
+                    <input
+                      type="text"
+                      value={leadSourceCustom}
+                      onChange={(e) => setLeadSourceCustom(e.target.value)}
+                      className={inputClass}
+                      placeholder="Tulis sumber..."
+                    />
                   </div>
                 )}
               </>
@@ -611,104 +1060,225 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Lead Source</label>
-                <select value={leadSource} onChange={(e) => setLeadSource(e.target.value)} className={inputClass}>
-                  {leadSourceOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                <select
+                  value={leadSource}
+                  onChange={(e) => setLeadSource(e.target.value)}
+                  className={inputClass}
+                >
+                  {leadSourceOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               {showCustomLeadSource && (
                 <div>
                   <label className={labelClass}>Custom Lead Source</label>
-                  <input type="text" value={leadSourceCustom} onChange={(e) => setLeadSourceCustom(e.target.value)} className={inputClass} placeholder="Tulis sumber..." />
+                  <input
+                    type="text"
+                    value={leadSourceCustom}
+                    onChange={(e) => setLeadSourceCustom(e.target.value)}
+                    className={inputClass}
+                    placeholder="Tulis sumber..."
+                  />
                 </div>
               )}
             </div>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`${inputClass} resize-none mt-2`} placeholder="Catatan tambahan..." />
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className={`${inputClass} resize-none mt-2`}
+              placeholder="Catatan tambahan..."
+            />
           </div>
         )}
 
         <div className={sectionClass}>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <Camera className="w-3.5 h-3.5" /> Foto <span className="text-red-500">*Wajib min. 1</span>
+            <Camera className="w-3.5 h-3.5" /> Foto{" "}
+            <span className="text-red-500">*Wajib min. 1</span>
           </p>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoSelect} className="hidden" />
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" multiple onChange={handlePhotoSelect} className="hidden" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handlePhotoSelect}
+            className="hidden"
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            onChange={handlePhotoSelect}
+            className="hidden"
+          />
           {photoPreviews.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {photoPreviews.map((src, i) => (
-                <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 aspect-square">
-                  <button type="button" onClick={() => setPreviewPhoto(src)} className="w-full h-full p-0 border-0">
-                    <img src={src} alt={`foto-${i}`} className="w-full h-full object-cover cursor-pointer" />
+                <div
+                  key={i}
+                  className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 aspect-square"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setPreviewPhoto(src)}
+                    className="w-full h-full p-0 border-0"
+                  >
+                    <img
+                      src={src}
+                      alt={`foto-${i}`}
+                      className="w-full h-full object-cover cursor-pointer"
+                    />
                   </button>
-                  <button type="button" onClick={() => removePhoto(i)}
-                    className="absolute top-1.5 right-1.5 p-1 bg-black/60 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    className="absolute top-1.5 right-1.5 p-1 bg-black/60 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
-              <button type="button" onClick={() => setShowPhotoSource(true)}
-                className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-white/20 flex flex-col items-center justify-center gap-1 hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-gray-400">
-                <Plus className="w-6 h-6" /><span className="text-xs">Tambah</span>
+              <button
+                type="button"
+                onClick={() => setShowPhotoSource(true)}
+                className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-white/20 flex flex-col items-center justify-center gap-1 hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-gray-400"
+              >
+                <Plus className="w-6 h-6" />
+                <span className="text-xs">Tambah</span>
               </button>
             </div>
           ) : (
-            <div onClick={() => setShowPhotoSource(true)}
-              className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all">
+            <div
+              onClick={() => setShowPhotoSource(true)}
+              className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl p-8 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+            >
               <Camera className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm font-medium text-gray-500">Klik untuk upload foto</p>
+              <p className="text-sm font-medium text-gray-500">
+                Klik untuk upload foto
+              </p>
             </div>
           )}
-          {photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id && (
-            <p className="text-xs text-red-500 flex items-center gap-1 mt-1"><AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib</p>
-          )}
+          {photoFiles.length === 0 &&
+            photoPreviews.length === 0 &&
+            !initialData?.id && (
+              <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib
+              </p>
+            )}
         </div>
 
         <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
-          <button type="submit" disabled={loading || uploading}
-            className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm">
-            {loading || uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</> : <><Send className="w-4 h-4" /> Simpan Transaksi</>}
+          <button
+            type="submit"
+            disabled={loading || uploading}
+            className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+          >
+            {loading || uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" /> Simpan Transaksi
+              </>
+            )}
           </button>
-          <button type="button" onClick={handleCancel}
-            className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm">Batal</button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm"
+          >
+            Batal
+          </button>
         </div>
       </form>
 
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-white/10">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-white/10"
+          >
             <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Konfirmasi Transaksi</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                Konfirmasi Transaksi
+              </h3>
             </div>
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                <p className="text-xs text-blue-700 dark:text-blue-300">Periksa kembali data di bawah sebelum menyimpan</p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Periksa kembali data di bawah sebelum menyimpan
+                </p>
               </div>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{customerName} - {customerWhatsapp}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {customerName} - {customerWhatsapp}
+              </p>
               {items.map((item, i) => (
-                <div key={i} className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 space-y-1">
-                  <p className="text-xs font-semibold text-gray-900">{jenisLayananOptions.find((o) => o.value === item.jenis_layanan)?.label || item.jenis_layanan}</p>
+                <div
+                  key={i}
+                  className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 space-y-1"
+                >
+                  <p className="text-xs font-semibold text-gray-900">
+                    {jenisLayananOptions.find(
+                      (o) => o.value === item.jenis_layanan,
+                    )?.label || item.jenis_layanan}
+                  </p>
                   {item.skus.map((sku, j) => (
                     <div key={j} className="flex justify-between text-xs">
                       <span className="text-gray-500">{sku.sku || "-"}</span>
-                      <span className="font-semibold text-blue-600">{formatRupiah(sku.nominal)}</span>
+                      <span className="font-semibold text-blue-600">
+                        {formatRupiah(sku.nominal)}
+                      </span>
                     </div>
                   ))}
                   <div className="border-t border-gray-200 dark:border-white/10 pt-1 flex justify-between text-xs font-bold">
                     <span>Subtotal</span>
-                    <span className="text-blue-600">{formatRupiah(calculateItemSubtotal(item.skus))}</span>
+                    <span className="text-blue-600">
+                      {formatRupiah(calculateItemSubtotal(item.skus))}
+                    </span>
                   </div>
                 </div>
               ))}
               <div className="flex justify-between p-3 bg-gray-900 dark:bg-white rounded-xl">
-                <span className="text-sm font-bold text-white dark:text-gray-900">Grand Total</span>
-                <span className="text-sm font-bold text-white dark:text-gray-900">{formatRupiah(total)}</span>
+                <span className="text-sm font-bold text-white dark:text-gray-900">
+                  Grand Total
+                </span>
+                <span className="text-sm font-bold text-white dark:text-gray-900">
+                  {formatRupiah(total)}
+                </span>
               </div>
-              <p className="text-xs text-gray-500">{photoPreviews.length} foto akan diupload</p>
+              <p className="text-xs text-gray-500">
+                {photoPreviews.length} foto akan diupload
+              </p>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex gap-3">
-              <button type="button" onClick={() => setShowConfirmation(false)}
-                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-gray-100 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-white/20 transition-all text-sm">Ubah</button>
-              <button type="button" onClick={handleConfirmSubmit} disabled={loading || uploading}
-                className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
-                {loading || uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Simpan</>}
+              <button
+                type="button"
+                onClick={() => setShowConfirmation(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-gray-100 font-semibold rounded-xl hover:bg-gray-200 dark:hover:bg-white/20 transition-all text-sm"
+              >
+                Ubah
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                disabled={loading || uploading}
+                className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading || uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" /> Simpan
+                  </>
+                )}
               </button>
             </div>
           </motion.div>
@@ -716,30 +1286,71 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
       )}
 
       {showPhotoSource && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[80] p-4" onClick={() => setShowPhotoSource(false)}>
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-xl w-full max-w-xs border border-gray-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
+          onClick={() => setShowPhotoSource(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-xl w-full max-w-xs border border-gray-200 dark:border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-5 text-center border-b border-gray-200 dark:border-white/10">
-              <p className="text-sm font-bold text-gray-900 dark:text-gray-100">Pilih Sumber Foto</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                Pilih Sumber Foto
+              </p>
             </div>
             <div className="p-4 space-y-2">
-              <button type="button" onClick={() => { setShowPhotoSource(false); setTimeout(() => cameraInputRef.current?.click(), 100); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-left">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPhotoSource(false);
+                  setTimeout(() => cameraInputRef.current?.click(), 100);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-left"
+              >
                 <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
                   <Camera className="w-4 h-4 text-white dark:text-gray-900" />
                 </div>
-                <div><p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Ambil Foto</p><p className="text-[10px] text-gray-500">Buka kamera langsung</p></div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Ambil Foto
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    Buka kamera langsung
+                  </p>
+                </div>
               </button>
-              <button type="button" onClick={() => { setShowPhotoSource(false); setTimeout(() => fileInputRef.current?.click(), 100); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-left">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPhotoSource(false);
+                  setTimeout(() => fileInputRef.current?.click(), 100);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-left"
+              >
                 <div className="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
                   <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div><p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Pilih dari Galeri</p><p className="text-[10px] text-gray-500">Pilih foto yang sudah ada</p></div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Pilih dari Galeri
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    Pilih foto yang sudah ada
+                  </p>
+                </div>
               </button>
             </div>
             <div className="px-4 pb-4">
-              <button type="button" onClick={() => setShowPhotoSource(false)} className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors">Batal</button>
+              <button
+                type="button"
+                onClick={() => setShowPhotoSource(false)}
+                className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              >
+                Batal
+              </button>
             </div>
           </motion.div>
         </div>
