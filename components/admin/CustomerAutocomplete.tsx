@@ -130,7 +130,7 @@ export default function CustomerAutocomplete({
           autoFocus={autoFocus}
         />
       </div>
-      {showDropdown && (
+      {showDropdown && suggestions.length > 0 && (
         <div className="absolute z-[999] w-full mt-1 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg max-h-52 overflow-y-auto" style={{ position: 'absolute', top: '100%', left: 0 }}>
           {suggestions.map((s, i) => (
             <button
@@ -152,11 +152,6 @@ export default function CustomerAutocomplete({
               </div>
             </button>
           ))}
-        </div>
-      )}
-      {value && suggestions.length === 0 && !showDropdown && (
-        <div className="absolute z-[999] w-full mt-1 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg p-3 text-center text-xs text-gray-400">
-          Customer tidak ditemukan. Data akan disimpan sebagai customer baru.
         </div>
       )}
     </div>

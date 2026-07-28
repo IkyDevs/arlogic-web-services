@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
 import { CheckCircle, Phone, User, Watch, Hash, Package, Wallet, Clock, ExternalLink, Search, CheckCheck, History, X, Camera, ChevronDown, ChevronRight, Image as ImageIcon, DollarSign, Wrench, Shield, Calendar, FileText, Award, ZoomIn, Download } from "lucide-react";
 import toast from "react-hot-toast";
+import ServiceCostBreakdown from "@/components/ui/ServiceCostBreakdown";
 
 function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -39,8 +40,8 @@ export default function DoneService() {
   const fetchData = async () => {
     setLoading(true);
     const [pendingRes, historyRes] = await Promise.all([
-      supabase.from("service_orders").select("*, items:service_items(*)").eq("status", "completed").order("done_date", { ascending: false }).limit(100),
-      supabase.from("service_orders").select("*, items:service_items(*)").eq("status", "done").order("done_date", { ascending: false }).limit(50),
+      supabase.from("service_orders").select("*, items:service_items!inner(*)").eq("status", "completed").eq("items.is_final", true).order("done_date", { ascending: false }).limit(100),
+      supabase.from("service_orders").select("*, items:service_items!inner(*)").eq("status", "done").eq("items.is_final", true).order("done_date", { ascending: false }).limit(50),
     ]);
     if (pendingRes.data) setPendingServices(pendingRes.data);
     if (historyRes.data) setHistoryServices(historyRes.data);
@@ -57,7 +58,7 @@ export default function DoneService() {
       supabase.from("service_timeline").select("*").eq("service_order_id", svc.id).order("created_at", { ascending: true }),
       supabase.from("service_documentation").select("*").eq("service_order_id", svc.id).order("created_at", { ascending: true }),
       svc.assigned_teknisi_id ? supabase.from("profiles").select("full_name, role").eq("id", svc.assigned_teknisi_id).single() : Promise.resolve(null),
-      supabase.from("service_items").select("*").eq("service_order_id", svc.id),
+      supabase.from("service_items").select("*").eq("service_order_id", svc.id).eq("is_final", true),
       supabase.from("layanan").select("nominal").eq("detail_sku", `DP - Invoice ${svc.invoice_number}`).maybeSingle(),
     ]);
     const dpFromLayanan = dpRes?.data?.nominal || 0;
@@ -208,43 +209,13 @@ export default function DoneService() {
                 </div>
               </div>
 
-              {/* Items & Payment */}
+              {/* Items & Payment — menggunakan ServiceCostBreakdown */}
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                <button onClick={() => toggleSection("items")} className="w-full flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-emerald-600 rounded-lg flex items-center justify-center"><Package className="w-3.5 h-3.5 text-white" /></div>
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Items & Pembayaran</h4>
-                  </div>
-                  {expandedSections.items ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-                </button>
-                {expandedSections.items && (
-                  <div className="space-y-2">
-                    {items.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-3">Tidak ada item</p>
-                    ) : items.map((item: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center p-2.5 bg-white rounded-lg border border-slate-200">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded-md ${item.item_type === "jasa" ? "bg-pink-100 text-pink-700" : "bg-purple-100 text-purple-700"}`}>
-                            {item.item_type === "jasa" ? "JASA" : "SPR"}
-                          </span>
-                          <span className="text-sm font-medium text-slate-900">{item.name}</span>
-                          <span className="text-xs text-slate-400">{item.quantity}x</span>
-                        </div>
-                        <span className="text-xs font-semibold text-slate-900">{fmtRupiah((Number(item.price) || 0) * (item.quantity || 1))}</span>
-                      </div>
-                    ))}
-                    <div className="space-y-1 p-3 bg-white rounded-lg border border-slate-200">
-                      <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="font-semibold">{fmtRupiah(subtotal)}</span></div>
-                      {dpValue > 0 && <div className="flex justify-between text-sm"><span className="text-slate-500">DP</span><span className="font-semibold text-emerald-600">-{fmtRupiah(dpValue)}</span></div>}
-                      {svc.discount > 0 && <div className="flex justify-between text-sm"><span className="text-slate-500">Diskon</span><span className="font-semibold text-red-500">-{fmtRupiah(svc.discount)}</span></div>}
-                      <div className="h-px bg-slate-200" />
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-slate-700">Sisa yang harus dibayar</span>
-                        <span className="text-lg font-bold text-emerald-600">{remaining === 0 ? "LUNAS" : fmtRupiah(remaining)}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 bg-emerald-600 rounded-lg flex items-center justify-center"><Package className="w-3.5 h-3.5 text-white" /></div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Items & Pembayaran</h4>
+                </div>
+                <ServiceCostBreakdown items={items} dp={dpValue} discount={svc.discount || 0} />
               </div>
 
               {/* Timeline */}
@@ -294,7 +265,7 @@ export default function DoneService() {
                         <div>
                           <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5 font-medium">Sebelum ({beforePhotos.length})</p>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {beforePhotos.map((p: any) => (
+                            {beforePhotos.filter((p: any) => p.photo_url).map((p: any) => (
                               <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer" onClick={() => setPreviewPhoto(p.photo_url)}>
                                 <img src={p.photo_url} alt="Before" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
@@ -309,7 +280,7 @@ export default function DoneService() {
                         <div>
                           <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5 font-medium">Proses ({duringPhotos.length})</p>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {duringPhotos.map((p: any) => (
+                            {duringPhotos.filter((p: any) => p.photo_url).map((p: any) => (
                               <div key={`${p.id}`} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer" onClick={() => setPreviewPhoto(p.photo_url)}>
                                 <img src={p.photo_url} alt="During" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
@@ -324,7 +295,7 @@ export default function DoneService() {
                         <div>
                           <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5 font-medium">Sesudah ({afterPhotos.length})</p>
                           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                            {afterPhotos.map((p: any) => (
+                            {afterPhotos.filter((p: any) => p.photo_url).map((p: any) => (
                               <div key={p.id} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer" onClick={() => setPreviewPhoto(p.photo_url)}>
                                 <img src={p.photo_url} alt="After" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
@@ -369,29 +340,61 @@ export default function DoneService() {
   const contactWA = async (svc: any) => {
     let p = svc.customer_phone.replace(/\D/g, "");
     if (p.startsWith("0")) p = "62" + p.substring(1);
-    
-    const items = svc.items || [];
+
+    const { data: finalItems } = await supabase
+      .from("service_items")
+      .select("*")
+      .eq("service_order_id", svc.id)
+      .eq("is_final", true);
+
+    const items = finalItems || [];
     const spareparts = items.filter((i: any) => i.item_type === "sparepart");
     const jasa = items.filter((i: any) => i.item_type === "jasa");
-    const finalTotal = svc.final_cost || 0;
-    const discount = svc.discount || 0;
-    const { data: dpData } = await supabase.from("layanan").select("nominal")
-      .eq("detail_sku", `DP - Invoice ${svc.invoice_number}`).maybeSingle();
-    const dp = dpData?.nominal || 0;
-    const kekurangan = finalTotal - dp;
+    const totalSparepart = spareparts.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (i.quantity || 1), 0);
+    const totalJasa = jasa.reduce((s: number, i: any) => s + (Number(i.price) || 0) * (i.quantity || 1), 0);
+    const grandTotal = totalSparepart + totalJasa;
+    const dp = Number(svc.down_payment) || 0;
+    const discount = Number(svc.discount) || 0;
+    const remaining = Math.max(0, grandTotal - dp - discount);
 
-    const messageLines: string[] = [];
-    messageLines.push(`Assalamu'alaikum..`);
-    messageLines.push(`Selamat malam kak ${svc.customer_name}, saya Siqi dari Arlogic ex. Juragan7am mau menginformasikan kalau jam tangannya sudah lolos Quality Control dan sudah bisa diambil. Untuk rician biaya kekurangan nya sebagai berikut`);
-    messageLines.push(`- RICIAN SERVICE`);
-    if (spareparts.length > 0) messageLines.push(`- sparepart : ${spareparts.map((i: any) => i.name).join(", ")}`);
-    if (jasa.length > 0) messageLines.push(`- jasa : ${jasa.map((i: any) => i.name).join(", ")}`);
-    if (dp > 0) messageLines.push(`- dp : ${fmtRupiah(dp)}`);
-    if (finalTotal > 0) messageLines.push(`- total : ${fmtRupiah(finalTotal)}`);
-    if (discount > 0) messageLines.push(`- discount : ${fmtRupiah(discount)}`);
-    if (kekurangan > 0) messageLines.push(`- kekurangan : ${fmtRupiah(kekurangan)}`);
-    messageLines.push(`😊`);
-    const msg = encodeURIComponent(messageLines.join("\n"));
+    const lines: string[] = [];
+    lines.push("Assalamu'alaikum.");
+    lines.push("");
+    lines.push(`Selamat malam Kak ${svc.customer_name},`);
+    lines.push("");
+    lines.push("Jam tangan sudah lolos Quality Control dan sudah dapat diambil.");
+    lines.push("");
+    lines.push("Rincian biaya:");
+    lines.push("");
+    if (spareparts.length > 0) {
+      lines.push("SPAREPART");
+      for (const item of spareparts) {
+        lines.push(`\u2022 ${item.name} x${item.quantity}\nRp ${(Number(item.price) * item.quantity).toLocaleString("id-ID")}`);
+      }
+      lines.push("");
+    }
+    if (jasa.length > 0) {
+      lines.push("JASA");
+      for (const item of jasa) {
+        lines.push(`\u2022 ${item.name} x${item.quantity}\nRp ${(Number(item.price) * item.quantity).toLocaleString("id-ID")}`);
+      }
+      lines.push("");
+    }
+    lines.push(`DP`);
+    lines.push(`Rp ${dp.toLocaleString("id-ID")}`);
+    lines.push("");
+    lines.push(`TOTAL`);
+    lines.push(`Rp ${grandTotal.toLocaleString("id-ID")}`);
+    lines.push("");
+    lines.push(`DISKON`);
+    lines.push(`Rp ${discount.toLocaleString("id-ID")}`);
+    lines.push("");
+    lines.push(`KEKURANGAN`);
+    lines.push(`Rp ${remaining.toLocaleString("id-ID")}`);
+    lines.push("");
+    lines.push("Terima kasih \uD83D\uDE4F\uD83D\uDE0A");
+
+    const msg = encodeURIComponent(lines.join("\n"));
     window.open(`https://wa.me/${p}?text=${msg}`, "_blank");
   };
 
@@ -406,9 +409,9 @@ export default function DoneService() {
 
   const renderCard = (svc: any, i: number, showDone: boolean) => {
     const items = svc.items || [];
-    const totalCost = svc.final_cost || (items.length > 0
+    const totalCost = items.length > 0
       ? items.reduce((s: number, it: any) => s + (parseFloat(it.price) || 0) * (it.quantity || 1), 0)
-      : svc.estimated_cost || 0);
+      : (svc.final_cost || svc.estimated_cost || 0);
     const dp = svc.down_payment || 0;
     const remaining = Math.max(0, totalCost - dp - (svc.discount || 0));
     return (

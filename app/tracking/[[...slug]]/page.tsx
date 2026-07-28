@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
+import ServiceCostBreakdown from "@/components/ui/ServiceCostBreakdown";
 import {
   CheckCircle, Clock, Wrench, UserCheck, Package, Smartphone,
   DollarSign, AlertCircle, Phone, Watch, Settings, Battery, ChevronRight,
@@ -70,12 +71,16 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
   const [photoModal, setPhotoModal] = useState<string | null>(null);
 
   // Feedback state
-  const itemTotal = useMemo(() => items.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0), [items]);
-  const restAmount = useMemo(() => {
-    // final_cost sudah termasuk diskon & DP dari QCReviewModal
-    if (service?.final_cost) return Math.max(0, service.final_cost - (service.down_payment || 0));
-    return Math.max(0, itemTotal - (service?.discount || 0) - (service?.down_payment || 0));
-  }, [service, itemTotal]);
+  const finalItems = useMemo(() => items, [items]);
+  const sparepartItems = useMemo(() => finalItems.filter((i: any) => i.item_type === "sparepart"), [finalItems]);
+  const jasaItems = useMemo(() => finalItems.filter((i: any) => i.item_type === "jasa"), [finalItems]);
+  const totalSparepart = useMemo(() => sparepartItems.reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0), [sparepartItems]);
+  const totalJasa = useMemo(() => jasaItems.reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0), [jasaItems]);
+  const grandTotal = totalSparepart + totalJasa;
+  const dp = service?.down_payment || 0;
+  const discount = service?.discount || 0;
+  const remaining = Math.max(0, grandTotal - dp - discount);
+  const isLunas = remaining <= 0;
 
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackAlready, setFeedbackAlready] = useState(false);
@@ -595,45 +600,16 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
           )}
 
           {/* Items & Cost - always show if exists (source: service_items = QC approved final) */}
-          {(service.status === "completed" || service.status === "done") && items.length > 0 && (
+          {/* Rincian Biaya — menggunakan ServiceCostBreakdown */}
+          {(service.status === "completed" || service.status === "done") && finalItems.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <button onClick={() => toggleSection("items")}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
-                    <Package className="w-4 h-4 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-sm text-slate-900">Sparepart & Biaya</h3>
-                </div>
-                {expandedSections.items ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-              </button>
-              {expandedSections.items && (<div className="p-5 space-y-3 border-t border-slate-100">
-                  {items.map((item, i) => (
-                    <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className={"px-2 py-0.5 text-xs font-bold rounded-full border " + (item.item_type === "jasa" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-amber-100 text-amber-700 border-amber-200")}>
-                            {item.item_type === "jasa" ? "JASA" : "SPAREPART"}
-                          </span>
-                          <span className="font-semibold text-sm text-slate-900">{item.name}</span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{item.quantity} x {fmtRupiah(item.price)}</p>
-                      </div>
-                      <span className="font-bold text-slate-900">{fmtRupiah(item.price * item.quantity)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-md">
-                    <span>Total Biaya</span>
-                    <span className="text-lg">{fmtRupiah(itemTotal)}</span>
-                  </div>
-                </div>
-              )}
+              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+              <ServiceCostBreakdown items={finalItems} dp={dp} discount={discount} />
             </motion.div>
           )}
 
-          {/* Pembayaran - only if QC approved (completed/done) */}
-          {(service.status === 'completed' || service.status === 'done') && (items.length > 0 || service.down_payment > 0 || service.discount > 0 || service.final_cost) && (
+          {/* Rincian Pembayaran (legacy fallback — tanpa items) */}
+          {(service.status === "completed" || service.status === "done") && finalItems.length === 0 && (service.down_payment > 0 || service.discount > 0) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}
               className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -652,11 +628,11 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                 <div className="h-px bg-slate-200" />
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-slate-700">Sisa yang harus dibayar</span>
-                  <span className={`font-bold text-lg ${restAmount === 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
-                    {restAmount === 0 ? 'LUNAS' : fmtRupiah(restAmount)}
+                  <span className={`font-bold text-lg ${remaining === 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                    {remaining === 0 ? 'LUNAS' : fmtRupiah(remaining)}
                   </span>
                 </div>
-                {restAmount === 0 && (
+                {remaining === 0 && (
                   <p className="text-xs text-emerald-600 font-medium flex items-center gap-1 mt-1"><CheckCircle className="w-3 h-3" />Pembayaran LUNAS</p>
                 )}
               </div>

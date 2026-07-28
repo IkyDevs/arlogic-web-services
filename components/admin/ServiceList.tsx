@@ -349,7 +349,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 <div>
                   <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">Foto</p>
                   <div className="grid grid-cols-3 gap-2">
-                    {servicePhotos.map((url, i) => (
+                    {servicePhotos.filter(Boolean).map((url, i) => (
                       <img key={i} src={url} alt={"foto-" + i}
                         className="rounded-xl border border-slate-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={() => setPreviewPhoto(url)} />
