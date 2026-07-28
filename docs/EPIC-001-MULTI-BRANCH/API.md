@@ -1,11 +1,33 @@
 # API Specification
+
+# API Specification
+
 ## EPIC-001: Enterprise Multi Branch System
+
+---
+
+## Key Principles
+
+### 1. Permission-Based Authorization (Phase 2 Update)
+
+- All authorization checks use **permission keys**, not direct role checks
+- Permission keys follow format: `resource.action.scope` (e.g., "service_order.create.own")
+- See **RBAC.md** for complete permission matrix
+- Use `hasPermission("key")` instead of `if (role == "admin")`
+- Repository layer applies `branch_id` filter AFTER authorization passed
+
+### 2. Branch Context from Session Only
+
+- `branch_id` is NEVER sent in request body, query params, or headers by client
+- Backend ALWAYS derives `branch_id` from authenticated session (profiles.branch_id)
+- Prevents authorization bypass attacks (critical security principle)
 
 ---
 
 ## 1. Core Principle: Branch in Session, Not in Request
 
-**Critical Rule**: 
+**Critical Rule**:
+
 - `branch_id` is NEVER sent in request body, query params, or headers by client
 - `branch_id` is ALWAYS derived from authenticated session
 - Backend enforces: `branch_id = session.branch_id`
@@ -46,28 +68,29 @@ Response with branch_id included (for audit)
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  
+
   // Skip public routes
-  if (['/login', '/tracking', '/feedback'].includes(path)) {
+  if (["/login", "/tracking", "/feedback"].includes(path)) {
     return NextResponse.next();
   }
-  
+
   // 1. Get session
   const session = await getSession(request);
   if (!session?.user) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
-  
+
   // 2. Get branch context
-  const branchId = request.cookies.get('x-branch-id')?.value 
-    || session.profile?.default_branch_id;
-  
+  const branchId =
+    request.cookies.get("x-branch-id")?.value ||
+    session.profile?.default_branch_id;
+
   // 3. Add to headers for route handlers
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-branch-id', branchId);
-  requestHeaders.set('x-user-id', session.user.id);
-  requestHeaders.set('x-user-role', session.profile.role);
-  
+  requestHeaders.set("x-branch-id", branchId);
+  requestHeaders.set("x-user-id", session.user.id);
+  requestHeaders.set("x-user-role", session.profile.role);
+
   return NextResponse.next({
     request: { headers: requestHeaders },
   });
@@ -80,31 +103,31 @@ export async function middleware(request: NextRequest) {
 // lib/api-context.ts
 
 export async function getRequestContext(request: NextRequest) {
-  const userId = request.headers.get('x-user-id');
-  const branchId = request.headers.get('x-branch-id');
-  const userRole = request.headers.get('x-user-role');
-  
+  const userId = request.headers.get("x-user-id");
+  const branchId = request.headers.get("x-branch-id");
+  const userRole = request.headers.get("x-user-role");
+
   if (!userId || !branchId) {
-    throw new UnauthorizedError('Missing authentication context');
+    throw new UnauthorizedError("Missing authentication context");
   }
-  
+
   // Validate user is assigned to branch
   const assignment = await db
-    .from('user_branch_assignments')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('branch_id', branchId)
+    .from("user_branch_assignments")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("branch_id", branchId)
     .single();
-  
+
   if (!assignment) {
-    throw new ForbiddenError('User not assigned to this branch');
+    throw new ForbiddenError("User not assigned to this branch");
   }
-  
+
   return {
     userId,
     branchId,
-    userRole,
-    roleInBranch: assignment.role,  // May differ from global role
+    role,
+    permissions, // Loaded based on role (see RBAC.md)
   };
 }
 ```
@@ -116,6 +139,7 @@ export async function getRequestContext(request: NextRequest) {
 ### 3.1 Service Orders API
 
 #### GET /api/service-orders
+
 **Get service orders for current branch**
 
 ```http
@@ -124,6 +148,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -145,35 +170,43 @@ Authorization: Bearer <jwt>
 }
 ```
 
-**Authorization**: Admin, Manager, QC, Technician (filtered by assignment)
+**Authorization**: Check hasPermission("service_order.read.own")
 
 **Backend**:
+
 ```typescript
 export async function GET(request: NextRequest) {
-  const { branchId, userRole, roleInBranch } = await getRequestContext(request);
-  const { status, limit = 20, offset = 0 } = Object.fromEntries(
-    new URLSearchParams(request.nextUrl.search)
-  );
-  
-  // Build query with branch filter
-  let query = db
-    .from('service_orders')
-    .select('*')
-    .eq('branch_id', branchId);  // ← MANDATORY
-  
-  if (status) query = query.eq('status', status);
-  
-  // Role-based filtering
-  if (roleInBranch === 'technician') {
-    query = query.eq('assigned_teknisi_id', userId);  // Only own orders
+  const { branchId, userId, permissions } = await getRequestContext(request);
+  const {
+    status,
+    limit = 20,
+    offset = 0,
+  } = Object.fromEntries(new URLSearchParams(request.nextUrl.search));
+
+  // Check permission
+  if (!hasPermission("service_order.read.own")) {
+    return NextResponse.json({ error: "Permission denied" }, { status: 403 });
   }
-  
+
+  // Build query with branch filter
+  let query = db.from("service_orders").select("*").eq("branch_id", branchId); // ← MANDATORY
+
+  if (status) query = query.eq("status", status);
+
+  // Permission-based filtering (technician sees only assigned orders)
+  if (
+    hasPermission("service_order.read.own") &&
+    !hasPermission("service_order.read.all")
+  ) {
+    query = query.eq("assigned_teknisi_id", userId);
+  }
+
   const { data, count, error } = await query
     .range(offset, offset + limit - 1)
-    .order('created_at', { ascending: false });
-  
+    .order("created_at", { ascending: false });
+
   if (error) throw new DatabaseError(error);
-  
+
   return NextResponse.json({
     success: true,
     data,
@@ -186,6 +219,7 @@ export async function GET(request: NextRequest) {
 ---
 
 #### POST /api/service-orders
+
 **Create new service order (automatically for current branch)**
 
 ```http
@@ -207,6 +241,7 @@ Content-Type: application/json
 **Note**: No `branch_id` in request body. It's added from session.
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -221,45 +256,53 @@ Content-Type: application/json
 }
 ```
 
-**Authorization**: Admin, Manager (own branch only)
+**Authorization**: Check hasPermission("service_order.create.own")
 
 **Backend**:
+
 ```typescript
 export async function POST(request: NextRequest) {
-  const { branchId, userRole, roleInBranch } = await getRequestContext(request);
-  
+  const { branchId, userId, permissions } = await getRequestContext(request);
+
   // Check permission
-  if (!['admin', 'manager'].includes(roleInBranch)) {
+  if (!hasPermission("service_order.create.own")) {
     return NextResponse.json(
-      { error: 'Role cannot create service orders' },
-      { status: 403 }
+      { error: "Role cannot create service orders" },
+      { status: 403 },
     );
   }
-  
+
   const body = await request.json();
-  
+
   // Force branch_id from session (ignore if in body)
   const serviceOrder = {
     ...body,
-    branch_id: branchId,  // ← ENFORCED
+    branch_id: branchId, // ← ENFORCED
     created_by: userId,
   };
-  
+
   const { data, error } = await db
-    .from('service_orders')
+    .from("service_orders")
     .insert([serviceOrder])
     .select()
     .single();
-  
+
   if (error) throw new DatabaseError(error);
-  
+
   // Fetch branch name for response
-  const branch = await db.from('branches').select('name').eq('id', branchId).single();
-  
-  return NextResponse.json({
-    success: true,
-    data: { ...data, branch_name: branch.name },
-  }, { status: 201 });
+  const branch = await db
+    .from("branches")
+    .select("name")
+    .eq("id", branchId)
+    .single();
+
+  return NextResponse.json(
+    {
+      success: true,
+      data: { ...data, branch_name: branch.name },
+    },
+    { status: 201 },
+  );
 }
 ```
 
@@ -268,6 +311,7 @@ export async function POST(request: NextRequest) {
 ### 3.2 Transactions (Layanan) API
 
 #### GET /api/layanan
+
 **Get transactions for current branch**
 
 ```http
@@ -276,6 +320,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -299,6 +344,7 @@ Authorization: Bearer <jwt>
 ---
 
 #### POST /api/layanan
+
 **Create transaction (automatically for current branch)**
 
 ```http
@@ -327,6 +373,7 @@ Content-Type: application/json
 ### 3.3 Inventory API
 
 #### GET /api/inventory
+
 **Get inventory for current branch only**
 
 ```http
@@ -339,6 +386,7 @@ Authorization: Bearer <jwt>
 ---
 
 #### POST /api/inventory
+
 **Create inventory item for current branch**
 
 ```http
@@ -360,6 +408,7 @@ Authorization: Bearer <jwt>
 ## 4. New Endpoints: Branch Management
 
 ### 4.1 GET /api/branches
+
 **Get branches accessible to user**
 
 ```http
@@ -368,6 +417,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response (Owner)**:
+
 ```json
 {
   "success": true,
@@ -397,6 +447,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response (Manager)**:
+
 ```json
 {
   "success": true,
@@ -419,31 +470,33 @@ Authorization: Bearer <jwt>
 **Authorization**: All authenticated users (returns filtered list)
 
 **Backend**:
+
 ```typescript
 export async function GET(request: NextRequest) {
-  const { userId, userRole } = await getRequestContext(request);
-  
-  if (userRole === 'owner') {
-    // Owner sees all branches
-    const branches = await db.from('branches').select('*').eq('status', 'active');
-    return NextResponse.json({ data: branches, is_owner: true });
+  const { userId, branchId, permissions } = await getRequestContext(request);
+
+  // Owner can see all branches
+  if (hasPermission("branch.read.all")) {
+    const branches = await db
+      .from("branches")
+      .select("*")
+      .eq("status", "active");
+    return NextResponse.json({ data: branches, scope: "all" });
   }
-  
-  // Others see only assigned branches
-  const assignments = await db
-    .from('user_branch_assignments')
-    .select('branch_id')
-    .eq('user_id', userId)
-    .eq('is_active', true);
-  
-  const branchIds = assignments.map(a => a.branch_id);
-  
-  const branches = await db
-    .from('branches')
-    .select('*')
-    .in('id', branchIds)
-    .eq('status', 'active');
-  
+
+  // Non-owner sees only their assigned branch
+  const branch = await db
+    .from("branches")
+    .select("*")
+    .eq("id", branchId)
+    .eq("status", "active")
+    .single();
+
+  return NextResponse.json({
+    data: branch ? [branch] : [],
+    scope: "own",
+  });
+
   return NextResponse.json({ data: branches, is_owner: false });
 }
 ```
@@ -451,6 +504,7 @@ export async function GET(request: NextRequest) {
 ---
 
 ### 4.2 POST /api/branches
+
 **Create new branch (Owner only)**
 
 ```http
@@ -471,6 +525,7 @@ Content-Type: application/json
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -488,27 +543,29 @@ Content-Type: application/json
 **Authorization**: Owner only
 
 **Backend**:
+
 ```typescript
 export async function POST(request: NextRequest) {
-  const { userRole } = await getRequestContext(request);
-  
-  if (userRole !== 'owner') {
+  const { userId, permissions } = await getRequestContext(request);
+
+  // Check permission
+  if (!hasPermission("branch.create")) {
     return NextResponse.json(
-      { error: 'Only owner can create branches' },
-      { status: 403 }
+      { error: "Permission denied: cannot create branches" },
+      { status: 403 },
     );
   }
-  
+
   const body = await request.json();
-  
+
   const { data, error } = await db
-    .from('branches')
+    .from("branches")
     .insert([{ ...body, created_by: userId }])
     .select()
     .single();
-  
+
   if (error) throw new DatabaseError(error);
-  
+
   return NextResponse.json({ success: true, data }, { status: 201 });
 }
 ```
@@ -516,6 +573,7 @@ export async function POST(request: NextRequest) {
 ---
 
 ### 4.3 GET /api/users
+
 **Get users in current branch (Manager/Owner only)**
 
 ```http
@@ -524,6 +582,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -546,6 +605,7 @@ Authorization: Bearer <jwt>
 ---
 
 ### 4.4 POST /api/users
+
 **Assign user to branch (Owner only)**
 
 ```http
@@ -562,6 +622,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -580,6 +641,7 @@ Authorization: Bearer <jwt>
 ---
 
 ### 4.5 PUT /api/users/:userId/branch/:branchId
+
 **Update user's role in branch**
 
 ```http
@@ -596,6 +658,7 @@ Authorization: Bearer <jwt>
 ---
 
 ### 4.6 DELETE /api/users/:userId/branch/:branchId
+
 **Remove user from branch**
 
 ```http
@@ -604,6 +667,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -614,37 +678,38 @@ Authorization: Bearer <jwt>
 **Authorization**: Owner only
 
 **Backend**:
+
 ```typescript
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string; branchId: string } }
+  { params }: { params: { userId: string; branchId: string } },
 ) {
   const { userRole } = await getRequestContext(request);
-  
-  if (userRole !== 'owner') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+
+  if (userRole !== "owner") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
-  
+
   // Delete assignment
   await db
-    .from('user_branch_assignments')
+    .from("user_branch_assignments")
     .delete()
-    .eq('user_id', params.userId)
-    .eq('branch_id', params.branchId);
-  
+    .eq("user_id", params.userId)
+    .eq("branch_id", params.branchId);
+
   // If user has no more branches, set default_branch_id to NULL
   const remaining = await db
-    .from('user_branch_assignments')
-    .select('branch_id')
-    .eq('user_id', params.userId);
-  
+    .from("user_branch_assignments")
+    .select("branch_id")
+    .eq("user_id", params.userId);
+
   if (remaining.length === 0) {
     await db
-      .from('profiles')
+      .from("profiles")
       .update({ default_branch_id: null })
-      .eq('id', params.userId);
+      .eq("id", params.userId);
   }
-  
+
   return NextResponse.json({ success: true });
 }
 ```
@@ -652,6 +717,7 @@ export async function DELETE(
 ---
 
 ### 4.7 POST /api/branch-switch
+
 **Switch to different branch (update session)**
 
 ```http
@@ -664,6 +730,7 @@ Authorization: Bearer <jwt>
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -674,41 +741,42 @@ Authorization: Bearer <jwt>
 ```
 
 **Backend**:
+
 ```typescript
 export async function POST(request: NextRequest) {
   const { userId } = await getRequestContext(request);
   const { branch_id } = await request.json();
-  
+
   // Verify user is assigned to branch
   const assignment = await db
-    .from('user_branch_assignments')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('branch_id', branch_id)
+    .from("user_branch_assignments")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("branch_id", branch_id)
     .single();
-  
+
   if (!assignment) {
     return NextResponse.json(
-      { error: 'Not assigned to this branch' },
-      { status: 403 }
+      { error: "Not assigned to this branch" },
+      { status: 403 },
     );
   }
-  
+
   // Update session cookie
   const response = NextResponse.json({
     success: true,
     branch_id,
     role_in_branch: assignment.role,
   });
-  
+
   response.cookies.set({
-    name: 'x-branch-id',
+    name: "x-branch-id",
     value: branch_id,
     secure: true,
     httpOnly: true,
-    path: '/',
+    path: "/",
   });
-  
+
   return response;
 }
 ```
@@ -735,22 +803,23 @@ export async function POST(request: NextRequest) {
 
 ### 5.2 Common Error Codes
 
-| Code | Status | Meaning | Solution |
-|------|--------|---------|----------|
-| `AUTHENTICATION_REQUIRED` | 401 | No JWT token | Login |
-| `INVALID_TOKEN` | 401 | JWT expired/invalid | Refresh token |
-| `AUTHORIZATION_ERROR` | 403 | User not assigned to branch | Request access |
-| `FORBIDDEN` | 403 | Role cannot perform operation | Use different role |
-| `BRANCH_NOT_FOUND` | 404 | Branch doesn't exist | Check branch_id |
-| `RESOURCE_NOT_FOUND` | 404 | Resource not in branch | Wrong branch context |
-| `VALIDATION_ERROR` | 400 | Invalid request data | Fix data |
-| `DATABASE_ERROR` | 500 | Database error | Retry or contact support |
+| Code                      | Status | Meaning                       | Solution                 |
+| ------------------------- | ------ | ----------------------------- | ------------------------ |
+| `AUTHENTICATION_REQUIRED` | 401    | No JWT token                  | Login                    |
+| `INVALID_TOKEN`           | 401    | JWT expired/invalid           | Refresh token            |
+| `AUTHORIZATION_ERROR`     | 403    | User not assigned to branch   | Request access           |
+| `FORBIDDEN`               | 403    | Role cannot perform operation | Use different role       |
+| `BRANCH_NOT_FOUND`        | 404    | Branch doesn't exist          | Check branch_id          |
+| `RESOURCE_NOT_FOUND`      | 404    | Resource not in branch        | Wrong branch context     |
+| `VALIDATION_ERROR`        | 400    | Invalid request data          | Fix data                 |
+| `DATABASE_ERROR`          | 500    | Database error                | Retry or contact support |
 
 ---
 
 ## 6. API Response Headers
 
 All responses include:
+
 ```
 X-Branch-ID: jember-uuid
 X-User-ID: user-uuid
@@ -765,6 +834,7 @@ Content-Type: application/json
 ### 7.1 Existing Endpoints
 
 All existing endpoints modified to add:
+
 - `branch_id` in request context (extracted from session)
 - `branch_id` in response (for audit)
 - Branch validation on all operations
@@ -780,4 +850,3 @@ Future: If needed, add header `Accept: application/vnd.arlogic.v2+json`
 1. **Phase 1** (Current): Single default branch, all data assigned to it
 2. **Phase 2** (Future): Multiple branches, full branch isolation
 3. **Phase 3** (Future): Cross-branch operations for Owner
-
