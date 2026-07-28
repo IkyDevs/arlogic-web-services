@@ -28,9 +28,9 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [items, setItems] = useState<any[]>([]);
-  const [initialItems, setInitialItems] = useState<any[]>([]);
   const [totalCost, setTotalCost] = useState(0);
   const [editingPrice, setEditingPrice] = useState<{ [key: number]: number }>({});
+  const [savingPrice, setSavingPrice] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,9 +49,12 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
       .eq("service_order_id", service.id);
     if (data) {
       setItems(data);
-      setInitialItems(JSON.parse(JSON.stringify(data)));
       setTotalCost(data.reduce((sum: number, item: any) => sum + (item.price || 0) * (item.quantity || 1), 0));
     }
+  };
+
+  const recalcTotal = (updatedItems: any[]) => {
+    setTotalCost(updatedItems.reduce((sum: number, item: any) => sum + (item.price || 0) * (item.quantity || 1), 0));
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,19 +88,48 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
   };
 
   const startEditPrice = (index: number, price: number) => setEditingPrice({ ...editingPrice, [index]: price });
-  const savePrice = (index: number) => {
+  const savePrice = async (index: number) => {
     const newPrice = editingPrice[index];
     if (newPrice === undefined || newPrice < 0) return;
-    const updated = items.map((item, i) => i === index ? { ...item, price: newPrice } : item);
-    setItems(updated);
-    setTotalCost(updated.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0));
-    const { [index]: _, ...rest } = editingPrice;
-    setEditingPrice(rest);
+    const item = items[index];
+    if (!item?.id) return;
+    setSavingPrice(item.id);
+    try {
+      const { error } = await supabase.from("service_items").update({ price: newPrice }).eq("id", item.id);
+      if (error) throw error;
+      const updated = items.map((it, i) => i === index ? { ...it, price: newPrice } : it);
+      setItems(updated);
+      recalcTotal(updated);
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id, teknisi_id: teknisiId, status: "item_updated",
+        message: `Harga ${item.name} diubah`,
+        details: { action: "update_item_price", item_id: item.id, old_price: item.price, new_price: newPrice },
+      });
+      const { [index]: _, ...rest } = editingPrice;
+      setEditingPrice(rest);
+    } catch (err: any) {
+      toast.error("Gagal menyimpan harga: " + err.message);
+    } finally {
+      setSavingPrice(null);
+    }
   };
-  const deleteItem = (index: number) => {
-    const updated = items.filter((_, i) => i !== index);
-    setItems(updated);
-    setTotalCost(updated.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0));
+  const deleteItem = async (index: number) => {
+    const item = items[index];
+    if (!item?.id) return;
+    try {
+      const { error } = await supabase.from("service_items").delete().eq("id", item.id);
+      if (error) throw error;
+      const updated = items.filter((_, i) => i !== index);
+      setItems(updated);
+      recalcTotal(updated);
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id, teknisi_id: teknisiId, status: "item_deleted",
+        message: `${item.item_type === "jasa" ? "Jasa" : "Sparepart"} ${item.name} dihapus`,
+        details: { action: "delete_item", item_id: item.id },
+      });
+    } catch (err: any) {
+      toast.error("Gagal menghapus item: " + err.message);
+    }
   };
 
   const handleSubmit = async () => {
@@ -171,21 +203,12 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
         .eq("id", service.id);
       if (error) throw error;
 
-      const deletedItems: string[] = [];
-      for (const orig of initialItems) {
-        const stillExists = items.some((item: any) => item.id === orig.id && item.name === orig.name);
-        if (!stillExists) deletedItems.push(`${orig.name}`);
-      }
-      let changeMsg = "";
-      if (deletedItems.length > 0) changeMsg += `menghapus ${deletedItems.join(", ")}. `;
-      if (changeMsg) changeMsg = changeMsg.trim() + " ";
-
       await supabase.from("service_timeline").insert({
         service_order_id: service.id,
         teknisi_id: teknisiId,
         status: "qc_pending",
-        message: `${changeMsg}Service telah selesai dan dikirim ke QC oleh teknisi${uploadedUrls.length > 0 ? ` (${uploadedUrls.length} foto)` : ""}`,
-        details: { action: "submit_to_qc", photos_count: uploadedUrls.length, total_cost: totalCost },
+        message: `Service telah selesai dan dikirim ke QC oleh teknisi${uploadedUrls.length > 0 ? ` (${uploadedUrls.length} foto)` : ""}`,
+        details: { action: "submit_to_qc", photos_count: uploadedUrls.length },
       });
 
       toast.success("Service berhasil dikirim ke QC!");

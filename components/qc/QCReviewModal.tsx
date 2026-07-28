@@ -196,18 +196,30 @@ export default function QCReviewModal({
     });
   };
 
-  const saveItemEdit = (index: number) => {
+  const saveItemEdit = async (index: number) => {
     const edit = editingItem[index];
     if (!edit) return;
-    const updated = [...localItems];
-    updated[index] = {
-      ...updated[index],
-      price: edit.price ?? updated[index].price,
-      quantity: edit.quantity ?? updated[index].quantity,
-    };
-    setLocalItems(updated);
-    const { [index]: _, ...rest } = editingItem;
-    setEditingItem(rest);
+    const item = localItems[index];
+    if (!item?.id) return;
+    try {
+      const { error } = await supabase
+        .from("service_items")
+        .update({ price: edit.price ?? item.price, quantity: edit.quantity ?? item.quantity })
+        .eq("id", item.id);
+      if (error) throw error;
+      const updated = [...localItems];
+      updated[index] = { ...updated[index], price: edit.price ?? item.price, quantity: edit.quantity ?? item.quantity };
+      setLocalItems(updated);
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id, status: "item_updated",
+        message: `QC mengubah ${item.name}`,
+        details: { action: "qc_update_item", item_id: item.id, reviewer: reviewerName },
+      });
+      const { [index]: _, ...rest } = editingItem;
+      setEditingItem(rest);
+    } catch (err: any) {
+      toast.error("Gagal menyimpan: " + err.message);
+    }
   };
 
   const cancelItemEdit = (index: number) => {
@@ -215,43 +227,67 @@ export default function QCReviewModal({
     setEditingItem(rest);
   };
 
-  const deleteItem = (index: number) => {
-    setLocalItems(localItems.filter((_, i) => i !== index));
+  const deleteItem = async (index: number) => {
+    const item = localItems[index];
+    if (!item?.id || item.id.startsWith("custom_")) {
+      setLocalItems(localItems.filter((_, i) => i !== index));
+      return;
+    }
+    try {
+      const { error } = await supabase.from("service_items").delete().eq("id", item.id);
+      if (error) throw error;
+      setLocalItems(localItems.filter((_, i) => i !== index));
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id, status: "item_deleted",
+        message: `QC menghapus ${item.item_type === "jasa" ? "jasa" : "sparepart"} ${item.name}`,
+        details: { action: "qc_delete_item", item_id: item.id, reviewer: reviewerName },
+      });
+    } catch (err: any) {
+      toast.error("Gagal menghapus: " + err.message);
+    }
   };
 
   // ── Add custom items ──
-  const addCustomJasa = () => {
+  const addCustomJasa = async () => {
     if (!customJasa.name.trim() || customJasa.price <= 0) return;
-    setLocalItems([
-      ...localItems,
-      {
-        id: `custom_${Date.now()}`,
-        name: customJasa.name.trim(),
-        price: customJasa.price,
-        quantity: customJasa.quantity,
-        item_type: "jasa",
-        notes: reviewNotes || null,
-      },
-    ]);
-    setCustomJasa({ name: "", price: 0, quantity: 1 });
-    setShowAddJasa(false);
+    try {
+      const { data, error } = await supabase.from("service_items").insert({
+        service_order_id: service.id, item_type: "jasa", name: customJasa.name.trim(),
+        price: customJasa.price, quantity: customJasa.quantity, is_final: false,
+      }).select().single();
+      if (error) throw error;
+      setLocalItems([...localItems, data]);
+      setCustomJasa({ name: "", price: 0, quantity: 1 });
+      setShowAddJasa(false);
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id, status: "item_added",
+        message: `QC menambah jasa ${customJasa.name.trim()}`,
+        details: { action: "qc_add_item", reviewer: reviewerName },
+      });
+    } catch (err: any) {
+      toast.error("Gagal menambah: " + err.message);
+    }
   };
 
-  const addCustomSparepart = () => {
+  const addCustomSparepart = async () => {
     if (!customSparepart.name.trim() || customSparepart.price <= 0) return;
-    setLocalItems([
-      ...localItems,
-      {
-        id: `custom_sp_${Date.now()}`,
-        name: customSparepart.name.trim(),
-        price: customSparepart.price,
-        quantity: customSparepart.quantity,
-        item_type: "sparepart",
-        notes: reviewNotes || null,
-      },
-    ]);
-    setCustomSparepart({ name: "", price: 0, quantity: 1 });
-    setShowAddSparepart(false);
+    try {
+      const { data, error } = await supabase.from("service_items").insert({
+        service_order_id: service.id, item_type: "sparepart", name: customSparepart.name.trim(),
+        price: customSparepart.price, quantity: customSparepart.quantity, is_final: false,
+      }).select().single();
+      if (error) throw error;
+      setLocalItems([...localItems, data]);
+      setCustomSparepart({ name: "", price: 0, quantity: 1 });
+      setShowAddSparepart(false);
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id, status: "item_added",
+        message: `QC menambah sparepart ${customSparepart.name.trim()}`,
+        details: { action: "qc_add_item", reviewer: reviewerName },
+      });
+    } catch (err: any) {
+      toast.error("Gagal menambah: " + err.message);
+    }
   };
 
   // ── Caption generators ──
@@ -401,35 +437,21 @@ export default function QCReviewModal({
     }
     setProcessing(true);
     try {
-      if (status === "approved" && localItems.length > 0) {
-        const { error: delErr } = await supabase
+      if (status === "approved") {
+        await supabase
           .from("service_items")
-          .delete()
-          .eq("service_order_id", service.id);
-        if (delErr) throw new Error("Gagal hapus item lama: " + delErr.message);
+          .update({ is_final: true })
+          .eq("service_order_id", service.id)
+          .eq("is_final", false);
 
-        const combinedItems = localItems;
-
-        const insertItems = combinedItems.map((item: any) => ({
-          service_order_id: service.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          item_type: item.item_type,
-        }));
-        if (insertItems.length > 0) {
-          const { error: itemsErr } = await supabase
-            .from("service_items")
-            .insert(insertItems);
-          if (itemsErr)
-            throw new Error("Gagal simpan item: " + itemsErr.message);
-        }
         await supabase
           .from("service_orders")
           .update({
             final_cost: grandTotal,
             discount: effectiveDiscount,
             discount_percentage: discountPercent,
+            final_jasa_total: localItems.filter((i: any) => i.item_type === "jasa").reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0),
+            final_sparepart_total: localItems.filter((i: any) => i.item_type === "sparepart").reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0),
           })
           .eq("id", service.id);
       }
@@ -456,8 +478,8 @@ export default function QCReviewModal({
 
       const message =
         status === "approved"
-          ? `Service telah disetujui oleh QC (${reviewerName})`
-          : `Service memerlukan revisi. Alasan: ${reviewNotes}`;
+          ? `QC Approve — Service selesai dan siap diambil oleh ${reviewerName}`
+          : `QC Reject — ${reviewNotes}`;
       await supabase.from("service_timeline").insert({
         service_order_id: service.id,
         status: newStatus,
@@ -465,14 +487,13 @@ export default function QCReviewModal({
         details: {
           action: "qc_review",
           reviewer: reviewerName,
-          revision: true,
         },
       });
 
       let notifMsg =
         status === "approved"
-          ? `Service ${service.invoice_number} telah disetujui oleh QC`
-          : `Service ${service.invoice_number} ditolak QC. Alasan: ${reviewNotes}. Silakan perbaiki dan kirim kembali.`;
+          ? `Service ${service.invoice_number} telah disetujui QC`
+          : `Service ${service.invoice_number} perlu direvisi. ${reviewNotes}`;
 
       if (status === "approved") {
         const changes: string[] = [];
@@ -489,17 +510,9 @@ export default function QCReviewModal({
           const orig = serviceItems.find(
             (o: any) => o.id === curr.id && o.name === curr.name,
           );
-          if (orig && orig.price !== curr.price)
-            changes.push(
-              `\u2022 Harga ${curr.name}: Rp${(orig.price || 0).toLocaleString()} \u2192 Rp${(curr.price || 0).toLocaleString()}`,
-            );
-          if (orig && orig.quantity !== curr.quantity)
-            changes.push(
-              `\u2022 Qty ${curr.name}: ${orig.quantity}x \u2192 ${curr.quantity}x`,
-            );
           if (!orig)
             changes.push(
-              `\u2022 ${curr.item_type === "jasa" ? "Jasa" : "Sparepart"} baru: ${curr.name} Rp${(curr.price || 0).toLocaleString()}`,
+              `\u2022 ${curr.item_type === "jasa" ? "Jasa" : "Sparepart"} baru: ${curr.name}`,
             );
         }
         if (changes.length > 0) {

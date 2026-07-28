@@ -1,27 +1,27 @@
-import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
-import type { TransactionData, TransactionAnalytics } from "@/lib/transaction-service";
-import * as txService from "@/lib/transaction-service";
+import { create } from "zustand"
+import { subscribeWithSelector } from "zustand/middleware"
+import type { TransactionData, TransactionAnalytics } from "@/lib/domain/transaction/types"
+import * as txService from "@/lib/domain/transaction/service"
 
 interface TransactionState {
-  transactions: TransactionData[];
-  analytics: TransactionAnalytics;
-  loading: boolean;
-  error: string | null;
-  lastFetched: string | null;
+  transactions: TransactionData[]
+  analytics: TransactionAnalytics
+  loading: boolean
+  error: string | null
+  lastFetched: string | null
 }
 
 interface TransactionActions {
-  fetch: (dateFilter?: string) => Promise<void>;
-  create: (tx: TransactionData, userId: string, userName: string) => Promise<TransactionData>;
-  update: (id: string, tx: Partial<TransactionData>) => Promise<void>;
-  remove: (id: string) => Promise<void>;
-  updateStatus: (id: string, status: "active" | "completed" | "cancelled") => Promise<void>;
-  getById: (id: string) => TransactionData | undefined;
-  clear: () => void;
+  fetch: (dateFilter?: string) => Promise<void>
+  create: (tx: TransactionData, userId: string, userName: string) => Promise<TransactionData>
+  update: (id: string, tx: Partial<TransactionData>) => Promise<void>
+  remove: (id: string) => Promise<void>
+  updateStatus: (id: string, status: TransactionData["status"]) => Promise<void>
+  getById: (id: string) => TransactionData | undefined
+  clear: () => void
 }
 
-type TransactionStore = TransactionState & TransactionActions;
+type TransactionStore = TransactionState & TransactionActions
 
 export const useTransactionStore = create<TransactionStore>()(
   subscribeWithSelector((set, get) => ({
@@ -44,63 +44,63 @@ export const useTransactionStore = create<TransactionStore>()(
     lastFetched: null,
 
     fetch: async (dateFilter?: string) => {
-      set({ loading: true, error: null });
+      set({ loading: true, error: null })
       try {
-        const transactions = await txService.fetchAllTransactions(dateFilter);
-        const analytics = txService.computeAnalytics(transactions);
-        set({ transactions, analytics, loading: false, lastFetched: new Date().toISOString() });
-      } catch (err: any) {
-        set({ error: err.message, loading: false });
+        const transactions = await txService.fetchAllTransactions(dateFilter)
+        const analytics = txService.computeAnalytics(transactions)
+        set({ transactions, analytics, loading: false, lastFetched: new Date().toISOString() })
+      } catch (err: unknown) {
+        set({ error: err instanceof Error ? err.message : "Unknown error", loading: false })
       }
     },
 
     create: async (tx, userId, userName) => {
-      const result = await txService.createTransaction(tx, userId, userName);
+      const result = await txService.createTransaction(tx, userId, userName)
       set((state) => {
-        const updated = [result, ...state.transactions];
+        const updated = [result, ...state.transactions]
         return {
           transactions: updated,
           analytics: txService.computeAnalytics(updated),
-        };
-      });
-      return result;
+        }
+      })
+      return result
     },
 
     update: async (id, payload) => {
-      await txService.updateTransaction(id, payload);
+      await txService.updateTransaction(id, payload)
       set((state) => {
         const updated = state.transactions.map((t) =>
-          t.id === id ? { ...t, ...payload } : t,
-        );
+          t.id === id ? { ...t, ...payload } : (t as TransactionData),
+        )
         return {
-          transactions: updated,
-          analytics: txService.computeAnalytics(updated),
-        };
-      });
+          transactions: updated as TransactionData[],
+          analytics: txService.computeAnalytics(updated as TransactionData[]),
+        }
+      })
     },
 
     remove: async (id) => {
-      await txService.deleteTransaction(id);
+      await txService.deleteTransaction(id)
       set((state) => {
-        const updated = state.transactions.filter((t) => t.id !== id);
+        const updated = state.transactions.filter((t) => t.id !== id)
         return {
           transactions: updated,
           analytics: txService.computeAnalytics(updated),
-        };
-      });
+        }
+      })
     },
 
     updateStatus: async (id, status) => {
-      await txService.updateTransactionStatus(id, status);
+      await txService.updateTransactionStatus(id, status)
       set((state) => {
         const updated = state.transactions.map((t) =>
           t.id === id ? { ...t, status } : t,
-        );
+        )
         return {
           transactions: updated,
           analytics: txService.computeAnalytics(updated),
-        };
-      });
+        }
+      })
     },
 
     getById: (id) => get().transactions.find((t) => t.id === id),
@@ -118,4 +118,4 @@ export const useTransactionStore = create<TransactionStore>()(
         lastFetched: null,
       }),
   })),
-);
+)

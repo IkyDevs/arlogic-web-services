@@ -4,7 +4,12 @@ import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
-import { JenisLayanan, MetodePembayaran, LeadSource, jenisLayananLabels, metodePembayaranLabels } from "@/types";
+import { jenisLayananLabels, metodePembayaranLabels } from "@/lib/domain/transaction/enums";
+import type { TransactionServiceItem, SKUItem, TransactionData } from "@/lib/domain/transaction/types";
+import type { JenisLayanan, MetodePembayaran, LeadSource } from "@/lib/domain/transaction/enums";
+import { formatRupiah } from "@/lib/domain/shared/formatters";
+import { validateTransaction } from "@/lib/domain/shared/validation";
+import { calculateTransactionTotal, calculateItemSubtotal, serializeSKUs, parseSKUs, syncCustomer } from "@/lib/domain/transaction/service";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
@@ -14,11 +19,6 @@ import {
 } from "lucide-react";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import { useTransactionStore } from "@/stores/transaction-store";
-import {
-  validateTransaction, validateNoDuplicateJenis, calculateItemSubtotal,
-  calculateTransactionTotal, formatRupiah, serializeSKUs, parseSKUs,
-  syncCustomer, type TransactionServiceItem, type SKUItem,
-} from "@/lib/transaction-service";
 
 interface LayananFormProps {
   onSuccess?: () => void;
@@ -31,6 +31,7 @@ const jenisLayananOptions = [
   { value: "ambil_jam_service", label: "Ambil Jam Service" },
   { value: "order_online", label: "Order Online" },
   { value: "beli_jam", label: "Beli Jam" },
+  { value: "custom_strap", label: "Custom Strap" },
   { value: "dp_service", label: "DP Service" },
 ];
 
@@ -130,7 +131,7 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
   }, [metodePembayaran, splitPayment.nominal_1, total]);
 
   const addItem = useCallback(() => {
-    setItems((prev) => [...prev, { jenis_layanan: "service_langsung", skus: [{ sku: "", nominal: 0 }], notes: "" }]);
+    setItems((prev) => [...prev, { jenis_layanan: "service_langsung" as JenisLayanan, skus: [{ sku: "", nominal: 0 }], notes: "" }]);
   }, []);
 
   const removeItem = useCallback((idx: number) => {
@@ -138,7 +139,7 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
   }, []);
 
   const updateItemJenis = useCallback((idx: number, jenis: string) => {
-    setItems((prev) => prev.map((item, i) => i === idx ? { ...item, jenis_layanan: jenis } : item));
+    setItems((prev) => prev.map((item, i) => i === idx ? { ...item, jenis_layanan: jenis as JenisLayanan } : item));
   }, []);
 
   const updateItemNotes = useCallback((idx: number, notes: string) => {
@@ -248,10 +249,6 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
       handled_by: handledBy,
     });
 
-    if (!validateNoDuplicateJenis(items)) {
-      validationErrors.push({ field: "items", message: "Tidak boleh ada duplicate jenis layanan dalam 1 transaksi" });
-    }
-
     if (photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id) {
       validationErrors.push({ field: "photo", message: "Wajib upload minimal 1 foto" });
     }
@@ -360,8 +357,8 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
           items,
           handled_by: handledBy,
           handled_by_name: selectedUser?.full_name || user?.full_name,
-          metode_pembayaran: metodePembayaran,
-          lead_source: leadSource,
+          metode_pembayaran: metodePembayaran as MetodePembayaran,
+          lead_source: leadSource as LeadSource,
           lead_source_custom: leadSource === "tulis_sendiri" ? leadSourceCustom : null,
           notes,
           photo_urls: photoUrls,
@@ -373,29 +370,27 @@ export default memo(function LayananForm({ onSuccess, onClose, initialData }: La
         });
         toast.success("Transaksi berhasil diubah!");
       } else {
-        const txData = {
+        const txData: TransactionData = {
           customer_name: customerName.trim(),
           customer_whatsapp: customerWhatsapp.trim(),
           items,
+          status: "active",
           handled_by: handledBy,
           handled_by_name: selectedUser?.full_name || user?.full_name || "",
-          metode_pembayaran: metodePembayaran,
-          lead_source: leadSource,
+          metode_pembayaran: metodePembayaran as MetodePembayaran,
+          lead_source: leadSource as LeadSource,
           lead_source_custom: leadSource === "tulis_sendiri" ? leadSourceCustom : null,
           notes,
           photo_urls: photoUrls,
           telegram_chat_id: tgChatId,
           telegram_message_id: tgMessageId,
           split_payment: metodePembayaran === "split_payment",
-          metode_pembayaran_1: metodePembayaran === "split_payment" ? splitPayment.metode_1 : undefined,
-          nominal_1: metodePembayaran === "split_payment" ? parseInt(splitPayment.nominal_1) || 0 : undefined,
-          metode_pembayaran_2: metodePembayaran === "split_payment" ? splitPayment.metode_2 : undefined,
-          nominal_2: metodePembayaran === "split_payment" ? parseInt(derivedNominal2) || 0 : undefined,
+          metode_pembayaran_1: metodePembayaran === "split_payment" ? splitPayment.metode_1 as MetodePembayaran : undefined,
+          nominal_1: metodePembayaran === "split_payment" ? parseInt(splitPayment.nominal_1) || 0 : 0,
+          metode_pembayaran_2: metodePembayaran === "split_payment" ? splitPayment.metode_2 as MetodePembayaran : undefined,
+          nominal_2: metodePembayaran === "split_payment" ? parseInt(derivedNominal2) || 0 : 0,
         };
         const result = await createTx(txData, user!.id, user!.full_name || "");
-        if (result.photo_urls) {
-          txData.photo_urls = result.photo_urls;
-        }
         toast.success("Transaksi berhasil ditambahkan!");
       }
 

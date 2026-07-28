@@ -140,7 +140,9 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       }
 
       const [itemsRes, timelineRes, docsRes, qcDocsRes, feedbackRes] = await Promise.all([
-        supabase.from("service_items").select("*").eq("service_order_id", data.id),
+        data.status === "completed"
+          ? supabase.from("service_items").select("*").eq("service_order_id", data.id).eq("is_final", true)
+          : Promise.resolve({ data: [] }),
         supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
         supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
         supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "qc"),
@@ -197,7 +199,9 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       }
 
       const [itemsRes, timelineRes, docsRes, qcDocsRes, feedbackRes] = await Promise.all([
-        supabase.from("service_items").select("*").eq("service_order_id", data.id),
+        data.status === "completed"
+          ? supabase.from("service_items").select("*").eq("service_order_id", data.id).eq("is_final", true)
+          : Promise.resolve({ data: [] }),
         supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
         supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
         supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "qc"),
@@ -591,7 +595,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
           )}
 
           {/* Items & Cost - always show if exists (source: service_items = QC approved final) */}
-          {items.length > 0 && (
+          {(service.status === "completed" || service.status === "done") && items.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
               className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
               <button onClick={() => toggleSection("items")}
@@ -604,8 +608,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
                 </div>
                 {expandedSections.items ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
               </button>
-              {expandedSections.items && (
-                <div className="p-5 space-y-3 border-t border-slate-100">
+              {expandedSections.items && (<div className="p-5 space-y-3 border-t border-slate-100">
                   {items.map((item, i) => (
                     <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-200">
                       <div>

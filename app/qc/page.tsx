@@ -24,12 +24,14 @@ import {
   Shield,
   CheckCircle,
   Loader,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
 import QCStats from "@/components/qc/QCStats";
 import QCServiceList from "@/components/qc/QCServiceList";
 import QCReviewModal from "@/components/qc/QCReviewModal";
+import QCRecallModal from "@/components/qc/QCRecallModal";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import AttendanceReport from "@/components/qc/AttendanceReport";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -54,7 +56,7 @@ const DoneService = dynamic(() => import("@/components/admin/DoneService"), {
 });
 
 export default function QCDashboard() {
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [services, setServices] = useState<any[]>([]);
   const [filteredServices, setFilteredServices] = useState<any[]>([]);
@@ -68,6 +70,11 @@ export default function QCDashboard() {
   const [sparepartResults, setSparepartResults] = useState<any[]>([]);
   const [sparepartSearching, setSparepartSearching] = useState(false);
   const [showSparepartResults, setShowSparepartResults] = useState(false);
+
+  // QC Recall
+  const [completedServices, setCompletedServices] = useState<any[]>([]);
+  const [showRecallModal, setShowRecallModal] = useState(false);
+  const [recallTarget, setRecallTarget] = useState<any>(null);
 
   // Service form
   const [showServiceForm, setShowServiceForm] = useState(false);
@@ -86,6 +93,7 @@ export default function QCDashboard() {
 
   useEffect(() => {
     fetchServices();
+    fetchCompletedServices();
     fetchTeknisiList();
     checkTodayAttendance();
   }, []);
@@ -178,6 +186,30 @@ export default function QCDashboard() {
       setFilteredServices(mapped);
     }
     setLoading(false);
+  };
+
+  const fetchCompletedServices = async () => {
+    const { data } = await supabase
+      .from("service_orders")
+      .select("*, profiles:assigned_teknisi_id(full_name)")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(20);
+
+    if (data) {
+      const mapped = data.map((s: any) => ({
+        ...s,
+        teknisi_name: s.profiles?.full_name || "-",
+      }));
+      setCompletedServices(mapped);
+    }
+  };
+
+  const handleRecallComplete = () => {
+    setShowRecallModal(false);
+    setRecallTarget(null);
+    fetchCompletedServices();
+    fetchServices();
   };
 
   const fetchPendingApprovals = async () => {
@@ -319,6 +351,7 @@ export default function QCDashboard() {
 
   const menuItems: { id: string; label: string; icon: any; count?: number }[] = [
     { id: "all", label: "Semua", icon: ClipboardCheck },
+    { id: "completed", label: "Completed", icon: CheckCircle, count: completedServices.length },
     { id: "pending-approval", label: "Pending", icon: Clock, count: pendingApprovals.length },
     { id: "absensi", label: "Absensi", icon: Calendar },
     { id: "customer", label: "Customer", icon: Users },
@@ -380,10 +413,12 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "users" || tabId === "pending-approval") {
+          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "users" || tabId === "pending-approval" || tabId === "completed") {
             setActiveTab(tabId);
           } else if (tabId === "all") {
             filterByTeknisi("all");
+          } else if (tabId === "completed") {
+            setActiveTab("completed" as any);
           } else {
             filterByTeknisi(tabId);
           }
@@ -470,7 +505,43 @@ export default function QCDashboard() {
                   <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm font-medium text-gray-500">Tidak ada pending approval</p>
                 </div>
+) : (activeTab as string) === "completed" ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Service yang sudah di-Approve ({completedServices.length})</h3>
+              </div>
+              {completedServices.length === 0 ? (
+                <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm font-medium text-gray-500">Belum ada service yang di-approve</p>
+                </div>
               ) : (
+                <div className="grid gap-3">
+                  {completedServices.map((svc: any) => (
+                    <div key={svc.id} className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2 py-0.5 bg-emerald-600 text-white text-xs font-mono rounded-md">{svc.invoice_number}</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">APPROVED</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{svc.customer_name} • {svc.watch_brand || svc.device_brand}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">Teknisi: {svc.teknisi_name} • {svc.completed_at ? new Date(svc.completed_at).toLocaleDateString("id-ID") : "-"}</p>
+                        </div>
+                        <button
+                          onClick={() => { setRecallTarget(svc); setShowRecallModal(true) }}
+                          className="px-3 py-1.5 text-xs bg-red-500 text-white font-medium rounded-xl hover:bg-red-600 transition-all flex-shrink-0 flex items-center gap-1"
+                        >
+                          <AlertTriangle className="w-3 h-3" /> Recall
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
                 pendingApprovals.map((svc: any) => (
                   <div key={svc.id} className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -552,6 +623,16 @@ export default function QCDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Recall Modal */}
+      {showRecallModal && recallTarget && user?.id && (
+        <QCRecallModal
+          service={recallTarget}
+          qcId={user.id}
+          onClose={() => { setShowRecallModal(false); setRecallTarget(null) }}
+          onSuccess={handleRecallComplete}
+        />
       )}
 
       {/* Attendance Modal */}
