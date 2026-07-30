@@ -810,12 +810,8 @@ export default memo(function LayananForm({
           }
           upload.clear();
         }).catch(async (err) => {
-          console.error('[DEBUG:LayananForm] Background legacyUpload CATCH', {
-            error_message: err instanceof Error ? err.message : String(err),
-            error_name: err instanceof Error ? err.name : typeof err,
-            txIdToUpdate,
-            elapsed_ms: Date.now() - tNow,
-          });
+          console.error('[DEBUG:LayananForm] Background legacyUpload CATCH', err);
+          console.error('[DEBUG:LayananForm] CATCH details:', JSON.stringify({ err_type: typeof err, err_isErr: err instanceof Error, err_msg: err?.message, err_name: err?.name, err_str: String(err).slice(0,200), txIdToUpdate, elapsed_ms: Date.now() - tNow }));
           if (txIdToUpdate) {
             try {
               await updateTx(txIdToUpdate, { upload_status: 'FAILED' });

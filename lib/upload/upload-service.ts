@@ -360,41 +360,46 @@ export class UploadService {
       type,
       caption_length: caption?.length || 0,
     })
+
+    const proxyUrl = process.env.NEXT_PUBLIC_PHOTO_PROXY_URL || ''
+    const workerUrl = proxyUrl ? `${proxyUrl}/upload` : ''
     const formData = new FormData()
-    for (const f of files) formData.append('files', f, f.name)
     formData.append('type', type)
     if (caption) formData.append('caption', caption)
+    for (const f of files) formData.append('files', f, f.name)
 
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeout || 120000)
+    // Try Worker first, fallback to Vercel
+    const urls = [workerUrl, '/api/upload'].filter(Boolean)
+    let lastError: any = null
 
-    try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      })
-      clearTimeout(timer)
+    for (const uploadUrl of urls) {
+      if (!uploadUrl) continue
+      console.log('[DEBUG:UploadService] upload target:', uploadUrl)
 
-      const text = await res.text()
-      let data: any
-      try { data = JSON.parse(text) } catch {
-        throw new Error(`Server error (HTTP ${res.status})`)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeout || 120000)
+
+      try {
+        const res = await fetch(uploadUrl, { method: 'POST', body: formData, signal: controller.signal })
+        clearTimeout(timer)
+        const text = await res.text()
+        let data: any
+        try { data = JSON.parse(text) } catch { throw new Error(`Server error (HTTP ${res.status})`) }
+        if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
+        if (!data.urls?.length) throw new Error('Foto gagal dikirim')
+
+        return data.urls.map((url: string, i: number) => ({
+          url, chat_id: data.messages?.[i]?.chat_id || '', message_id: data.messages?.[i]?.message_id || 0, file_id: data.file_ids?.[i] || '',
+        }))
+      } catch (e: any) {
+        clearTimeout(timer)
+        lastError = e
+        console.warn('[DEBUG:UploadService] upload failed, trying next endpoint:', uploadUrl, e.message)
       }
-      if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
-      if (!data.urls?.length) throw new Error('Foto gagal dikirim')
-
-      return data.urls.map((url: string, i: number) => ({
-        url,
-        chat_id: data.messages?.[i]?.chat_id || '',
-        message_id: data.messages?.[i]?.message_id || 0,
-        file_id: data.file_ids?.[i] || '',
-      }))
-    } catch (e: any) {
-      clearTimeout(timer)
-      if (e.name === 'AbortError') throw new Error('Koneksi tidak stabil. Coba lagi.')
-      throw e
     }
+
+    if (lastError?.name === 'AbortError') throw new Error('Koneksi tidak stabil. Coba lagi.')
+    throw lastError || new Error('Upload gagal')
   }
 }
 
