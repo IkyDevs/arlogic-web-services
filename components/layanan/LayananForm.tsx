@@ -445,6 +445,26 @@ export default memo(function LayananForm({
       });
     }
 
+    // Prevent duplicate jenis_layanan
+    const jenisCount = new Map<string, number>();
+    for (const item of items) {
+      jenisCount.set(item.jenis_layanan, (jenisCount.get(item.jenis_layanan) || 0) + 1);
+    }
+    const duplicates = Array.from(jenisCount.entries()).filter(([, count]) => count > 1);
+    if (duplicates.length > 0) {
+      const names = duplicates
+        .map(([jenis]) => jenisLayananLabels[jenis as keyof typeof jenisLayananLabels] || jenis)
+        .join(", ");
+      toast.error(
+        <div>
+          <div className="font-medium">Tidak boleh menambah jenis layanan yang sama</div>
+          <div className="text-xs text-gray-500 mt-0.5">Silahkan tambahkan SKU jika ingin menambah layanan yang sama, atau pilih layanan lain.</div>
+        </div>,
+        { duration: 6000 },
+      );
+      return;
+    }
+
     if (validationErrors.length > 0) {
       setErrors(validationErrors.map((e) => e.message));
       toast.error(validationErrors[0].message);
@@ -466,7 +486,14 @@ export default memo(function LayananForm({
     setShowConfirmation(true);
   };
 
+  const submittingRef = useRef(false);
+
   const handleConfirmSubmit = async () => {
+    if (submittingRef.current) {
+      toast.error("Transaksi sedang diproses...");
+      return;
+    }
+    submittingRef.current = true;
     setShowConfirmation(false);
     setLoading(true);
     try {
@@ -666,11 +693,33 @@ export default memo(function LayananForm({
           { duration: 5000 },
         );
 
+        // Collect ALL photo files: download existing + add new
+        const downloadPromises = isEdit
+          ? photoUrls.map(async (url) => {
+              try {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                const blob = await res.blob();
+                const name = url.split('/').pop() || 'photo.jpg';
+                return new File([blob], name, { type: blob.type || 'image/jpeg' });
+              } catch { return null; }
+            })
+          : [];
+        const existingFiles = (await Promise.all(downloadPromises)).filter(Boolean) as File[];
+        const allFiles = [...existingFiles, ...pendingFiles.map(f => f.file)];
+        console.log('[DEBUG:LayananForm] All photo files for upload', {
+          existing_count: existingFiles.length,
+          new_count: pendingFiles.length,
+          total: allFiles.length,
+          isEdit,
+        });
+
         // Start background upload
         const legacyPromise = upload.legacyUpload(
-          pendingFiles.map(f => f.file),
+          allFiles,
           "layanan",
           mainCaption,
+          Math.max(120000, allFiles.length * 15000),
         );
 
         supabase.from('layanan').update({ upload_status: 'UPLOADING' } as any).eq('id', txIdToUpdate).then((r: any) => {
@@ -700,44 +749,55 @@ export default memo(function LayananForm({
               txIdToUpdate,
               timestamp: Date.now() - thenTs,
             });
-            const { data: upData, error: upError, status: upStatus, count: upCount } = await supabase
-              .from('layanan')
-              .update({
-                photo_urls: [...photoUrls, ...results.map(r => r.url)],
-                telegram_chat_id: results[0]?.chat_id || null,
-                telegram_message_id: results[0]?.message_id || null,
+
+            // Fix #1: Update via store (DB + Zustand) instead of direct supabase
+            const newPhotoUrls = results.map(r => r.url);
+            const newChatId = results[0]?.chat_id;
+            const newMsgId = results[0]?.message_id;
+
+            // For edit mode: delete OLD Telegram message before saving new IDs
+            if (isEdit && initialData?.id) {
+              const oldChatId = (initialData as any).telegram_chat_id;
+              const oldMsgId = (initialData as any).telegram_message_id;
+              if (oldChatId && oldMsgId) {
+                try {
+                  await fetch("/api/telegram/delete-message", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chat_id: oldChatId, message_id: oldMsgId }),
+                  });
+                } catch {}
+              }
+            }
+
+            try {
+              await updateTx(txIdToUpdate, {
+                photo_urls: newPhotoUrls,
+                telegram_chat_id: newChatId || undefined,
+                telegram_message_id: newMsgId || undefined,
                 upload_status: 'SUCCESS',
-              } as any)
-              .eq('id', txIdToUpdate)
-              .select('id, photo_urls, upload_status, telegram_chat_id, telegram_message_id');
-            console.log('[DEBUG:LayananForm] AFTER supabase.update RESULT', {
-              upError: upError ? { message: upError.message, details: upError.details, hint: upError.hint, code: upError.code } : null,
-              upData,
-              upStatus,
-              upCount,
-              txIdToUpdate,
-              elapsed_since_then: Date.now() - thenTs,
-            });
+              });
+              console.log('[DEBUG:LayananForm] updateTx SUCCESS', { txIdToUpdate, newPhotoUrls });
 
-            // Verify by re-querying
-            const { data: verifyData } = await supabase
-              .from('layanan')
-              .select('id, photo_urls, upload_status, telegram_chat_id, telegram_message_id, created_at')
-              .eq('id', txIdToUpdate)
-              .single();
-            console.log('[DEBUG:LayananForm] VERIFY after update', {
-              verifyData: verifyData ? {
-                id: (verifyData as any).id,
-                photo_urls: (verifyData as any).photo_urls,
-                photo_urls_length: ((verifyData as any)?.photo_urls || []).length,
-                upload_status: (verifyData as any).upload_status,
-                telegram_chat_id: (verifyData as any).telegram_chat_id,
-                telegram_message_id: (verifyData as any).telegram_message_id,
-              } : 'NO_DATA',
-              txIdToUpdate,
-            });
-
-            toast.success(`Foto transaksi ${customerName} berhasil diproses`);
+              toast.success(`Foto transaksi ${customerName} berhasil diproses`);
+            } catch (updateErr) {
+              console.error('[DEBUG:LayananForm] updateTx FAILED', {
+                error: updateErr instanceof Error ? updateErr.message : String(updateErr),
+                txIdToUpdate,
+              });
+              // Fallback: update DB directly
+              await supabase
+                .from('layanan')
+                .update({ upload_status: 'FAILED' } as any)
+                .eq('id', txIdToUpdate);
+              toast.error(
+                <div>
+                  <div className="font-medium">Upload foto gagal</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Klik di sini untuk upload ulang.</div>
+                </div>,
+                { duration: 8000 },
+              );
+            }
           } else if (txIdToUpdate) {
             console.log('[DEBUG:LayananForm] FAILED path (results empty but txId exists)', {
               results_count: results?.length,
@@ -761,23 +821,20 @@ export default memo(function LayananForm({
               txIdToUpdate_type: typeof txIdToUpdate,
             });
           }
-          console.log('[DEBUG:LayananForm] BEFORE upload.clear', { timestamp: Date.now() });
           upload.clear();
-          console.log('[DEBUG:LayananForm] AFTER upload.clear', { timestamp: Date.now() });
         }).catch(async (err) => {
           console.error('[DEBUG:LayananForm] Background legacyUpload CATCH', {
             error_message: err instanceof Error ? err.message : String(err),
             error_name: err instanceof Error ? err.name : typeof err,
-            error_stack: err instanceof Error ? err.stack : undefined,
             txIdToUpdate,
             elapsed_ms: Date.now() - tNow,
-            component_still_mounted: !!(document.querySelector('[data-layanan-form]')),
           });
           if (txIdToUpdate) {
-            await supabase
-              .from('layanan')
-              .update({ upload_status: 'FAILED' } as any)
-              .eq('id', txIdToUpdate);
+            try {
+              await updateTx(txIdToUpdate, { upload_status: 'FAILED' });
+            } catch {
+              await supabase.from('layanan').update({ upload_status: 'FAILED' } as any).eq('id', txIdToUpdate);
+            }
           }
           toast.error(
             <div>
@@ -820,8 +877,10 @@ export default memo(function LayananForm({
             });
             const data = await res.json();
             if (data.success && data.chat_id && data.message_id) {
-              tgChatId = data.chat_id;
-              tgMessageId = data.message_id;
+              await updateTx(initialData.id, {
+                telegram_chat_id: data.chat_id,
+                telegram_message_id: data.message_id,
+              }).catch(() => {});
             }
           } catch {}
         }
@@ -852,6 +911,7 @@ export default memo(function LayananForm({
       toast.error(err.message || "Gagal menyimpan transaksi");
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
@@ -865,9 +925,10 @@ export default memo(function LayananForm({
   return (
     <motion.div
       data-layanan-form="true"
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.97 }}
+      initial={{ opacity: 0, y: 30, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.96 }}
+      transition={{ type: "spring", damping: 28, stiffness: 320 }}
       className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
     >
       <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-10 flex justify-between items-center px-6 py-4 border-b border-gray-200 dark:border-white/10">
@@ -991,11 +1052,16 @@ export default memo(function LayananForm({
                     onChange={(e) => updateItemJenis(itemIdx, e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
                   >
-                    {jenisLayananOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
+                    {jenisLayananOptions.map((o) => {
+                      const isSelectedByOther = items.some(
+                        (other, oi) => oi !== itemIdx && other.jenis_layanan === o.value,
+                      );
+                      return (
+                        <option key={o.value} value={o.value} disabled={isSelectedByOther} className={isSelectedByOther ? 'text-gray-300' : ''}>
+                          {o.label}{isSelectedByOther ? ' (sudah dipilih)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
 
                   <div className="space-y-2">
@@ -1385,63 +1451,124 @@ export default memo(function LayananForm({
       </form>
 
       {showConfirmation && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-white/10"
           >
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                Konfirmasi Transaksi
-              </h3>
-            </div>
-            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                <p className="text-xs text-blue-700 dark:text-blue-300">
-                  Periksa kembali data di bawah sebelum menyimpan
-                </p>
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {customerName} - {customerWhatsapp}
-              </p>
-              {items.map((item, i) => (
-                <div
-                  key={i}
-                  className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 space-y-1"
-                >
-                  <p className="text-xs font-semibold text-gray-900">
-                    {jenisLayananOptions.find(
-                      (o) => o.value === item.jenis_layanan,
-                    )?.label || item.jenis_layanan}
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  Konfirmasi Transaksi
+                </h3>
+                <p className="text-[11px] text-gray-500">Periksa data sebelum menyimpan</p>
+              </div>
+            </div>
+            <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
+              {/* Customer info */}
+              <div className="flex items-start gap-3 pb-3 border-b border-gray-100 dark:border-white/5">
+                <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                  <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{customerName}</p>
+                  <p className="text-xs text-gray-500">{customerWhatsapp}</p>
+                </div>
+                <div className="ml-auto text-right flex-shrink-0">
+                  <p className="text-xs font-medium text-gray-500">Lead</p>
+                  <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                    {leadSourceOptions.find((o) => o.value === leadSource)?.label || leadSource}
+                    {leadSource === "tulis_sendiri" && leadSourceCustom ? `: ${leadSourceCustom}` : ""}
                   </p>
-                  {item.skus.map((sku, j) => (
-                    <div key={j} className="flex justify-between text-xs">
-                      <span className="text-gray-500">{sku.sku || "-"}</span>
-                      <span className="font-semibold text-blue-600">
-                        {formatRupiah(sku.nominal)}
+                </div>
+              </div>
+
+              {/* Handled by */}
+              <div className="flex items-center gap-2 text-xs text-gray-500 pb-2 border-b border-gray-100 dark:border-white/5">
+                <Wrench className="w-3 h-3" />
+                <span>Ditangani oleh: <strong className="text-gray-700 dark:text-gray-300">{users.find(u => u.id === handledBy)?.full_name || user?.full_name || "-"}</strong></span>
+              </div>
+
+              {/* Service items */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Layanan</p>
+                {items.map((item, i) => (
+                  <div
+                    key={i}
+                    className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-900 dark:text-gray-100">
+                        {jenisLayananOptions.find(
+                          (o) => o.value === item.jenis_layanan,
+                        )?.label || item.jenis_layanan}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {item.skus.length} SKU
                       </span>
                     </div>
-                  ))}
-                  <div className="border-t border-gray-200 dark:border-white/10 pt-1 flex justify-between text-xs font-bold">
-                    <span>Subtotal</span>
-                    <span className="text-blue-600">
-                      {formatRupiah(calculateItemSubtotal(item.skus))}
-                    </span>
+                    {item.skus.map((sku, j) => (
+                      <div key={j} className="flex justify-between text-xs pl-2 border-l-2 border-gray-200 dark:border-white/10">
+                        <span className="text-gray-500">{sku.sku || "-"}</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                          {formatRupiah(sku.nominal)}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="border-t border-gray-200 dark:border-white/10 pt-1 flex justify-between text-[11px] font-bold">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {formatRupiah(calculateItemSubtotal(item.skus))}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
-              <div className="flex justify-between p-3 bg-gray-900 dark:bg-white rounded-xl">
-                <span className="text-sm font-bold text-white dark:text-gray-900">
-                  Grand Total
-                </span>
-                <span className="text-sm font-bold text-white dark:text-gray-900">
-                  {formatRupiah(total)}
-                </span>
+                ))}
               </div>
-              <p className="text-xs text-gray-500">
-                {photoPreviews.length} foto akan diupload
-              </p>
+
+              {/* Payment info */}
+              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Pembayaran</p>
+                {metodePembayaran === "split_payment" ? (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">{splitMetodeOptions.find((o) => o.value === splitPayment.metode_1)?.label || splitPayment.metode_1}</span>
+                      <span className="font-semibold">{formatRupiah(parseInt(splitPayment.nominal_1) || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">{splitMetodeOptions.find((o) => o.value === splitPayment.metode_2)?.label || splitPayment.metode_2}</span>
+                      <span className="font-semibold">{formatRupiah(parseInt(derivedNominal2) || 0)}</span>
+                    </div>
+                    <div className="border-t border-gray-300 dark:border-white/20 pt-1 flex justify-between text-xs font-bold">
+                      <span>Total</span>
+                      <span>{formatRupiah(total)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">{metodePembayaranOptions.find((o) => o.value === metodePembayaran)?.label || metodePembayaran}</span>
+                    <span className="font-bold text-gray-900 dark:text-gray-100">{formatRupiah(total)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Notes */}
+              {notes && (
+                <div className="flex items-start gap-2 text-xs text-gray-500 p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                  <FileText className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span>{notes}</span>
+                </div>
+              )}
+
+              {/* Photo count */}
+              <div className="flex items-center gap-2 text-xs text-gray-500 pt-1">
+                <Camera className="w-3.5 h-3.5" />
+                <span>{photoPreviews.length} foto akan diupload</span>
+              </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex gap-3">
               <button

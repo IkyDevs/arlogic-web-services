@@ -854,27 +854,37 @@ export default function LayananList({
                     <td className="px-3 py-3 text-right font-bold text-blue-600 text-xs sm:text-sm whitespace-nowrap">
                       {formatRupiah(total)}
                     </td>
-                    <td className="px-3 py-3 text-center">
-                      {photos.length > 0 ? (
-                        <button
-                          onClick={() => setPhotoGallery(photos)}
-                          className="px-2 py-1 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-[10px] font-medium flex items-center gap-1 mx-auto"
-                        >
-                          <Camera className="w-3 h-3" /> {photos.length}
-                        </button>
-                      ) : tx.upload_status === 'FAILED' ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-600">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                          Failed
-                        </span>
-                      ) : tx.upload_status === 'UPLOADING' || tx.upload_status === 'PENDING' ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                          Processing
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-300">-</span>
-                      )}
+                    <td className="px-3 py-3 text-center align-middle">
+                      <div className="flex flex-col items-center gap-1">
+                        {photos.length > 0 ? (
+                          <button
+                            onClick={() => setPhotoGallery(photos)}
+                            className="px-2 py-1 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-[10px] font-medium flex items-center gap-1"
+                          >
+                            <Camera className="w-3 h-3" /> {photos.length}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-300">-</span>
+                        )}
+                        {tx.upload_status === 'FAILED' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-50 text-red-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            Failed
+                          </span>
+                        )}
+                        {(tx.upload_status === 'UPLOADING' || tx.upload_status === 'PENDING') && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 text-amber-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Processing
+                          </span>
+                        )}
+                        {tx.upload_status === 'SUCCESS' && photos.length === 0 && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-50 text-emerald-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Complete
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-center">
                       <span
