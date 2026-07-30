@@ -433,7 +433,7 @@ export default function AdminDashboard() {
     const today = new Date().toISOString().split("T")[0];
     const { data } = await supabase
       .from("layanan")
-      .select("*")
+      .select("*, layanan_items(*)")
       .gte("created_at", today + "T00:00:00")
       .lte("created_at", today + "T23:59:59")
       .order("created_at", { ascending: false })

@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 import { TrendingUp, Users, ShoppingCart, Clock, ArrowUp, ArrowDown, Box, Phone, Wallet, User as UserIcon, Banknote, Receipt, CreditCard } from "lucide-react";
+import { computeAnalytics, calculateTransactionTotal } from "@/lib/domain/transaction/service";
+import { jenisLayananLabels } from "@/lib/domain/transaction/enums";
 
 const COLORS_LIGHT = ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#F97316"];
 const COLORS_DARK = ["#60A5FA", "#34D399", "#A78BFA", "#FBBF24", "#F87171", "#F472B6", "#2DD4BF", "#FB923C"];
@@ -59,31 +61,29 @@ export default function AdminDashboardAnalytics({
 
   const chartData = useMemo(() => externalChartData?.length ? externalChartData : [], [externalChartData]);
 
-  const { paymentDist, serviceTypeDist } = useMemo(() => {
-    const pm: Record<string, number> = {};
-    const st: Record<string, number> = {};
-    for (const tx of recentTransactions) {
-      const m = tx.metode_pembayaran || "unknown";
-      pm[m] = (pm[m] || 0) + 1;
-      const j = tx.jenis_layanan || tx.service_type || "unknown";
-      st[j] = (st[j] || 0) + 1;
-    }
-    return {
-      paymentDist: Object.entries(pm).map(([k, v]) => ({ name: paymentLabels[k] || k, value: v })),
-      serviceTypeDist: Object.entries(st).map(([k, v]) => ({ name: jenisLabels[k] || k, value: v })),
-    };
+  const analytics = useMemo(() => {
+    if (recentTransactions.length === 0) return null;
+    try { return computeAnalytics(recentTransactions as any); }
+    catch { return null; }
   }, [recentTransactions]);
 
+  const paymentDist = useMemo(() => {
+    if (!analytics) return [];
+    return Object.entries(analytics.metodeRevenue)
+      .sort(([, a], [, b]) => Number(b) - Number(a))
+      .map(([k, v]) => ({
+        name: paymentLabels[k] || k,
+        value: analytics.metodeCount[k] || 0,
+        revenue: v,
+      }));
+  }, [analytics]);
+
   const revenueByType = useMemo(() => {
-    const byType: Record<string, number> = {};
-    for (const tx of recentTransactions) {
-      const j = jenisLabels[tx.jenis_layanan] || tx.jenis_layanan || "Lainnya";
-      byType[j] = (byType[j] || 0) + (tx.nominal || 0);
-    }
-    return Object.entries(byType)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [recentTransactions]);
+    if (!analytics) return [];
+    return Object.entries(analytics.jenisRevenue)
+      .sort(([, a], [, b]) => Number(b) - Number(a))
+      .map(([k, v]) => ({ name: jenisLayananLabels[k] || k, value: v as number }));
+  }, [analytics]);
 
   const colors = isDark ? COLORS_DARK : COLORS_LIGHT;
   const tooltipBg = isDark ? "#0F172A" : "#FFFFFF";
@@ -155,23 +155,21 @@ export default function AdminDashboardAnalytics({
           {paymentDist.length > 0 && (
             <div className="mt-4 pt-3 border-t border-slate-700/50 space-y-2">
               <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Per Metode Pembayaran</p>
-              {(() => {
-                const totalTx = paymentDist.reduce((s, x) => s + x.value, 0);
-                return paymentDist.sort((a, b) => b.value - a.value).slice(0, 4).map((item, i) => {
-                  const pct = totalTx > 0 ? Math.round(item.value / totalTx * 100) : 0;
-                  return (
-                    <div key={item.name}>
-                      <div className="flex justify-between items-center mb-0.5">
-                        <span className="text-[11px] text-slate-300">{item.name}</span>
-                        <span className="text-[11px] text-slate-200 font-semibold">{item.value} trans</span>
-                      </div>
-                      <div className="w-full bg-slate-700 rounded-full h-1">
-                        <div className="h-1 rounded-full transition-all" style={{ width: pct + "%", backgroundColor: ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B"][i] }} />
-                      </div>
+              {paymentDist.slice(0, 4).map((item, i) => {
+                const totalRev = paymentDist.reduce((s, x) => s + (x.revenue || 0), 0);
+                const pct = totalRev > 0 ? Math.round(Number(item.revenue || 0) / totalRev * 100) : 0;
+                return (
+                  <div key={item.name}>
+                    <div className="flex justify-between items-center mb-0.5">
+                      <span className="text-[11px] text-slate-300">{item.name}</span>
+                      <span className="text-[11px] text-slate-200 font-semibold">{formatRupiah(Number(item.revenue || 0))}</span>
                     </div>
-                  );
-                });
-              })()}
+                    <div className="w-full bg-slate-700 rounded-full h-1">
+                      <div className="h-1 rounded-full transition-all" style={{ width: pct + "%", backgroundColor: ["#3B82F6", "#10B981", "#8B5CF6", "#F59E0B"][i] }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </motion.div>
@@ -285,14 +283,15 @@ export default function AdminDashboardAnalytics({
               className={`${cardBg} rounded-xl p-4 md:p-5 border ${cardBorder} shadow-sm`}>
               <h3 className={`text-sm font-bold mb-2 ${isDark ? "text-white" : "text-slate-900"}`}>Metode Pembayaran</h3>
               <div className="space-y-1.5">
-                {paymentDist.sort((a, b) => b.value - a.value).slice(0, 5).map((item, i) => {
-                  const total = paymentDist.reduce((s, x) => s + x.value, 0);
+                {paymentDist.sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0)).slice(0, 5).map((item, i) => {
+                  const totalRev = paymentDist.reduce((s, x) => s + Number(x.revenue || 0), 0);
+                  const pct = totalRev > 0 ? Math.round(Number(item.revenue || 0) / totalRev * 100) : 0;
                   return (
                     <div key={item.name} className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
                       <span className={`text-xs flex-1 ${isDark ? "text-slate-300" : "text-slate-600"}`}>{item.name}</span>
-                      <span className={`text-xs font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>{item.value}</span>
-                      <span className={`text-[10px] ${isDark ? "text-slate-500" : "text-slate-400"}`}>({Math.round(item.value / total * 100)}%)</span>
+                      <span className={`text-xs font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>{formatRupiah(Number(item.revenue || 0))}</span>
+                      <span className={`text-[10px] ${isDark ? "text-slate-500" : "text-slate-400"}`}>({pct}%)</span>
                     </div>
                   );
                 })}

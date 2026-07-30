@@ -123,15 +123,22 @@ export function computeAnalytics(data: TransactionData[]): TransactionAnalytics 
   for (const tx of data) {
     const items = tx.items || []
     const allJenis = items.map((i) => i.jenis_layanan) || []
-    const nominal = calculateTransactionTotal(items)
-    const isExpense = allJenis.includes("pengeluaran")
+    const nominal = items.length > 0 ? calculateTransactionTotal(items) : ((tx as any).nominal || 0)
+    const isExpense = items.length > 0 ? allJenis.includes("pengeluaran") : (tx as any).jenis_layanan === "pengeluaran"
 
     // Per-jenis: count transactions + sum revenue per jenis
-    for (const item of items) {
-      const j = item.jenis_layanan
+    if (items.length > 0) {
+      for (const item of items) {
+        const j = item.jenis_layanan
+        jenisCount[j] = (jenisCount[j] || 0) + 1
+        const itemNominal = calculateItemSubtotal(item.skus || [])
+        jenisRevenue[j] = (jenisRevenue[j] || 0) + itemNominal
+      }
+    } else if ((tx as any).jenis_layanan) {
+      // Fallback: flat data (no items[]), use single jenis_layanan + nominal
+      const j = (tx as any).jenis_layanan
       jenisCount[j] = (jenisCount[j] || 0) + 1
-      const itemNominal = calculateItemSubtotal(item.skus || [])
-      jenisRevenue[j] = (jenisRevenue[j] || 0) + itemNominal
+      jenisRevenue[j] = (jenisRevenue[j] || 0) + ((tx as any).nominal || 0)
     }
 
     if (isExpense) totalExpenses += nominal

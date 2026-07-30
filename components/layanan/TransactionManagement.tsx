@@ -9,7 +9,9 @@ import CashdrawForm from "./CashdrawForm";
 import LayananForm from "./LayananForm";
 import { useTransactionStore } from "@/stores/transaction-store";
 import { realtimeService } from "@/lib/realtime";
-import { formatRupiah, computeAnalytics } from "@/lib/transaction-service";
+import { formatRupiah } from "@/lib/transaction-service";
+import { computeAnalytics } from "@/lib/domain/transaction/service";
+import { jenisLayananLabels } from "@/lib/domain/transaction/enums";
 
 const paymentLabels: Record<string, string> = {
   cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer",
@@ -21,7 +23,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const { transactions, analytics, fetch, loading } = useTransactionStore();
   const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun">("hari");
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[] } | null>(null);
+  const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[]; filterKey?: string; filterType?: string } | null>(null);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showCashdrawForm, setShowCashdrawForm] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -102,7 +104,15 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
                 <div key={`${tx.id}-${i}`} className={`p-3 rounded-xl border ${isExpense ? "border-red-200 bg-red-50" : "border-slate-200 bg-slate-50"}`}>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className={`font-semibold text-sm ${isExpense ? "text-red-700" : "text-slate-900"}`}>{tx.customer_name}</span>
-                    <span className={`text-xs font-medium ${isExpense ? "text-red-600" : "text-emerald-600"}`}>{formatRupiah(tx.items?.reduce((s: number, it: any) => s + it.skus.reduce((ss: number, sk: any) => ss + sk.nominal, 0), 0) || 0)}</span>
+                    <span className={`text-xs font-medium ${isExpense ? "text-red-600" : "text-emerald-600"}`}>{formatRupiah(
+                      filterModal.filterType === 'jenis' && filterModal.filterKey
+                        ? tx.items?.filter((it: any) => it.jenis_layanan === filterModal.filterKey)
+                          .reduce((s: number, it: any) => s + it.skus.reduce((ss: number, sk: any) => ss + (sk.nominal || 0), 0), 0) || 0
+                        : filterModal.filterType === 'metode' && filterModal.filterKey && tx.split_payment
+                          ? (tx.metode_pembayaran_1 === filterModal.filterKey ? (tx.nominal_1 || 0) : 0)
+                            + (tx.metode_pembayaran_2 === filterModal.filterKey ? (tx.nominal_2 || 0) : 0)
+                          : tx.items?.reduce((s: number, it: any) => s + it.skus.reduce((ss: number, sk: any) => ss + (sk.nominal || 0), 0), 0) || 0
+                    )}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500 flex-wrap">
                     {!isExpense && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{tx.customer_whatsapp || "-"}</span>}
@@ -204,8 +214,19 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           <p className="text-[10px] md:text-sm font-bold text-blue-600 uppercase mb-1 md:mb-2">Jenis Layanan</p>
           <div className="space-y-0.5 md:space-y-1">
             {Object.entries(filteredAnalytics.jenisCount).sort(([, a], [, b]) => b - a).slice(0, 4).map(([key, val]) => {
+              const revenue = filteredAnalytics.jenisRevenue?.[key] || 0;
               const pct = filteredAnalytics.total > 0 ? Math.round(Number(val) / filteredAnalytics.total * 100) : 0;
-              return <BarItem key={key} label={key} value={val} pct={pct} onClick={() => openFilterModal(`Jenis: ${key}`, (item) => item.items?.some((it: any) => it.jenis_layanan === key) || item.jenis_layanan === key)} />;
+              const label = jenisLayananLabels[key] || key;
+              return <BarItem key={key} label={`${label} (${val}x)`} value={formatRupiah(Number(revenue))} pct={pct}
+                onClick={() => setFilterModal({
+                  title: `Jenis: ${label}`,
+                  filtered: filteredTransactions.filter((item) => {
+                    if (item.items?.length) return item.items.some((it: any) => it.jenis_layanan === key);
+                    return (item as any).jenis_layanan === key;
+                  }),
+                  filterKey: key,
+                  filterType: 'jenis',
+                })} />;
             })}
           </div>
         </div>
@@ -248,7 +269,17 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
               const methodCount = filteredAnalytics.metodeCount[key] || 0;
               const pct = totalMethodCount > 0 ? Math.round(methodCount / totalMethodCount * 100) : 0;
               return <BarItem key={key} label={paymentLabels[key] || key} value={formatRupiah(Number(val))} pct={pct}
-                onClick={() => openFilterModal(`Method: ${paymentLabels[key] || key}`, (item) => (item.metode_pembayaran || "unknown") === key)} />;
+                onClick={() => setFilterModal({
+                  title: `Method: ${paymentLabels[key] || key}`,
+                  filtered: filteredTransactions.filter((item) => {
+                    if (item.split_payment) {
+                      return item.metode_pembayaran_1 === key || item.metode_pembayaran_2 === key;
+                    }
+                    return (item.metode_pembayaran || "unknown") === key;
+                  }),
+                  filterKey: key,
+                  filterType: 'metode',
+                })} />;
             })}
           </div>
         </div>

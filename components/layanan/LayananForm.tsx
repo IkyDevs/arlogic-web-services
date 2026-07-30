@@ -1271,65 +1271,36 @@ export default memo(function LayananForm({
                 </div>
               </div>
             ) : (
-              <>
-                <div>
-                  <label className={labelClass}>Total</label>
-                  <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-bold text-blue-600">
-                    {formatRupiah(total)}
-                  </div>
+              <div>
+                <label className={labelClass}>Total</label>
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-bold text-blue-600">
+                  {formatRupiah(total)}
                 </div>
-                <div>
-                  <label className={labelClass}>Lead Source</label>
-                  <select
-                    value={leadSource}
-                    onChange={(e) => setLeadSource(e.target.value)}
-                    className={inputClass}
-                  >
-                    {leadSourceOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {showCustomLeadSource && (
-                  <div>
-                    <label className={labelClass}>Custom Lead Source</label>
-                    <input
-                      type="text"
-                      value={leadSourceCustom}
-                      onChange={(e) => setLeadSourceCustom(e.target.value)}
-                      className={inputClass}
-                      placeholder="Tulis sumber..."
-                    />
-                  </div>
-                )}
-              </>
+              </div>
             )}
           </div>
         </div>
 
-        {metodePembayaran !== "split_payment" && (
-          <div className={sectionClass}>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-              <FileText className="w-3.5 h-3.5" /> Lead Source & Notes
-            </p>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Lead Source</label>
-                <select
-                  value={leadSource}
-                  onChange={(e) => setLeadSource(e.target.value)}
-                  className={inputClass}
-                >
-                  {leadSourceOptions.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {showCustomLeadSource && (
+        <div className={sectionClass}>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+            <FileText className="w-3.5 h-3.5" /> Lead Source & Notes
+          </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Lead Source</label>
+              <select
+                value={leadSource}
+                onChange={(e) => setLeadSource(e.target.value)}
+                className={inputClass}
+              >
+                {leadSourceOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {showCustomLeadSource && (
                 <div>
                   <label className={labelClass}>Custom Lead Source</label>
                   <input
@@ -1350,7 +1321,6 @@ export default memo(function LayananForm({
               placeholder="Catatan tambahan..."
             />
           </div>
-        )}
 
         <div className={sectionClass}>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
