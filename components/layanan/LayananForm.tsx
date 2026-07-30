@@ -693,42 +693,14 @@ export default memo(function LayananForm({
           { duration: 5000 },
         );
 
-        // Collect ALL photo files: download existing + add new
-        const downloadPromises = isEdit
-          ? photoUrls.map(async (url) => {
-              try {
-                const res = await fetch(url);
-                if (!res.ok) return null;
-                const blob = await res.blob();
-                const name = url.split('/').pop() || 'photo.jpg';
-                return new File([blob], name, { type: blob.type || 'image/jpeg' });
-              } catch { return null; }
-            })
-          : [];
-        const existingFiles = (await Promise.all(downloadPromises)).filter(Boolean) as File[];
-        const allFiles = [...existingFiles, ...pendingFiles.map(f => f.file)];
-        console.log('[DEBUG:LayananForm] All photo files for upload', {
-          existing_count: existingFiles.length,
-          new_count: pendingFiles.length,
-          total: allFiles.length,
-          isEdit,
-        });
+        // Upload new files only (existing photos tetap di DB via photoUrls, tidak perlu di-reupload)
+        supabase.from('layanan').update({ upload_status: 'UPLOADING' } as any).eq('id', txIdToUpdate).then();
 
-        // Start background upload
-        const legacyPromise = upload.legacyUpload(
-          allFiles,
+        upload.legacyUpload(
+          pendingFiles.map(f => f.file),
           "layanan",
           mainCaption,
-          Math.max(120000, allFiles.length * 15000),
-        );
-
-        supabase.from('layanan').update({ upload_status: 'UPLOADING' } as any).eq('id', txIdToUpdate).then((r: any) => {
-          console.log('[DEBUG:LayananForm] status UPLOADING result', { error: r?.error, status: r?.status, txIdToUpdate });
-        });
-
-        console.log('[DEBUG:LayananForm] BEFORE legacyUpload await', { timestamp: Date.now() - tNow });
-
-        legacyPromise.then(async (results) => {
+        ).then(async (results) => {
           const thenTs = Date.now();
           console.log('[DEBUG:LayananForm] INSIDE .then() CALLBACK', {
             elapsed_ms: thenTs - tNow,
@@ -751,7 +723,7 @@ export default memo(function LayananForm({
             });
 
             // Fix #1: Update via store (DB + Zustand) instead of direct supabase
-            const newPhotoUrls = results.map(r => r.url);
+            const newPhotoUrls = [...photoUrls, ...results.map(r => r.url)];
             const newChatId = results[0]?.chat_id;
             const newMsgId = results[0]?.message_id;
             const newFileIds = results.map(r => r.file_id).filter(Boolean);
