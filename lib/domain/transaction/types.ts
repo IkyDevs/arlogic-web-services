@@ -37,6 +37,7 @@ export interface TransactionData {
   nominal_2: number
   telegram_chat_id?: string
   telegram_message_id?: number
+  telegram_file_id?: string
   upload_status?: UploadStatus
   created_at?: string
   updated_at?: string
@@ -52,6 +53,7 @@ export interface TransactionAnalytics {
   completed: number
   cancelled: number
   jenisCount: Record<string, number>
+  jenisRevenue: Record<string, number>
   metodeRevenue: Record<string, number>
   metodeCount: Record<string, number>
   staffStats: Record<string, { count: number; revenue: number }>
@@ -98,6 +100,7 @@ export interface LegacyLayananRow {
   nominal_2?: number
   telegram_chat_id?: string
   telegram_message_id?: number
+  telegram_file_id?: string
   upload_status?: string
   created_at: string
   updated_at?: string

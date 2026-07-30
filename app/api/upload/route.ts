@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { uploadMultipleToTelegram } from '@/lib/telegram'
 import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
@@ -7,8 +6,8 @@ import { UploadType } from '@/lib/validation/schemas'
 import { uploadConfig, isAllowedFile } from '@/lib/uploadConfig'
 import sharp from 'sharp'
 
-const BUCKET_NAME = 'uploads'
 const MB = 1024 * 1024
+const PHOTO_PROXY_DOMAIN = process.env.PHOTO_PROXY_DOMAIN || 'https://photos.arlogic.com'
 
 const CHANNEL_MAP: Record<string, 'attendance' | 'service' | 'layanan' | 'inventory' | 'kaspin' | 'teknisi_update' | 'qc_update'> = {
   attendance: 'attendance',
@@ -30,37 +29,6 @@ function warn(...args: any[]) {
 
 function err(...args: any[]) {
   console.error('[Upload API]', ...args)
-}
-
-async function ensureBucket() {
-  const sb = getSupabaseAdmin()
-  try {
-    const { data: buckets } = await sb.storage.listBuckets()
-    if (!buckets?.find((b: any) => b.name === BUCKET_NAME)) {
-      await sb.storage.createBucket(BUCKET_NAME, { public: true, fileSizeLimit: uploadConfig.IMAGE_MAX_SIZE_BYTES })
-      log(`Created bucket "${BUCKET_NAME}"`)
-    }
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function uploadToSupabase(buffer: Buffer, fileName: string): Promise<string | null> {
-  const sb = getSupabaseAdmin()
-  try {
-    await ensureBucket()
-    const { data } = await sb.storage.from(BUCKET_NAME).upload(fileName, buffer, {
-      contentType: 'image/jpeg',
-      upsert: true,
-    })
-    if (!data) return null
-    const { data: { publicUrl } } = sb.storage.from(BUCKET_NAME).getPublicUrl(fileName)
-    return publicUrl
-  } catch (e) {
-    warn(`SUPABASE FAILED: ${(e as Error).message}`)
-    return null
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -186,38 +154,10 @@ export async function POST(request: NextRequest) {
       log(`TELEGRAM OK: ${telegramResults.length} photos`)
     }
 
-    // Upload to Supabase Storage in parallel
-    const tSupabase = performance.now()
-    const supabaseUrls: (string | null)[] = await Promise.all(
-      processedFiles.map((f) => uploadToSupabase(f.buffer, f.name))
-    )
-    profile.uploadSupabase = Math.round(performance.now() - tSupabase)
-
-    const supabaseSuccess = supabaseUrls.filter(Boolean).length
-    if (supabaseSuccess < processedFiles.length) {
-      warn(`SUPABASE PARTIAL: ${supabaseSuccess}/${processedFiles.length} uploaded`)
-    }
-
-    const permanentUrls = supabaseUrls.map((u, i) => u || telegramResults[i]?.url || '')
+    // Build Worker URLs from telegram file_ids
     const fileIds = telegramResults.map(r => r.file_id || '')
-
-    // Save to photos table (fire-and-forget, non-blocking)
-    const tDb = performance.now()
-    const sb = getSupabaseAdmin()
-    const photoRecords = processedFiles.map((f, i) => ({
-      file_id: telegramResults[i]?.file_id || '',
-      file_unique_id: '',
-      file_size: f.buffer.length,
-      photo_data: f.buffer.toString('base64'),
-      filename: f.name,
-      stage: type,
-      uploaded_by: null,
-    }))
-
-    ;(sb.from('photos') as any).insert(photoRecords).then().catch((e: any) => {
-      warn(`DATABASE FAILED: ${e.message}`)
-    })
-    profile.databaseInsert = Math.round(performance.now() - tDb)
+    const workerUrls = fileIds.map(id => id ? `${PHOTO_PROXY_DOMAIN}/photos/${id}` : (telegramResults.find(r => r.file_id === id)?.url || ''))
+    const permanentUrls = workerUrls.length > 0 ? workerUrls : telegramResults.map(r => r.url || '')
 
     profile.total = Math.round(performance.now() - tStart)
 
@@ -230,7 +170,7 @@ export async function POST(request: NextRequest) {
       file_ids: fileIds,
       messages: telegramResults.map(r => ({ chat_id: r.chat_id, message_id: r.message_id })),
       count: telegramResults.length,
-      storage: 'supabase',
+      storage: 'cloudflare-worker',
       channel: type,
     }
 

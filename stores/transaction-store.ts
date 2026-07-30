@@ -35,6 +35,7 @@ export const useTransactionStore = create<TransactionStore>()(
       completed: 0,
       cancelled: 0,
       jenisCount: {},
+      jenisRevenue: {},
       metodeRevenue: {},
       metodeCount: {},
       staffStats: {},
@@ -108,11 +109,11 @@ export const useTransactionStore = create<TransactionStore>()(
     clear: () =>
       set({
         transactions: [],
-        analytics: {
-          total: 0, totalRevenue: 0, totalExpenses: 0, netRevenue: 0,
-          active: 0, completed: 0, cancelled: 0,
-          jenisCount: {}, metodeRevenue: {}, metodeCount: {}, staffStats: {},
-        },
+          analytics: {
+            total: 0, totalRevenue: 0, totalExpenses: 0, netRevenue: 0,
+            active: 0, completed: 0, cancelled: 0,
+            jenisCount: {}, jenisRevenue: {}, metodeRevenue: {}, metodeCount: {}, staffStats: {},
+          },
         loading: false,
         error: null,
         lastFetched: null,

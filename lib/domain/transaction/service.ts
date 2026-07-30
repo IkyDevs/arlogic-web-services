@@ -103,6 +103,7 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
     nominal_2: row.nominal_2 || 0,
     telegram_chat_id: row.telegram_chat_id,
     telegram_message_id: row.telegram_message_id,
+    telegram_file_id: row.telegram_file_id,
     upload_status: (row.upload_status || 'NONE') as UploadStatus,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -113,26 +114,42 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
 export function computeAnalytics(data: TransactionData[]): TransactionAnalytics {
   let totalRevenue = 0, totalExpenses = 0
   const jenisCount: Record<string, number> = {}
+  const jenisRevenue: Record<string, number> = {}
   const metodeRevenue: Record<string, number> = {}
   const metodeCount: Record<string, number> = {}
   const staffStats: Record<string, { count: number; revenue: number }> = {}
   let active = 0, completed = 0, cancelled = 0
 
   for (const tx of data) {
-    const allJenis = tx.items?.map((i) => i.jenis_layanan) || []
-    const nominal = calculateTransactionTotal(tx.items || [])
+    const items = tx.items || []
+    const allJenis = items.map((i) => i.jenis_layanan) || []
+    const nominal = calculateTransactionTotal(items)
     const isExpense = allJenis.includes("pengeluaran")
 
-    allJenis.forEach((j) => {
+    // Per-jenis: count transactions + sum revenue per jenis
+    for (const item of items) {
+      const j = item.jenis_layanan
       jenisCount[j] = (jenisCount[j] || 0) + 1
-    })
+      const itemNominal = calculateItemSubtotal(item.skus || [])
+      jenisRevenue[j] = (jenisRevenue[j] || 0) + itemNominal
+    }
 
     if (isExpense) totalExpenses += nominal
     else totalRevenue += nominal
 
-    const m = tx.metode_pembayaran || "unknown"
-    metodeRevenue[m] = (metodeRevenue[m] || 0) + (isExpense ? -nominal : nominal)
-    metodeCount[m] = (metodeCount[m] || 0) + 1
+    // Split payment: track each method separately
+    if (tx.split_payment && tx.metode_pembayaran_1 && tx.metode_pembayaran_2) {
+      const n1 = tx.nominal_1 || 0
+      const n2 = tx.nominal_2 || 0
+      metodeRevenue[tx.metode_pembayaran_1] = (metodeRevenue[tx.metode_pembayaran_1] || 0) + (isExpense ? -n1 : n1)
+      metodeRevenue[tx.metode_pembayaran_2] = (metodeRevenue[tx.metode_pembayaran_2] || 0) + (isExpense ? -n2 : n2)
+      metodeCount[tx.metode_pembayaran_1] = (metodeCount[tx.metode_pembayaran_1] || 0) + 1
+      metodeCount[tx.metode_pembayaran_2] = (metodeCount[tx.metode_pembayaran_2] || 0) + 1
+    } else {
+      const m = tx.metode_pembayaran || "unknown"
+      metodeRevenue[m] = (metodeRevenue[m] || 0) + (isExpense ? -nominal : nominal)
+      metodeCount[m] = (metodeCount[m] || 0) + 1
+    }
 
     const staff = tx.handled_by_name || "Unknown"
     if (!staffStats[staff]) staffStats[staff] = { count: 0, revenue: 0 }
@@ -153,6 +170,7 @@ export function computeAnalytics(data: TransactionData[]): TransactionAnalytics 
     completed,
     cancelled,
     jenisCount,
+    jenisRevenue,
     metodeRevenue,
     metodeCount,
     staffStats,
@@ -285,6 +303,7 @@ export async function updateTransaction(
   if (tx.metode_pembayaran_2 !== undefined) updatePayload.metode_pembayaran_2 = tx.metode_pembayaran_2
   if (tx.nominal_2 !== undefined) updatePayload.nominal_2 = tx.nominal_2
   if (tx.upload_status !== undefined) updatePayload.upload_status = tx.upload_status
+  if (tx.telegram_file_id !== undefined) updatePayload.telegram_file_id = tx.telegram_file_id
 
   if (tx.items !== undefined) {
     const total = calculateTransactionTotal(tx.items)

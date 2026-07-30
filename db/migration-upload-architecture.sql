@@ -19,6 +19,11 @@ ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS upload_status TEXT NOT NULL 
   CHECK (upload_status IN ('NONE','PENDING','UPLOADING','SUCCESS','FAILED'));
 
 -- =====================================================
+-- ADD telegram_file_id to layanan table
+-- =====================================================
+ALTER TABLE layanan ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;
+
+-- =====================================================
 -- UPLOAD SESSIONS
 -- =====================================================
 CREATE TABLE IF NOT EXISTS upload_sessions (

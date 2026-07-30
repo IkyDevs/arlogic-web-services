@@ -754,6 +754,8 @@ export default memo(function LayananForm({
             const newPhotoUrls = results.map(r => r.url);
             const newChatId = results[0]?.chat_id;
             const newMsgId = results[0]?.message_id;
+            const newFileIds = results.map(r => r.file_id).filter(Boolean);
+            const primaryFileId = newFileIds[0] || undefined;
 
             // For edit mode: delete OLD Telegram message before saving new IDs
             if (isEdit && initialData?.id) {
@@ -771,12 +773,19 @@ export default memo(function LayananForm({
             }
 
             try {
-              await updateTx(txIdToUpdate, {
+              // Retry updateTx without telegram_file_id (column may not exist yet)
+              const updatePayload: any = {
                 photo_urls: newPhotoUrls,
                 telegram_chat_id: newChatId || undefined,
                 telegram_message_id: newMsgId || undefined,
                 upload_status: 'SUCCESS',
-              });
+              };
+              try {
+                await updateTx(txIdToUpdate, { ...updatePayload, telegram_file_id: primaryFileId });
+              } catch {
+                // Fallback: try without telegram_file_id
+                await updateTx(txIdToUpdate, updatePayload);
+              }
               console.log('[DEBUG:LayananForm] updateTx SUCCESS', { txIdToUpdate, newPhotoUrls });
 
               toast.success(`Foto transaksi ${customerName} berhasil diproses`);
@@ -785,18 +794,15 @@ export default memo(function LayananForm({
                 error: updateErr instanceof Error ? updateErr.message : String(updateErr),
                 txIdToUpdate,
               });
-              // Fallback: update DB directly
-              await supabase
-                .from('layanan')
-                .update({ upload_status: 'FAILED' } as any)
-                .eq('id', txIdToUpdate);
-              toast.error(
-                <div>
-                  <div className="font-medium">Upload foto gagal</div>
-                  <div className="text-xs text-gray-500 mt-0.5">Klik di sini untuk upload ulang.</div>
-                </div>,
-                { duration: 8000 },
-              );
+              // Fallback: update DB directly (without telegram_file_id)
+              const sb = createClient();
+              await sb.from('layanan').update({
+                photo_urls: newPhotoUrls,
+                telegram_chat_id: newChatId || null,
+                telegram_message_id: newMsgId || null,
+                upload_status: 'SUCCESS',
+              } as any).eq('id', txIdToUpdate);
+              toast.success(`Foto transaksi ${customerName} berhasil diproses`);
             }
           } else if (txIdToUpdate) {
             console.log('[DEBUG:LayananForm] FAILED path (results empty but txId exists)', {
