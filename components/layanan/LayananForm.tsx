@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
+import { compressImage } from "@/lib/upload/upload-compressor";
 import {
   jenisLayananLabels,
   metodePembayaranLabels,
@@ -693,11 +694,19 @@ export default memo(function LayananForm({
           { duration: 5000 },
         );
 
-        // Upload new files only (existing photos tetap di DB via photoUrls, tidak perlu di-reupload)
+        // Upload new files only — compress client-side dulu (Vercel limit 4.5MB)
         supabase.from('layanan').update({ upload_status: 'UPLOADING' } as any).eq('id', txIdToUpdate).then();
 
+        const filesToUpload = await Promise.all(pendingFiles.map(async (pf) => {
+          if (pf.file.size > 500 * 1024) {
+            const compressed = await compressImage(pf.file);
+            if (compressed.size < pf.file.size) return compressed;
+          }
+          return pf.file;
+        }));
+
         upload.legacyUpload(
-          pendingFiles.map(f => f.file),
+          filesToUpload,
           "layanan",
           mainCaption,
         ).then(async (results) => {
