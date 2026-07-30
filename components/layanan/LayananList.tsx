@@ -444,6 +444,15 @@ export default function LayananList({
 
   const handleDelete = async (item: TransactionData) => {
     const total = calculateTransactionTotal(item.items || []);
+    console.log('[DEBUG:LayananList] handleDelete START', {
+      item_id: item.id,
+      customer_name: item.customer_name,
+      telegram_chat_id: (item as any).telegram_chat_id,
+      telegram_message_id: (item as any).telegram_message_id,
+      upload_status: (item as any).upload_status,
+      photo_urls: (item as any).photo_urls,
+      will_delete_telegram: !!((item as any).telegram_chat_id && (item as any).telegram_message_id),
+    });
     if (
       !confirm(
         `Hapus transaksi "${item.customer_name}" (${formatRupiah(total)})?`,
@@ -453,7 +462,11 @@ export default function LayananList({
 
     if ((item as any).telegram_chat_id && (item as any).telegram_message_id) {
       try {
-        await fetch("/api/telegram/delete-message", {
+        console.log('[DEBUG:LayananList] Calling delete-message API', {
+          chat_id: (item as any).telegram_chat_id,
+          message_id: (item as any).telegram_message_id,
+        });
+        const deleteRes = await fetch("/api/telegram/delete-message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -461,9 +474,24 @@ export default function LayananList({
             message_id: (item as any).telegram_message_id,
           }),
         });
-      } catch {}
+        const deleteData = await deleteRes.text();
+        console.log('[DEBUG:LayananList] delete-message response', {
+          status: deleteRes.status,
+          body: deleteData,
+        });
+      } catch (e) {
+        console.error('[DEBUG:LayananList] delete-message FAILED', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    } else {
+      console.log('[DEBUG:LayananList] SKIP delete-message - missing chat_id or message_id', {
+        chat_id: (item as any).telegram_chat_id,
+        message_id: (item as any).telegram_message_id,
+      });
     }
     try {
+      console.log('[DEBUG:LayananList] Calling store.remove', { id: item.id });
       await remove(item.id!);
       toast.success("Transaksi berhasil dihapus");
     } catch (err: any) {
@@ -834,6 +862,16 @@ export default function LayananList({
                         >
                           <Camera className="w-3 h-3" /> {photos.length}
                         </button>
+                      ) : tx.upload_status === 'FAILED' ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-600">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          Failed
+                        </span>
+                      ) : tx.upload_status === 'UPLOADING' || tx.upload_status === 'PENDING' ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Processing
+                        </span>
                       ) : (
                         <span className="text-[10px] text-slate-300">-</span>
                       )}

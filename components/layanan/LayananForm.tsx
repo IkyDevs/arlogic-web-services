@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
-import { useUpload } from "@/hooks/useUpload";
+import { useCentralUpload } from "@/hooks/useCentralUpload";
 import {
   jenisLayananLabels,
   metodePembayaranLabels,
@@ -106,7 +106,8 @@ export default memo(function LayananForm({
 }: LayananFormProps) {
   const { user } = useAuthStore();
   const supabase = createClient();
-  const { uploadFile, uploadFiles, uploading, progress } = useUpload();
+  const [uploadKey] = useState(() => `layanan_${user?.id || 'anon'}_${Date.now()}`)
+  const upload = useCentralUpload(uploadKey);
   const createTx = useTransactionStore((s) => s.create);
   const updateTx = useTransactionStore((s) => s.update);
 
@@ -186,7 +187,6 @@ export default memo(function LayananForm({
   const [loading, setLoading] = useState(false);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>(() => {
     if (initialData?.photo_urls?.length) return initialData.photo_urls;
     if (initialData?.photo_url) return [initialData.photo_url];
@@ -311,10 +311,10 @@ export default memo(function LayananForm({
           setCustomerWhatsapp(draft.data.customer_whatsapp);
         if (draft.data.items) setItems(draft.data.items);
         if (draft.photoFiles?.length) {
-          setPhotoFiles(draft.photoFiles);
-          setPhotoPreviews(
-            draft.photoFiles.map((f: File) => URL.createObjectURL(f)),
-          );
+          const result = await upload.addFiles(draft.photoFiles);
+          if (result.files.length > 0) {
+            setPhotoPreviews((prev) => [...prev, ...result.files.map(f => f.preview)]);
+          }
         }
         toast.success("Draft transaksi ditemukan dan dipulihkan", {
           duration: 3000,
@@ -349,7 +349,8 @@ export default memo(function LayananForm({
 
   const photoTimer = useRef<any>(null);
   useEffect(() => {
-    if (initialData || !user?.id || photoFiles.length === 0) return;
+    const draftFiles = upload.pendingFiles.filter(f => f.status === 'ready').map(f => f.file);
+    if (initialData || !user?.id || draftFiles.length === 0) return;
     if (photoTimer.current) clearTimeout(photoTimer.current);
     photoTimer.current = setTimeout(() => {
       const d = {
@@ -360,12 +361,12 @@ export default memo(function LayananForm({
         lead_source_custom: leadSourceCustom,
         notes,
       };
-      saveDraft("layanan", user.id, d, photoFiles).catch(() => {});
+      saveDraft("layanan", user.id, d, draftFiles).catch(() => {});
     }, 2000);
     return () => {
       if (photoTimer.current) clearTimeout(photoTimer.current);
     };
-  }, [photoFiles, user?.id]);
+  }, [upload.pendingFiles, user?.id]);
 
   useEffect(() => {
     const t = setTimeout(() => fetchUsers(), 0);
@@ -385,21 +386,40 @@ export default memo(function LayananForm({
     if (data) setUsers(data);
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFiles = Array.from(e.target.files || []).filter(
       (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
     );
-    if (!files.length) return;
-    setPhotoFiles((prev) => [...prev, ...files]);
-    files.forEach((f) =>
-      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]),
-    );
+    if (!rawFiles.length) return;
+    console.log('[DEBUG:LayananForm] handlePhotoSelect BEFORE addFiles', {
+      rawFiles_count: rawFiles.length,
+      rawFiles_names: rawFiles.map(f => f.name),
+      upload_pendingFiles_len_before: upload.pendingFiles.length,
+    });
+    const result = await upload.addFiles(rawFiles);
+    console.log('[DEBUG:LayananForm] handlePhotoSelect AFTER addFiles', {
+      result_files_count: result.files.length,
+      result_errors: result.errors,
+      upload_pendingFiles_len_after: upload.pendingFiles.length,
+    });
+    if (result.files.length > 0) {
+      setPhotoPreviews((prev) => [...prev, ...result.files.map(f => f.preview)]);
+    }
+    if (result.errors.length > 0) {
+      result.errors.forEach(e => toast.error(e));
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const removePhoto = (idx: number) => {
-    URL.revokeObjectURL(photoPreviews[idx]);
-    setPhotoFiles((prev) => prev.filter((_, i) => i !== idx));
+  const removePhoto = async (idx: number) => {
+    const url = photoPreviews[idx];
+    const isBlob = url.startsWith('blob:');
+    if (isBlob) {
+      const pending = upload.pendingFiles.find(f => f.preview === url);
+      if (pending) await upload.removeFile(pending.id);
+    } else {
+      URL.revokeObjectURL(url);
+    }
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== idx));
   };
 
@@ -415,7 +435,7 @@ export default memo(function LayananForm({
     });
 
     if (
-      photoFiles.length === 0 &&
+      upload.pendingFiles.length === 0 &&
       photoPreviews.length === 0 &&
       !initialData?.id
     ) {
@@ -516,61 +536,20 @@ export default memo(function LayananForm({
       let tgChatId: string | undefined;
       let tgMessageId: number | undefined;
 
-      if (photoFiles.length > 0) {
-        const results = await uploadFiles(photoFiles, {
-          type: "layanan",
-          caption: mainCaption,
-        });
-        if (results?.length) {
-          photoUrls = results.map((r) => r.url);
-          if (results[0].chat_id && results[0].message_id) {
-            tgChatId = results[0].chat_id;
-            tgMessageId = results[0].message_id;
-          }
-        } else {
-          toast.error("Gagal upload foto");
-          return;
-        }
-      }
-
-      if (photoFiles.length === 0 && initialData?.id) {
-        if (
-          (initialData as any).telegram_chat_id &&
-          (initialData as any).telegram_message_id
-        ) {
-          try {
-            await fetch("/api/telegram/edit-message", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: (initialData as any).telegram_chat_id,
-                message_id: (initialData as any).telegram_message_id,
-                text: mainCaption,
-                is_caption: photoUrls.length > 0,
-              }),
-            });
-          } catch {}
-        } else {
-          try {
-            const res = await fetch("/api/telegram", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "transaction",
-                message: mainCaption,
-              }),
-            });
-            const data = await res.json();
-            if (data.success && data.chat_id && data.message_id) {
-              tgChatId = data.chat_id;
-              tgMessageId = data.message_id;
-            }
-          } catch {}
-        }
-      }
-
       const isEdit = !!initialData?.id;
 
+      const pendingFiles = upload.pendingFiles.filter(f => f.status === 'ready');
+      const hasNewFiles = pendingFiles.length > 0;
+      console.log('[DEBUG:LayananForm] handleConfirmSubmit hasNewFiles check', {
+        upload_pendingFiles_total: upload.pendingFiles.length,
+        ready_count: pendingFiles.length,
+        hasNewFiles,
+        file_statuses: upload.pendingFiles.map(f => ({ id: f.id, name: f.name, status: f.status })),
+        sessionKey: uploadKey,
+      });
+
+      // STEP 1: Simpan transaksi dulu (instant, <500ms)
+      let newTxId: string | undefined;
       if (isEdit) {
         await updateTx(initialData.id, {
           customer_name: customerName.trim(),
@@ -637,11 +616,216 @@ export default memo(function LayananForm({
               ? parseInt(derivedNominal2) || 0
               : 0,
         };
-        const result = await createTx(txData, user!.id, user!.full_name || "");
+        const tx = await createTx(txData, user!.id, user!.full_name || "");
+        newTxId = (tx as any)?.id;
+        console.log('[DEBUG:LayananForm] createTransaction RESULT', {
+          has_id: !!newTxId,
+          id: newTxId,
+          created_at: (tx as any)?.created_at,
+          full_tx_obj: JSON.stringify({ id: (tx as any)?.id, customer_name: (tx as any)?.customer_name }),
+        });
         toast.success("Transaksi berhasil ditambahkan!");
       }
 
       await syncCustomer(customerName, customerWhatsapp);
+
+      // STEP 2: Upload foto di background dan update transaksi dengan hasilnya
+      const step2TxId = isEdit ? initialData.id : newTxId;
+      const tNow = Date.now();
+      console.log('[DEBUG:LayananForm] STEP 2 background upload', {
+        hasNewFiles,
+        txIdToUpdate: step2TxId,
+        txId_type: typeof step2TxId,
+        txId_length: String(step2TxId || '').length,
+        pendingFiles_count: pendingFiles.length,
+        pendingFiles_names: pendingFiles.map(f => f.name),
+        timestamp: tNow,
+      });
+      if (hasNewFiles) {
+        const txIdToUpdate = isEdit ? initialData.id : newTxId;
+        console.log('[DEBUG:LayananForm] Starting background upload', {
+          txIdToUpdate,
+          txIdToUpdate_type: typeof txIdToUpdate,
+          txIdToUpdate_length: String(txIdToUpdate || '').length,
+          files_count: pendingFiles.length,
+          files_names: pendingFiles.map(f => f.name),
+          timestamp: Date.now(),
+        });
+
+        // Set status PENDING (fire-and-forget)
+        supabase.from('layanan').update({ upload_status: 'PENDING' } as any).eq('id', txIdToUpdate).then((r: any) => {
+          console.log('[DEBUG:LayananForm] status PENDING result', { error: r?.error, status: r?.status, txIdToUpdate });
+        });
+
+        // Show initial toast
+        toast.success(
+          <div>
+            <div className="font-medium">Transaksi berhasil disimpan</div>
+            <div className="text-xs text-gray-500 mt-0.5">Foto sedang diproses di background. Anda dapat melanjutkan transaksi berikutnya.</div>
+          </div>,
+          { duration: 5000 },
+        );
+
+        // Start background upload
+        const legacyPromise = upload.legacyUpload(
+          pendingFiles.map(f => f.file),
+          "layanan",
+          mainCaption,
+        );
+
+        supabase.from('layanan').update({ upload_status: 'UPLOADING' } as any).eq('id', txIdToUpdate).then((r: any) => {
+          console.log('[DEBUG:LayananForm] status UPLOADING result', { error: r?.error, status: r?.status, txIdToUpdate });
+        });
+
+        console.log('[DEBUG:LayananForm] BEFORE legacyUpload await', { timestamp: Date.now() - tNow });
+
+        legacyPromise.then(async (results) => {
+          const thenTs = Date.now();
+          console.log('[DEBUG:LayananForm] INSIDE .then() CALLBACK', {
+            elapsed_ms: thenTs - tNow,
+            results_count: results?.length,
+            txIdToUpdate,
+            txIdToUpdate_type: typeof txIdToUpdate,
+            txIdToUpdate_isTruthy: !!txIdToUpdate,
+            condition_1: !!(results?.length && txIdToUpdate),
+            condition_2: !!(!results?.length && txIdToUpdate),
+            has_success_urls: results?.some(r => r.url),
+            first_result: results?.[0] ? { url: results[0].url?.slice(0,50), chat_id: results[0].chat_id, message_id: results[0].message_id, has_file_id: !!results[0].file_id } : null,
+          });
+          if (results?.length && txIdToUpdate) {
+            console.log('[DEBUG:LayananForm] BEFORE supabase.update', {
+              photoUrls_length: photoUrls.length,
+              results_urls_count: results.length,
+              results_urls: results.map(r => r.url?.slice(0,50)),
+              txIdToUpdate,
+              timestamp: Date.now() - thenTs,
+            });
+            const { data: upData, error: upError, status: upStatus, count: upCount } = await supabase
+              .from('layanan')
+              .update({
+                photo_urls: [...photoUrls, ...results.map(r => r.url)],
+                telegram_chat_id: results[0]?.chat_id || null,
+                telegram_message_id: results[0]?.message_id || null,
+                upload_status: 'SUCCESS',
+              } as any)
+              .eq('id', txIdToUpdate)
+              .select('id, photo_urls, upload_status, telegram_chat_id, telegram_message_id');
+            console.log('[DEBUG:LayananForm] AFTER supabase.update RESULT', {
+              upError: upError ? { message: upError.message, details: upError.details, hint: upError.hint, code: upError.code } : null,
+              upData,
+              upStatus,
+              upCount,
+              txIdToUpdate,
+              elapsed_since_then: Date.now() - thenTs,
+            });
+
+            // Verify by re-querying
+            const { data: verifyData } = await supabase
+              .from('layanan')
+              .select('id, photo_urls, upload_status, telegram_chat_id, telegram_message_id, created_at')
+              .eq('id', txIdToUpdate)
+              .single();
+            console.log('[DEBUG:LayananForm] VERIFY after update', {
+              verifyData: verifyData ? {
+                id: (verifyData as any).id,
+                photo_urls: (verifyData as any).photo_urls,
+                photo_urls_length: ((verifyData as any)?.photo_urls || []).length,
+                upload_status: (verifyData as any).upload_status,
+                telegram_chat_id: (verifyData as any).telegram_chat_id,
+                telegram_message_id: (verifyData as any).telegram_message_id,
+              } : 'NO_DATA',
+              txIdToUpdate,
+            });
+
+            toast.success(`Foto transaksi ${customerName} berhasil diproses`);
+          } else if (txIdToUpdate) {
+            console.log('[DEBUG:LayananForm] FAILED path (results empty but txId exists)', {
+              results_count: results?.length,
+              txIdToUpdate,
+            });
+            await supabase
+              .from('layanan')
+              .update({ upload_status: 'FAILED' } as any)
+              .eq('id', txIdToUpdate);
+            toast.error(
+              <div>
+                <div className="font-medium">Upload foto gagal</div>
+                <div className="text-xs text-gray-500 mt-0.5">Klik di sini untuk upload ulang.</div>
+              </div>,
+              { duration: 8000 },
+            );
+          } else {
+            console.log('[DEBUG:LayananForm] NEITHER path - both conditions false', {
+              results_length: results?.length,
+              txIdToUpdate,
+              txIdToUpdate_type: typeof txIdToUpdate,
+            });
+          }
+          console.log('[DEBUG:LayananForm] BEFORE upload.clear', { timestamp: Date.now() });
+          upload.clear();
+          console.log('[DEBUG:LayananForm] AFTER upload.clear', { timestamp: Date.now() });
+        }).catch(async (err) => {
+          console.error('[DEBUG:LayananForm] Background legacyUpload CATCH', {
+            error_message: err instanceof Error ? err.message : String(err),
+            error_name: err instanceof Error ? err.name : typeof err,
+            error_stack: err instanceof Error ? err.stack : undefined,
+            txIdToUpdate,
+            elapsed_ms: Date.now() - tNow,
+            component_still_mounted: !!(document.querySelector('[data-layanan-form]')),
+          });
+          if (txIdToUpdate) {
+            await supabase
+              .from('layanan')
+              .update({ upload_status: 'FAILED' } as any)
+              .eq('id', txIdToUpdate);
+          }
+          toast.error(
+            <div>
+              <div className="font-medium">Upload foto gagal</div>
+              <div className="text-xs text-gray-500 mt-0.5">Klik invoice untuk upload ulang.</div>
+            </div>,
+            { duration: 8000 },
+          );
+          upload.clear();
+        });
+      }
+
+      // STEP 3: Handle Telegram caption update untuk edit mode tanpa foto baru
+      if (!hasNewFiles && initialData?.id) {
+        if (
+          (initialData as any).telegram_chat_id &&
+          (initialData as any).telegram_message_id
+        ) {
+          try {
+            await fetch("/api/telegram/edit-message", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: (initialData as any).telegram_chat_id,
+                message_id: (initialData as any).telegram_message_id,
+                text: mainCaption,
+                is_caption: photoUrls.length > 0,
+              }),
+            });
+          } catch {}
+        } else {
+          try {
+            const res = await fetch("/api/telegram", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "transaction",
+                message: mainCaption,
+              }),
+            });
+            const data = await res.json();
+            if (data.success && data.chat_id && data.message_id) {
+              tgChatId = data.chat_id;
+              tgMessageId = data.message_id;
+            }
+          } catch {}
+        }
+      }
 
       if (user?.id) {
         const notifType = isEdit ? "transaction_update" : "transaction";
@@ -680,6 +864,7 @@ export default memo(function LayananForm({
 
   return (
     <motion.div
+      data-layanan-form="true"
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97 }}
@@ -707,6 +892,7 @@ export default memo(function LayananForm({
               type="button"
               onClick={() => {
                 clearDraft("layanan", user.id);
+                upload.clear();
                 setItems([
                   {
                     jenis_layanan: "service_langsung",
@@ -714,7 +900,6 @@ export default memo(function LayananForm({
                     notes: "",
                   },
                 ]);
-                setPhotoFiles([]);
                 setPhotoPreviews([]);
                 toast.success("Draft berhasil dihapus", { duration: 2000 });
               }}
@@ -1164,7 +1349,7 @@ export default memo(function LayananForm({
               </p>
             </div>
           )}
-          {photoFiles.length === 0 &&
+          {upload.pendingFiles.length === 0 &&
             photoPreviews.length === 0 &&
             !initialData?.id && (
               <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
@@ -1176,10 +1361,10 @@ export default memo(function LayananForm({
         <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
           <button
             type="submit"
-            disabled={loading || uploading}
+            disabled={loading || upload.uploading}
             className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
-            {loading || uploading ? (
+            {loading || upload.uploading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...
               </>
@@ -1269,10 +1454,10 @@ export default memo(function LayananForm({
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                disabled={loading || uploading}
+                disabled={loading || upload.uploading}
                 className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading || uploading ? (
+                {loading || upload.uploading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>

@@ -37,6 +37,7 @@ export interface TransactionData {
   nominal_2: number
   telegram_chat_id?: string
   telegram_message_id?: number
+  upload_status?: UploadStatus
   created_at?: string
   updated_at?: string
 }
@@ -64,6 +65,9 @@ export interface SplitPayment {
   metode_2?: MetodePembayaran
   nominal_2: number
 }
+
+// ─── Upload Status ─────────────────────────────────────────────────
+export type UploadStatus = 'NONE' | 'PENDING' | 'UPLOADING' | 'SUCCESS' | 'FAILED'
 
 // ─── Payment Status ────────────────────────────────────────────────
 export type PaymentStatus = "lunas" | "belum_lunas"
@@ -94,6 +98,7 @@ export interface LegacyLayananRow {
   nominal_2?: number
   telegram_chat_id?: string
   telegram_message_id?: number
+  upload_status?: string
   created_at: string
   updated_at?: string
   layanan_items?: LegacyLayananItemRow[]

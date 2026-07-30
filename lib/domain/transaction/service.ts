@@ -7,6 +7,7 @@ import type {
   PaymentStatus,
   LegacyLayananRow,
   SplitPayment,
+  UploadStatus,
 } from "./types"
 import type { JenisLayanan, MetodePembayaran, LeadSource } from "./enums"
 import { validateTransaction } from "../shared/validation"
@@ -102,6 +103,7 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
     nominal_2: row.nominal_2 || 0,
     telegram_chat_id: row.telegram_chat_id,
     telegram_message_id: row.telegram_message_id,
+    upload_status: (row.upload_status || 'NONE') as UploadStatus,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -235,6 +237,7 @@ export async function createTransaction(
       nominal_1: tx.nominal_1,
       metode_pembayaran_2: tx.metode_pembayaran_2,
       nominal_2: tx.nominal_2,
+      upload_status: tx.upload_status || 'NONE',
     })
     .select("id, created_at")
     .single()
@@ -281,6 +284,7 @@ export async function updateTransaction(
   if (tx.nominal_1 !== undefined) updatePayload.nominal_1 = tx.nominal_1
   if (tx.metode_pembayaran_2 !== undefined) updatePayload.metode_pembayaran_2 = tx.metode_pembayaran_2
   if (tx.nominal_2 !== undefined) updatePayload.nominal_2 = tx.nominal_2
+  if (tx.upload_status !== undefined) updatePayload.upload_status = tx.upload_status
 
   if (tx.items !== undefined) {
     const total = calculateTransactionTotal(tx.items)
