@@ -124,6 +124,7 @@ export default function ServiceInput({
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
+  const [loadingPhotos, setLoadingPhotos] = useState<{ key: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{
@@ -271,22 +272,37 @@ export default function ServiceInput({
     );
     if (rawFiles.length === 0) return;
 
-    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any) dengan progress
-    if (rawFiles.some((f) => isHeicFile(f))) {
+    // Per-foto loading bar: HEIC file tampil placeholder loading di grid
+    const fileKeys = new Map<number, string>();
+    const heicCount = rawFiles.filter((f) => isHeicFile(f)).length;
+    if (heicCount > 0) {
       setIsCompressing(true);
       setHeicProgress({ done: 0, total: rawFiles.length });
+      for (let i = 0; i < rawFiles.length; i++) {
+        if (isHeicFile(rawFiles[i])) {
+          const key = `${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`;
+          fileKeys.set(i, key);
+          setLoadingPhotos((prev) => [...prev, { key, name: rawFiles[i].name }]);
+        }
+      }
     }
     let converted: File[] = [];
     let failedHeic: string[] = [];
     try {
-      const result = await convertHeicFiles(rawFiles, (done, total) => {
-        setHeicProgress({ done, total });
-      });
+      const result = await convertHeicFiles(
+        rawFiles,
+        (done, total) => setHeicProgress({ done, total }),
+        (index, _file) => {
+          const key = fileKeys.get(index);
+          if (key) setLoadingPhotos((prev) => prev.filter((p) => p.key !== key));
+        },
+      );
       converted = result.files;
       failedHeic = result.failed;
     } finally {
       setIsCompressing(false);
       setHeicProgress({ done: 0, total: 0 });
+      setLoadingPhotos([]);
     }
     if (failedHeic.length > 0) {
       toast.error(`"${failedHeic.join(", ")}" tidak bisa dikonversi dari HEIC. Silakan kirim ulang sebagai JPEG.`);
@@ -991,8 +1007,20 @@ In : ${now}`;
             </p>
 
             {/* Photo Grid */}
-            {photoPreviews.length > 0 && (
+            {(photoPreviews.length > 0 || loadingPhotos.length > 0) && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+                {loadingPhotos.map((lp) => (
+                  <div
+                    key={lp.key}
+                    className="relative border border-blue-200 rounded-lg overflow-hidden aspect-square bg-blue-50 flex flex-col items-center justify-center gap-2 p-2"
+                  >
+                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                    <p className="text-[8px] text-blue-600 text-center truncate w-full">{lp.name}</p>
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-100">
+                      <div className="h-full bg-blue-500 animate-pulse" style={{ width: "70%" }} />
+                    </div>
+                  </div>
+                ))}
                 {photoPreviews.map((src, i) => (
                   <div
                     key={i}

@@ -189,6 +189,7 @@ export default memo(function LayananForm({
   const [loading, setLoading] = useState(false);
   const [convertingHeic, setConvertingHeic] = useState(false);
   const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
+  const [loadingPhotos, setLoadingPhotos] = useState<{ key: string; name: string }[]>([]);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>(() => {
@@ -329,7 +330,7 @@ export default memo(function LayananForm({
   }, [user?.id]);
 
   useEffect(() => {
-    if (initialData || !user?.id) return;
+    if (initialData || !user?.id || clearingDraft.current) return;
     const d = {
       customer_name: customerName,
       customer_whatsapp: customerWhatsapp,
@@ -354,7 +355,7 @@ export default memo(function LayananForm({
   const photoTimer = useRef<any>(null);
   useEffect(() => {
     const draftFiles = upload.pendingFiles.filter(f => f.status === 'ready').map(f => f.file);
-    if (initialData || !user?.id || draftFiles.length === 0) return;
+    if (initialData || !user?.id || clearingDraft.current || draftFiles.length === 0) return;
     if (photoTimer.current) clearTimeout(photoTimer.current);
     photoTimer.current = setTimeout(() => {
       const d = {
@@ -407,22 +408,39 @@ export default memo(function LayananForm({
     );
     if (!rawFiles.length) return;
 
-    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any) dengan progress
-    if (rawFiles.some((f) => isHeicFile(f))) {
+    // Per-foto loading bar: HEIC file tampil placeholder loading di grid
+    const fileKeys = new Map<number, string>();
+    const heicCount = rawFiles.filter((f) => isHeicFile(f)).length;
+    if (heicCount > 0) {
       setConvertingHeic(true);
       setHeicProgress({ done: 0, total: rawFiles.length });
+      for (let i = 0; i < rawFiles.length; i++) {
+        if (isHeicFile(rawFiles[i])) {
+          const key = `${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`;
+          fileKeys.set(i, key);
+          setLoadingPhotos((prev) => [...prev, { key, name: rawFiles[i].name }]);
+        }
+      }
     }
+
     let converted: File[] = [];
     let failedHeic: string[] = [];
     try {
-      const result = await convertHeicFiles(rawFiles, (done, total) => {
-        setHeicProgress({ done, total });
-      });
+      const result = await convertHeicFiles(
+        rawFiles,
+        (done, total) => setHeicProgress({ done, total }),
+        (index, _file) => {
+          // Foto ini selesai → hapus loading bar-nya
+          const key = fileKeys.get(index);
+          if (key) setLoadingPhotos((prev) => prev.filter((p) => p.key !== key));
+        },
+      );
       converted = result.files;
       failedHeic = result.failed;
     } finally {
       setConvertingHeic(false);
       setHeicProgress({ done: 0, total: 0 });
+      setLoadingPhotos([]);
     }
     if (failedHeic.length > 0) {
       toast.error(`"${failedHeic.join(", ")}" tidak bisa dikonversi dari HEIC. Silakan kirim ulang sebagai JPEG.`);
@@ -993,12 +1011,43 @@ export default memo(function LayananForm({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Tombol Add Foto di atas — staff tidak perlu scroll ke bawah */}
+          <button
+            type="button"
+            onClick={() => setShowPhotoSource(true)}
+            className="relative flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all text-xs font-semibold"
+            title="Tambah foto"
+          >
+            <Camera className="w-4 h-4" />
+            <span className="hidden sm:inline">Foto</span>
+            {(photoPreviews.length + loadingPhotos.length) > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-0.5 bg-blue-600 text-white rounded-full text-[9px] flex items-center justify-center">
+                {photoPreviews.length + loadingPhotos.length}
+              </span>
+            )}
+          </button>
           {!initialData && user?.id && hasDraft("layanan", user.id) && (
             <button
               type="button"
               onClick={() => {
+                // Blokir auto-save supaya draft tidak langsung dibuat ulang
+                clearingDraft.current = true;
                 clearDraft("layanan", user.id);
                 upload.clear();
+                setCustomerName("");
+                setCustomerWhatsapp("");
+                setHandledBy(user.id);
+                setMetodePembayaran("cash");
+                setLeadSource("instagram");
+                setLeadSourceCustom("");
+                setNotes("");
+                setSplitPayment({
+                  enabled: false,
+                  metode_1: "cash",
+                  nominal_1: "",
+                  metode_2: "qris",
+                  nominal_2: "",
+                });
                 setItems([
                   {
                     jenis_layanan: "service_langsung",
@@ -1008,6 +1057,8 @@ export default memo(function LayananForm({
                 ]);
                 setPhotoPreviews([]);
                 toast.success("Draft berhasil dihapus", { duration: 2000 });
+                // Aktifkan auto-save lagi setelah clear selesai
+                setTimeout(() => { clearingDraft.current = false; }, 500);
               }}
               className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
               title="Hapus draft"
@@ -1383,11 +1434,27 @@ export default memo(function LayananForm({
             onChange={handlePhotoSelect}
             className="hidden"
           />
-          {photoPreviews.length > 0 ? (
+          {(photoPreviews.length > 0 || loadingPhotos.length > 0) ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {/* Loading placeholder per-foto (HEIC sedang dikonversi) */}
+              {loadingPhotos.map((lp) => (
+                <div
+                  key={lp.key}
+                  className="relative rounded-xl overflow-hidden border border-blue-200 dark:border-blue-800 aspect-square bg-blue-50 dark:bg-blue-900/20"
+                >
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-2">
+                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                    <p className="text-[8px] text-blue-600 dark:text-blue-300 text-center truncate w-full">{lp.name}</p>
+                  </div>
+                  {/* Per-foto loading bar */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-100 dark:bg-blue-900">
+                    <div className="h-full bg-blue-500 animate-pulse" style={{ width: "70%" }} />
+                  </div>
+                </div>
+              ))}
               {photoPreviews.map((src, i) => (
                 <div
-                  key={i}
+                  key={`p-${i}`}
                   className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 aspect-square"
                 >
                   <button
