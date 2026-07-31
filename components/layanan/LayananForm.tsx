@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
-import { compressImage } from "@/lib/upload/upload-compressor";
+import { compressImage, heicToJpeg, isHeicFile } from "@/lib/upload/upload-compressor";
 import {
   jenisLayananLabels,
   metodePembayaranLabels,
@@ -392,12 +392,29 @@ export default memo(function LayananForm({
       (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
     );
     if (!rawFiles.length) return;
+
+    // Konversi HEIC/HEIF → JPEG (Safari/iOS bisa; browser lain tidak support HEIC)
+    const converted: File[] = [];
+    for (const f of rawFiles) {
+      if (isHeicFile(f)) {
+        const jpeg = await heicToJpeg(f);
+        if (jpeg) {
+          converted.push(jpeg);
+        } else {
+          toast.error(`"${f.name}" format HEIC tidak didukung browser ini. Silakan konversi ke JPEG atau gunakan iPhone/Safari.`);
+        }
+      } else {
+        converted.push(f);
+      }
+    }
+    if (converted.length === 0) return;
+
     console.log('[DEBUG:LayananForm] handlePhotoSelect BEFORE addFiles', {
-      rawFiles_count: rawFiles.length,
-      rawFiles_names: rawFiles.map(f => f.name),
+      rawFiles_count: converted.length,
+      rawFiles_names: converted.map(f => f.name),
       upload_pendingFiles_len_before: upload.pendingFiles.length,
     });
-    const result = await upload.addFiles(rawFiles);
+    const result = await upload.addFiles(converted);
     console.log('[DEBUG:LayananForm] handlePhotoSelect AFTER addFiles', {
       result_files_count: result.files.length,
       result_errors: result.errors,
