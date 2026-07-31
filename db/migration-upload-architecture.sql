@@ -24,6 +24,12 @@ ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS upload_status TEXT NOT NULL 
 ALTER TABLE layanan ADD COLUMN IF NOT EXISTS telegram_file_id TEXT;
 
 -- =====================================================
+-- ADD upload_session_key to layanan table
+-- (untuk retry upload: recover foto dari IndexedDB)
+-- =====================================================
+ALTER TABLE layanan ADD COLUMN IF NOT EXISTS upload_session_key TEXT;
+
+-- =====================================================
 -- UPLOAD SESSIONS
 -- =====================================================
 CREATE TABLE IF NOT EXISTS upload_sessions (

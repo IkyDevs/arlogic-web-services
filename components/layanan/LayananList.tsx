@@ -867,10 +867,14 @@ export default function LayananList({
                           <span className="text-[10px] text-slate-300">-</span>
                         )}
                         {tx.upload_status === 'FAILED' && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-50 text-red-600">
+                          <button
+                            onClick={() => onEdit?.(tx)}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                            title="Klik untuk upload ulang"
+                          >
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                             Failed
-                          </span>
+                          </button>
                         )}
                         {(tx.upload_status === 'UPLOADING' || tx.upload_status === 'PENDING') && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 text-amber-600">
@@ -924,6 +928,15 @@ export default function LayananList({
                                 <XCircle className="w-4 h-4" />
                               </button>
                             </>
+                          )}
+                          {tx.upload_status === 'FAILED' && (
+                            <button
+                              onClick={() => onEdit?.(tx)}
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg"
+                              title="Upload Ulang"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
                           )}
                           <button
                             onClick={() => onEdit?.(tx)}

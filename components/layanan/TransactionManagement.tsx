@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import { Search, X, ShoppingCart, FileText, Receipt, Banknote, TrendingUp, Phone } from "lucide-react";
 import LayananList from "./LayananList";
@@ -40,6 +41,22 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
     ];
     return () => ids.forEach((id) => cleanup.unsubscribe(id));
   }, [fetch]);
+
+  // Listen retry upload: buka edit form + recover foto dari IndexedDB
+  useEffect(() => {
+    const handler = (e: any) => {
+      const txId = e.detail?.txId;
+      if (!txId) return;
+      const tx = useTransactionStore.getState().transactions.find((t: any) => t.id === txId);
+      if (tx) {
+        setEditData(tx);
+        setShowEditForm(true);
+        toast.success("Foto akan di-upload ulang. Klik Simpan untuk melanjutkan.", { duration: 4000 });
+      }
+    };
+    window.addEventListener("layanan-retry-upload", handler);
+    return () => window.removeEventListener("layanan-retry-upload", handler);
+  }, []);
 
   const filteredTransactions = useMemo(() => {
     let data = transactions;

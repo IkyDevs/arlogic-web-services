@@ -107,7 +107,8 @@ export default memo(function LayananForm({
 }: LayananFormProps) {
   const { user } = useAuthStore();
   const supabase = createClient();
-  const [uploadKey] = useState(() => `layanan_${user?.id || 'anon'}_${Date.now()}`)
+  // uploadKey stabil untuk edit/retry (recover foto dari IndexedDB pakai session key lama)
+  const [uploadKey] = useState(() => (initialData as any)?.upload_session_key || `layanan_${user?.id || 'anon'}_${Date.now()}`)
   const upload = useCentralUpload(uploadKey);
   const createTx = useTransactionStore((s) => s.create);
   const updateTx = useTransactionStore((s) => s.update);
@@ -379,6 +380,17 @@ export default memo(function LayananForm({
     if (user?.id && !handledBy) setHandledBy(user.id);
   }, [user?.id]);
 
+  // Retry mode: sync foto yang direcover dari IndexedDB ke preview grid (dedupe)
+  useEffect(() => {
+    if (!(initialData as any)?.upload_session_key) return;
+    if (upload.pendingFiles.length === 0) return;
+    setPhotoPreviews((prev) => {
+      const existing = new Set(prev);
+      const toAdd = upload.pendingFiles.map((f) => f.preview).filter((p) => !existing.has(p));
+      return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+    });
+  }, [upload.pendingFiles]);
+
   const fetchUsers = async () => {
     const { data } = await supabase
       .from("profiles")
@@ -614,6 +626,7 @@ export default memo(function LayananForm({
             leadSource === "tulis_sendiri" ? leadSourceCustom : null,
           notes,
           photo_urls: photoUrls,
+          upload_session_key: uploadKey,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -649,6 +662,7 @@ export default memo(function LayananForm({
           photo_urls: photoUrls,
           telegram_chat_id: tgChatId,
           telegram_message_id: tgMessageId,
+          upload_session_key: uploadKey,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -793,6 +807,7 @@ export default memo(function LayananForm({
               console.log('[DEBUG:LayananForm] updateTx SUCCESS', { txIdToUpdate, newPhotoUrls });
 
               toast.success(`Foto transaksi ${customerName} berhasil diproses`);
+              upload.clear(); // sukses → bersihkan IndexedDB
             } catch (updateErr) {
               console.error('[DEBUG:LayananForm] updateTx FAILED', {
                 error: updateErr instanceof Error ? updateErr.message : String(updateErr),
@@ -807,6 +822,7 @@ export default memo(function LayananForm({
                 upload_status: 'SUCCESS',
               } as any).eq('id', txIdToUpdate);
               toast.success(`Foto transaksi ${customerName} berhasil diproses`);
+              upload.clear(); // sukses → bersihkan IndexedDB
             }
           } else if (txIdToUpdate) {
             console.log('[DEBUG:LayananForm] FAILED path (results empty but txId exists)', {
@@ -817,12 +833,22 @@ export default memo(function LayananForm({
               .from('layanan')
               .update({ upload_status: 'FAILED' } as any)
               .eq('id', txIdToUpdate);
-            toast.error(
-              <div>
-                <div className="font-medium">Upload foto gagal</div>
-                <div className="text-xs text-gray-500 mt-0.5">Klik di sini untuk upload ulang.</div>
-              </div>,
-              { duration: 8000 },
+            // JANGAN upload.clear() — simpan file untuk retry
+            window.dispatchEvent(new CustomEvent("layanan-retry-upload", { detail: { txId: txIdToUpdate } }));
+            toast(
+              (t) => (
+                <button
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    window.dispatchEvent(new CustomEvent("layanan-retry-upload", { detail: { txId: txIdToUpdate } }));
+                  }}
+                  className="w-full text-left"
+                >
+                  <div className="font-medium text-red-600">Upload foto gagal</div>
+                  <div className="text-xs text-gray-500 mt-0.5 underline">Klik di sini untuk upload ulang</div>
+                </button>
+              ),
+              { duration: 15000 },
             );
           } else {
             console.log('[DEBUG:LayananForm] NEITHER path - both conditions false', {
@@ -830,8 +856,8 @@ export default memo(function LayananForm({
               txIdToUpdate,
               txIdToUpdate_type: typeof txIdToUpdate,
             });
+            upload.clear();
           }
-          upload.clear();
         }).catch(async (err) => {
           console.error('[DEBUG:LayananForm] Background legacyUpload CATCH', err);
           console.error('[DEBUG:LayananForm] CATCH details:', JSON.stringify({ err_type: typeof err, err_isErr: err instanceof Error, err_msg: err?.message, err_name: err?.name, err_str: String(err).slice(0,200), txIdToUpdate, elapsed_ms: Date.now() - tNow }));
@@ -841,15 +867,26 @@ export default memo(function LayananForm({
             } catch {
               await supabase.from('layanan').update({ upload_status: 'FAILED' } as any).eq('id', txIdToUpdate);
             }
+            // JANGAN upload.clear() — simpan file untuk retry
+            window.dispatchEvent(new CustomEvent("layanan-retry-upload", { detail: { txId: txIdToUpdate } }));
+            toast(
+              (t) => (
+                <button
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    window.dispatchEvent(new CustomEvent("layanan-retry-upload", { detail: { txId: txIdToUpdate } }));
+                  }}
+                  className="w-full text-left"
+                >
+                  <div className="font-medium text-red-600">Upload foto gagal</div>
+                  <div className="text-xs text-gray-500 mt-0.5 underline">Klik di sini untuk upload ulang</div>
+                </button>
+              ),
+              { duration: 15000 },
+            );
+          } else {
+            upload.clear();
           }
-          toast.error(
-            <div>
-              <div className="font-medium">Upload foto gagal</div>
-              <div className="text-xs text-gray-500 mt-0.5">Klik invoice untuk upload ulang.</div>
-            </div>,
-            { duration: 8000 },
-          );
-          upload.clear();
         });
       }
 

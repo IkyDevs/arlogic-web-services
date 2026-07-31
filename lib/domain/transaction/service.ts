@@ -104,6 +104,7 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
     telegram_chat_id: row.telegram_chat_id,
     telegram_message_id: row.telegram_message_id,
     telegram_file_id: row.telegram_file_id,
+    upload_session_key: row.upload_session_key,
     upload_status: (row.upload_status || 'NONE') as UploadStatus,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -263,6 +264,7 @@ export async function createTransaction(
       metode_pembayaran_2: tx.metode_pembayaran_2,
       nominal_2: tx.nominal_2,
       upload_status: tx.upload_status || 'NONE',
+      upload_session_key: tx.upload_session_key || null,
     })
     .select("id, created_at")
     .single()
@@ -311,6 +313,7 @@ export async function updateTransaction(
   if (tx.nominal_2 !== undefined) updatePayload.nominal_2 = tx.nominal_2
   if (tx.upload_status !== undefined) updatePayload.upload_status = tx.upload_status
   if (tx.telegram_file_id !== undefined) updatePayload.telegram_file_id = tx.telegram_file_id
+  if (tx.upload_session_key !== undefined) updatePayload.upload_session_key = tx.upload_session_key
 
   if (tx.items !== undefined) {
     const total = calculateTransactionTotal(tx.items)

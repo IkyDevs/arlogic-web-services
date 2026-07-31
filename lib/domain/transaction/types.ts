@@ -38,6 +38,7 @@ export interface TransactionData {
   telegram_chat_id?: string
   telegram_message_id?: number
   telegram_file_id?: string
+  upload_session_key?: string
   upload_status?: UploadStatus
   created_at?: string
   updated_at?: string
@@ -101,6 +102,7 @@ export interface LegacyLayananRow {
   telegram_chat_id?: string
   telegram_message_id?: number
   telegram_file_id?: string
+  upload_session_key?: string
   upload_status?: string
   created_at: string
   updated_at?: string
