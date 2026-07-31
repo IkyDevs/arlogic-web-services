@@ -4,7 +4,14 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 
-const validRoles = ['admin', 'teknisi', 'supervisor', 'owner']
+const roleRoutes: Record<string, string> = {
+  admin: '/admin',
+  teknisi: '/teknisi',
+  supervisor: '/qc',
+  qc: '/qc',
+  engineer: '/engineer',
+  owner: '/owner',
+}
 
 export default function Home() {
   const router = useRouter()
@@ -12,8 +19,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoading) {
-      if (user && user.role && validRoles.includes(user.role)) {
-        router.push(`/${user.role}`)
+      if (user && user.role && roleRoutes[user.role]) {
+        router.push(roleRoutes[user.role])
       } else {
         router.push('/login')
       }

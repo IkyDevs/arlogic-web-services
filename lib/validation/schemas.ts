@@ -15,8 +15,9 @@ export const createUserSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   full_name: z.string().min(1),
-  role: z.enum(['admin', 'teknisi', 'supervisor', 'owner', 'customer']),
+  role: z.enum(['admin', 'teknisi', 'supervisor', 'owner', 'qc', 'engineer', 'customer']),
   gender: z.enum(['male', 'female', 'other']).default('other'),
+  branch_id: z.string().uuid().nullable().optional(),
 })
 
 export const deleteUserSchema = z.object({

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { motion } from "framer-motion";
 import { Clock, CheckCircle, LogIn, LogOut, Calendar, Users, UserCheck, Timer, Play, Square, TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
@@ -31,6 +32,7 @@ export default function AttendanceDashboard({
   onAttendanceChange: () => void;
 }) {
   const supabase = createClient();
+  const { branchId } = useBranchScope();
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<"check_in" | "check_out">("check_in");
   const [allAttendances, setAllAttendances] = useState<any[]>([]);
@@ -55,10 +57,12 @@ export default function AttendanceDashboard({
 
   const fetchAttendances = async () => {
     setLoading(true);
-    const [attRes, staffRes] = await Promise.all([
-      supabase.from("attendances").select("*, profiles:teknisi_id(full_name, role)").order("check_in", { ascending: false }).limit(50),
-      supabase.from("profiles").select("id", { count: "exact", head: true }).in("role", ["admin", "teknisi", "supervisor", "owner"]),
-    ]);
+    let attQuery = supabase.from("attendances").select("*, profiles:teknisi_id(full_name, role)");
+    if (branchId) attQuery = attQuery.eq("branch_id", branchId);
+    attQuery = attQuery.order("check_in", { ascending: false }).limit(50);
+    let staffQuery = supabase.from("profiles").select("id", { count: "exact", head: true }).in("role", ["admin", "teknisi", "supervisor", "owner"]);
+    if (branchId) staffQuery = staffQuery.eq("branch_id", branchId);
+    const [attRes, staffRes] = await Promise.all([attQuery, staffQuery]);
     if (attRes.data) setAllAttendances(attRes.data);
     if (staffRes.count !== null) setStaffCount(staffRes.count);
     setLoading(false);

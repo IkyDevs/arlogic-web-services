@@ -11,6 +11,10 @@ export type UserRole =
   | "teknisi"
   | "supervisor"
   | "owner"
+  | "qc"
+  | "engineer"
+  | "manager"
+  | "admin_gudang"
   | "customer";
 
 export interface Profile {
@@ -22,8 +26,25 @@ export interface Profile {
   phone?: string;
   gender?: string;
   avatar_url?: string;
+  branch_id?: string | null;
+  home_branch_id?: string | null;
+  is_stock_approver?: boolean;
+  is_engineer?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  logo_url?: string;
+  is_active: boolean;
+  is_central?: boolean;
+  created_at: string;
 }
 
 // =====================================================

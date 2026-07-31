@@ -5,7 +5,7 @@ type AuthUserLike = {
 }
 
 function buildFallbackProfile(authUser: AuthUserLike) {
-  const allowedRoles = ['admin', 'teknisi', 'supervisor', 'owner'] as const
+  const allowedRoles = ['admin', 'teknisi', 'supervisor', 'owner', 'qc', 'engineer', 'manager', 'admin_gudang'] as const
   const roleFromMeta = authUser.user_metadata?.role
   const role = typeof roleFromMeta === 'string' && allowedRoles.includes(roleFromMeta as any)
     ? roleFromMeta
@@ -18,6 +18,9 @@ function buildFallbackProfile(authUser: AuthUserLike) {
     role,
     phone: authUser.user_metadata?.phone || null,
     avatar_url: authUser.user_metadata?.avatar_url || null,
+    branch_id: authUser.user_metadata?.branch_id || null,
+    home_branch_id: authUser.user_metadata?.home_branch_id || null,
+    is_stock_approver: authUser.user_metadata?.is_stock_approver ?? false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }

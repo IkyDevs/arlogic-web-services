@@ -16,12 +16,12 @@ import {
   Watch,
   Bell,
   RefreshCw,
+  FileWarning,
   Search,
   Package,
   Calendar,
   Users,
   ShoppingCart,
-  Shield,
   CheckCircle,
   Loader,
   AlertTriangle,
@@ -38,6 +38,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import NotificationBell from "@/components/ui/NotificationBell";
+import ReportModal from "@/components/ui/ReportModal";
 
 const TransactionManagement = dynamic(() => import("@/components/layanan/TransactionManagement"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
@@ -46,9 +47,6 @@ const ServiceList = dynamic(() => import("@/components/admin/ServiceList"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
 });
 const ServiceInput = dynamic(() => import("@/components/admin/ServiceInput"), {
-  loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
-});
-const RoleManagement = dynamic(() => import("@/components/admin/RoleManagement"), {
   loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
 });
 const DoneService = dynamic(() => import("@/components/admin/DoneService"), {
@@ -90,6 +88,7 @@ export default function QCDashboard() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -171,10 +170,13 @@ export default function QCDashboard() {
 
   const fetchServices = async () => {
     setLoading(true);
+    // Scope per cabang untuk role qc (supervisor global lihat semua)
+    const branchScope = isQc && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
       .eq("status", "qc_pending")
+      .match(branchScope)
       .order("created_at", { ascending: true });
 
     if (data) {
@@ -189,10 +191,12 @@ export default function QCDashboard() {
   };
 
   const fetchCompletedServices = async () => {
+    const branchScope = isQc && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
       .eq("status", "completed")
+      .match(branchScope)
       .order("completed_at", { ascending: false })
       .limit(20);
 
@@ -214,9 +218,11 @@ export default function QCDashboard() {
 
   const fetchPendingApprovals = async () => {
     // Cari service yang ada timeline pending_teknisi TANPA timeline pending_approved setelahnya
+    const branchScope = isQc && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data: allServices } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
+      .match(branchScope)
       .order("created_at", { ascending: false });
 
     if (!allServices) return;
@@ -349,6 +355,9 @@ export default function QCDashboard() {
     return counts;
   }, [services]);
 
+  const isSupervisor = user?.role === "supervisor";
+  const isQc = user?.role === "qc";
+
   const menuItems: { id: string; label: string; icon: any; count?: number }[] = [
     { id: "all", label: "Semua", icon: ClipboardCheck },
     { id: "completed", label: "Completed", icon: CheckCircle, count: completedServices.length },
@@ -358,18 +367,20 @@ export default function QCDashboard() {
     { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
     { id: "done", label: "Done", icon: CheckCircle },
     { id: "service", label: "List Service", icon: ClipboardCheck },
-    { id: "users", label: "Users", icon: Shield },
   ];
 
-  teknisiList.forEach((name) => {
-    const count = teknisiPendingCount[name] || 0;
-    menuItems.push({
-      id: name,
-      label: count > 0 ? `${name} (${count})` : name,
-      icon: User,
-      count,
+  // Filter per-teknisi (pending approval) — hanya supervisor
+  if (isSupervisor) {
+    teknisiList.forEach((name) => {
+      const count = teknisiPendingCount[name] || 0;
+      menuItems.push({
+        id: name,
+        label: count > 0 ? `${name} (${count})` : name,
+        icon: User,
+        count,
+      });
     });
-  });
+  }
 
   if (loading) {
     return (
@@ -413,7 +424,7 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "users" || tabId === "pending-approval" || tabId === "completed") {
+          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "pending-approval" || tabId === "completed") {
             setActiveTab(tabId);
           } else if (tabId === "all") {
             filterByTeknisi("all");
@@ -429,6 +440,7 @@ export default function QCDashboard() {
         onLogout={handleLogout}
         todayAttendance={todayAttendance}
         onAttendance={handleAttendance}
+        isSupervisor={isSupervisor}
       />
 
       {/* Mobile Menu Button */}
@@ -471,6 +483,16 @@ export default function QCDashboard() {
 
               {/* Notification */}
               <div className="notification-trigger">
+                              {/* Lapor */}
+              <button
+                onClick={() => setShowReport(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all text-xs font-semibold flex-shrink-0"
+                title="Lapor bug / request fitur"
+              >
+                <FileWarning className="w-4 h-4" />
+                <span className="hidden sm:inline">Lapor</span>
+              </button>
+
                 <NotificationBell open={showNotifications} setOpen={setShowNotifications} />
               </div>
 
@@ -494,8 +516,6 @@ export default function QCDashboard() {
             <TransactionManagement isDark={false} />
           ) : activeTab === "service" ? (
             <ServiceList onAdd={() => setShowServiceForm(true)} />
-          ) : activeTab === "users" ? (
-            <RoleManagement />
           ) : activeTab === "done" ? (
             <DoneService />
           ) : activeTab === "pending-approval" ? (
@@ -678,6 +698,12 @@ export default function QCDashboard() {
         homeTabId="all"
         transactionTabId="management-transaction"
         serviceTabId="service"
+      />
+      {/* Lapor Modal */}
+      <ReportModal
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        currentModule="QC Panel"
       />
     </div>
   );

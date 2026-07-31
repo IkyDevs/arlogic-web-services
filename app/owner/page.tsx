@@ -22,6 +22,7 @@ import {
   Database,
   Bell,
   RefreshCw,
+  FileWarning,
   ChevronRight,
   Activity,
   CheckCircle,
@@ -46,6 +47,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
 import TrackingVisits from "@/components/owner/TrackingVisits";
 import NotificationBell from "@/components/ui/NotificationBell";
+import BranchSelector from "@/components/ui/BranchSelector";
+import ReportModal from "@/components/ui/ReportModal";
 
 // Dynamic imports
 const RevenueChart = dynamic(() => import("@/components/owner/RevenueChart"), {
@@ -147,6 +150,7 @@ export default function OwnerDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [comparePeriod, setComparePeriod] = useState<PeriodType>("month");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -532,7 +536,18 @@ export default function OwnerDashboard() {
             <div className="flex items-center gap-2 flex-wrap">
               {/* Notification */}
               <div className="notification-trigger">
+                              {/* Lapor */}
+              <button
+                onClick={() => setShowReport(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all text-xs font-semibold flex-shrink-0"
+                title="Lapor bug / request fitur"
+              >
+                <FileWarning className="w-4 h-4" />
+                <span className="hidden sm:inline">Lapor</span>
+              </button>
+
                 <NotificationBell open={showNotifications} setOpen={setShowNotifications} />
+                <BranchSelector />
               </div>
 
               {/* Refresh */}
@@ -949,6 +964,12 @@ export default function OwnerDashboard() {
           </AnimatePresence>
         </main>
       </div>
+      {/* Lapor Modal */}
+      <ReportModal
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        currentModule="Owner Panel"
+      />
     </div>
   );
 }

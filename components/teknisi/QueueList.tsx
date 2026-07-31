@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { useAuthStore } from "@/stores/authStore";
 import { ServiceOrder } from "@/types";
 import toast from "react-hot-toast";
@@ -121,6 +122,7 @@ export default function QueueList({
     useState(false);
 
   const supabase = createClient();
+  const { branchId } = useBranchScope();
   const { user } = useAuthStore();
   const { addAndUpload: qcUpload } = usePhotoUpload();
 
@@ -158,6 +160,7 @@ export default function QueueList({
         .from("service_orders")
         .select("*")
         .eq("status", "pending")
+        .match(branchId ? { branch_id: branchId } : {})
         .order("created_at", { ascending: true }),
       supabase
         .from("service_orders")

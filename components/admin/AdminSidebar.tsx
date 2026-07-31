@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   CheckCircle as CheckCircleIcon,
+  Warehouse,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -28,7 +29,6 @@ const menuItems = [
   { id: "services", label: "Service", icon: ClipboardList },
   { id: "sparepart", label: "Request Sparepart", icon: Package },
   { id: "attendance", label: "Absensi", icon: Clock },
-  { id: "users", label: "Pengguna", icon: Users },
   { id: "inventory", label: "Inventaris", icon: Package },
   { id: "closing", label: "Closing", icon: FileText },
   { id: "done", label: "Selesai", icon: CheckCircle },
@@ -45,6 +45,7 @@ interface AdminSidebarProps {
   handleAttendance: (type: "check_in" | "check_out") => void;
   handleLogout: () => void;
   doneCount: number; // Added doneCount prop
+  isCentral?: boolean; // cabang pusat → menu Gudang
 }
 
 export default function AdminSidebar({
@@ -56,7 +57,12 @@ export default function AdminSidebar({
   handleAttendance,
   handleLogout,
   doneCount, // Destructure doneCount
+  isCentral = false,
 }: AdminSidebarProps) {
+  const items = isCentral
+    ? [...menuItems.slice(0, 7), { id: "gudang", label: "Gudang", icon: Warehouse }, ...menuItems.slice(7)]
+    : menuItems;
+
   return (
     <>
       {sidebarOpen && (
@@ -88,7 +94,7 @@ export default function AdminSidebar({
         </div>
 
         <nav className="flex-1 flex flex-col justify-center gap-0.5 px-3 overflow-y-auto">
-          {menuItems.map((item) => (
+          {items.map((item) => (
             <button
               key={item.id}
               onClick={() => {

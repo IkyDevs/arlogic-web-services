@@ -37,9 +37,17 @@ export default function LoginPage() {
       const profile = await ensureProfile(supabase, data.user);
       setUser(profile);
       toast.success(`Welcome back, ${profile.full_name}!`);
-      const validRoles = ['admin', 'teknisi', 'supervisor', 'owner'];
-      const targetRole = profile.role && validRoles.includes(profile.role) ? profile.role : 'login';
-      router.push(targetRole === 'login' ? '/login' : `/${targetRole}`);
+      const validRoles = ['admin', 'teknisi', 'supervisor', 'owner', 'qc', 'engineer'];
+      const roleRoutes: Record<string, string> = {
+        admin: '/admin',
+        teknisi: '/teknisi',
+        supervisor: '/qc',
+        qc: '/qc',
+        engineer: '/engineer',
+        owner: '/owner',
+      };
+      const targetRole = profile.role && validRoles.includes(profile.role) ? (roleRoutes[profile.role] || '/login') : '/login';
+      router.push(targetRole);
     } catch (error: any) {
       toast.error(error.message);
     } finally {

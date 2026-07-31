@@ -37,15 +37,17 @@ export async function proxy(request: NextRequest) {
 
   // Get user role from profile
   let userRole = null;
+  let isEngineer = false;
   if (user) {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, is_engineer")
         .eq("id", user.id)
         .maybeSingle();
 
       userRole = profile?.role;
+      isEngineer = profile?.is_engineer === true;
     } catch (error) {
       console.error("Error fetching profile in middleware:", error);
     }
@@ -67,7 +69,9 @@ export async function proxy(request: NextRequest) {
     const roleDashboard: Record<string, string> = {
       admin: "/admin",
       teknisi: "/teknisi",
-      supervisor: "/qc",
+      supervisor: "/supervisor",
+      qc: "/qc",
+      engineer: "/engineer",
       owner: "/owner",
       customer: "/tracking",
     };
@@ -83,15 +87,18 @@ export async function proxy(request: NextRequest) {
     const roleDashboard: Record<string, string> = {
       admin: "/admin",
       teknisi: "/teknisi",
-      supervisor: "/qc",
+      supervisor: "/supervisor",
+      qc: "/qc",
+      engineer: "/engineer",
       owner: "/owner",
       customer: "/tracking",
     };
 
     const roleRoutes: Record<string, string[]> = {
       admin: ["/admin"],
-      teknisi: ["/teknisi"],
-      supervisor: ["/qc"],
+      teknisi: isEngineer ? ["/teknisi", "/engineer"] : ["/teknisi"],
+      supervisor: ["/qc", "/supervisor"],
+      qc: ["/qc"],
       owner: ["/owner"],
       customer: ["/tracking"],
     };

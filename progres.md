@@ -86,3 +86,37 @@
 | V32: PhotoUploader speed/ETA, improved drag-drop, file count display | ✅ | 2026-07-24 |
 | V32: 69 tests pass, 0 TS errors | ✅ | 2026-07-24 |
 | V32: Documentation update | ✅ | 2026-07-24 |
+
+## Phase 7 — Upload Refactor & Central Upload (V33–V35)
+
+| Task | Status | Date |
+|------|--------|------|
+| V33: Central Upload Module (lib/upload/) | ✅ | 2026-07-30 |
+| V33: IndexedDB temporary file storage | ✅ | 2026-07-30 |
+| V33: useCentralUpload hook + LayananForm migration | ✅ | 2026-07-30 |
+| V34: Save→Upload flow (instant submit, background upload) | ✅ | 2026-07-30 |
+| V34: Upload status (PENDING/UPLOADING/SUCCESS/FAILED) + badges | ✅ | 2026-07-30 |
+| V34: Edit transaksi sinkron dengan Telegram (delete old → new) | ✅ | 2026-07-30 |
+| V34: Statistik split payment + multi-jenis (jenisRevenue) | ✅ | 2026-07-30 |
+| V35: Cloudflare Worker photo proxy (upload + cache + display) | ✅ | 2026-07-31 |
+| V35: HEIC→JPEG (heic2any fallback) + per-foto loading bar | ✅ | 2026-07-31 |
+| V35: Retry upload popup (recover dari IndexedDB) | ✅ | 2026-07-31 |
+| V35: ServiceInput migrated ke central upload (background) | ✅ | 2026-07-31 |
+| V35: Service list auto-refresh (new-service event) | ✅ | 2026-07-31 |
+| V35: Fix Hapus Draft (guard auto-save) | ✅ | 2026-07-31 |
+
+## Phase 8 — Multi-Branch (EPIC-001, mulai implementasi)
+
+| Task | Status | Date |
+|------|--------|------|
+| Audit menyeluruh business flow, roles, DB, security | ✅ | 2026-07-31 |
+| Desain multi-branch final (role, cabang, gudang, engineer) | ✅ | 2026-07-31 |
+| Migration SQL: role `qc`, `is_engineer`, `is_stock_approver`, `inventory_stocks`, `reports`, `announcements`, `branch_assignments` | ✅ | 2026-07-31 |
+| Import data barang (DATA_BARANG.xls, 500 item) | ⏳ | — |
+| Auth & routing: proxy.ts, types, BranchContext, /engineer, /supervisor | ⏳ | — |
+| Fitur Lapor (ReportModal + semua dashboard) | ⏳ | — |
+| Perombakan /qc (role-based), /admin (hapus Users + gudang jember) | ⏳ | — |
+| Teknisi: Stock Toko, Transfer (approver), Engineer (is_engineer) | ⏳ | — |
+| Owner: Closing per cabang | ⏳ | — |
+| Scope data per cabang (branch_id) | ⏳ | — |
+| RLS branch (terakhir) | ⏳ | — |

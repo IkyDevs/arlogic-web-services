@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { motion } from "framer-motion";
 import { DollarSign, CheckCircle, XCircle, Clock, Send, FileText, Wallet, Banknote, Phone, CreditCard, TrendingUp, ShoppingCart, UserCheck, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
@@ -22,6 +23,7 @@ const paymentIcons: Record<string, any> = {
 
 export default function ClosingDashboard() {
   const supabase = createClient();
+  const { branchId } = useBranchScope();
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +121,7 @@ export default function ClosingDashboard() {
             notes: notes || null,
             difference_notes: differenceNotes || null,
             status: "pending",
+            branch_id: branchId,
             created_by: (await supabase.auth.getUser()).data.user?.id,
           },
         }),

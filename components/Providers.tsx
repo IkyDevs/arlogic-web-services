@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { createClient } from '@/lib/supabase/client'
 import { ensureProfile } from '@/lib/supabase/profile'
 import { useRouter } from 'next/navigation'
+import { BranchProvider } from '@/lib/context/BranchContext'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const { user, setUser, setIsLoading, logout } = useAuthStore()
@@ -114,5 +115,5 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     }
   }, [supabase, setUser, setIsLoading, logout, router])
 
-  return <>{children}</>
+  return <BranchProvider>{children}</BranchProvider>
 }

@@ -7,6 +7,7 @@ import {
   LogIn,
   CheckCircle,
   LogOut as LogOutIcon,
+  LayoutDashboard,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -21,6 +22,7 @@ interface QCSidebarProps {
   onLogout: () => void;
   todayAttendance?: any;
   onAttendance?: (type: "check_in" | "check_out") => void;
+  isSupervisor?: boolean;
 }
 
 export default function QCSidebar({
@@ -33,6 +35,7 @@ export default function QCSidebar({
   onLogout,
   todayAttendance,
   onAttendance,
+  isSupervisor = false,
 }: QCSidebarProps) {
   return (
     <aside
@@ -138,6 +141,17 @@ export default function QCSidebar({
           <ThemeToggle />
           <span className="text-sm font-medium">Theme</span>
         </div>
+
+        {/* Supervisor Dashboard (hanya role supervisor) */}
+        {isSupervisor && (
+          <a
+            href="/supervisor"
+            className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+          >
+            <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+            <span>Supervisor Dashboard</span>
+          </a>
+        )}
 
         {/* Logout */}
         <button

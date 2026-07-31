@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn } from "lucide-react";
@@ -59,6 +60,7 @@ function getStatusColor(status: string) {
 
 export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const supabase = createClient();
+  const { branchId } = useBranchScope();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -77,6 +79,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const fetchServices = async () => {
     setLoading(true);
     let q = supabase.from("service_orders").select("*").neq("status", "done").order(sortField, { ascending: sortDir === "asc" });
+    if (branchId) q = q.eq("branch_id", branchId);
     if (movementFilter) q = q.eq("watch_movement", movementFilter);
     if (categoryFilter) q = q.eq("category", categoryFilter);
     if (search.trim()) {

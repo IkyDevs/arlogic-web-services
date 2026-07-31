@@ -17,8 +17,10 @@ import {
   CheckCircle,
   AlertCircle,
   Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import ImportBarangModal from "@/components/admin/ImportBarangModal";
 
 interface InventoryManagementProps {
   onUpdate?: () => void;
@@ -29,6 +31,7 @@ export default function InventoryManagement({
 }: InventoryManagementProps) {
   const [inventory, setInventory] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
@@ -400,6 +403,13 @@ export default function InventoryManagement({
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="bg-blue-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm"
+            >
+              <Upload className="w-4 h-4" />
+              Import Barang
+            </button>
             <button
               onClick={() => {
                 resetForm();
@@ -995,6 +1005,12 @@ export default function InventoryManagement({
           </div>
         )}
       </AnimatePresence>
+
+      <ImportBarangModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        onImported={() => { fetchInventory(); }}
+      />
     </>
   );
 }

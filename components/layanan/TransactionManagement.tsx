@@ -13,6 +13,8 @@ import { realtimeService } from "@/lib/realtime";
 import { formatRupiah } from "@/lib/transaction-service";
 import { computeAnalytics } from "@/lib/domain/transaction/service";
 import { jenisLayananLabels } from "@/lib/domain/transaction/enums";
+import { useBranchScope } from "@/lib/context/useBranchScope";
+import BranchSelector from "@/components/ui/BranchSelector";
 
 const paymentLabels: Record<string, string> = {
   cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer",
@@ -22,6 +24,7 @@ const paymentLabels: Record<string, string> = {
 
 export default function TransactionManagement({ isDark = false }: { isDark?: boolean }) {
   const { transactions, analytics, fetch, loading } = useTransactionStore();
+  const { branchId } = useBranchScope();
   const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun">("hari");
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[]; filterKey?: string; filterType?: string } | null>(null);
@@ -32,15 +35,15 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const [editData, setEditData] = useState<any>(null);
 
   useEffect(() => {
-    fetch();
+    fetch(undefined, branchId);
     const cleanup = realtimeService;
     const ids = [
-      cleanup.subscribe("layanan", "INSERT", () => fetch()),
-      cleanup.subscribe("layanan", "UPDATE", () => fetch()),
-      cleanup.subscribe("layanan", "DELETE", () => fetch()),
+      cleanup.subscribe("layanan", "INSERT", () => fetch(undefined, branchId)),
+      cleanup.subscribe("layanan", "UPDATE", () => fetch(undefined, branchId)),
+      cleanup.subscribe("layanan", "DELETE", () => fetch(undefined, branchId)),
     ];
     return () => ids.forEach((id) => cleanup.unsubscribe(id));
-  }, [fetch]);
+  }, [fetch, branchId]);
 
   // Listen retry upload: buka edit form + recover foto dari IndexedDB
   useEffect(() => {
@@ -173,17 +176,20 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
               <Banknote className="w-3.5 h-3.5" />Cashdraw
             </button>
           </div>
-          <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
-            {(["hari", "bulan", "tahun"] as const).map((p) => (
-              <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
-                className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"}`}>
-                {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 flex-wrap">
+            <BranchSelector />
+            <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
+              {(["hari", "bulan", "tahun"] as const).map((p) => (
+                <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
+                  className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"}`}>
+                  {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
+                </button>
+              ))}
             {filterPeriod === "hari" && (
               <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
                 className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[110px]" />
             )}
+            </div>
           </div>
         </div>
       </div>

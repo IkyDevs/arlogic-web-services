@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { motion } from "framer-motion";
 import { Clock, Search, Download, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 
@@ -27,6 +28,7 @@ function calcDuration(checkIn: string, checkOut: string | null): string {
 }
 
 export default function AttendanceReport() {
+  const { branchId } = useBranchScope();
   const supabase = createClient();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,12 +50,14 @@ export default function AttendanceReport() {
   const fetchAttendance = async () => {
     setLoading(true);
     const { start, end } = getDateRange();
-    const { data } = await supabase
+    let query = supabase
       .from("attendances")
       .select("*, profiles:teknisi_id(full_name)")
       .gte("check_in", start)
-      .lte("check_in", end)
-      .order(sortField, { ascending: sortDir === "asc" });
+      .lte("check_in", end);
+    if (branchId) query = query.eq("branch_id", branchId);
+    query = query.order(sortField, { ascending: sortDir === "asc" });
+    const { data } = await query;
 
     if (data) setRecords(data);
     setLoading(false);

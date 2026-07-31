@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
       .eq('id', callerUser.id)
       .single()
 
-    if (callerProfile?.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    if (callerProfile?.role !== 'admin' && callerProfile?.role !== 'supervisor') {
+      return NextResponse.json({ error: 'Admin/Supervisor access required' }, { status: 403 })
     }
 
     const adminClient = getSupabaseAdmin()
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       email: parsed.email,
       password: parsed.password,
       email_confirm: true,
-      user_metadata: { full_name: parsed.full_name, role: parsed.role },
+      user_metadata: { full_name: parsed.full_name, role: parsed.role, branch_id: parsed.branch_id || null },
     })
 
     if (authError) {
@@ -60,6 +60,8 @@ export async function POST(request: NextRequest) {
         full_name: parsed.full_name,
         role: parsed.role,
         gender: parsed.gender,
+        branch_id: parsed.branch_id || null,
+        home_branch_id: parsed.branch_id || null,
       })
 
     if (profileError) {

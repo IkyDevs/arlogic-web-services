@@ -29,6 +29,7 @@ import {
   Wrench,
   User,
   Lock,
+  Cpu,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -202,6 +203,8 @@ export default function RoleManagement() {
     "teknisi",
     "supervisor",
     "owner",
+    "qc",
+    "engineer",
     "customer",
   ];
 
@@ -262,6 +265,10 @@ export default function RoleManagement() {
         return <UserCheck className="w-4 h-4" />;
       case "teknisi":
         return <Wrench className="w-4 h-4" />;
+      case "qc":
+        return <UserCheck className="w-4 h-4" />;
+      case "engineer":
+        return <Cpu className="w-4 h-4" />;
       default:
         return <User className="w-4 h-4" />;
     }
@@ -277,6 +284,10 @@ export default function RoleManagement() {
         return "bg-emerald-600/10 text-emerald-600 border-emerald-600/20";
       case "teknisi":
         return "bg-[#4DB2FF]/10 text-[#4DB2FF] border-[#4DB2FF]/20";
+      case "qc":
+        return "bg-emerald-600/10 text-emerald-600 border-emerald-600/20";
+      case "engineer":
+        return "bg-purple-600/10 text-purple-600 border-purple-600/20";
       default:
         return "bg-slate-100 text-slate-600 border-slate-200";
     }
@@ -292,6 +303,10 @@ export default function RoleManagement() {
         return "Supervisor";
       case "teknisi":
         return "Teknisi";
+      case "qc":
+        return "QC";
+      case "engineer":
+        return "Engineer";
       default:
         return "Customer";
     }

@@ -6,6 +6,7 @@ import { hasDraft } from "@/lib/draftStorage";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import NotificationBell from "@/components/ui/NotificationBell";
+import ReportModal from "@/components/ui/ReportModal";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -23,6 +24,7 @@ import {
   UserCheck,
   User,
   RefreshCw,
+  FileWarning,
   Eye,
   Plus,
   Wrench,
@@ -35,12 +37,16 @@ import {
   FileText,
   Box,
   Activity,
+  ArrowRightLeft,
+  Cpu,
   Search,
   LogIn,
   CheckCircle,
 } from "lucide-react";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import CustomerList from "@/components/admin/CustomerList";
+import TeknisiStockView from "@/components/teknisi/TeknisiStockView";
+import TeknisiTransferView from "@/components/teknisi/TeknisiTransferView";
 import QueueList from "@/components/teknisi/QueueList";
 import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
@@ -92,6 +98,7 @@ export default function TeknisiDashboard() {
   const [showLayananForm, setShowLayananForm] = useState(false);
   const [showServiceForm, setShowServiceForm] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState<
     "hari" | "bulan" | "tahun" | undefined
   >("hari");
@@ -435,11 +442,18 @@ export default function TeknisiDashboard() {
     { id: "queue", label: "Antrean & Proyek", icon: ClipboardList },
     { id: "stats", label: "Performa", icon: TrendingUp },
     { id: "absensi", label: "Absensi", icon: Clock },
+    { id: "stock", label: "Stock Toko", icon: Package },
     { id: "customer", label: "Customer", icon: Users },
     { id: "kaspin", label: "Kaspin", icon: Package },
     { id: "service", label: "List Service", icon: Wrench },
     { id: "layanan", label: "Transaksi", icon: FileText },
     { id: "done", label: "Done", icon: CheckCircle },
+    ...(user?.is_stock_approver
+      ? [{ id: "transfer", label: "Transfer", icon: ArrowRightLeft }]
+      : []),
+    ...(user?.is_engineer
+      ? [{ id: "engineer", label: "Engineer", icon: Cpu }]
+      : []),
   ];
 
   if (loading) {
@@ -494,6 +508,10 @@ export default function TeknisiDashboard() {
             <button
               key={item.id}
               onClick={() => {
+                if (item.id === "engineer") {
+                  router.push("/engineer");
+                  return;
+                }
                 setActiveTab(item.id);
                 setSidebarOpen(false);
               }}
@@ -605,6 +623,16 @@ export default function TeknisiDashboard() {
 
               {/* Notification */}
               <div className="notification-trigger">
+                              {/* Lapor */}
+              <button
+                onClick={() => setShowReport(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all text-xs font-semibold flex-shrink-0"
+                title="Lapor bug / request fitur"
+              >
+                <FileWarning className="w-4 h-4" />
+                <span className="hidden sm:inline">Lapor</span>
+              </button>
+
                 <NotificationBell open={showNotifications} setOpen={setShowNotifications} />
               </div>
 
@@ -1155,8 +1183,19 @@ export default function TeknisiDashboard() {
               </motion.div>
             )}
 
-            {activeTab === "customer" && (
-              <motion.div
+            {activeTab === "stock" && (
+              <motion.div key="stock" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <TeknisiStockView />
+              </motion.div>
+            )}
+
+            {activeTab === "transfer" && (
+              <motion.div key="transfer" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                <TeknisiTransferView />
+              </motion.div>
+            )}
+
+            {activeTab === "customer" && (              <motion.div
                 key="customer"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1331,6 +1370,12 @@ export default function TeknisiDashboard() {
         homeTabId="queue"
         transactionTabId="layanan"
         serviceTabId="service"
+      />
+      {/* Lapor Modal */}
+      <ReportModal
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        currentModule="Teknisi Panel"
       />
     </div>
   );

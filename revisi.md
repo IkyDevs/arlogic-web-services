@@ -845,3 +845,65 @@ Partial upload failure handling:
 - Failed files can be retried individually via `retryFailed()`
 - Successful files are not re-uploaded
 - UI shows per-file status badge (ready/success/error)
+
+---
+
+# MULTI-BRANCH (EPIC-001) — Revisi Implementasi
+
+## V36 — Fondasi Multi-Branch
+
+Tanggal: 2026-07-31 / 2026-08-01
+
+### Keputusan Desain Final
+
+| Aspek | Keputusan |
+|-------|-----------|
+| Role | `owner` (global), `supervisor` (global), `qc` (per cabang), `admin` (per cabang), `teknisi` (per cabang) |
+| Flag | `is_engineer` (teknisi + fitur engineer), `is_stock_approver` (teknisi + konfirmasi transfer), `home_branch_id` (rolling) |
+| Cabang | Jember = pusat, Kudus = cabang. Owner kelola cabang |
+| Add role | HANYA supervisor (admin & qc TIDAK bisa) |
+| Gudang | Melekat ke cabang pusat (Jember). Admin Jember = admin gudang. Cabang lain hanya stock toko |
+| Stock | Master SKU sama semua cabang; stok per lokasi (`inventory_stocks`) |
+| Engineer | Bukan role terpisah — flag `is_engineer` pada teknisi (Opsi A: halaman /engineer) |
+| QC Jember | Dipegang supervisor (global) |
+| Import barang | Via UI Management Inventory (bukan SQL) |
+| Scope data | Semua data per cabang (branch_id); role global lihat semua (selector) |
+
+### Perubahan Kode
+
+| File | Perubahan |
+|------|-----------|
+| `db/migration-multi-branch.sql` | Tabel `branches`, `inventory_stocks`, `reports`, `announcements`, `branch_assignments`; kolom `home_branch_id`, `is_stock_approver`, `is_engineer`, `buy_price`; role CHECK `qc`; `stock_transfers` + status/confirmed_by/confirmed_at |
+| `proxy.ts` | Route `qc` → /qc, `supervisor` → /supervisor, teknisi+is_engineer → /engineer |
+| `types/index.ts` | Role `qc`, Profile + branch fields, tipe Branch |
+| `lib/supabase/profile.ts` | Fallback profile + branch fields |
+| `lib/context/BranchContext.tsx` | Provider cabang aktif + daftar branches |
+| `app/engineer/page.tsx` | Panel engineer (READ ALL, pengumuman, laporan bug, log) |
+| `app/supervisor/page.tsx` | Monitoring semua cabang, kelola user (ONLY add role), rolling teknisi |
+| `components/ui/ReportModal.tsx` | Fitur Lapor (bug/request/other) — reusable |
+| `app/qc/page.tsx` | Perombakan role-based: qc = QC+Transaksi+Service+Customer+Absensi+Done (per cabang, tanpa Users); supervisor = semua + Users |
+| `app/admin/page.tsx` + `AdminSidebar` | Hapus menu Users (admin tidak add role) |
+| `app/teknisi/page.tsx` | + Stock Toko, + Transfer (approver), + Engineer (is_engineer) |
+| `components/teknisi/TeknisiStockView.tsx` | Lihat stock toko cabangnya (read-only + search) |
+| `components/teknisi/TeknisiTransferView.tsx` | Konfirmasi transferan + riwayat |
+| `components/admin/RoleManagement.tsx` | Tambah role qc/engineer display |
+| `app/api/admin/create-user/route.ts` | Supervisor bisa create user + branch_id |
+
+### Aturan yang Dipatuhi
+
+- Reusable component (ReportModal, TeknisiStockView, TeknisiTransferView, BranchContext)
+- TS 0 error, build 0 error (file baru lint 0 error)
+- Central upload TIDAK diubah (sudah fix)
+- Dokumentasi audit selalu di-update
+
+## V37 — Scope Per Cabang + Import Barang + Gudang
+
+### Perubahan
+- `useBranchScope` hook reusable — filter `branch_id` untuk semua komponen
+- `BranchSelector` reusable — role global pilih cabang / Semua Cabang
+- Scope: TransactionManagement, ServiceList, teknisi Queue, DoneService, CustomerList, AttendanceDashboard, AttendanceReport
+- Closing: `branch_id` saat create + tampil nama cabang di owner approval
+- `ImportBarangModal` — upload .xls (xlsx lib) → preview → upsert ke inventory (+ buy_price)
+- `GudangView` — stock gudang + import, menu hanya untuk cabang pusat (JBR)
+- `branches.is_central` — deteksi cabang pusat
+- Dokumentasi testing: `TESTING-MULTI-BRANCH.md`

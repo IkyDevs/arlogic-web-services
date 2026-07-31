@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
 import { CheckCircle, Clock, FileText, Send, DollarSign, ShoppingCart } from "lucide-react";
 import toast from "react-hot-toast";
@@ -12,6 +13,7 @@ function fmtRupiah(n: number) {
 
 export default function ClosingApproval() {
   const supabase = createClient();
+  const { branches } = useBranch();
   const [closings, setClosings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [approveNotes, setApproveNotes] = useState<Record<string, string>>({});
@@ -95,7 +97,7 @@ export default function ClosingApproval() {
                         Closing {new Date(closing.closing_date).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                       </h3>
                       <p className="text-xs text-slate-400">
-                        {closing.total_transactions} transaksi &middot; Diajukan {new Date(closing.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        {branches.find((b) => b.id === closing.branch_id)?.name || "Cabang tidak diketahui"} &middot; {closing.total_transactions} transaksi &middot; Diajukan {new Date(closing.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
                   </div>

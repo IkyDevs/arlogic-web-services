@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { motion } from "framer-motion";
 import { Users, Search, Phone, ShoppingCart, Watch, Upload, X, CheckCircle, AlertCircle, Loader2, Download, FileSpreadsheet, Edit, Mail, MapPin, Briefcase, FileText, Clock, CreditCard, Hash } from "lucide-react";
 import toast from "react-hot-toast";
@@ -23,6 +24,7 @@ function fmtDate(d: string) {
 
 export default function CustomerList() {
   const supabase = createClient();
+  const { branchId } = useBranchScope();
   const [customers, setCustomers] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,7 @@ export default function CustomerList() {
         .from("customers")
         .select("id, name, phone, point", { count: "exact" })
         .order("created_at", { ascending: false });
+      if (branchId) query = query.eq("branch_id", branchId);
 
       if (searchQuery) {
         const q = searchQuery.replace(/\D/g, "");

@@ -26,6 +26,8 @@ import {
   Bell,
   ShoppingCart,
   RefreshCw,
+  FileWarning,
+  Warehouse,
   Eye,
   Calendar,
   DollarSign,
@@ -56,17 +58,12 @@ import AdminSidebar from "@/components/admin/AdminSidebar";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import NotificationBell from "@/components/ui/NotificationBell";
+import ReportModal from "@/components/ui/ReportModal";
 import { useTheme } from "@/components/ThemeProvider";
+import { useBranch } from "@/lib/context/BranchContext";
+import GudangView from "@/components/admin/GudangView";
 
 // Dynamic imports
-const RoleManagement = dynamic(
-  () => import("@/components/admin/RoleManagement"),
-  {
-    loading: () => (
-      <div className="text-center py-8 text-slate-500">Loading...</div>
-    ),
-  },
-);
 const InventoryManagement = dynamic(
   () => import("@/components/admin/InventoryManagement"),
   {
@@ -159,6 +156,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("transaction");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [showLayananForm, setShowLayananForm] = useState(false);
   const [showServiceForm, setShowServiceForm] = useState(false);
   const [refreshLayanan, setRefreshLayanan] = useState(0);
@@ -219,6 +217,8 @@ export default function AdminDashboard() {
 
   const supabase = createClient();
   const { user, logout } = useAuthStore();
+  const { activeBranch } = useBranch();
+  const isCentralBranch = activeBranch?.is_central === true || activeBranch?.code === "JBR";
   const router = useRouter();
 
   // ==================== SEARCH FUNCTIONS ====================
@@ -782,8 +782,8 @@ export default function AdminDashboard() {
     { id: "services", label: "List Service", icon: ClipboardList },
     { id: "sparepart", label: "Request Sparepart", icon: Package },
     { id: "attendance", label: "Absensi", icon: Clock },
-    { id: "users", label: "Users", icon: Users },
     { id: "inventory", label: "Inventory", icon: Package },
+    ...(isCentralBranch ? [{ id: "gudang", label: "Gudang", icon: Warehouse }] : []),
     { id: "closing", label: "Closing", icon: FileText },
     { id: "done", label: "Done", icon: CheckCircle },
     { id: "template", label: "Template", icon: MessageSquare },
@@ -812,6 +812,7 @@ export default function AdminDashboard() {
         setSidebarOpen={setSidebarOpen}
         todayAttendance={todayAttendance}
         handleAttendance={handleAttendance}
+        isCentral={isCentralBranch}
         handleLogout={handleLogout}
         doneCount={doneServiceCount} // Pass doneServiceCount here
       />
@@ -898,6 +899,16 @@ export default function AdminDashboard() {
                 <RefreshCw className="w-5 h-5 text-slate-400" />
               </button>
 
+              {/* Lapor */}
+              <button
+                onClick={() => setShowReport(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all text-xs font-semibold flex-shrink-0"
+                title="Lapor bug / request fitur"
+              >
+                <FileWarning className="w-4 h-4" />
+                <span className="hidden sm:inline">Lapor</span>
+              </button>
+
               {/* Notification */}
               <div className="flex-shrink-0">
                 <div className="notification-trigger">
@@ -959,6 +970,10 @@ export default function AdminDashboard() {
             <InventoryManagement onUpdate={fetchInventory} />
           )}
 
+          {activeTab === "gudang" && (
+            <GudangView />
+          )}
+
           {activeTab === "attendance" && (
             <AttendanceDashboard
               user={user}
@@ -969,8 +984,6 @@ export default function AdminDashboard() {
               }}
             />
           )}
-
-          {activeTab === "users" && <RoleManagement />}
 
           {activeTab === "closing" && <ClosingDashboard />}
 
@@ -1229,6 +1242,13 @@ export default function AdminDashboard() {
           onSuccess={handleAttendanceSuccess}
         />
       )}
+
+      {/* Lapor Modal */}
+      <ReportModal
+        open={showReport}
+        onClose={() => setShowReport(false)}
+        currentModule="Admin Panel"
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { motion } from "framer-motion";
 import {
   CheckCircle,
@@ -62,6 +63,7 @@ const statusBadge: Record<string, { label: string; color: string }> = {
 
 export default function DoneService() {
   const supabase = createClient();
+  const { branchId } = useBranchScope();
   const [tab, setTab] = useState<"pending" | "history">("pending");
   const [pendingServices, setPendingServices] = useState<any[]>([]);
   const [historyServices, setHistoryServices] = useState<any[]>([]);
@@ -86,6 +88,7 @@ export default function DoneService() {
         .select("*, items:service_items!inner(*)")
         .eq("status", "completed")
         .eq("items.is_final", true)
+        .match(branchId ? { branch_id: branchId } : {})
         .order("done_date", { ascending: false })
         .limit(100),
       supabase
@@ -93,6 +96,7 @@ export default function DoneService() {
         .select("*, items:service_items!inner(*)")
         .eq("status", "done")
         .eq("items.is_final", true)
+        .match(branchId ? { branch_id: branchId } : {})
         .order("done_date", { ascending: false })
         .limit(50),
     ]);

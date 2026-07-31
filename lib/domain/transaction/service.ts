@@ -190,9 +190,12 @@ function getSupabase() {
   return createClient()
 }
 
-export async function fetchAllTransactions(dateFilter?: string): Promise<TransactionData[]> {
+export async function fetchAllTransactions(dateFilter?: string, branchId?: string | null): Promise<TransactionData[]> {
   const supabase = getSupabase()
   let query = supabase.from("layanan").select("*, layanan_items(*)")
+  if (branchId) {
+    query = query.eq("branch_id", branchId)
+  }
   if (dateFilter) {
     query = query
       .gte("created_at", `${dateFilter}T00:00:00`)

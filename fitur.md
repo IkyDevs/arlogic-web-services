@@ -85,3 +85,42 @@
 | Multi-branch support | Low |
 | Advanced reporting | Medium |
 | WhatsApp native integration | High |
+
+## Multi-Branch (EPIC-001) — Desain Final
+
+### Role Baru (revisi dari 5 → 6 + flag)
+
+| Role | Scope | Peran |
+|------|-------|-------|
+| owner | Global | Kelola cabang, analytics semua cabang, closing per cabang |
+| supervisor | Global | Monitor semua cabang, kelola user (ONLY add role), rolling teknisi, QC Jember, semua fitur admin |
+| qc | Per cabang | Murni QC + Transaksi + Service + Customer + Absensi + Done (per cabang), TANPA add role |
+| admin | Per cabang | Admin cabangnya. Admin Jember = + Management Gudang. TANPA add role |
+| teknisi | Per cabang | Service + Transaksi + Stock Toko (read-only) + (Transfer jika approver) + (Engineer jika is_engineer) |
+| customer | Tracking | Hanya tracking/feedback |
+
+### Flag Tambahan di profiles
+
+| Flag | Fungsi |
+|------|--------|
+| `is_engineer` | teknisi + fitur engineer (monitoring semua cabang, pengumuman, log, laporan bug) |
+| `is_stock_approver` | teknisi jember + tab Transfer (konfirmasi transferan gudang → toko) |
+| `home_branch_id` | cabang asal teknisi (untuk rolling) |
+
+### Tabel Baru
+
+| Tabel | Fungsi |
+|-------|--------|
+| branches | master cabang |
+| inventory_stocks | stok per lokasi (gudang / toko per cabang) |
+| reports | fitur Lapor (bug / request fitur) |
+| announcements | pengumuman oleh engineer |
+| branch_assignments | riwayat rolling teknisi |
+
+### Prinsip
+
+- Semua data per cabang (branch_id), tidak campur antar cabang
+- Role global (owner, supervisor, engineer) lihat semua cabang (selector)
+- Role per cabang (qc, admin, teknisi) hanya cabangnya
+- ONLY supervisor yang bisa add role
+- Import data barang via UI Management Inventory (bukan SQL migration)
