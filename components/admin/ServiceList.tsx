@@ -99,6 +99,13 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   useEffect(() => { fetchServices(); }, [movementFilter, categoryFilter, sortField, sortDir]);
   useEffect(() => { extractCategories(); }, []);
 
+  // Auto-refresh ketika service baru ditambahkan (Add Service)
+  useEffect(() => {
+    const handler = () => fetchServices();
+    window.addEventListener("new-service", handler);
+    return () => window.removeEventListener("new-service", handler);
+  }, [movementFilter, categoryFilter, sortField, sortDir]);
+
   useEffect(() => {
     const timer = setTimeout(() => fetchServices(), 300);
     return () => clearTimeout(timer);

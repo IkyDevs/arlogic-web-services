@@ -589,6 +589,10 @@ In : ${now}`;
       setSuccess(true);
       setStep(5);
       toast.success("Watch service order created!");
+      // Trigger refresh pada ServiceList (auto muncul tanpa manual refresh)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("new-service"));
+      }
       onSuccess?.();
 
       // Save to customers table + notify Telegram if new
