@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
-import { compressImage, heicToJpeg, isHeicFile } from "@/lib/upload/upload-compressor";
+import { compressImage, convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
 import {
   jenisLayananLabels,
   metodePembayaranLabels,
@@ -188,6 +188,7 @@ export default memo(function LayananForm({
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [convertingHeic, setConvertingHeic] = useState(false);
+  const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>(() => {
@@ -406,24 +407,25 @@ export default memo(function LayananForm({
     );
     if (!rawFiles.length) return;
 
-    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any)
-    if (rawFiles.some((f) => isHeicFile(f))) setConvertingHeic(true);
-    const converted: File[] = [];
+    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any) dengan progress
+    if (rawFiles.some((f) => isHeicFile(f))) {
+      setConvertingHeic(true);
+      setHeicProgress({ done: 0, total: rawFiles.length });
+    }
+    let converted: File[] = [];
+    let failedHeic: string[] = [];
     try {
-      for (const f of rawFiles) {
-        if (isHeicFile(f)) {
-          const jpeg = await heicToJpeg(f);
-          if (jpeg) {
-            converted.push(jpeg);
-          } else {
-            toast.error(`"${f.name}" format HEIC tidak didukung browser ini. Silakan konversi ke JPEG atau gunakan iPhone/Safari.`);
-          }
-        } else {
-          converted.push(f);
-        }
-      }
+      const result = await convertHeicFiles(rawFiles, (done, total) => {
+        setHeicProgress({ done, total });
+      });
+      converted = result.files;
+      failedHeic = result.failed;
     } finally {
       setConvertingHeic(false);
+      setHeicProgress({ done: 0, total: 0 });
+    }
+    if (failedHeic.length > 0) {
+      toast.error(`"${failedHeic.join(", ")}" tidak bisa dikonversi dari HEIC. Silakan kirim ulang sebagai JPEG.`);
     }
     if (converted.length === 0) return;
 
@@ -1432,7 +1434,7 @@ export default memo(function LayananForm({
             <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl mt-3">
               <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
               <span className="text-sm text-blue-700 dark:text-blue-300">
-                Mengonversi HEIC ke JPEG...
+                Mengonversi HEIC ke JPEG... ({heicProgress.done}/{heicProgress.total})
               </span>
             </div>
           )}

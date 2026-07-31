@@ -66,6 +66,40 @@ export function heicToJpeg(file: File): Promise<File | null> {
   })()
 }
 
+/**
+ * Konversi batch HEIC/HEIF → JPEG dengan progress + yield (UI tidak freeze).
+ * Non-HEIC file langsung diteruskan. Hasil HEIC di-downscale ke max 1920px.
+ */
+export async function convertHeicFiles(
+  files: File[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ files: File[]; failed: string[] }> {
+  const converted: File[] = []
+  const failed: string[] = []
+  let done = 0
+
+  for (const f of files) {
+    if (isHeicFile(f)) {
+      const jpeg = await heicToJpeg(f)
+      if (jpeg) {
+        // Downscale hasil konversi supaya ukuran upload kecil
+        const resized = await compressImage(jpeg)
+        converted.push(resized.size < jpeg.size ? resized : jpeg)
+      } else {
+        failed.push(f.name)
+      }
+    } else {
+      converted.push(f)
+    }
+    done++
+    onProgress?.(done, files.length)
+    // Yield supaya browser bisa repaint (hindari UI "macet")
+    await new Promise((r) => setTimeout(r, 30))
+  }
+
+  return { files: converted, failed }
+}
+
 export function compressImage(file: File): Promise<File> {
   const targetBytes = TARGET_KB * 1024
 

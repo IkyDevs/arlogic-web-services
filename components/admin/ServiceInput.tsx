@@ -31,7 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
-import { compressImage, heicToJpeg, isHeicFile } from "@/lib/upload/upload-compressor";
+import { compressImage, convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
@@ -123,6 +123,7 @@ export default function ServiceInput({
   });
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{
@@ -270,21 +271,25 @@ export default function ServiceInput({
     );
     if (rawFiles.length === 0) return;
 
-    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any)
-    if (rawFiles.some((f) => isHeicFile(f))) setIsCompressing(true);
-    const converted: File[] = [];
+    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any) dengan progress
+    if (rawFiles.some((f) => isHeicFile(f))) {
+      setIsCompressing(true);
+      setHeicProgress({ done: 0, total: rawFiles.length });
+    }
+    let converted: File[] = [];
+    let failedHeic: string[] = [];
     try {
-      for (const f of rawFiles) {
-        if (isHeicFile(f)) {
-          const jpeg = await heicToJpeg(f);
-          if (jpeg) converted.push(jpeg);
-          else toast.error(`"${f.name}" format HEIC tidak didukung browser ini. Silakan konversi ke JPEG atau gunakan iPhone/Safari.`);
-        } else {
-          converted.push(f);
-        }
-      }
+      const result = await convertHeicFiles(rawFiles, (done, total) => {
+        setHeicProgress({ done, total });
+      });
+      converted = result.files;
+      failedHeic = result.failed;
     } finally {
       setIsCompressing(false);
+      setHeicProgress({ done: 0, total: 0 });
+    }
+    if (failedHeic.length > 0) {
+      toast.error(`"${failedHeic.join(", ")}" tidak bisa dikonversi dari HEIC. Silakan kirim ulang sebagai JPEG.`);
     }
     if (converted.length === 0) return;
 
@@ -665,6 +670,7 @@ In : ${now}`;
     });
     setPhotoPreviews([]);
     setIsCompressing(false);
+    setHeicProgress({ done: 0, total: 0 });
     upload.clear();
     setSuccess(false);
     setStep(1);
@@ -1049,7 +1055,7 @@ In : ${now}`;
               {isCompressing ? (
                 <span className="flex items-center gap-2 text-blue-600">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Mengonversi HEIC ke JPEG...
+                  Mengonversi HEIC ke JPEG... ({heicProgress.done}/{heicProgress.total})
                 </span>
               ) : upload.pendingFiles.length > 0 ? (
                 `${upload.pendingFiles.length} photos selected`
