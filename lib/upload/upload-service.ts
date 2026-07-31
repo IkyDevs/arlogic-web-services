@@ -363,24 +363,42 @@ export class UploadService {
 
     const proxyUrl = process.env.NEXT_PUBLIC_PHOTO_PROXY_URL || ''
     const workerUrl = proxyUrl ? `${proxyUrl}/upload` : ''
-    const formData = new FormData()
-    formData.append('type', type)
-    if (caption) formData.append('caption', caption)
-    for (const f of files) formData.append('files', f, f.name)
 
-    // Try Worker first, fallback to Vercel
+    // Resolve chat_id from server (agar channel sama dengan production)
+    let chatId = ''
+    try {
+      const chatRes = await fetch(`/api/telegram/chat-id?type=${encodeURIComponent(type)}`)
+      const chatData = await chatRes.json()
+      chatId = chatData.chat_id || ''
+    } catch {}
+
+    // Try Worker first, fallback ke Vercel HANYA jika payload kecil (Vercel limit 4.5MB)
     const urls = [workerUrl, '/api/upload'].filter(Boolean)
     let lastError: any = null
+    const totalBytes = files.reduce((s, f) => s + f.size, 0)
 
-    for (const uploadUrl of urls) {
+    for (let i = 0; i < urls.length; i++) {
+      const uploadUrl = urls[i]
       if (!uploadUrl) continue
-      console.log('[DEBUG:UploadService] upload target:', uploadUrl)
+      // Jangan fallback ke Vercel kalau payload besar (akan 413)
+      if (i > 0 && totalBytes > 3.5 * 1024 * 1024) {
+        console.warn('[DEBUG:UploadService] skip Vercel fallback - payload terlalu besar:', (totalBytes / 1024 / 1024).toFixed(1) + 'MB')
+        break
+      }
+      console.log('[DEBUG:UploadService] upload target:', uploadUrl, 'chatId:', chatId, 'size:', (totalBytes / 1024 / 1024).toFixed(1) + 'MB')
+
+      // Buat FormData FRESH setiap attempt (stream FormData tidak bisa dipakai 2x)
+      const fd = new FormData()
+      fd.append('type', type)
+      if (chatId) fd.append('chat_id', chatId)
+      if (caption) fd.append('caption', caption)
+      for (const f of files) fd.append('files', f, f.name)
 
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), timeout || 120000)
 
       try {
-        const res = await fetch(uploadUrl, { method: 'POST', body: formData, signal: controller.signal })
+        const res = await fetch(uploadUrl, { method: 'POST', body: fd, signal: controller.signal })
         clearTimeout(timer)
         const text = await res.text()
         let data: any

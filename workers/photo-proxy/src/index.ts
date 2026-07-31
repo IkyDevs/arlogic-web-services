@@ -10,7 +10,13 @@ const CACHE_TTL = 604800 // 7 days
 
 export interface Env {
   TELEGRAM_BOT_TOKEN: string
-  ALLOWED_ORIGINS?: string
+  TELEGRAM_CHANNEL_ATTENDANCE?: string
+  TELEGRAM_CHANNEL_SERVICE?: string
+  TELEGRAM_CHANNEL_LAYANAN?: string
+  TELEGRAM_CHANNEL_INVENTORY?: string
+  TELEGRAM_CHANNEL_KASPIN?: string
+  TELEGRAM_CHANNEL_TEKNISI_UPDATE?: string
+  TELEGRAM_CHANNEL_QC_UPDATE?: string
 }
 
 // ─── Upload: receive files → Telegram → return URLs ────────────────
@@ -43,6 +49,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
     const files: File[] = []
     const caption = (formData.get('caption') as string) || ''
     const channelType = (formData.get('type') as string) || 'layanan'
+    const providedChatId = (formData.get('chat_id') as string) || ''
 
     // Collect files from form data
     for (const [key, value] of formData.entries()) {
@@ -57,8 +64,18 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
       })
     }
 
-    // Use channel username directly (no getChat API needed — just send to @channel)
-    const chatId = CHANNEL_MAP[channelType] || '@arlogic_layanan'
+    // Prefer chat_id from client (resolved dari server production), fallback ke env/dua default
+    const envMap: Record<string, string | undefined> = {
+      attendance: env.TELEGRAM_CHANNEL_ATTENDANCE,
+      service: env.TELEGRAM_CHANNEL_SERVICE,
+      layanan: env.TELEGRAM_CHANNEL_LAYANAN,
+      inventory: env.TELEGRAM_CHANNEL_INVENTORY,
+      kaspin: env.TELEGRAM_CHANNEL_KASPIN,
+      teknisi_update: env.TELEGRAM_CHANNEL_TEKNISI_UPDATE,
+      qc_update: env.TELEGRAM_CHANNEL_QC_UPDATE,
+      closing: env.TELEGRAM_CHANNEL_LAYANAN,
+    }
+    const chatId = providedChatId || envMap[channelType] || DEFAULT_CHANNELS[channelType] || '@arlogic_layanan'
 
     // Upload to Telegram
     const botUrl = `${TELEGRAM_API}/bot${env.TELEGRAM_BOT_TOKEN}`
@@ -142,17 +159,18 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
   }
 }
 
-// ─── Channel usernames ────────────────────────────────────────────
+// ─── Channel fallbacks (sync dengan .env production) ─────────────
 
-const CHANNEL_MAP: Record<string, string> = {
-  attendance: '@arlogic_attendance',
-  service: '@arlogic_service',
-  layanan: '@arlogic_layanan',
-  inventory: '@arlogic_inventory',
-  kaspin: '@arlogic_kaspin',
-  teknisi_update: '@arlogic_service',
-  qc_update: '@arlogic_service',
-  closing: '@arlogic_layanan',
+const DEFAULT_CHANNELS: Record<string, string> = {
+  attendance: '@jbr_absensi',
+  service: '@jbr_praService',
+  layanan: '@jbr_transaksi',
+  inventory: '@jbr_inventory',
+  kaspin: '@arlogic_storage',
+  teknisi_update: '@jbr_update_teknisi',
+  qc_update: '@jbr_qc_update',
+  closing: '@arlogic_storage',
+  customer: '@db_customer',
 }
 
 // ─── Photo proxy: GET /photos/:file_id ──────────────────────────────

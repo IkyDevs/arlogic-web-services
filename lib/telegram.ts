@@ -15,6 +15,8 @@ const CHANNELS = {
   qc_update: process.env.TELEGRAM_CHANNEL_QC_UPDATE,
 } as const;
 
+export { CHANNELS };
+
 export type TelegramChannelType = keyof typeof CHANNELS;
 
 export interface TelegramMessageResult {
