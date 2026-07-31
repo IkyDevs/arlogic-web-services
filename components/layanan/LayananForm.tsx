@@ -186,6 +186,7 @@ export default memo(function LayananForm({
 
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [convertingHeic, setConvertingHeic] = useState(false);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>(() => {
@@ -393,19 +394,24 @@ export default memo(function LayananForm({
     );
     if (!rawFiles.length) return;
 
-    // Konversi HEIC/HEIF → JPEG (Safari/iOS bisa; browser lain tidak support HEIC)
+    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any)
+    if (rawFiles.some((f) => isHeicFile(f))) setConvertingHeic(true);
     const converted: File[] = [];
-    for (const f of rawFiles) {
-      if (isHeicFile(f)) {
-        const jpeg = await heicToJpeg(f);
-        if (jpeg) {
-          converted.push(jpeg);
+    try {
+      for (const f of rawFiles) {
+        if (isHeicFile(f)) {
+          const jpeg = await heicToJpeg(f);
+          if (jpeg) {
+            converted.push(jpeg);
+          } else {
+            toast.error(`"${f.name}" format HEIC tidak didukung browser ini. Silakan konversi ke JPEG atau gunakan iPhone/Safari.`);
+          }
         } else {
-          toast.error(`"${f.name}" format HEIC tidak didukung browser ini. Silakan konversi ke JPEG atau gunakan iPhone/Safari.`);
+          converted.push(f);
         }
-      } else {
-        converted.push(f);
       }
+    } finally {
+      setConvertingHeic(false);
     }
     if (converted.length === 0) return;
 
@@ -1383,6 +1389,14 @@ export default memo(function LayananForm({
               <p className="text-sm font-medium text-gray-500">
                 Klik untuk upload foto
               </p>
+            </div>
+          )}
+          {convertingHeic && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl mt-3">
+              <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+              <span className="text-sm text-blue-700 dark:text-blue-300">
+                Mengonversi HEIC ke JPEG...
+              </span>
             </div>
           )}
           {upload.pendingFiles.length === 0 &&

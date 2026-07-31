@@ -30,7 +30,8 @@ import {
   DollarSign,
   Trash2,
 } from "lucide-react";
-import { useUpload } from "@/hooks/useUpload";
+import { useCentralUpload } from "@/hooks/useCentralUpload";
+import { compressImage, heicToJpeg, isHeicFile } from "@/lib/upload/upload-compressor";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
@@ -100,7 +101,8 @@ export default function ServiceInput({
 }) {
   const supabase = createClient();
   const { user } = useAuthStore();
-  const { uploadFile, uploadFiles, uploading, progress } = useUpload();
+  const [uploadKey] = useState(() => `service_${user?.id || 'anon'}_${Date.now()}`);
+  const upload = useCentralUpload(uploadKey);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,10 +121,8 @@ export default function ServiceInput({
     payment_method: "cash",
     qris_photo: null as File | null,
   });
-  const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
-  const [compressProgress, setCompressProgress] = useState({ done: 0, total: 0 });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{
@@ -160,8 +160,11 @@ export default function ServiceInput({
         restoredRef.current = true;
         setFormData((p) => ({ ...p, ...draft.data }));
         if (draft.photoFiles && draft.photoFiles.length > 0) {
-          setPhotos(draft.photoFiles);
           setPhotoPreviews(draft.photoFiles.map((f) => URL.createObjectURL(f)));
+          const result = await upload.addFiles(draft.photoFiles);
+          if (result.files.length > 0) {
+            setPhotoPreviews((prev) => [...prev, ...result.files.map((f) => f.preview)]);
+          }
         }
         if (draft.extraPhotoFiles && draft.extraPhotoFiles.length > 0 && draft.data?.qris_photo !== null) {
           setFormData((p) => ({ ...p, qris_photo: draft.extraPhotoFiles![0] }));
@@ -211,16 +214,15 @@ export default function ServiceInput({
 
   // ── Auto-save foto (debounce 2s) ────────────────────────────────────────
   const photoTimer = useRef<any>(null);
-  const latestPhotos = useRef(photos);
-  latestPhotos.current = photos;
+  const draftFiles = upload.pendingFiles.filter((f) => f.status === "ready").map((f) => f.file);
   useEffect(() => {
-    if (!user?.id || photos.length === 0) return;
+    if (!user?.id || draftFiles.length === 0) return;
     if (photoTimer.current) clearTimeout(photoTimer.current);
     photoTimer.current = setTimeout(() => {
-      saveDraft("service", user.id, formData, photos, formData.qris_photo ? [formData.qris_photo] : undefined).catch(() => {});
+      saveDraft("service", user.id, formData, draftFiles, formData.qris_photo ? [formData.qris_photo] : undefined).catch(() => {});
     }, 2000);
     return () => { if (photoTimer.current) clearTimeout(photoTimer.current); };
-  }, [photos, user?.id]);
+  }, [upload.pendingFiles, user?.id]);
 
   const generateInvoiceNumber = () => {
     const d = new Date();
@@ -261,23 +263,48 @@ export default function ServiceInput({
     return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
   };
 
-  const handleAddPhoto = (files: FileList | null) => {
+  const handleAddPhoto = async (files: FileList | null) => {
     if (!files) return;
     const rawFiles = Array.from(files).filter(
       (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
     );
     if (rawFiles.length === 0) return;
 
-    setPhotos((prev) => [...prev, ...rawFiles]);
-    rawFiles.forEach((f) => {
-      const url = URL.createObjectURL(f);
-      setPhotoPreviews((prev) => [...prev, url]);
-    });
+    // Konversi HEIC/HEIF → JPEG (Canvas dulu, fallback heic2any)
+    if (rawFiles.some((f) => isHeicFile(f))) setIsCompressing(true);
+    const converted: File[] = [];
+    try {
+      for (const f of rawFiles) {
+        if (isHeicFile(f)) {
+          const jpeg = await heicToJpeg(f);
+          if (jpeg) converted.push(jpeg);
+          else toast.error(`"${f.name}" format HEIC tidak didukung browser ini. Silakan konversi ke JPEG atau gunakan iPhone/Safari.`);
+        } else {
+          converted.push(f);
+        }
+      }
+    } finally {
+      setIsCompressing(false);
+    }
+    if (converted.length === 0) return;
+
+    const result = await upload.addFiles(converted);
+    if (result.files.length > 0) {
+      setPhotoPreviews((prev) => [...prev, ...result.files.map((f) => f.preview)]);
+    }
+    if (result.errors.length > 0) {
+      result.errors.forEach((e) => toast.error(e));
+    }
   };
 
-  const removePhoto = (i: number) => {
-    URL.revokeObjectURL(photoPreviews[i]);
-    setPhotos((prev) => prev.filter((_, idx) => idx !== i));
+  const removePhoto = async (i: number) => {
+    const url = photoPreviews[i];
+    if (url.startsWith("blob:")) {
+      const pending = upload.pendingFiles.find((f) => f.preview === url);
+      if (pending) await upload.removeFile(pending.id);
+    } else {
+      URL.revokeObjectURL(url);
+    }
     setPhotoPreviews((prev) => prev.filter((_, idx) => idx !== i));
   };
 
@@ -290,7 +317,7 @@ export default function ServiceInput({
       toast.error("Fill watch brand!");
       return;
     }
-    if (step === 3 && photos.length === 0) {
+    if (step === 3 && upload.pendingFiles.length === 0) {
       toast(
         "No photos added. Teknisi won't have initial condition reference.",
         { icon: "⚠️" },
@@ -356,8 +383,9 @@ export default function ServiceInput({
 
       const serviceId = orderData.id;
 
-      // All photos (initial condition + qris/transfer proof) grouped as one album
-      let allPhotosToUpload = [...photos];
+      // Collect files from central upload (IndexedDB) + qris/transfer proof
+      const pendingFiles = upload.pendingFiles.filter((f) => f.status === "ready");
+      let allPhotosToUpload = [...pendingFiles.map((f) => f.file)];
       if (
         formData.qris_photo &&
         (formData.payment_method === "qris" ||
@@ -365,7 +393,7 @@ export default function ServiceInput({
           formData.payment_method === "edc_mandiri" ||
           formData.payment_method === "edc_bca")
       ) {
-        const alreadyInPhotos = photos.some(
+        const alreadyInPhotos = pendingFiles.some(
           (f) =>
             f.name === formData.qris_photo?.name &&
             f.size === formData.qris_photo?.size,
@@ -375,16 +403,16 @@ export default function ServiceInput({
         }
       }
 
-      if (allPhotosToUpload.length > 0) {
-        const now = new Date().toLocaleString("id-ID", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+      // Build service caption (untuk Telegram)
+      const now = new Date().toLocaleString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
-        let formattedCaption = `Kategori : ${formData.category || "—"}
+      let formattedCaption = `Kategori : ${formData.category || "—"}
 CS :  ${formData.cs_name}
 WA : ${formData.cs_phone}
 Seri : ${formData.serial_number || "—"}
@@ -395,47 +423,24 @@ Kendala : ${formData.problem}
 Request : ${formData.request || "—"}
 Keterangan : ${formData.notes || "—"}`;
 
-        if (hasDp) {
-          formattedCaption += `
-dp : Rp ${dpValue.toLocaleString("id-ID")}`;
-          if (estimatedCost) {
-            formattedCaption += `
-estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
-          }
-          formattedCaption += `
-Pembayaran : ${paymentLabels[formData.payment_method] || formData.payment_method}`;
-        } else if (estimatedCost) {
-          formattedCaption += `
-estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
-        }
-
+      if (hasDp) {
         formattedCaption += `
-In : ${now}`;
-
-        const urls = await uploadFiles(allPhotosToUpload, {
-          type: "service",
-          caption: formattedCaption,
-        });
-
-        const authUserForDoc = (await supabase.auth.getUser()).data.user;
-        const docInserts = urls.map((r) => ({
-          service_order_id: serviceId,
-          photo_url: r.url,
-          stage: "initial_condition",
-          uploaded_by: authUserForDoc?.id,
-          telegram_chat_id: r.chat_id,
-          telegram_message_id: r.message_id,
-        }));
-        if (docInserts.length > 0) {
-          await supabase.from("service_documentation").insert(docInserts);
+dp : Rp ${dpValue.toLocaleString("id-ID")}`;
+        if (estimatedCost) {
+          formattedCaption += `
+estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
         }
-
-        if (urls.length === 0 && allPhotosToUpload.length > 0) {
-          throw new Error("Upload foto gagal, transaksi DP dibatalkan");
-        }
+        formattedCaption += `
+Pembayaran : ${paymentLabels[formData.payment_method] || formData.payment_method}`;
+      } else if (estimatedCost) {
+        formattedCaption += `
+estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
       }
 
-      // Link existing DP transaction (from manual DP Service input)
+      formattedCaption += `
+In : ${now}`;
+
+      // Link existing DP transaction (fast, tidak perlu upload)
       if (selectedDpId) {
         const selectedDp = dpTransactions.find((d) => d.id === selectedDpId);
         await supabase
@@ -453,44 +458,52 @@ In : ${now}`;
         }
       }
 
-      // Auto-add DP transaction if DP > 0 (only if not linked)
-      if (hasDp && dpValue > 0 && !selectedDpId) {
-        const { data: userProfile } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .eq("id", authUser?.id)
-          .single();
+      // BACKGROUND: upload foto + insert documentation + DP transaction (tidak blocking)
+      if (allPhotosToUpload.length > 0 || (hasDp && dpValue > 0 && !selectedDpId)) {
+        (async () => {
+          try {
+            // 1. Upload service photos (kompres client-side dulu)
+            if (allPhotosToUpload.length > 0) {
+              const filesToUpload = await Promise.all(
+                allPhotosToUpload.map(async (file) => {
+                  if (file.size > 500 * 1024) {
+                    const c = await compressImage(file);
+                    if (c.size < file.size) return c;
+                  }
+                  return file;
+                }),
+              );
+              const urls = await upload.legacyUpload(filesToUpload, "service", formattedCaption);
+              if (urls.length > 0) {
+                const authUserForDoc = (await supabase.auth.getUser()).data.user;
+                const docInserts = urls.map((r) => ({
+                  service_order_id: serviceId,
+                  photo_url: r.url,
+                  stage: "initial_condition",
+                  uploaded_by: authUserForDoc?.id,
+                  telegram_chat_id: r.chat_id,
+                  telegram_message_id: r.message_id,
+                }));
+                await supabase.from("service_documentation").insert(docInserts);
+              }
+            }
 
-        // Upload DP proof photo directly to layanan channel (2nd send: transaction photo + caption = 1 chat)
-        let dpPhotoUrl = null;
-        let dpTelegramSent = false;
-        const now = new Date();
-        const dayNames = [
-          "Minggu",
-          "Senin",
-          "Selasa",
-          "Rabu",
-          "Kamis",
-          "Jumat",
-          "Sabtu",
-        ];
-        const monthNames = [
-          "Januari",
-          "Februari",
-          "Maret",
-          "April",
-          "Mei",
-          "Juni",
-          "Juli",
-          "Agustus",
-          "September",
-          "Oktober",
-          "November",
-          "Desember",
-        ];
-        const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
+            // 2. Auto-add DP transaction jika DP > 0 (tidak linked)
+            if (hasDp && dpValue > 0 && !selectedDpId) {
+              const { data: userProfile } = await supabase
+                .from("profiles")
+                .select("id, full_name")
+                .eq("id", authUser?.id)
+                .single();
 
-        const dpDescription = `📊 TRANSAKSI
+              let dpPhotoUrl = null;
+              let dpTelegramSent = false;
+              const dpNow = new Date();
+              const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+              const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+              const fmtDateTime = `${dayNames[dpNow.getDay()]}, ${dpNow.getDate()} ${monthNames[dpNow.getMonth()]} ${dpNow.getFullYear()}, ${dpNow.getHours().toString().padStart(2, "0")}.${dpNow.getMinutes().toString().padStart(2, "0")}.${dpNow.getSeconds().toString().padStart(2, "0")}`;
+
+              const dpDescription = `📊 TRANSAKSI
 
 💳 tipe : dp service
 📱 Customer: ${formData.cs_name}
@@ -503,76 +516,74 @@ In : ${now}`;
 ⏰ ${fmtDateTime}
 `;
 
-        if (
-          formData.qris_photo &&
-          (formData.payment_method === "qris" ||
-            formData.payment_method === "transfer" ||
-            formData.payment_method === "edc_mandiri" ||
-            formData.payment_method === "edc_bca")
-        ) {
-          try {
-            const dpPhotoUrls = await uploadFiles([formData.qris_photo], {
-              type: "layanan",
-              caption: dpDescription,
-            });
-            dpPhotoUrl = dpPhotoUrls?.[0] || null;
-            dpTelegramSent = true;
-          } catch (photoErr) {
-            console.error(
-              "Failed to upload DP photo to transaction:",
-              photoErr,
-            );
+              // Upload DP proof photo ke channel layanan
+              if (
+                formData.qris_photo &&
+                (formData.payment_method === "qris" ||
+                  formData.payment_method === "transfer" ||
+                  formData.payment_method === "edc_mandiri" ||
+                  formData.payment_method === "edc_bca")
+              ) {
+                try {
+                  const dpPhotoUrls = await upload.legacyUpload([formData.qris_photo], "layanan", dpDescription);
+                  dpPhotoUrl = dpPhotoUrls?.[0]?.url || null;
+                  dpTelegramSent = true;
+                } catch (photoErr) {
+                  console.error("Failed to upload DP photo to transaction:", photoErr);
+                }
+              }
+
+              if (!dpTelegramSent) {
+                // Fallback: text-only notification untuk Cash DP
+                try {
+                  await fetch("/api/telegram", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ type: "transaction", message: dpDescription }),
+                  });
+                } catch (telegramErr) {
+                  console.error("Failed to send DP text to telegram:", telegramErr);
+                }
+              }
+
+              // Insert DP transaction
+              await supabase
+                .from("layanan")
+                .insert([
+                  {
+                    customer_name: formData.cs_name,
+                    customer_whatsapp: formData.cs_phone,
+                    jenis_layanan: "dp_service",
+                    handled_by: authUser?.id,
+                    handled_by_name: userProfile?.full_name || "System",
+                    metode_pembayaran: formData.payment_method || "cash",
+                    lead_source: "service_order",
+                    detail_sku: `DP - Invoice ${invoiceNumber}`,
+                    nominal: dpValue,
+                    notes: `Down Payment untuk service order ${invoiceNumber}`,
+                    photo_url: dpPhotoUrl,
+                    photo_urls: dpPhotoUrl ? [dpPhotoUrl] : [],
+                    created_by: authUser?.id,
+                    created_by_name: userProfile?.full_name || "System",
+                    status: "active",
+                  },
+                ])
+                .select("id")
+                .single();
+
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("new-transaction"));
+              }
+            }
+          } catch (bgErr) {
+            console.error("Background upload failed:", bgErr);
+            toast.error("Foto gagal diupload di background");
           }
-        }
-
-        if (!dpTelegramSent) {
-          // Fallback: send text-only notification for Cash DP (no photo)
-          try {
-            await fetch("/api/telegram", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "transaction",
-                message: dpDescription,
-              }),
-            });
-          } catch (telegramErr) {
-            console.error("Failed to send DP text to telegram:", telegramErr);
-          }
-        }
-
-        // Insert DP transaction
-        const { data: dpTransaction } = await supabase
-          .from("layanan")
-          .insert([
-            {
-              customer_name: formData.cs_name,
-              customer_whatsapp: formData.cs_phone,
-              jenis_layanan: "dp_service",
-              handled_by: authUser?.id,
-              handled_by_name: userProfile?.full_name || "System",
-              metode_pembayaran: formData.payment_method || "cash",
-              lead_source: "service_order",
-              detail_sku: `DP - Invoice ${invoiceNumber}`,
-              nominal: dpValue,
-              notes: `Down Payment untuk service order ${invoiceNumber}`,
-              photo_url: dpPhotoUrl,
-              photo_urls: dpPhotoUrl ? [dpPhotoUrl] : [],
-              created_by: authUser?.id,
-              created_by_name: userProfile?.full_name || "System",
-              status: "active",
-            },
-          ])
-          .select("id")
-          .single();
-
-        // Auto-refresh: trigger fetchAllData via custom event
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("new-transaction"));
-        }
+        })();
       }
 
       if (user?.id) { clearingDraft.current = true; clearDraft("service", user.id); }
+      upload.clear();
       restoredRef.current = false;
       setLastInvoice({ invoice: invoiceNumber, token, serviceId });
       setSuccess(true);
@@ -648,10 +659,9 @@ In : ${now}`;
       payment_method: "cash",
       qris_photo: null,
     });
-    setPhotos([]);
     setPhotoPreviews([]);
     setIsCompressing(false);
-    setCompressProgress({ done: 0, total: 0 });
+    upload.clear();
     setSuccess(false);
     setStep(1);
     setLastInvoice(null);
@@ -696,8 +706,8 @@ In : ${now}`;
                   watch_brand: "", watch_model: "", watch_movement: "", problem: "",
                   request: "", notes: "", down_payment: "", payment_method: "cash", qris_photo: null,
                 });
-                setPhotos([]);
                 setPhotoPreviews([]);
+                upload.clear();
                 setStep(1);
                 toast.success("Draft berhasil dihapus", { duration: 2000 });
               }}
@@ -722,8 +732,8 @@ In : ${now}`;
                 watch_brand: "", watch_model: "", watch_movement: "", problem: "",
                 request: "", notes: "", down_payment: "", payment_method: "cash", qris_photo: null,
               });
-              setPhotos([]);
               setPhotoPreviews([]);
+              upload.clear();
               setStep(1);
               toast.success("Draft berhasil dihapus", { duration: 2000 });
             }}
@@ -994,21 +1004,11 @@ In : ${now}`;
               </div>
             )}
 
-            {/* Compression Loading Indicator */}
-            {isCompressing && (
-              <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                <span className="text-sm text-blue-700">
-                  Mengompresi foto ({compressProgress.done}/{compressProgress.total})...
-                </span>
-              </div>
-            )}
-
             {/* Upload Buttons */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => cameraInputRef.current?.click()}
-                disabled={isCompressing}
+                disabled={upload.uploading}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
               >
                 <Camera className="w-4 h-4" />
@@ -1016,7 +1016,7 @@ In : ${now}`;
               </button>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isCompressing}
+                disabled={upload.uploading}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900 disabled:opacity-50"
               >
                 <ImageIcon className="w-4 h-4" />
@@ -1042,11 +1042,16 @@ In : ${now}`;
             </div>
 
             <p className="text-xs text-slate-400 mt-3">
-              {isCompressing
-                ? "Processing..."
-                : photos.length > 0
-                  ? `${photos.length} photos selected`
-                  : "Optional — can be skipped"}
+              {isCompressing ? (
+                <span className="flex items-center gap-2 text-blue-600">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Mengonversi HEIC ke JPEG...
+                </span>
+              ) : upload.pendingFiles.length > 0 ? (
+                `${upload.pendingFiles.length} photos selected`
+              ) : (
+                "Optional — can be skipped"
+              )}
             </p>
 
             <div className="flex justify-between mt-6">
@@ -1058,10 +1063,10 @@ In : ${now}`;
               </button>
               <button
                 onClick={nextStep}
-                disabled={isCompressing}
+                disabled={upload.uploading}
                 className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
               >
-                {photos.length === 0 ? "Skip →" : "Continue →"}
+                {upload.pendingFiles.length === 0 ? "Skip →" : "Continue →"}
               </button>
             </div>
           </motion.div>
@@ -1404,7 +1409,7 @@ In : ${now}`;
                   )}
                   <span className="text-slate-500">Photos:</span>
                   <span className="font-medium text-slate-900">
-                    {photos.length} photos
+                    {upload.pendingFiles.length} photos
                   </span>
                 </div>
               </div>
@@ -1419,13 +1424,13 @@ In : ${now}`;
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={loading || uploading}
+                disabled={loading}
                 className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium disabled:opacity-50"
               >
-                {loading || uploading ? (
+                {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    {uploading ? `Uploading ${progress}%` : "Creating..."}
+                    Creating...
                   </>
                 ) : (
                   <>
@@ -1455,8 +1460,8 @@ In : ${now}`;
             </h3>
             <p className="text-sm text-slate-500 mb-6">
               Watch service order has been created
-              {photos.length > 0 &&
-                ` with ${photos.length} initial condition photos`}
+              {upload.pendingFiles.length > 0 &&
+                ` with ${upload.pendingFiles.length} initial condition photos`}
               .
             </p>
 
@@ -1519,8 +1524,8 @@ In : ${now}`;
         )}
       </AnimatePresence>
 
-      {/* Upload progress */}
-      {uploading && (
+      {/* Upload progress (background) */}
+      {upload.uploading && (
         <div className="fixed bottom-4 right-4 bg-white rounded-lg border border-slate-200 shadow-lg p-4 w-64 z-50">
           <p className="text-xs font-medium text-slate-900 mb-2">
             Uploading photos...
@@ -1528,10 +1533,10 @@ In : ${now}`;
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-600 transition-all duration-200"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${upload.progress}%` }}
             />
           </div>
-          <p className="text-xs text-slate-400 mt-1.5">{progress}% complete</p>
+          <p className="text-xs text-slate-400 mt-1.5">{upload.progress}% complete</p>
         </div>
       )}
     </div>

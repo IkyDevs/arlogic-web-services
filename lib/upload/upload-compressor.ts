@@ -9,38 +9,61 @@ export function isHeicFile(file: File): boolean {
 }
 
 export function heicToJpeg(file: File): Promise<File | null> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => {
-      URL.revokeObjectURL(img.src)
-      let { width, height } = img
-      if (width > MAX_DIM || height > MAX_DIM) {
-        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
+  const name = file.name.replace(/\.[^.]+$/, '.jpg')
+
+  // Coba native Canvas dulu (Safari/iOS mendukung HEIC)
+  const tryCanvas = (): Promise<File | null> =>
+    new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        URL.revokeObjectURL(img.src)
+        let { width, height } = img
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { resolve(null); return }
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (blob && blob.size > 0) resolve(new File([blob], name, { type: 'image/jpeg' }))
+            else resolve(null)
+          },
+          'image/jpeg',
+          QUALITY,
+        )
       }
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d')
-      if (!ctx) { resolve(null); return }
-      ctx.drawImage(img, 0, 0, width, height)
-      canvas.toBlob(
-        (blob) => {
-          if (blob && blob.size > 0) {
-            const name = file.name.replace(/\.[^.]+$/, '.jpg')
-            resolve(new File([blob], name, { type: 'image/jpeg' }))
-          } else {
-            resolve(null)
-          }
-        },
-        'image/jpeg',
-        QUALITY,
-      )
+      img.onerror = () => resolve(null)
+      img.src = URL.createObjectURL(file)
+    })
+
+  // Fallback: heic2any (WASM, support semua browser termasuk Chrome/Android)
+  const tryHeic2any = async (): Promise<File | null> => {
+    try {
+      const heic2any = (await import('heic2any')).default
+      const result: any = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: QUALITY,
+      })
+      const blob = Array.isArray(result) ? result[0] : result
+      if (blob && blob.size > 0) return new File([blob], name, { type: 'image/jpeg' })
+      return null
+    } catch {
+      return null
     }
-    img.onerror = () => resolve(null)
-    img.src = URL.createObjectURL(file)
-  })
+  }
+
+  return (async () => {
+    const canvasResult = await tryCanvas()
+    if (canvasResult) return canvasResult
+    return tryHeic2any()
+  })()
 }
 
 export function compressImage(file: File): Promise<File> {

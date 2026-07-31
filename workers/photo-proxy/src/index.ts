@@ -102,7 +102,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
       const fileId = msg.photo?.[msg.photo.length - 1]?.file_id || ''
       results.push({
         file_id: fileId,
-        url: `${botUrl}/getFile?file_id=${fileId}`,
+        url: `${request.url.replace(/\/upload$/, '')}/photos/${fileId}`,
         chat_id: String(msg.chat.id),
         message_id: msg.message_id,
       })
