@@ -290,9 +290,10 @@ export default function AdminDashboard() {
     ]);
     const sumNominal = (rows: any[]) =>
       rows.reduce((s: number, item: any) => {
+        // `nominal` sudah total semua item (multi-item). Fallback ke items hanya jika nominal 0.
         let total = item.nominal || 0;
-        if (item.layanan_items) {
-          total += item.layanan_items.reduce(
+        if (!total && item.layanan_items) {
+          total = item.layanan_items.reduce(
             (si: number, li: any) => si + (li.nominal || 0),
             0,
           );
@@ -401,8 +402,8 @@ export default function AdminDashboard() {
     const sumNominal = (rows: any[]) =>
       rows.reduce((s: number, item: any) => {
         let total = item.nominal || 0;
-        if (item.layanan_items) {
-          total += item.layanan_items.reduce(
+        if (!total && item.layanan_items) {
+          total = item.layanan_items.reduce(
             (si: number, li: any) => si + (li.nominal || 0),
             0,
           );
