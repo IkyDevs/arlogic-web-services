@@ -48,6 +48,7 @@ import CustomerList from "@/components/admin/CustomerList";
 import TrackingVisits from "@/components/owner/TrackingVisits";
 import NotificationBell from "@/components/ui/NotificationBell";
 import BranchSelector from "@/components/ui/BranchSelector";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { useBranch } from "@/lib/context/BranchContext";
 import ReportModal from "@/components/ui/ReportModal";
 
@@ -656,6 +657,8 @@ export default function OwnerDashboard() {
                 data={dashboardData}
                 dateRange={getDateRangeValues()}
               />
+
+              <UserAvatar user={user} />
             </div>
           </div>
         </header>

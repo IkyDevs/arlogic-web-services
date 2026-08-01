@@ -31,7 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
-import { compressImage, convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
+import { convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
 import { useBranch } from "@/lib/context/BranchContext";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
@@ -485,18 +485,9 @@ In : ${now}`;
       if (allPhotosToUpload.length > 0 || (hasDp && dpValue > 0 && !selectedDpId)) {
         (async () => {
           try {
-            // 1. Upload service photos (kompres client-side dulu)
+            // 1. Upload service photos (sudah dikompres saat addFiles ≤1MB)
             if (allPhotosToUpload.length > 0) {
-              const filesToUpload = await Promise.all(
-                allPhotosToUpload.map(async (file) => {
-                  if (file.size > 500 * 1024) {
-                    const c = await compressImage(file);
-                    if (c.size < file.size) return c;
-                  }
-                  return file;
-                }),
-              );
-              const urls = await upload.legacyUpload(filesToUpload, "service", formattedCaption, undefined, (activeBranch as any)?.code);
+              const urls = await upload.legacyUpload(allPhotosToUpload, "service", formattedCaption, undefined, (activeBranch as any)?.code);
               if (urls.length > 0) {
                 const authUserForDoc = (await supabase.auth.getUser()).data.user;
                 const docInserts = urls.map((r) => ({

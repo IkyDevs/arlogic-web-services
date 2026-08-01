@@ -38,6 +38,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import NotificationBell from "@/components/ui/NotificationBell";
+import UserAvatar from "@/components/ui/UserAvatar";
 import ReportModal from "@/components/ui/ReportModal";
 
 const TransactionManagement = dynamic(() => import("@/components/layanan/TransactionManagement"), {
@@ -507,11 +508,7 @@ export default function QCDashboard() {
               </div>
 
               {/* Profile */}
-              <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
-                  {user?.full_name?.charAt(0) || "Q"}
-                </div>
-              </div>
+              <UserAvatar user={user} />
             </div>
           </div>
         </header>

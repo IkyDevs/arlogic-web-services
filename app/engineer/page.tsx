@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
 import { useBranch } from "@/lib/context/BranchContext";
+import UserAvatar from "@/components/ui/UserAvatar";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import {
@@ -143,10 +144,18 @@ export default function EngineerDashboard() {
 
       {/* ── Main ── */}
       <main className="flex-1 overflow-y-auto p-6">
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {tab === "overview" ? "Overview Semua Cabang" : tab === "announcements" ? "Pengumuman" : tab === "reports" ? "Laporan Bug & Request" : "Log Perubahan"}
+          </h2>
+          <UserAvatar user={user} />
+        </div>
+
         {/* Overview */}
         {tab === "overview" && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Overview Semua Cabang</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 hidden">Overview Semua Cabang</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {branches.map((b) => {
                 const s = branchStats[b.id] || { services: 0, transactions: 0 };
@@ -182,7 +191,6 @@ export default function EngineerDashboard() {
         {/* Announcements */}
         {tab === "announcements" && (
           <div className="space-y-6 max-w-2xl">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Buat Pengumuman</h2>
             <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-5 space-y-3">
               <input
                 value={annTitle}
@@ -235,7 +243,6 @@ export default function EngineerDashboard() {
         {/* Reports */}
         {tab === "reports" && (
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Laporan Bug & Request</h2>
             {reports.map((r) => (
               <div key={r.id} className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
@@ -267,7 +274,6 @@ export default function EngineerDashboard() {
         {/* Logs */}
         {tab === "logs" && (
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Log Perubahan</h2>
             {logs.map((l) => (
               <div key={l.id} className="bg-white dark:bg-[#1c1c1c] rounded-lg border border-gray-200 dark:border-white/10 px-4 py-2.5 flex items-center justify-between">
                 <div>

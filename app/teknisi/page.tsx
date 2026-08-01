@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import NotificationBell from "@/components/ui/NotificationBell";
 import ReportModal from "@/components/ui/ReportModal";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -23,10 +24,8 @@ import {
   Shield,
   UserCheck,
   User,
-  RefreshCw,
   FileWarning,
   Eye,
-  Plus,
   Wrench,
   Search as SearchIcon,
   Star,
@@ -42,11 +41,13 @@ import {
   Search,
   LogIn,
   CheckCircle,
+  ClipboardCheck,
 } from "lucide-react";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
 import CustomerList from "@/components/admin/CustomerList";
 import TeknisiStockView from "@/components/teknisi/TeknisiStockView";
 import TeknisiTransferView from "@/components/teknisi/TeknisiTransferView";
+import QCProcessView from "@/components/teknisi/QCProcessView";
 import QueueList from "@/components/teknisi/QueueList";
 import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
@@ -448,6 +449,7 @@ export default function TeknisiDashboard() {
     { id: "service", label: "List Service", icon: Wrench },
     { id: "layanan", label: "Transaksi", icon: FileText },
     { id: "done", label: "Done", icon: CheckCircle },
+    { id: "qc-process", label: "QC Process", icon: ClipboardCheck },
     ...(user?.is_stock_approver
       ? [{ id: "transfer", label: "Transfer", icon: ArrowRightLeft }]
       : []),
@@ -604,23 +606,6 @@ export default function TeknisiDashboard() {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-              {/* Add New Service Button */}
-              <button
-                onClick={() => setShowServiceForm(true)}
-                className="flex items-center gap-1.5 sm:gap-2 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all shadow-sm active:scale-95 flex-shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">New Service</span>
-              </button>
-
-              {/* Refresh */}
-              <button
-                onClick={() => fetchAllData(true)}
-                className={`p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-all flex-shrink-0 ${refreshing ? "animate-spin" : ""}`}
-              >
-                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
-              </button>
-
               {/* Notification */}
               <div className="notification-trigger">
                               {/* Lapor */}
@@ -637,11 +622,7 @@ export default function TeknisiDashboard() {
               </div>
 
               {/* Profile */}
-              <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
-                  {user?.full_name?.charAt(0) || "T"}
-                </div>
-              </div>
+              <UserAvatar user={user} />
             </div>
           </div>
         </header>
@@ -1239,6 +1220,17 @@ export default function TeknisiDashboard() {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <DoneService />
+              </motion.div>
+            )}
+
+            {activeTab === "qc-process" && (
+              <motion.div
+                key="qc-process"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <QCProcessView />
               </motion.div>
             )}
           </AnimatePresence>

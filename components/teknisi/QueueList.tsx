@@ -10,6 +10,7 @@ import { usePhotoUpload } from "@/hooks/usePhotoUpload";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
+  Undo2,
   Clock,
   Wrench,
   Calendar,
@@ -173,6 +174,7 @@ export default function QueueList({
           "po_pending",
           "sparepart_ready",
           "revision_required",
+          "qc_pending",
         ])
         .order("created_at", { ascending: false }),
     ]);
@@ -312,6 +314,51 @@ export default function QueueList({
     }
     toast.success("Service dilanjutkan!");
     fetchQueues();
+  };
+
+  // ── Tarik kembali service dari QC ke proyek teknisi ──
+  const pullFromQC = async (service: ExtendedServiceOrder) => {
+    if (!confirm(`Tarik service "${service.customer_name}" kembali dari QC ke proyek Anda?`)) return;
+    try {
+      // Kembalikan status ke in_progress (items/sparepart tetap tersimpan)
+      const { error: updateErr } = await supabase
+        .from("service_orders")
+        .update({ status: "in_progress", qc_submit_notes: null })
+        .eq("id", service.id);
+      if (updateErr) throw updateErr;
+
+      // Timeline
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id,
+        teknisi_id: teknisiId,
+        status: "qc_pulled_back",
+        message: "Service ditarik kembali dari QC oleh teknisi",
+        details: { action: "pull_from_qc" },
+      });
+
+      // Notifikasi ke QC/supervisor
+      const { data: qcUsers } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("role", ["supervisor", "qc"]);
+      if (qcUsers && qcUsers.length > 0) {
+        await supabase.from("notifications").insert(
+          qcUsers.map((u: any) => ({
+            user_id: u.id,
+            title: "↩️ Service ditarik dari QC",
+            message: `${user?.full_name || "Teknisi"} menarik ${service.invoice_number || "service"} (${service.customer_name}) kembali dari QC.`,
+            type: "warning",
+            link: "/qc",
+            is_read: false,
+          }))
+        );
+      }
+
+      toast.success("Service ditarik kembali dari QC.");
+      fetchQueues();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Gagal menarik service");
+    }
   };
 
   const sendReminderToAdmin = async (service: ExtendedServiceOrder) => {
@@ -1119,9 +1166,20 @@ export default function QueueList({
                           </button>
                         )}
                         {service.status === "qc_pending" && (
-                          <span className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 border border-purple-300 rounded-xl flex items-center gap-1 font-medium">
-                            <Clock className="w-3.5 h-3.5" /> QC
-                          </span>
+                          <>
+                            <span className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 border border-purple-300 rounded-xl flex items-center gap-1 font-medium">
+                              <Clock className="w-3.5 h-3.5" /> QC
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                pullFromQC(service);
+                              }}
+                              className="px-3 py-1.5 text-xs bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition-all flex items-center gap-1"
+                            >
+                              <Undo2 className="w-3.5 h-3.5" /> TARIK KEMBALI
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>

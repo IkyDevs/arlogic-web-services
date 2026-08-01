@@ -58,6 +58,7 @@ import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import NotificationBell from "@/components/ui/NotificationBell";
 import ReportModal from "@/components/ui/ReportModal";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { useTheme } from "@/components/ThemeProvider";
 import { useBranch } from "@/lib/context/BranchContext";
 import { useBranchScope } from "@/lib/context/useBranchScope";
@@ -928,11 +929,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Profile */}
-              <div className="flex items-center pl-1.5 sm:pl-2 border-l border-slate-200 flex-shrink-0">
-                <div className="w-8 h-8 sm:w-8 sm:h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm">
-                  {user?.full_name?.charAt(0) || "A"}
-                </div>
-              </div>
+              <UserAvatar user={user} />
             </div>
           </div>
         </header>

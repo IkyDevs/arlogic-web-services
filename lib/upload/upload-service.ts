@@ -23,7 +23,7 @@ import {
 } from './upload-types'
 import { uploadServiceConfig } from './upload-config'
 import { validateFiles, checkDuplicateFiles, validateCorrupted } from './upload-validator'
-import { compressFilesGenerator } from './upload-compressor'
+import { compressFilesGenerator, compressToTarget } from './upload-compressor'
 import { generateId, createObjectURL, revokeObjectURL } from './upload-utils'
 import {
   saveFileToIndexedDB,
@@ -82,23 +82,28 @@ export class UploadService {
         continue
       }
 
+      // Kompresi saat foto ditambahkan (target ±1MB, kualitas bagus — tidak burik)
+      const TARGET_BYTES = 1024 * 1024 // 1MB
+      const processed = file.size > TARGET_BYTES ? await compressToTarget(file, TARGET_BYTES) : file
+
       const pendingId = generateId()
-      const preview = createObjectURL(file)
+      const preview = createObjectURL(processed)
       const indexedDBKey = `${sessionKey}_${pendingId}`
 
-      await saveFileToIndexedDB(indexedDBKey, file)
+      await saveFileToIndexedDB(indexedDBKey, processed)
       console.log('[DEBUG:UploadService] file saved to IndexedDB', {
         indexedDBKey,
-        fileName: file.name,
-        fileSize: file.size,
+        fileName: processed.name,
+        fileSize: processed.size,
+        originalSize: file.size,
       })
 
       const pendingFile: PendingFile = {
         id: pendingId,
-        file,
-        name: file.name,
-        size: file.size,
-        type: file.type,
+        file: processed,
+        name: processed.name,
+        size: processed.size,
+        type: processed.type,
         preview,
         status: 'ready',
         uploaded: false,
@@ -375,20 +380,14 @@ export class UploadService {
       chatId = chatData.chat_id || ''
     } catch {}
 
-    // Try Worker first, fallback ke Vercel HANYA jika payload kecil (Vercel limit 4.5MB)
-    const urls = [workerUrl, '/api/upload'].filter(Boolean)
+    // SELALU ke Worker (Cloudflare) — gambar TIDAK lewat Vercel
+    const urls = [workerUrl].filter(Boolean)
     let lastError: any = null
-    const totalBytes = files.reduce((s, f) => s + f.size, 0)
 
     for (let i = 0; i < urls.length; i++) {
       const uploadUrl = urls[i]
       if (!uploadUrl) continue
-      // Jangan fallback ke Vercel kalau payload besar (akan 413)
-      if (i > 0 && totalBytes > 3.5 * 1024 * 1024) {
-        console.warn('[DEBUG:UploadService] skip Vercel fallback - payload terlalu besar:', (totalBytes / 1024 / 1024).toFixed(1) + 'MB')
-        break
-      }
-      console.log('[DEBUG:UploadService] upload target:', uploadUrl, 'chatId:', chatId, 'size:', (totalBytes / 1024 / 1024).toFixed(1) + 'MB')
+      console.log('[DEBUG:UploadService] upload target:', uploadUrl, 'chatId:', chatId)
 
       // Buat FormData FRESH setiap attempt (stream FormData tidak bisa dipakai 2x)
       const fd = new FormData()

@@ -107,7 +107,8 @@ export async function convertHeicFiles(
   return { files: converted, failed }
 }
 
-export function compressImage(file: File): Promise<File> {
+export function compressImage(file: File, quality?: number): Promise<File> {
+  const q = quality ?? QUALITY
   const targetBytes = TARGET_KB * 1024
 
   if (file.size <= targetBytes) {
@@ -140,7 +141,7 @@ export function compressImage(file: File): Promise<File> {
           }
         },
         'image/jpeg',
-        QUALITY,
+        q,
       )
     }
     img.onerror = () => resolve(file)
@@ -154,3 +155,28 @@ export async function* compressFilesGenerator(files: File[]): AsyncGenerator<{ i
     yield { index: i, file: compressed }
   }
 }
+
+/**
+ * Kompresi dengan target ukuran (misal 1MB).
+ * - File ≤ target → tidak dikompres (hanya validasi)
+ * - File > target → kompres quality tinggi dulu (0.92), turun bertahap sampai ≤ target
+ * - Hasil tetap kualitas bagus (tidak burik) karena quality tidak turun drastis
+ */
+export async function compressToTarget(file: File, targetBytes: number): Promise<File> {
+  if (file.size <= targetBytes) return file
+
+  // Tahap 1: kompres quality tinggi, dimensi 1920
+  const first = await compressImage(file, 0.92)
+  if (first.size <= targetBytes || first.size === file.size) return first
+
+  // Tahap 2: turun quality bertahap jika masih > target
+  const qualities = [0.88, 0.84, 0.78, 0.72]
+  let best = first
+  for (const q of qualities) {
+    const next = await compressImage(best, q)
+    if (next.size < best.size) best = next
+    if (next.size <= targetBytes) break
+  }
+  return best
+}
+

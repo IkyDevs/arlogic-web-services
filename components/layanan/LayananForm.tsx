@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
-import { compressImage, convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
+import { convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
 import { useBranch } from "@/lib/context/BranchContext";
 import {
   jenisLayananLabels,
@@ -45,6 +45,7 @@ import {
   FileText,
   Send,
   X,
+  Minus,
   Camera,
   Loader2,
   Trash2,
@@ -191,6 +192,7 @@ export default memo(function LayananForm({
   const [loading, setLoading] = useState(false);
   const [convertingHeic, setConvertingHeic] = useState(false);
   const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
+  const [minimized, setMinimized] = useState(false);
   const [loadingPhotos, setLoadingPhotos] = useState<{ key: string; name: string }[]>([]);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -719,7 +721,7 @@ export default memo(function LayananForm({
         toast.success("Transaksi berhasil ditambahkan!");
       }
 
-      await syncCustomer(customerName, customerWhatsapp, (activeBranch as any)?.id);
+      syncCustomer(customerName, customerWhatsapp, (activeBranch as any)?.id).catch(() => {});
 
       // STEP 2: Upload foto di background dan update transaksi dengan hasilnya
       const step2TxId = isEdit ? initialData.id : newTxId;
@@ -758,16 +760,10 @@ export default memo(function LayananForm({
           { duration: 5000 },
         );
 
-        // Upload new files only — compress client-side dulu (Vercel limit 4.5MB)
+        // Foto sudah dikompres saat addFiles (target ≤1MB) — upload langsung, popup instan
         supabase.from('layanan').update({ upload_status: 'UPLOADING' } as any).eq('id', txIdToUpdate).then();
 
-        const filesToUpload = await Promise.all(pendingFiles.map(async (pf) => {
-          if (pf.file.size > 500 * 1024) {
-            const compressed = await compressImage(pf.file);
-            if (compressed.size < pf.file.size) return compressed;
-          }
-          return pf.file;
-        }));
+        const filesToUpload = pendingFiles.map(pf => pf.file);
 
         upload.legacyUpload(
           filesToUpload,
@@ -994,6 +990,35 @@ export default memo(function LayananForm({
   const sectionClass =
     "bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-4";
 
+  // Mode minimize: tampilkan kartu kecil (floating) bukan form penuh
+  if (minimized) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="fixed bottom-4 right-4 z-[100] bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-300 dark:border-white/10 shadow-xl p-3 flex items-center gap-3 max-w-xs"
+      >
+        <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">
+            Transaksi {customerName || "diproses"}
+          </p>
+          <p className="text-[10px] text-gray-500">
+            {photoPreviews.length} foto &middot; {upload.uploading ? "uploading..." : "menunggu"}
+          </p>
+        </div>
+        <button
+          onClick={() => setMinimized(false)}
+          className="px-2.5 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 flex-shrink-0"
+        >
+          Buka
+        </button>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       data-layanan-form="true"
@@ -1073,6 +1098,15 @@ export default memo(function LayananForm({
               title="Hapus draft"
             >
               <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={() => setMinimized(true)}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+              title="Minimize"
+            >
+              <Minus className="w-4 h-4 text-gray-400" />
             </button>
           )}
           {onClose && (

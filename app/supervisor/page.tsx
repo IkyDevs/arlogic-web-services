@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import ReportModal from "@/components/ui/ReportModal";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
 
 type Tab = "overview" | "users";
@@ -268,12 +269,15 @@ export default function SupervisorDashboard() {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {tab === "overview" ? "Monitoring Semua Cabang" : "Kelola User"}
           </h2>
-          <button
-            onClick={() => setShowReport(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all text-xs font-semibold"
-          >
-            <Plus className="w-4 h-4" /> Lapor
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowReport(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all text-xs font-semibold"
+            >
+              <Plus className="w-4 h-4" /> Lapor
+            </button>
+            <UserAvatar user={user} />
+          </div>
         </div>
 
         {tab === "overview" && (
