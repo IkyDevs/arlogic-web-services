@@ -5,9 +5,25 @@ import { rateLimitIP } from '@/lib/rate-limit'
 import { UploadType } from '@/lib/validation/schemas'
 import { uploadConfig, isAllowedFile } from '@/lib/uploadConfig'
 import sharp from 'sharp'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 const MB = 1024 * 1024
 const PHOTO_PROXY_DOMAIN = process.env.PHOTO_PROXY_DOMAIN || 'https://photos.arlogic.com'
+
+// Resolve kode cabang dari user yang login (profile.branch_id → branches.code)
+async function resolveBranchFromRequest(): Promise<string | null> {
+  try {
+    const supabase = await createServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    const { data: profile } = await supabase.from('profiles').select('branch_id').eq('id', user.id).single()
+    if (!profile?.branch_id) return null
+    const { data: branch } = await supabase.from('branches').select('code').eq('id', profile.branch_id).single()
+    return branch?.code || null
+  } catch {
+    return null
+  }
+}
 
 const CHANNEL_MAP: Record<string, 'attendance' | 'service' | 'layanan' | 'inventory' | 'kaspin' | 'teknisi_update' | 'qc_update'> = {
   attendance: 'attendance',
@@ -64,7 +80,8 @@ export async function POST(request: NextRequest) {
 
     const files = formData.getAll('files') as File[]
     const type = (formData.get('type') as string) || ''
-    const branchCode = (formData.get('branch') as string) || undefined
+    // Branch eksplisit dari client, atau resolve otomatis dari user login (fallback)
+    const branchCode = (formData.get('branch') as string) || (await resolveBranchFromRequest()) || undefined
     const caption = (formData.get('caption') as string) || ''
 
     if (!files.length) {

@@ -249,5 +249,14 @@ GRANT ALL ON TABLE stock_toko TO authenticated;
 CREATE INDEX IF NOT EXISTS idx_stock_gudang_inventory ON stock_gudang(inventory_id);
 CREATE INDEX IF NOT EXISTS idx_stock_toko_branch ON stock_toko(branch_id);
 
+-- ─────────────────────────────────────────────────────
+-- 13) SERVICE_ITEMS & SPAREPART_REQUESTS: inventory_id
+--     (sparepart yang dipilih dari stock/inventory)
+-- ─────────────────────────────────────────────────────
+ALTER TABLE service_items ADD COLUMN IF NOT EXISTS inventory_id UUID REFERENCES inventory(id) ON DELETE SET NULL;
+ALTER TABLE sparepart_requests ADD COLUMN IF NOT EXISTS inventory_id UUID REFERENCES inventory(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_service_items_inventory ON service_items(inventory_id);
+CREATE INDEX IF NOT EXISTS idx_sparepart_requests_inventory ON sparepart_requests(inventory_id);
+
 NOTIFY pgrst, 'reload schema';
 

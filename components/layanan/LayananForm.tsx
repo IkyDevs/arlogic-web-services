@@ -652,7 +652,7 @@ export default memo(function LayananForm({
           notes,
           photo_urls: photoUrls,
           upload_session_key: uploadKey,
-          branch_id: (activeBranch as any)?.id || null,
+          branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -689,7 +689,7 @@ export default memo(function LayananForm({
           telegram_chat_id: tgChatId,
           telegram_message_id: tgMessageId,
           upload_session_key: uploadKey,
-          branch_id: (activeBranch as any)?.id || null,
+          branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"

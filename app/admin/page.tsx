@@ -1222,10 +1222,12 @@ export default function AdminDashboard() {
 
       {/* Layanan Form */}
       {showLayananForm && (
-        <LayananForm
-          onClose={() => setShowLayananForm(false)}
-          onSuccess={handleLayananSuccess}
-        />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
+          <LayananForm
+            onClose={() => setShowLayananForm(false)}
+            onSuccess={handleLayananSuccess}
+          />
+        </div>
       )}
 
       {/* Service Input Form */}

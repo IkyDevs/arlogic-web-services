@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { telegramMessageSchema } from '@/lib/validation/schemas'
+import { getChannel, type TelegramChannelType } from '@/lib/telegram'
+import { createClient } from '@/lib/supabase/server'
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
-const CHANNELS = {
-  transaction: process.env.TELEGRAM_CHANNEL_LAYANAN,
-  dp: process.env.TELEGRAM_CHANNEL_LAYANAN,
-  inventory: process.env.TELEGRAM_CHANNEL_INVENTORY,
-  service: process.env.TELEGRAM_CHANNEL_SERVICE,
-  attendance: process.env.TELEGRAM_CHANNEL_ATTENDANCE,
-  customer: process.env.TELEGRAM_CHANNEL_CUSTOMER,
-  kaspin: process.env.TELEGRAM_CHANNEL_KASPIN,
-} as const
+// Map type pesan teks → tipe channel telegram
+const TYPE_MAP: Record<string, TelegramChannelType> = {
+  transaction: 'layanan',
+  dp: 'layanan',
+  inventory: 'inventory',
+  service: 'service',
+  attendance: 'attendance',
+  customer: 'customer',
+  kaspin: 'kaspin',
+}
 
-type TelegramChannelType = keyof typeof CHANNELS
+async function resolveBranchFromRequest(): Promise<string | null> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    const { data: profile } = await supabase.from('profiles').select('branch_id').eq('id', user.id).single()
+    if (!profile?.branch_id) return null
+    const { data: branch } = await supabase.from('branches').select('code').eq('id', profile.branch_id).single()
+    return branch?.code || null
+  } catch {
+    return null
+  }
+}
 
 async function sendMessage(
   channelId: string,
@@ -57,12 +72,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const parsed = telegramMessageSchema.parse(body)
 
-    const channelType = (parsed.type || 'transaction') as TelegramChannelType
-    const channelId = CHANNELS[channelType]
+    const telegramType = TYPE_MAP[parsed.type || 'transaction'] || 'layanan'
+    // Branch eksplisit dari body, atau resolve otomatis dari user login
+    const branchCode = body.branch || (await resolveBranchFromRequest()) || undefined
+    const channelId = getChannel(telegramType, branchCode)
 
     if (!channelId) {
       return NextResponse.json(
-        { error: `Channel ${channelType} not configured` },
+        { error: `Channel ${parsed.type} not configured` },
         { status: 400 }
       )
     }
@@ -73,7 +90,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Message sent to Telegram',
-        channel: channelType,
+        channel: parsed.type,
+        branch: branchCode || null,
         chat_id: result.chat_id,
         message_id: result.message_id,
       })

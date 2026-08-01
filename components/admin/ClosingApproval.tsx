@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
-import { CheckCircle, Clock, FileText, Send, DollarSign, ShoppingCart } from "lucide-react";
+import { CheckCircle, Clock, FileText, Send, DollarSign, ShoppingCart, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
 
 function fmtRupiah(n: number) {
@@ -83,87 +83,111 @@ export default function ClosingApproval() {
           <p className="text-sm font-medium text-gray-500">Semua closing sudah disetujui</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {pendingClosings.map((closing, i) => {
-            const detail = closing.detail || {};
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {branches.map((b) => {
+            const branchClosings = pendingClosings.filter((c) => c.branch_id === b.id);
             return (
-              <motion.div key={closing.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-amber-500" />
-                    <div>
-                      <h3 className="font-bold text-slate-900">
-                        Closing {new Date(closing.closing_date).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                      </h3>
-                      <p className="text-xs text-slate-400">
-                        {branches.find((b) => b.id === closing.branch_id)?.name || "Cabang tidak diketahui"} &middot; {closing.total_transactions} transaksi &middot; Diajukan {new Date(closing.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Pending</span>
+              <div key={b.id} className="space-y-3">
+                {/* Header cabang */}
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-gray-200 shadow-sm">
+                  <MapPin className="w-4 h-4 text-blue-500" />
+                  <h3 className="font-bold text-slate-900">{b.name}</h3>
+                  <span className="text-[10px] font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{b.code}</span>
+                  <span className="ml-auto text-xs text-slate-400">{branchClosings.length} closing</span>
                 </div>
 
-                <div className="p-5 space-y-3">
-                  {/* Summary */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                      <p className="text-[10px] text-blue-600 font-medium">Total Web</p>
-                      <p className="text-sm font-bold text-blue-700">{fmtRupiah(closing.total_expected)}</p>
-                    </div>
-                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                      <p className="text-[10px] text-emerald-600 font-medium">Total Aktual</p>
-                      <p className="text-sm font-bold text-emerald-700">{fmtRupiah(closing.total_actual)}</p>
-                    </div>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <p className="text-[10px] text-slate-500 font-medium">Selisih</p>
-                      <p className={`text-sm font-bold ${closing.difference === 0 ? "text-green-600" : "text-red-600"}`}>
-                        {closing.difference === 0 ? "✓ MATCH" : fmtRupiah(Math.abs(closing.difference))}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
-                      <p className="text-[10px] text-purple-600 font-medium">Transaksi</p>
-                      <p className="text-sm font-bold text-purple-700">{closing.total_transactions}</p>
-                    </div>
+                {branchClosings.length === 0 ? (
+                  <div className="bg-white rounded-xl border border-dashed border-gray-300 p-6 text-center">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-1 text-green-300" />
+                    <p className="text-sm text-gray-400">Tidak ada closing pending</p>
                   </div>
+                ) : (
+                  <div className="space-y-3">
+                    {branchClosings.map((closing, i) => {
+                      const detail = closing.detail || {};
+                      return (
+                        <motion.div key={closing.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                          className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-5 h-5 text-amber-500" />
+                              <div>
+                                <h3 className="font-bold text-slate-900">
+                                  Closing {new Date(closing.closing_date).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                                </h3>
+                                <p className="text-xs text-slate-400">
+                                  {branches.find((x) => x.id === closing.branch_id)?.name || "Cabang tidak diketahui"} &middot; {closing.total_transactions} transaksi &middot; Diajukan {new Date(closing.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">Pending</span>
+                          </div>
 
-                  {/* Detail per method */}
-                  <div className="space-y-1">
-                    {Object.entries(detail).map(([method, d]: [string, any]) => (
-                      <div key={method} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 text-sm">
-                        <span className="font-medium text-gray-700 capitalize">{method}</span>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="text-blue-600">Web: {fmtRupiah(d.expected || 0)}</span>
-                          <span className="text-emerald-600">Aktual: {fmtRupiah(d.actual || 0)}</span>
-                          <span className={d.expected === d.actual ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                            {d.expected === d.actual ? "✓" : fmtRupiah(Math.abs(d.expected - d.actual))}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                          <div className="p-5 space-y-3">
+                            {/* Summary */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
+                                <p className="text-[10px] text-blue-600 font-medium">Total Web</p>
+                                <p className="text-sm font-bold text-blue-700">{fmtRupiah(closing.total_expected)}</p>
+                              </div>
+                              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <p className="text-[10px] text-emerald-600 font-medium">Total Aktual</p>
+                                <p className="text-sm font-bold text-emerald-700">{fmtRupiah(closing.total_actual)}</p>
+                              </div>
+                              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <p className="text-[10px] text-slate-500 font-medium">Selisih</p>
+                                <p className={`text-sm font-bold ${closing.difference === 0 ? "text-green-600" : "text-red-600"}`}>
+                                  {closing.difference === 0 ? "✓ MATCH" : fmtRupiah(Math.abs(closing.difference))}
+                                </p>
+                              </div>
+                              <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+                                <p className="text-[10px] text-purple-600 font-medium">Transaksi</p>
+                                <p className="text-sm font-bold text-purple-700">{closing.total_transactions}</p>
+                              </div>
+                            </div>
+
+                            {/* Detail per method */}
+                            <div className="space-y-1">
+                              {Object.entries(detail).map(([method, d]: [string, any]) => (
+                                <div key={method} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                                  <span className="font-medium text-gray-700 capitalize">{method}</span>
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <span className="text-blue-600">Web: {fmtRupiah(d.expected || 0)}</span>
+                                    <span className="text-emerald-600">Aktual: {fmtRupiah(d.actual || 0)}</span>
+                                    <span className={d.expected === d.actual ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                                      {d.expected === d.actual ? "✓" : fmtRupiah(Math.abs(d.expected - d.actual))}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {closing.notes && (
+                              <div className="p-2 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-600">
+                                <span className="font-medium text-gray-700">Catatan Admin: </span>{closing.notes}
+                              </div>
+                            )}
+
+                            {/* Approve: notes + button */}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                              <input type="text"
+                                value={approveNotes[closing.id] || ""}
+                                onChange={(e) => setApproveNotes((s) => ({ ...s, [closing.id]: e.target.value }))}
+                                placeholder="Catatan approval (opsional)..."
+                                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10" />
+                              <button onClick={() => handleApprove(closing)} disabled={submitting[closing.id]}
+                                className="flex items-center justify-center gap-2 px-5 py-2 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50 text-sm">
+                                {submitting[closing.id] ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                Setujui & Kirim ke Telegram
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
-
-                  {closing.notes && (
-                    <div className="p-2 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-600">
-                      <span className="font-medium text-gray-700">Catatan Admin: </span>{closing.notes}
-                    </div>
-                  )}
-
-                  {/* Approve: notes + button */}
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <input type="text"
-                      value={approveNotes[closing.id] || ""}
-                      onChange={(e) => setApproveNotes((s) => ({ ...s, [closing.id]: e.target.value }))}
-                      placeholder="Catatan approval (opsional)..."
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10" />
-                    <button onClick={() => handleApprove(closing)} disabled={submitting[closing.id]}
-                      className="flex items-center justify-center gap-2 px-5 py-2 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50 text-sm">
-                      {submitting[closing.id] ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                      Setujui & Kirim ke Telegram
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
+                )}
+              </div>
             );
           })}
         </div>

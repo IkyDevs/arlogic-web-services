@@ -37,7 +37,7 @@ export default function ClosingDashboard() {
   const fetchData = async () => {
     setLoading(true);
     const [txRes, apiRes] = await Promise.all([
-      supabase.from("layanan").select("*").gte("created_at", date + "T00:00:00").lte("created_at", date + "T23:59:59").order("created_at"),
+      supabase.from("layanan").select("*").match(branchId ? { branch_id: branchId } : {}).gte("created_at", date + "T00:00:00").lte("created_at", date + "T23:59:59").order("created_at"),
       fetch("/api/admin/closing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,7 +62,7 @@ export default function ClosingDashboard() {
     if (res.success) setClosings(res.data);
   };
 
-  useEffect(() => { fetchData(); fetchClosings(); }, [date]);
+  useEffect(() => { fetchData(); fetchClosings(); }, [date, branchId]);
 
   // Group by payment method
   const paymentGroups = useMemo(() => {
