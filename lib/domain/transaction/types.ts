@@ -40,6 +40,7 @@ export interface TransactionData {
   telegram_file_id?: string
   upload_session_key?: string
   upload_status?: UploadStatus
+  branch_id?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -104,6 +105,7 @@ export interface LegacyLayananRow {
   telegram_file_id?: string
   upload_session_key?: string
   upload_status?: string
+  branch_id?: string | null
   created_at: string
   updated_at?: string
   layanan_items?: LegacyLayananItemRow[]

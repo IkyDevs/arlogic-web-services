@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranch } from "@/lib/context/BranchContext";
 import { useUpload } from "@/hooks/useUpload";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -16,6 +17,7 @@ interface CashdrawFormProps {
 
 export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) {
   const { user } = useAuthStore();
+  const { activeBranch } = useBranch();
   const supabase = createClient();
   const { uploadFile, uploading, progress } = useUpload();
   const fetchTransactions = useTransactionStore((s) => s.fetch);
@@ -79,6 +81,7 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         handled_by_name: formData.staff_name,
         photo_urls: photoUrl ? [photoUrl] : [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} via ${formData.metode_pembayaran}`,
+        branch_id: (activeBranch as any)?.id || null,
       }).select("id").single();
 
       if (errA) { toast.error("Gagal simpan cashdraw: " + errA.message); return; }
@@ -94,6 +97,7 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         handled_by_name: formData.staff_name,
         photo_urls: photoUrl ? [photoUrl] : [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} (kompensasi cash)`,
+        branch_id: (activeBranch as any)?.id || null,
       });
 
       if (errB) { toast.error("Gagal simpan pengeluaran cash: " + errB.message); return; }

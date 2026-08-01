@@ -13,7 +13,7 @@ function fmtRupiah(n: number) {
 
 export default function ClosingApproval() {
   const supabase = createClient();
-  const { branches } = useBranch();
+  const { branches, activeBranchId } = useBranch();
   const [closings, setClosings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [approveNotes, setApproveNotes] = useState<Record<string, string>>({});
@@ -24,7 +24,7 @@ export default function ClosingApproval() {
     const res = await fetch("/api/admin/closing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list" }),
+      body: JSON.stringify({ action: "list", branch_id: activeBranchId || undefined }),
     }).then((r) => r.json());
     if (res.success) setClosings(res.data);
     setLoading(false);

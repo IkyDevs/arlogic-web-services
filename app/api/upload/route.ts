@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
 
     const files = formData.getAll('files') as File[]
     const type = (formData.get('type') as string) || ''
+    const branchCode = (formData.get('branch') as string) || undefined
     const caption = (formData.get('caption') as string) || ''
 
     if (!files.length) {
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to Telegram
     const tTelegram = performance.now()
-    const telegramResults = await uploadMultipleToTelegram(processedFiles, caption, channelType)
+    const telegramResults = await uploadMultipleToTelegram(processedFiles, caption, channelType, branchCode)
     profile.uploadTelegram = Math.round(performance.now() - tTelegram)
 
     if (telegramResults.length === 0) {

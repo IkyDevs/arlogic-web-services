@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS branches (
 
 INSERT INTO branches (name, code, is_central) VALUES
   ('Jember', 'JBR', true),
-  ('Kudus',  'KDL', false)
+  ('Kudus',  'KDS', false)
 ON CONFLICT (code) DO NOTHING;
 
 ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
@@ -167,6 +167,26 @@ CREATE INDEX IF NOT EXISTS idx_reports_branch ON reports(branch_id);
 CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at);
 CREATE INDEX IF NOT EXISTS idx_branch_assignments_profile ON branch_assignments(profile_id);
 CREATE INDEX IF NOT EXISTS idx_stock_transfers_status ON stock_transfers(status);
+
+-- ─────────────────────────────────────────────────────
+-- 10) BRANCH_ID di tabel yang belum punya
+--     (closings, notifications, activity_logs, customers)
+-- ─────────────────────────────────────────────────────
+ALTER TABLE closings ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
+
+CREATE INDEX IF NOT EXISTS idx_closings_branch ON closings(branch_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_branch ON notifications(branch_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_branch ON activity_logs(branch_id);
+CREATE INDEX IF NOT EXISTS idx_customers_branch ON customers(branch_id);
+
+-- Backfill data existing ke cabang pusat (JBR)
+UPDATE closings SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
+UPDATE notifications SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
+UPDATE activity_logs SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
+UPDATE customers SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
 
 NOTIFY pgrst, 'reload schema';
 

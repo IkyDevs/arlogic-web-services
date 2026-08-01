@@ -45,6 +45,7 @@ export interface UseCentralUploadReturn {
     type: string,
     caption?: string,
     timeout?: number,
+    branchCode?: string,
   ) => Promise<Array<{ url: string; chat_id: string; message_id: number; file_id?: string }>>
   reset: () => void
 }
@@ -243,10 +244,11 @@ export function useCentralUpload(sessionKey: string): UseCentralUploadReturn {
     type: string,
     caption?: string,
     timeout?: number,
+    branchCode?: string,
   ): Promise<Array<{ url: string; chat_id: string; message_id: number; file_id?: string }>> => {
     setUploading(true)
     try {
-      const results = await uploadService.legacyUpload(files, type, caption, timeout)
+      const results = await uploadService.legacyUpload(files, type, caption, timeout, branchCode)
       return results
     } finally {
       if (mountedRef.current) setUploading(false)

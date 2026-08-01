@@ -121,7 +121,9 @@ async function handleAction(action: string, payload: any) {
       return data;
     }
     case "list": {
-      const { data, error } = await closings().select("*").order("created_at", { ascending: false }).limit(50);
+      let q = closings().select("*");
+      if (payload?.branch_id) q = q.eq("branch_id", payload.branch_id);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
       return data;
     }

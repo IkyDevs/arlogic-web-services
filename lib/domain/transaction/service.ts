@@ -105,6 +105,7 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
     telegram_message_id: row.telegram_message_id,
     telegram_file_id: row.telegram_file_id,
     upload_session_key: row.upload_session_key,
+    branch_id: row.branch_id,
     upload_status: (row.upload_status || 'NONE') as UploadStatus,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -268,6 +269,7 @@ export async function createTransaction(
       nominal_2: tx.nominal_2,
       upload_status: tx.upload_status || 'NONE',
       upload_session_key: tx.upload_session_key || null,
+      branch_id: tx.branch_id || null,
     })
     .select("id, created_at")
     .single()
@@ -317,6 +319,7 @@ export async function updateTransaction(
   if (tx.upload_status !== undefined) updatePayload.upload_status = tx.upload_status
   if (tx.telegram_file_id !== undefined) updatePayload.telegram_file_id = tx.telegram_file_id
   if (tx.upload_session_key !== undefined) updatePayload.upload_session_key = tx.upload_session_key
+  if (tx.branch_id !== undefined) updatePayload.branch_id = tx.branch_id
 
   if (tx.items !== undefined) {
     const total = calculateTransactionTotal(tx.items)
@@ -363,7 +366,7 @@ export async function updateTransactionStatus(
 }
 
 // ─── Customer Sync ─────────────────────────────────────────────────
-export async function syncCustomer(name: string, phone: string): Promise<void> {
+export async function syncCustomer(name: string, phone: string, branchId?: string | null): Promise<void> {
   const supabase = getSupabase()
   const custPhone = phone.replace(/\D/g, "")
   if (!name || !custPhone) return
@@ -377,15 +380,16 @@ export async function syncCustomer(name: string, phone: string): Promise<void> {
     .from("customers")
     .select("id")
     .eq("phone", custPhone)
+    .eq("branch_id", branchId || "")
     .maybeSingle()
 
   if (existingCust) {
     await supabase
       .from("customers")
-      .update({ last_transaction: new Date().toISOString() })
+      .update({ last_transaction: new Date().toISOString(), branch_id: branchId || null })
       .eq("id", existingCust.id)
   } else {
-    await supabase.from("customers").insert({ name: custName, phone: custPhone })
+    await supabase.from("customers").insert({ name: custName, phone: custPhone, branch_id: branchId || null })
   }
 }
 

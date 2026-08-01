@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { User, Phone, Search } from "lucide-react";
 
 interface CustomerResult {
@@ -30,6 +31,7 @@ export default function CustomerAutocomplete({
   inputClass = "",
   autoFocus,
 }: Props) {
+  const { branchId } = useBranchScope();
   const supabase = createClient();
   const [suggestions, setSuggestions] = useState<CustomerResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -59,6 +61,7 @@ export default function CustomerAutocomplete({
       let query = supabase
         .from("customers")
         .select("name, phone, point")
+        .eq("branch_id", branchId || "")
         .limit(10);
 
       if (searchLastDigits) {

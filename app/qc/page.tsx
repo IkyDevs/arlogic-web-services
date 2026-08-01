@@ -59,6 +59,7 @@ export default function QCDashboard() {
   const [services, setServices] = useState<any[]>([]);
   const [filteredServices, setFilteredServices] = useState<any[]>([]);
   const [teknisiList, setTeknisiList] = useState<string[]>([]);
+  const [showTeknisiFilter, setShowTeknisiFilter] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -369,17 +370,24 @@ export default function QCDashboard() {
     { id: "service", label: "List Service", icon: ClipboardCheck },
   ];
 
-  // Filter per-teknisi (pending approval) — hanya supervisor
+  // Filter per-teknisi (pending approval) — hanya supervisor, collapsible
   if (isSupervisor) {
-    teknisiList.forEach((name) => {
-      const count = teknisiPendingCount[name] || 0;
-      menuItems.push({
-        id: name,
-        label: count > 0 ? `${name} (${count})` : name,
-        icon: User,
-        count,
-      });
+    menuItems.push({
+      id: "__teknisi_toggle",
+      label: showTeknisiFilter ? "Teknisi ▾" : "Teknisi ▸",
+      icon: User,
     });
+    if (showTeknisiFilter) {
+      teknisiList.forEach((name) => {
+        const count = teknisiPendingCount[name] || 0;
+        menuItems.push({
+          id: name,
+          label: count > 0 ? `${name} (${count})` : name,
+          icon: User,
+          count,
+        });
+      });
+    }
   }
 
   if (loading) {
@@ -424,7 +432,9 @@ export default function QCDashboard() {
         menuItems={menuItems}
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "pending-approval" || tabId === "completed") {
+          if (tabId === "__teknisi_toggle") {
+            setShowTeknisiFilter((v) => !v);
+          } else if (tabId === "absensi" || tabId === "customer" || tabId === "management-transaction" || tabId === "service" || tabId === "pending-approval" || tabId === "completed") {
             setActiveTab(tabId);
           } else if (tabId === "all") {
             filterByTeknisi("all");
@@ -433,7 +443,7 @@ export default function QCDashboard() {
           } else {
             filterByTeknisi(tabId);
           }
-          setSidebarOpen(false);
+          if (tabId !== "__teknisi_toggle") setSidebarOpen(false);
         }}
         services={services}
         user={user}

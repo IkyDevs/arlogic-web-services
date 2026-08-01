@@ -353,21 +353,24 @@ export class UploadService {
     type: string,
     caption?: string,
     timeout?: number,
+    branchCode?: string,
   ): Promise<Array<{ url: string; chat_id: string; message_id: number; file_id?: string }>> {
     console.log('[DEBUG:UploadService] legacyUpload CALLED', {
       files_count: files.length,
       file_names: files.map(f => f.name),
       type,
       caption_length: caption?.length || 0,
+      branchCode,
     })
 
     const proxyUrl = process.env.NEXT_PUBLIC_PHOTO_PROXY_URL || ''
     const workerUrl = proxyUrl ? `${proxyUrl}/upload` : ''
 
-    // Resolve chat_id from server (agar channel sama dengan production)
+    // Resolve chat_id from server (per-branch jika branchCode ada)
     let chatId = ''
     try {
-      const chatRes = await fetch(`/api/telegram/chat-id?type=${encodeURIComponent(type)}`)
+      const branchQuery = branchCode ? `&branch=${encodeURIComponent(branchCode)}` : ''
+      const chatRes = await fetch(`/api/telegram/chat-id?type=${encodeURIComponent(type)}${branchQuery}`)
       const chatData = await chatRes.json()
       chatId = chatData.chat_id || ''
     } catch {}
@@ -391,6 +394,7 @@ export class UploadService {
       const fd = new FormData()
       fd.append('type', type)
       if (chatId) fd.append('chat_id', chatId)
+      if (branchCode) fd.append('branch', branchCode)
       if (caption) fd.append('caption', caption)
       for (const f of files) fd.append('files', f, f.name)
 

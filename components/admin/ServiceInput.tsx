@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { compressImage, convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
+import { useBranch } from "@/lib/context/BranchContext";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import dynamic from "next/dynamic";
 
@@ -103,6 +104,7 @@ export default function ServiceInput({
   const { user } = useAuthStore();
   const [uploadKey] = useState(() => `service_${user?.id || 'anon'}_${Date.now()}`);
   const upload = useCentralUpload(uploadKey);
+  const { activeBranch } = useBranch();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -395,6 +397,7 @@ export default function ServiceInput({
             notes: formData.notes || null,
             estimated_cost: estimatedCost ? parseInt(estimatedCost) : null,
             status: "pending",
+            branch_id: (activeBranch as any)?.id || null,
           },
         ])
         .select("id")
@@ -494,7 +497,7 @@ In : ${now}`;
                   return file;
                 }),
               );
-              const urls = await upload.legacyUpload(filesToUpload, "service", formattedCaption);
+              const urls = await upload.legacyUpload(filesToUpload, "service", formattedCaption, undefined, (activeBranch as any)?.code);
               if (urls.length > 0) {
                 const authUserForDoc = (await supabase.auth.getUser()).data.user;
                 const docInserts = urls.map((r) => ({
@@ -546,7 +549,7 @@ In : ${now}`;
                   formData.payment_method === "edc_bca")
               ) {
                 try {
-                  const dpPhotoUrls = await upload.legacyUpload([formData.qris_photo], "layanan", dpDescription);
+                  const dpPhotoUrls = await upload.legacyUpload([formData.qris_photo], "layanan", dpDescription, undefined, (activeBranch as any)?.code);
                   dpPhotoUrl = dpPhotoUrls?.[0]?.url || null;
                   dpTelegramSent = true;
                 } catch (photoErr) {
@@ -587,6 +590,7 @@ In : ${now}`;
                     created_by: authUser?.id,
                     created_by_name: userProfile?.full_name || "System",
                     status: "active",
+                    branch_id: (activeBranch as any)?.id || null,
                   },
                 ])
                 .select("id")
@@ -628,6 +632,7 @@ In : ${now}`;
             .from("customers")
             .select("id, name")
             .eq("phone", custPhone)
+            .eq("branch_id", (activeBranch as any)?.id || "")
             .maybeSingle();
           if (checkErr) throw checkErr;
           if (existingCust) {
@@ -638,7 +643,7 @@ In : ${now}`;
           } else {
             const { error: insertErr } = await supabase
               .from("customers")
-              .insert({ name: custName, phone: custPhone });
+              .insert({ name: custName, phone: custPhone, branch_id: (activeBranch as any)?.id || null });
             if (insertErr) throw insertErr;
             // Only send Telegram for genuinely new customers
             fetch("/api/telegram", {

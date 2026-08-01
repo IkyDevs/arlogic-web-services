@@ -41,7 +41,7 @@ export default function ClosingDashboard() {
       fetch("/api/admin/closing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" }),
+        body: JSON.stringify({ action: "list", branch_id: branchId || undefined }),
       }).then((r) => r.json()),
     ]);
     if (txRes.data) setTransactions(txRes.data);
@@ -57,7 +57,7 @@ export default function ClosingDashboard() {
     const res = await fetch("/api/admin/closing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "list" }),
+      body: JSON.stringify({ action: "list", branch_id: branchId || undefined }),
     }).then((r) => r.json());
     if (res.success) setClosings(res.data);
   };

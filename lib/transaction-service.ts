@@ -472,6 +472,7 @@ export async function updateTransactionStatus(
 export async function syncCustomer(
   name: string,
   phone: string,
+  branchId?: string | null,
 ): Promise<void> {
   const supabase = getSupabase();
   const custPhone = phone.replace(/\D/g, "");
@@ -486,17 +487,18 @@ export async function syncCustomer(
     .from("customers")
     .select("id")
     .eq("phone", custPhone)
+    .eq("branch_id", branchId || "")
     .maybeSingle();
 
   if (existingCust) {
     await supabase
       .from("customers")
-      .update({ last_transaction: new Date().toISOString() })
+      .update({ last_transaction: new Date().toISOString(), branch_id: branchId || null })
       .eq("id", existingCust.id);
   } else {
     const { error: insertErr } = await supabase
       .from("customers")
-      .insert({ name: custName, phone: custPhone });
+      .insert({ name: custName, phone: custPhone, branch_id: branchId || null });
     if (!insertErr) {
       fetch("/api/telegram", {
         method: "POST",

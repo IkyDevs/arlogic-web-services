@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
+import { useBranch } from '@/lib/context/BranchContext'
 import { useUpload } from '@/hooks/useUpload'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
@@ -41,6 +42,7 @@ export default function AttendanceModal({
   const streamRef = useRef<MediaStream | null>(null)
   const supabase = createClient()
   const { user } = useAuthStore()
+  const { activeBranch } = useBranch()
   const { uploadFile, uploading, progress } = useUpload()
 
   const isCheckIn = type === 'check_in'
@@ -378,7 +380,8 @@ catatan: ${defaultCheckInNotes}`
              location: location.address,
              check_in: new Date().toISOString(),
              status: 'checked_in',
-             notes: checkInNotes.trim() || "absen masuk"
+             notes: checkInNotes.trim() || "absen masuk",
+             branch_id: (activeBranch as any)?.id || null,
            })
 
         if (dbError) throw dbError

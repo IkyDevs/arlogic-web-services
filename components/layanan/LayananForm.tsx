@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { compressImage, convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
+import { useBranch } from "@/lib/context/BranchContext";
 import {
   jenisLayananLabels,
   metodePembayaranLabels,
@@ -110,6 +111,7 @@ export default memo(function LayananForm({
   // uploadKey stabil untuk edit/retry (recover foto dari IndexedDB pakai session key lama)
   const [uploadKey] = useState(() => (initialData as any)?.upload_session_key || `layanan_${user?.id || 'anon'}_${Date.now()}`)
   const upload = useCentralUpload(uploadKey);
+  const { activeBranch } = useBranch();
   const createTx = useTransactionStore((s) => s.create);
   const updateTx = useTransactionStore((s) => s.update);
 
@@ -394,11 +396,14 @@ export default memo(function LayananForm({
   }, [upload.pendingFiles]);
 
   const fetchUsers = async () => {
-    const { data } = await supabase
+    let q = supabase
       .from("profiles")
       .select("id, full_name, role")
-      .in("role", ["admin", "teknisi", "supervisor"])
+      .in("role", ["admin", "teknisi", "supervisor", "qc"])
       .order("full_name");
+    // Filter staff per cabang (handleBy hanya staff cabang yang sama)
+    if ((activeBranch as any)?.id) q = q.eq("branch_id", (activeBranch as any)?.id);
+    const { data } = await q;
     if (data) setUsers(data);
   };
 
@@ -647,6 +652,7 @@ export default memo(function LayananForm({
           notes,
           photo_urls: photoUrls,
           upload_session_key: uploadKey,
+          branch_id: (activeBranch as any)?.id || null,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -683,6 +689,7 @@ export default memo(function LayananForm({
           telegram_chat_id: tgChatId,
           telegram_message_id: tgMessageId,
           upload_session_key: uploadKey,
+          branch_id: (activeBranch as any)?.id || null,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -712,7 +719,7 @@ export default memo(function LayananForm({
         toast.success("Transaksi berhasil ditambahkan!");
       }
 
-      await syncCustomer(customerName, customerWhatsapp);
+      await syncCustomer(customerName, customerWhatsapp, (activeBranch as any)?.id);
 
       // STEP 2: Upload foto di background dan update transaksi dengan hasilnya
       const step2TxId = isEdit ? initialData.id : newTxId;
@@ -766,6 +773,8 @@ export default memo(function LayananForm({
           filesToUpload,
           "layanan",
           mainCaption,
+          undefined,
+          (activeBranch as any)?.code,
         ).then(async (results) => {
           const thenTs = Date.now();
           console.log('[DEBUG:LayananForm] INSIDE .then() CALLBACK', {

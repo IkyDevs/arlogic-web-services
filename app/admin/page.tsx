@@ -61,6 +61,7 @@ import NotificationBell from "@/components/ui/NotificationBell";
 import ReportModal from "@/components/ui/ReportModal";
 import { useTheme } from "@/components/ThemeProvider";
 import { useBranch } from "@/lib/context/BranchContext";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import GudangView from "@/components/admin/GudangView";
 
 // Dynamic imports
@@ -218,6 +219,8 @@ export default function AdminDashboard() {
   const supabase = createClient();
   const { user, logout } = useAuthStore();
   const { activeBranch } = useBranch();
+  const { branchId } = useBranchScope();
+  const branchMatch = branchId ? { branch_id: branchId } : {};
   const isCentralBranch = activeBranch?.is_central === true || activeBranch?.code === "JBR";
   const router = useRouter();
 
@@ -265,12 +268,13 @@ export default function AdminDashboard() {
     const [txCount, txRev, txExp] = await Promise.all([
       supabase
         .from("layanan")
-        .select("*", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true }).match(branchMatch)
         .gte("created_at", today + "T00:00:00")
         .lte("created_at", today + "T23:59:59"),
       supabase
         .from("layanan")
         .select("nominal, layanan_items(nominal)")
+        .match(branchMatch)
         .neq("status", "cancelled")
         .neq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
@@ -278,6 +282,7 @@ export default function AdminDashboard() {
       supabase
         .from("layanan")
         .select("nominal, layanan_items(nominal)")
+        .match(branchMatch)
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
@@ -321,36 +326,39 @@ export default function AdminDashboard() {
       todayTransactions,
       doneServices, // Fetch done services count
     ] = await Promise.all([
-      supabase.from("profiles").select("*", { count: "exact", head: true }),
+      supabase.from("profiles").select("*", { count: "exact", head: true }).match(branchMatch),
       supabase
         .from("service_orders")
-        .select("*", { count: "exact", head: true }),
-      supabase.from("inventory").select("*", { count: "exact", head: true }),
+        .select("*", { count: "exact", head: true }).match(branchMatch),
+      supabase.from("inventory").select("*", { count: "exact", head: true }).match(branchMatch),
       supabase.from("inventory").select("store_stock, warehouse_stock"),
       supabase
         .from("service_orders")
-        .select("*", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true }).match(branchMatch)
         .eq("status", "pending"),
       supabase
         .from("service_orders")
-        .select("*", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true }).match(branchMatch)
         .eq("status", "completed")
         .gte("completed_at", today),
       supabase
         .from("layanan")
         .select("nominal")
+        .match(branchMatch)
         .neq("status", "cancelled")
         .neq("jenis_layanan", "pengeluaran"),
       supabase
         .from("layanan")
         .select("nominal")
+        .match(branchMatch)
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran"),
-      supabase.from("layanan").select("*", { count: "exact", head: true }),
+      supabase.from("layanan").select("*", { count: "exact", head: true }).match(branchMatch),
       // Today-specific queries (include layanan_items for multi-item transactions)
       supabase
         .from("layanan")
         .select("nominal, layanan_items(nominal)")
+        .match(branchMatch)
         .neq("status", "cancelled")
         .neq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
@@ -358,18 +366,19 @@ export default function AdminDashboard() {
       supabase
         .from("layanan")
         .select("nominal, layanan_items(nominal)")
+        .match(branchMatch)
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran")
         .gte("created_at", today + "T00:00:00")
         .lte("created_at", today + "T23:59:59"),
       supabase
         .from("layanan")
-        .select("*", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true }).match(branchMatch)
         .gte("created_at", today + "T00:00:00")
         .lte("created_at", today + "T23:59:59"),
       supabase
         .from("service_orders")
-        .select("*", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true }).match(branchMatch)
         .eq("status", "completed"), // Fetch count for 'done' status
     ]);
 
@@ -423,6 +432,7 @@ export default function AdminDashboard() {
     const { data } = await supabase
       .from("service_orders")
       .select("*")
+      .match(branchMatch)
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -434,6 +444,7 @@ export default function AdminDashboard() {
     const { data } = await supabase
       .from("layanan")
       .select("*, layanan_items(*)")
+      .match(branchMatch)
       .gte("created_at", today + "T00:00:00")
       .lte("created_at", today + "T23:59:59")
       .order("created_at", { ascending: false })
@@ -587,12 +598,14 @@ export default function AdminDashboard() {
       const { data: transactionData } = await supabase
         .from("layanan")
         .select("created_at, nominal, id")
+        .match(branchMatch)
         .gte("created_at", sixMonthsAgo.toISOString())
         .eq("status", "active");
 
       const { data: serviceData } = await supabase
         .from("service_orders")
         .select("created_at, id")
+        .match(branchMatch)
         .gte("created_at", sixMonthsAgo.toISOString());
 
       // Group data by month

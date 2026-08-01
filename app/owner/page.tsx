@@ -48,6 +48,7 @@ import CustomerList from "@/components/admin/CustomerList";
 import TrackingVisits from "@/components/owner/TrackingVisits";
 import NotificationBell from "@/components/ui/NotificationBell";
 import BranchSelector from "@/components/ui/BranchSelector";
+import { useBranch } from "@/lib/context/BranchContext";
 import ReportModal from "@/components/ui/ReportModal";
 
 // Dynamic imports
@@ -131,6 +132,7 @@ interface DashboardData {
 
 export default function OwnerDashboard() {
   const { user, logout } = useAuthStore();
+  const { activeBranchId } = useBranch();
   const router = useRouter();
   const supabase = createClient();
   const isMobile = useMediaQuery("(max-width: 640px)");
@@ -219,6 +221,7 @@ export default function OwnerDashboard() {
           service_items (*)
         `,
         )
+        .match(activeBranchId ? { branch_id: activeBranchId } : {})
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString());
 
@@ -228,18 +231,21 @@ export default function OwnerDashboard() {
       const { data: transactions } = await supabase
         .from("layanan")
         .select("*")
+        .match(activeBranchId ? { branch_id: activeBranchId } : {})
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString());
 
       const { data: attendances } = await supabase
         .from("attendances")
         .select("*")
+        .match(activeBranchId ? { branch_id: activeBranchId } : {})
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString());
 
       const { data: techProfiles } = await supabase
         .from("profiles")
         .select("id, full_name")
+        .match(activeBranchId ? { branch_id: activeBranchId } : {})
         .eq("role", "teknisi");
 
       let revenue = 0;

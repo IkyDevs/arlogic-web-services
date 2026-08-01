@@ -31,13 +31,23 @@ export async function POST(request: NextRequest) {
 
     let userIds: string[] = [];
 
+    // Scope notifikasi ke cabang user pengirim (kecuali global: owner/engineer/supervisor)
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("role, branch_id")
+      .eq("id", user.id)
+      .single();
+    const isGlobalRole = callerProfile?.role === "owner" || callerProfile?.role === "engineer" || callerProfile?.role === "supervisor";
+    const branchScope = !isGlobalRole && callerProfile?.branch_id
+      ? { branch_id: callerProfile.branch_id }
+      : {};
+
     if (targetUserId) {
       userIds = [targetUserId];
     } else if (targetRoles && targetRoles.length > 0) {
-      const { data: users } = await supabase
-        .from("profiles")
-        .select("id")
-        .in("role", targetRoles);
+      let q = supabase.from("profiles").select("id").in("role", targetRoles);
+      if (Object.keys(branchScope).length > 0) q = q.match(branchScope);
+      const { data: users } = await q;
       if (users) userIds = users.map((u: any) => u.id);
     } else {
       return NextResponse.json(

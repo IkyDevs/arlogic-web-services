@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, branch_id')
       .eq('id', user.id)
       .single()
 
@@ -25,8 +25,11 @@ export async function GET(request: NextRequest) {
       `)
       .order('created_at', { ascending: false })
 
-    if (profile?.role !== 'owner' && profile?.role !== 'admin') {
+    if (profile?.role !== 'owner' && profile?.role !== 'admin' && profile?.role !== 'engineer' && profile?.role !== 'supervisor') {
       query = query.or(`created_by.eq.${user.id},handled_by.eq.${user.id}`)
+    } else if (profile?.role === 'admin' && profile?.branch_id) {
+      // Admin per cabang → hanya data cabangnya
+      query = query.eq('branch_id', profile.branch_id)
     }
 
     const { data, error } = await query
@@ -70,6 +73,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, branch_id')
+      .eq('id', user.id)
+      .single()
+
     const { data, error } = await supabase
       .from('layanan')
       .insert({
@@ -82,7 +91,8 @@ export async function POST(request: NextRequest) {
         lead_source_custom: lead_source_custom || null,
         detail_sku,
         nominal: nominal ? parseFloat(nominal) : 0,
-        created_by: user.id
+        created_by: user.id,
+        branch_id: profile?.branch_id || null,
       })
       .select()
       .single()

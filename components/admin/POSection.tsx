@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useBranchScope } from '@/lib/context/useBranchScope'
 import { Box, RefreshCw, Bell, CheckCircle, Clock, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SparepartReadyModal from './SparepartReadyModal'
@@ -16,6 +17,7 @@ export default function POSection({ onUpdate }: POSectionProps) {
   const [selectedPO, setSelectedPO] = useState<any>(null)
   const [showReadyModal, setShowReadyModal] = useState(false)
   const supabase = createClient()
+  const { branchId } = useBranchScope()
 
   useEffect(() => {
     fetchPOData()
@@ -29,6 +31,7 @@ export default function POSection({ onUpdate }: POSectionProps) {
       const { data } = await supabase
         .from('service_orders')
         .select('*')
+        .match(branchId ? { branch_id: branchId } : {})
         .in('status', ['req_sparepart_admin', 'po_pending', 'sparepart_ready'])
         .order('created_at', { ascending: false })
 

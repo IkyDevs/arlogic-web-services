@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
 import { format, subDays, subMonths, startOfDay, endOfDay } from "date-fns";
 import { id } from "date-fns/locale";
 import toast from "react-hot-toast";
@@ -23,6 +24,8 @@ type DateRangeType = "today" | "week" | "month" | "custom";
 
 export default function ExportReports() {
   const supabase = createClient();
+  const { branchId } = useBranchScope();
+  const branchMatch = branchId ? { branch_id: branchId } : {};
   const [reportType, setReportType] = useState<ReportType>("attendance");
   const [dateRange, setDateRange] = useState<DateRangeType>("month");
   const [customStart, setCustomStart] = useState(
@@ -53,6 +56,7 @@ export default function ExportReports() {
     const { data: attendances } = await supabase
       .from("attendances")
       .select("*, profiles(full_name)")
+      .match(branchMatch)
       .gte("check_in", start.toISOString())
       .lte("check_in", end.toISOString())
       .order("check_in", { ascending: false });
@@ -106,6 +110,7 @@ export default function ExportReports() {
     const { data: inventory } = await supabase
       .from("inventory")
       .select("*")
+      .match(branchMatch)
       .order("item_name", { ascending: true });
 
     const XLSX = await import("xlsx");
@@ -171,6 +176,7 @@ export default function ExportReports() {
     const { data: services } = await supabase
       .from("service_orders")
       .select("*, service_items(*)")
+      .match(branchMatch)
       .gte("created_at", start.toISOString())
       .lte("created_at", end.toISOString())
       .order("created_at", { ascending: false });

@@ -147,7 +147,8 @@ export default function CustomerList() {
       const qDigits = q.replace(/\D/g, "");
       let query = supabase
         .from("customers")
-        .select("id, name, phone, point, profesi, email, alamat");
+        .select("id, name, phone, point, profesi, email, alamat")
+        .eq("branch_id", branchId || "");
       if (qDigits) {
         query = query.or(`name.ilike.%${q}%,phone.ilike.%${qDigits}%`);
       } else {
@@ -302,7 +303,7 @@ export default function CustomerList() {
       const BATCH_SIZE = 50;
       let added = 0, skipped = 0;
       const errors: string[] = [];
-      const toInsert: { name: string; phone: string; point: number }[] = [];
+      const toInsert: { name: string; phone: string; point: number; branch_id: string | null }[] = [];
       const toUpdate: { id: string; point: number }[] = [];
 
       setImportProgress({ current: 0, total: rows.length, phase: "Menyortir data..." });
@@ -313,7 +314,7 @@ export default function CustomerList() {
           if (row.point > 0) toUpdate.push({ id: existing.id, point: row.point });
           skipped++;
         } else {
-          toInsert.push(row);
+          toInsert.push({ ...row, branch_id: branchId || null });
         }
       }
 

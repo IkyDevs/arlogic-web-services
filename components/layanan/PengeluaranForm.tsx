@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
+import { useBranch } from "@/lib/context/BranchContext";
 import { useUpload } from "@/hooks/useUpload";
 import { MetodePembayaran } from "@/types";
 import toast from "react-hot-toast";
@@ -38,6 +39,7 @@ export default memo(function PengeluaranForm({
   initialData,
 }: PengeluaranFormProps) {
   const { user } = useAuthStore();
+  const { activeBranch } = useBranch();
   const supabase = createClient();
   const { uploadFiles, uploading, progress } = useUpload();
   const fetchTransactions = useTransactionStore((s) => s.fetch);
@@ -337,6 +339,7 @@ operator: ${handlerName}`;
             created_by: user?.id,
             created_by_name: user?.full_name,
             status: "completed",
+            branch_id: (activeBranch as any)?.id || null,
           },
         ]);
         error = result.error;

@@ -19,6 +19,21 @@ export { CHANNELS };
 
 export type TelegramChannelType = keyof typeof CHANNELS;
 
+/**
+ * Resolve channel telegram dengan prioritas:
+ * 1. Channel per cabang: TELEGRAM_CHANNEL_{TIPE}_{KODE_CABANG}
+ * 2. Channel global: TELEGRAM_CHANNEL_{TIPE}
+ * 3. undefined (caller fallback ke default)
+ */
+export function getChannel(type: TelegramChannelType, branchCode?: string): string | undefined {
+  if (branchCode) {
+    const branchKey = `TELEGRAM_CHANNEL_${type.toUpperCase()}_${branchCode.toUpperCase()}`;
+    const branchVal = process.env[branchKey];
+    if (branchVal) return branchVal;
+  }
+  return CHANNELS[type];
+}
+
 export interface TelegramMessageResult {
   url: string;
   chat_id: string;
@@ -150,8 +165,9 @@ export async function uploadMultipleToTelegram(
   files: Array<{ buffer: Buffer; name: string }>,
   caption: string,
   channelType: TelegramChannelType = "service",
+  branchCode?: string,
 ): Promise<TelegramMessageResult[]> {
-  const channelId = CHANNELS[channelType];
+  const channelId = getChannel(channelType, branchCode);
   if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
   if (!channelId) throw new Error(`Channel ID for ${channelType} not configured`);
   if (!files?.length) return [];
