@@ -247,6 +247,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
         service_order_id: service.id, customer_name: service.customer_name,
         rating: feedbackRating, comment: feedbackComment.trim() || null,
         teknisi_id: service.assigned_teknisi_id || null,
+        branch_id: service.branch_id || null,
       });
       if (insertError) throw insertError;
 

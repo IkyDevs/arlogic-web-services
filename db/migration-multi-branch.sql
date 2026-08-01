@@ -170,23 +170,84 @@ CREATE INDEX IF NOT EXISTS idx_stock_transfers_status ON stock_transfers(status)
 
 -- ─────────────────────────────────────────────────────
 -- 10) BRANCH_ID di tabel yang belum punya
---     (closings, notifications, activity_logs, customers)
+--     (closings, notifications, activity_logs, customers, attendances)
 -- ─────────────────────────────────────────────────────
 ALTER TABLE closings ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
 ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
+ALTER TABLE attendances ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
 
 CREATE INDEX IF NOT EXISTS idx_closings_branch ON closings(branch_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_branch ON notifications(branch_id);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_branch ON activity_logs(branch_id);
 CREATE INDEX IF NOT EXISTS idx_customers_branch ON customers(branch_id);
+CREATE INDEX IF NOT EXISTS idx_attendances_branch ON attendances(branch_id);
 
 -- Backfill data existing ke cabang pusat (JBR)
 UPDATE closings SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
 UPDATE notifications SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
 UPDATE activity_logs SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
 UPDATE customers SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
+UPDATE attendances SET branch_id = (SELECT id FROM branches WHERE code = 'JBR') WHERE branch_id IS NULL;
+
+-- ─────────────────────────────────────────────────────
+-- 11) FEEDBACK: branch_id (dari service_order terkait)
+-- ─────────────────────────────────────────────────────
+ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(id);
+UPDATE feedbacks SET branch_id = (SELECT branch_id FROM service_orders WHERE id = feedbacks.service_order_id)
+WHERE branch_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_feedbacks_branch ON feedbacks(branch_id);
+
+-- ─────────────────────────────────────────────────────
+-- 12) STOCK: 2 tabel terpisah (gudang & toko per cabang)
+-- ─────────────────────────────────────────────────────
+
+-- Stock GUDANG (pusat, tanpa cabang)
+CREATE TABLE IF NOT EXISTS stock_gudang (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  inventory_id UUID UNIQUE REFERENCES inventory(id) ON DELETE CASCADE,
+  quantity INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Stock TOKO (per cabang — 1 tabel, dipisah branch_id)
+CREATE TABLE IF NOT EXISTS stock_toko (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  inventory_id UUID REFERENCES inventory(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES branches(id),
+  quantity INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(inventory_id, branch_id)
+);
+
+-- Seed dari data lama (warehouse_stock → gudang, store_stock → toko JBR)
+INSERT INTO stock_gudang (inventory_id, quantity)
+SELECT id, COALESCE(warehouse_stock, 0) FROM inventory
+ON CONFLICT (inventory_id) DO UPDATE SET quantity = EXCLUDED.quantity;
+
+INSERT INTO stock_toko (inventory_id, branch_id, quantity)
+SELECT i.id, b.id, COALESCE(i.store_stock, 0)
+FROM inventory i CROSS JOIN branches b WHERE b.code = 'JBR'
+ON CONFLICT (inventory_id, branch_id) DO UPDATE SET quantity = EXCLUDED.quantity;
+
+-- RLS permisif
+ALTER TABLE stock_gudang ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stock_toko ENABLE ROW LEVEL SECURITY;
+DO $$
+DECLARE t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['stock_gudang','stock_toko']
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS public_all_access ON %I', t);
+    EXECUTE format('CREATE POLICY public_all_access ON %I FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL)', t);
+  END LOOP;
+END $$;
+GRANT ALL ON TABLE stock_gudang TO authenticated;
+GRANT ALL ON TABLE stock_toko TO authenticated;
+
+CREATE INDEX IF NOT EXISTS idx_stock_gudang_inventory ON stock_gudang(inventory_id);
+CREATE INDEX IF NOT EXISTS idx_stock_toko_branch ON stock_toko(branch_id);
 
 NOTIFY pgrst, 'reload schema';
 

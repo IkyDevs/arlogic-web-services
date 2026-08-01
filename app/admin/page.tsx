@@ -27,7 +27,6 @@ import {
   ShoppingCart,
   RefreshCw,
   FileWarning,
-  Warehouse,
   Eye,
   Calendar,
   DollarSign,
@@ -62,7 +61,6 @@ import ReportModal from "@/components/ui/ReportModal";
 import { useTheme } from "@/components/ThemeProvider";
 import { useBranch } from "@/lib/context/BranchContext";
 import { useBranchScope } from "@/lib/context/useBranchScope";
-import GudangView from "@/components/admin/GudangView";
 
 // Dynamic imports
 const InventoryManagement = dynamic(
@@ -797,7 +795,6 @@ export default function AdminDashboard() {
     { id: "sparepart", label: "Request Sparepart", icon: Package },
     { id: "attendance", label: "Absensi", icon: Clock },
     { id: "inventory", label: "Inventory", icon: Package },
-    ...(isCentralBranch ? [{ id: "gudang", label: "Gudang", icon: Warehouse }] : []),
     { id: "closing", label: "Closing", icon: FileText },
     { id: "done", label: "Done", icon: CheckCircle },
     { id: "template", label: "Template", icon: MessageSquare },
@@ -984,9 +981,6 @@ export default function AdminDashboard() {
             <InventoryManagement onUpdate={fetchInventory} />
           )}
 
-          {activeTab === "gudang" && (
-            <GudangView />
-          )}
 
           {activeTab === "attendance" && (
             <AttendanceDashboard

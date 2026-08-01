@@ -421,6 +421,7 @@ catatan: ${defaultCheckInNotes}`
       await supabase.from('activity_logs').insert({
         user_id: user?.id,
         action: isCheckIn ? 'CHECK_IN' : 'CHECK_OUT',
+        branch_id: (activeBranch as any)?.id || null,
         details: {
           location: location.address,
           time: new Date().toISOString(),

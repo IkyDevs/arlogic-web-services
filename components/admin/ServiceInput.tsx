@@ -190,8 +190,7 @@ export default function ServiceInput({
         .from("layanan")
         .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at, customer_name, customer_whatsapp")
         .in("jenis_layanan", ["dp_service", "DP Service"])
-        .is("linked_service_order_id", null)
-        .or("dp_applied.is.null,dp_applied.eq.false");
+        .is("linked_service_order_id", null);
       if (name && phone.length >= 8) {
         query = query.or(`customer_name.ilike.%${name}%,customer_whatsapp.ilike.%${phone}%`);
       } else if (name) {

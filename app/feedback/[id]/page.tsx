@@ -93,6 +93,7 @@ export default function FeedbackPage() {
         rating,
         comment: comment.trim() || null,
         teknisi_id: service.assigned_teknisi_id || null,
+        branch_id: service.branch_id || null,
       });
 
       if (insertError) throw insertError;

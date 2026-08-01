@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranchScope } from "@/lib/context/useBranchScope";
+import { useBranch } from "@/lib/context/BranchContext";
 import { useAuthStore } from "@/stores/authStore";
 import { useUpload } from "@/hooks/useUpload";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,6 +41,9 @@ export default function InventoryManagement({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const supabase = createClient();
+  const { branchId } = useBranchScope();
+  const { branches, activeBranch } = useBranch();
+  const isCentral = activeBranch?.is_central === true || activeBranch?.code === "JBR";
   const { user } = useAuthStore();
   const { uploadFile, uploading, progress } = useUpload();
 
@@ -83,7 +88,7 @@ export default function InventoryManagement({
   const fetchInventory = async () => {
     const { data } = await supabase
       .from("inventory")
-      .select("*")
+      .select("*, stock_gudang(quantity), stock_toko(branch_id, quantity)")
       .order("created_at", { ascending: false })
       .limit(200);
     if (data) setInventory(data);
@@ -95,6 +100,30 @@ export default function InventoryManagement({
       .select("name")
       .order("name");
     if (data) setCategories(data.map((c) => c.name));
+  };
+
+  // ── Stock 2 tipe: gudang & toko (per cabang) ──
+  const updateStock = async (inventoryId: string, type: "gudang" | "toko", branchIdForToko: string | null, delta: number) => {
+    try {
+      if (type === "gudang") {
+        const { data: existing } = await supabase.from("stock_gudang").select("id, quantity").eq("inventory_id", inventoryId).maybeSingle();
+        if (existing) {
+          await supabase.from("stock_gudang").update({ quantity: Math.max(0, (existing.quantity || 0) + delta), updated_at: new Date().toISOString() }).eq("id", existing.id);
+        } else {
+          await supabase.from("stock_gudang").insert({ inventory_id: inventoryId, quantity: Math.max(0, delta) });
+        }
+      } else if (branchIdForToko) {
+        const { data: existing } = await supabase.from("stock_toko").select("id, quantity").eq("inventory_id", inventoryId).eq("branch_id", branchIdForToko).maybeSingle();
+        if (existing) {
+          await supabase.from("stock_toko").update({ quantity: Math.max(0, (existing.quantity || 0) + delta), updated_at: new Date().toISOString() }).eq("id", existing.id);
+        } else {
+          await supabase.from("stock_toko").insert({ inventory_id: inventoryId, branch_id: branchIdForToko, quantity: Math.max(0, delta) });
+        }
+      }
+      fetchInventory();
+    } catch {
+      // ignore
+    }
   };
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -819,26 +848,51 @@ export default function InventoryManagement({
                         </p>
                       )}
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-green-50 rounded p-1.5 text-center border border-green-100">
-                          <Package className="w-3 h-3 text-green-600 mx-auto" />
-                          <span className="font-semibold text-green-700">
-                            {item.store_stock}
-                          </span>
-                          <span className="text-slate-500 ml-0.5">
-                            {item.unit}
-                          </span>
-                        </div>
                         <div className="bg-slate-50 rounded p-1.5 text-center border border-slate-200">
                           <Warehouse className="w-3 h-3 text-slate-600 mx-auto" />
                           <span className="font-semibold text-slate-700">
-                            {item.warehouse_stock}
+                            {item.stock_gudang?.[0]?.quantity ?? item.warehouse_stock ?? 0}
                           </span>
                           <span className="text-slate-500 ml-0.5">
                             {item.unit}
                           </span>
+                          {isCentral && (
+                            <div className="flex items-center justify-center gap-1 mt-1">
+                              <button onClick={() => updateStock(item.id, "gudang", null, -1)} className="px-1.5 bg-slate-200 rounded text-slate-700">−</button>
+                              <span className="text-[9px] text-slate-400">Gudang</span>
+                              <button onClick={() => updateStock(item.id, "gudang", null, 1)} className="px-1.5 bg-slate-200 rounded text-slate-700">+</button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-green-50 rounded p-1.5 text-center border border-green-100">
+                          <Package className="w-3 h-3 text-green-600 mx-auto" />
+                          <span className="font-semibold text-green-700">
+                            {item.stock_toko?.find((s: any) => s.branch_id === branchId)?.quantity ?? item.store_stock ?? 0}
+                          </span>
+                          <span className="text-slate-500 ml-0.5">
+                            {item.unit}
+                          </span>
+                          <div className="flex items-center justify-center gap-1 mt-1">
+                            <button onClick={() => updateStock(item.id, "toko", branchId, -1)} className="px-1.5 bg-green-100 rounded text-green-700">−</button>
+                            <span className="text-[9px] text-green-500">Toko</span>
+                            <button onClick={() => updateStock(item.id, "toko", branchId, 1)} className="px-1.5 bg-green-100 rounded text-green-700">+</button>
+                          </div>
                         </div>
                       </div>
-                      {item.store_stock <= item.min_stock && (
+                      {isCentral && branches.length > 0 && (
+                        <div className="mt-2 space-y-0.5">
+                          {branches.map((b) => {
+                            const qty = item.stock_toko?.find((s: any) => s.branch_id === b.id)?.quantity ?? 0;
+                            return (
+                              <div key={b.id} className="flex items-center justify-between text-[10px] text-slate-500">
+                                <span>{b.name}</span>
+                                <span className="font-semibold text-slate-700">{qty} {item.unit}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {(item.stock_toko?.find((s: any) => s.branch_id === branchId)?.quantity ?? item.store_stock ?? 0) <= item.min_stock && (
                         <div className="mt-2 text-[10px] text-red-500 bg-red-50 p-1 rounded text-center">
                           ⚠️ Stock menipis!
                         </div>
