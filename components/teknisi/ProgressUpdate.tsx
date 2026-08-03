@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Camera, Plus, X, Save, Calendar, Clock, User, Package, DollarSign, CheckCircle, AlertCircle, Trash2, Wrench, ChevronDown, ChevronUp } from 'lucide-react'
 import { useUpload } from '@/hooks/useUpload'
+import { useBranchScope } from '@/lib/context/useBranchScope'
 
 interface ProgressUpdateProps {
   service: ServiceOrder
@@ -32,6 +33,7 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
   const supabase = createClient()
   const { user } = useAuthStore()
   const { uploadFiles } = useUpload()
+  const { branchId } = useBranchScope()
 
   const calculateTotal = (itemsList: any[]) =>
     itemsList.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
