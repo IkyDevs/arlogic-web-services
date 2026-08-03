@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useBranchScope } from "@/lib/context/useBranchScope";
+import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn } from "lucide-react";
@@ -61,6 +62,7 @@ function getStatusColor(status: string) {
 export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const supabase = createClient();
   const { branchId } = useBranchScope();
+  const { branches } = useBranch();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -75,6 +77,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [servicePhotos, setServicePhotos] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const selectedBranchName = selectedService ? branches.find((branch) => branch.id === selectedService.branch_id)?.name : null;
 
   const fetchServices = async () => {
     setLoading(true);
@@ -284,7 +287,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
               {/* QR + Token */}
               <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
-                  <QRCodeSVG value={typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + selectedService.token : ""} size={72} level="H" />
+                  <QRCodeSVG value={typeof window !== "undefined" && selectedBranchName ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + encodeURIComponent(selectedBranchName) : ""} size={72} level="H" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Token Tracking</p>
@@ -294,7 +297,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                       {copiedToken ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
                     </button>
                   </div>
-                  <a href={typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + selectedService.token : "#"} target="_blank" rel="noopener noreferrer"
+                  <a href={typeof window !== "undefined" && selectedBranchName ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) + "/tracking/" + encodeURIComponent(selectedBranchName) : "#"} target="_blank" rel="noopener noreferrer"
                     className="text-[10px] text-blue-600 hover:underline mt-0.5 inline-flex items-center gap-1">
                     Buka Tracking Page →
                   </a>
@@ -306,7 +309,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 const phone = selectedService.customer_phone?.replace(/\D/g, "");
                 const p = phone?.startsWith("0") ? "62" + phone.substring(1) : phone;
                 const appUrl = (typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_APP_URL || window.location.origin) : "");
-                const trackingUrl = appUrl + "/tracking/" + selectedService.token;
+                const trackingUrl = selectedBranchName ? appUrl + "/tracking/" + encodeURIComponent(selectedBranchName) : appUrl + "/tracking";
                 const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(trackingUrl)}`;
                 const msg = encodeURIComponent(
                   `Halo ${selectedService.customer_name},\n\n` +

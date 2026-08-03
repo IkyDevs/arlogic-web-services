@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Navigation", () => {
   test("tracking page shows token input form", async ({ page }) => {
-    await page.goto("/tracking/test-token");
+    await page.goto("/tracking/test-branch-id");
     await expect(page.locator("text=Track Service").or(page.locator('input[placeholder*="token" i]'))).toBeVisible({ timeout: 10000 });
   });
 

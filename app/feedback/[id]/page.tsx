@@ -36,7 +36,7 @@ export default function FeedbackPage() {
       const { data: serviceData } = await supabase
         .from("service_orders")
         .select(
-          "id, invoice_number, customer_name, watch_brand, watch_model, status, token, assigned_teknisi_id",
+          "id, invoice_number, customer_name, watch_brand, watch_model, status, token, assigned_teknisi_id, branch_id, branches(name)",
         )
         .eq("invoice_number", invoiceId)
         .single();
@@ -194,7 +194,7 @@ export default function FeedbackPage() {
             You've already submitted feedback for this service. Thank you!
           </p>
           <button
-            onClick={() => router.push(`/tracking/${invoiceId}?token=${token}`)}
+            onClick={() => router.push(service?.branches?.name ? `/tracking/${encodeURIComponent(service.branches.name)}` : "/tracking")}
             className="w-full py-2.5 bg-blue-600 text-white border border-slate-200 font-mono font-bold text-sm transition-all"
           >
             Back to Tracking
@@ -243,7 +243,7 @@ export default function FeedbackPage() {
             {ratingLabels[rating]}
           </p>
           <button
-            onClick={() => router.push(`/tracking/${invoiceId}?token=${token}`)}
+            onClick={() => router.push(service?.branches?.name ? `/tracking/${encodeURIComponent(service.branches.name)}` : "/tracking")}
             className="w-full py-2.5 bg-blue-600 text-white border border-slate-200 font-mono font-bold text-sm transition-all"
           >
             Back to Tracking

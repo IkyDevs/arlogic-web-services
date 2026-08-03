@@ -133,6 +133,7 @@ export default function ServiceInput({
     invoice: string;
     token: string;
     serviceId: string;
+    branchName: string | null;
   } | null>(null);
   const [step, setStep] = useState(1);
   const [estimatedCost, setEstimatedCost] = useState("");
@@ -600,7 +601,7 @@ In : ${now}`;
       if (user?.id) { clearingDraft.current = true; clearDraft("service", user.id); }
       upload.clear();
       restoredRef.current = false;
-      setLastInvoice({ invoice: invoiceNumber, token, serviceId });
+      setLastInvoice({ invoice: invoiceNumber, token, serviceId, branchName: activeBranch?.name || null });
       setSuccess(true);
       setStep(5);
       toast.success("Watch service order created!");
@@ -1523,6 +1524,7 @@ In : ${now}`;
               <QRCodeGenerator
                 invoiceNumber={lastInvoice.invoice}
                 token={lastInvoice.token}
+                branchName={lastInvoice.branchName}
                 customerName={formData.cs_name}
                 customerPhone={formData.cs_phone}
               />
@@ -1546,7 +1548,7 @@ In : ${now}`;
               </button>
               <button
                 onClick={() => {
-                  window.open(`/tracking/${lastInvoice.token}`, "_blank");
+                  window.open(`/tracking/${lastInvoice.branchName ? encodeURIComponent(lastInvoice.branchName) : ""}`, "_blank");
                 }}
                 className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium"
               >

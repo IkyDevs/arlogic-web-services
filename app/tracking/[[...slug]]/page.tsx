@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
@@ -56,7 +56,7 @@ function getMovementIcon(m: string) {
   }
 }
 
-export default function TrackingPage({ params }: { params: { slug?: string[] } }) {
+export function TrackingContent({ slug, branchName }: { slug?: string[]; branchName?: string }) {
   const [token, setToken] = useState("");
   const [service, setService] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -69,6 +69,9 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
   const [queuePosition, setQueuePosition] = useState<{ position: number; total: number; currentWork: string | null; currentWorkPos: number | null } | null>(null);
   const [expandedSections, setExpandedSections] = useState({ device: true, items: false, timeline: true, photos: false });
   const [photoModal, setPhotoModal] = useState<string | null>(null);
+  const [branchContact, setBranchContact] = useState<{ name: string; phone: string } | null>(null);
+  const [trackingRequestName, setTrackingRequestName] = useState("");
+  const [trackingRequestInvoice, setTrackingRequestInvoice] = useState("");
 
   // Feedback state
   const finalItems = useMemo(() => items, [items]);
@@ -89,6 +92,14 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
   const [feedbackHover, setFeedbackHover] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
   const [teknisiName, setTeknisiName] = useState("");
+  const branchIdFromPath = branchName || (slug && slug.length > 1 ? slug[0] : null);
+  const tokenFromPath = branchName ? undefined : slug && slug.length > 1 ? slug[1] : slug?.[0];
+  const branchDatabaseId = branchIdFromPath && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(branchIdFromPath)
+    ? branchIdFromPath
+    : null;
+
+  const trackingPath = (branchSlug: string | null | undefined) =>
+    branchSlug ? `/tracking/${branchSlug}` : "/tracking";
 
   const currentStep = useMemo(() => {
     if (!service) return 0;
@@ -96,9 +107,54 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
     return idx >= 0 ? idx : 0;
   }, [service]);
 
+  const loadBranchContact = async ({ branchId, branchCode, branchName }: { branchId?: string | null; branchCode?: string | null; branchName?: string | null }) => {
+    const identifier = branchCode ? `branch=${encodeURIComponent(branchCode)}` : branchName ? `name=${encodeURIComponent(branchName)}` : branchId ? `id=${encodeURIComponent(branchId)}` : null;
+    if (!identifier) {
+      setBranchContact(null);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/public/branch-contact?${identifier}`);
+      if (!response.ok) throw new Error();
+      const branch = await response.json();
+      setBranchContact({ name: branch.name, phone: branch.phone });
+    } catch {
+      setBranchContact(null);
+    }
+  };
+
+  const adminWhatsAppUrl = useMemo(() => {
+    if (!branchContact) return null;
+    const digits = branchContact.phone.replace(/\D/g, "");
+    const phone = digits.startsWith("0") ? `62${digits.slice(1)}` : digits;
+    if (!phone) return null;
+
+    const message = `Halo admin ${branchContact.name}, saya membutuhkan bantuan terkait service ${service?.invoice_number || ""}.`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  }, [branchContact, service?.invoice_number]);
+
+  const trackingRequestWhatsAppUrl = useMemo(() => {
+    if (!branchContact) return null;
+    const digits = branchContact.phone.replace(/\D/g, "");
+    const phone = digits.startsWith("0") ? `62${digits.slice(1)}` : digits;
+    if (!phone) return null;
+
+    const customerName = trackingRequestName.trim() || "[nama customer]";
+    const invoiceNumber = trackingRequestInvoice.trim() || "[nomor invoice]";
+    const message = `Halo Admin ${branchContact.name}, saya ${customerName}. Saya ingin mengakses web tracking untuk invoice ${invoiceNumber}. Mohon bantu kirimkan token tracking saya. Terima kasih.`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  }, [branchContact, trackingRequestInvoice, trackingRequestName]);
+
   // Auto-load from URL path if token is present
   useEffect(() => {
-    const urlToken = params.slug?.[0];
+    const branchCode = new URLSearchParams(window.location.search).get("branch");
+    if (branchCode) void loadBranchContact({ branchCode });
+    else if (branchIdFromPath) {
+      void loadBranchContact(branchDatabaseId ? { branchId: branchIdFromPath } : { branchName: branchIdFromPath });
+    }
+
+    const urlToken = tokenFromPath;
     if (urlToken && urlToken !== "tracking") {
       setToken(urlToken.toUpperCase());
       const t = setTimeout(() => {
@@ -112,16 +168,20 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
   const trackServiceFromUrl = async (t: string) => {
     setLoading(true); setError("");
     try {
-      const { data, error: fetchError } = await supabase.from("service_orders").select("*").eq("token", t).single();
+      let serviceQuery = supabase.from("service_orders").select("*").eq("token", t);
+      if (branchDatabaseId) serviceQuery = serviceQuery.eq("branch_id", branchDatabaseId);
+      const { data, error: fetchError } = await serviceQuery.single();
       if (fetchError || !data) { setError("Token tidak valid."); setLoading(false); return; }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
       setService(data);
+      void loadBranchContact({ branchId: data.branch_id });
 
       // Fetch queue position
       if (data.status === 'pending' || data.status === 'assigned' || data.status === 'in_progress') {
         const { data: queue } = await supabase
           .from("service_orders")
           .select("id, status, created_at, assigned_teknisi_id")
+          .eq("branch_id", data.branch_id)
           .in("status", ["pending", "assigned", "in_progress"])
           .order("created_at", { ascending: true });
 
@@ -173,15 +233,19 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
     setLoading(true); setError(""); setService(null);
     try {
       const normalizedToken = token.trim().toUpperCase();
-      const { data, error: fetchError } = await supabase.from("service_orders").select("*").eq("token", normalizedToken).single();
+      let serviceQuery = supabase.from("service_orders").select("*").eq("token", normalizedToken);
+      if (branchDatabaseId) serviceQuery = serviceQuery.eq("branch_id", branchDatabaseId);
+      const { data, error: fetchError } = await serviceQuery.single();
       if (fetchError || !data) { setError("Token tidak valid. Silakan cek kembali."); setLoading(false); return; }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
       setService(data);
+      void loadBranchContact({ branchId: data.branch_id });
 
       // Fetch queue
       if (data.status === 'pending' || data.status === 'assigned' || data.status === 'in_progress') {
         const { data: queue } = await supabase
           .from("service_orders").select("id, status, created_at, assigned_teknisi_id")
+          .eq("branch_id", data.branch_id)
           .in("status", ["pending", "assigned", "in_progress"])
           .order("created_at", { ascending: true });
         if (queue) {
@@ -225,7 +289,7 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       });
 
       // Update URL to include token (without full page reload)
-      window.history.replaceState(null, "", "/tracking/" + normalizedToken);
+      window.history.replaceState(null, "", trackingPath(branchIdFromPath));
     } catch (e) { setError("Gagal mengambil informasi service"); }
     setLoading(false);
   };
@@ -305,7 +369,46 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
             </button>
           </div>
           <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-xs text-slate-500 text-center">Token diberikan saat membuat service. Hubungi kami jika kehilangan token.</p>
+            <p className="text-xs text-slate-500 text-center">Token diberikan saat membuat service. Jika belum menerima token, hubungi admin cabang.</p>
+            {trackingRequestWhatsAppUrl ? (
+              <div className="mt-3 space-y-2">
+                <input
+                  type="text"
+                  value={trackingRequestName}
+                  onChange={(event) => setTrackingRequestName(event.target.value)}
+                  placeholder="Nama customer"
+                  className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+                <input
+                  type="text"
+                  value={trackingRequestInvoice}
+                  onChange={(event) => setTrackingRequestInvoice(event.target.value.toUpperCase())}
+                  placeholder="Nomor invoice"
+                  className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-mono text-slate-700 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+                <a
+                  href={trackingRequestWhatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mx-auto flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  Hubungi admin via WhatsApp
+                </a>
+              </div>
+            ) : adminWhatsAppUrl ? (
+              <a
+                href={adminWhatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mx-auto mt-3 flex w-fit items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700"
+              >
+                <Phone className="h-3.5 w-3.5" />
+                Hubungi admin
+              </a>
+            ) : (
+              <p className="mt-2 text-center text-[11px] text-slate-400">Buka melalui link tracking cabang untuk menghubungi admin.</p>
+            )}
           </div>
         </motion.div>
       </div>
@@ -777,7 +880,20 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
 
         {/* Contact */}
         <div className="text-center pt-2 pb-4">
-          <p className="text-sm text-slate-500">Butuh bantuan? Hubungi kami di <a href="tel:+62123456789" className="text-blue-600 font-semibold hover:underline">+62 123 456 789</a></p>
+          <p className="text-sm text-slate-500">Butuh bantuan terkait service ini?</p>
+          {adminWhatsAppUrl ? (
+            <a
+              href={adminWhatsAppUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
+            >
+              <Phone className="h-4 w-4" />
+              Hubungi admin
+            </a>
+          ) : (
+            <p className="mt-1 text-xs text-slate-400">Kontak admin untuk cabang ini belum tersedia.</p>
+          )}
         </div>
       </div>
 
@@ -794,4 +910,9 @@ export default function TrackingPage({ params }: { params: { slug?: string[] } }
       )}
     </div>
   );
+}
+
+export default function TrackingPage({ params }: { params: Promise<{ slug?: string[] }> }) {
+  const { slug } = use(params);
+  return <TrackingContent slug={slug} />;
 }

@@ -14,7 +14,7 @@ export default function TrackingVisits() {
     setLoading(true);
     const { data } = await supabase
       .from("tracking_logs")
-      .select("*, service_orders!inner(customer_name, invoice_number, token)")
+      .select("*, service_orders!inner(customer_name, invoice_number, token, branch_id, branches(name))")
       .order("visited_at", { ascending: false })
       .limit(100);
     if (data) setLogs(data);
@@ -65,7 +65,7 @@ export default function TrackingVisits() {
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-gray-100">{log.service_orders?.customer_name || "-"}</td>
                   <td className="px-4 py-3 font-mono text-sm text-slate-700 dark:text-gray-300">{log.service_orders?.invoice_number || "-"}</td>
                   <td className="px-4 py-3 text-center">
-                    <a href={"/tracking/" + log.token} target="_blank" rel="noopener noreferrer"
+                    <a href={log.service_orders?.branches?.name ? `/tracking/${encodeURIComponent(log.service_orders.branches.name)}` : "/tracking"} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-blue-600 hover:underline text-xs">
                       Buka <ExternalLink className="w-3 h-3" />
                     </a>

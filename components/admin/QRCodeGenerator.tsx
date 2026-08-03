@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 interface QRCodeGeneratorProps {
   invoiceNumber: string;
   token: string;
+  branchName?: string | null;
   customerName: string;
   customerPhone?: string;
   onClose?: () => void;
@@ -20,6 +21,7 @@ interface QRCodeGeneratorProps {
 export default function QRCodeGenerator({
   invoiceNumber,
   token,
+  branchName,
   customerName,
   customerPhone,
   onClose
@@ -29,11 +31,11 @@ export default function QRCodeGenerator({
   const [copied, setCopied] = useState(false);
   const [whatsappLoading, setWhatsappLoading] = useState(false);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const trackingUrl = `${appUrl}/tracking/${token}`;
+  const trackingUrl = `${appUrl}/tracking/${branchName ? encodeURIComponent(branchName) : ""}`;
 
   useEffect(() => {
     generateQR();
-  }, [invoiceNumber, token]);
+  }, [invoiceNumber, token, branchName]);
 
   const generateQR = async () => {
     try {
