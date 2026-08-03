@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { editMessageCaption, resolveChatId } from '@/lib/telegram'
+import { editMessageCaption } from '@/lib/telegram'
 import { telegramEditCaptionSchema } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
@@ -10,12 +10,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
-    let targetChatId = '';
-    if (parsed.channel && process.env[`TELEGRAM_CHANNEL_${parsed.channel.toUpperCase()}`]) {
-      targetChatId = await resolveChatId(process.env[`TELEGRAM_CHANNEL_${parsed.channel.toUpperCase()}`]!);
-    }
-
-    let query = supabase
+    // Cari service_documentation stage 'qc' milik service ini.
+    // TIDAK difilter chat_id global — karena foto sudah masuk channel PER-CABANG
+    // (misal @jbr_qc_update), dan chat_id asli tersimpan di kolom telegram_chat_id.
+    const { data: docsResult } = await supabase
       .from('service_documentation')
       .select('id, telegram_chat_id, telegram_message_id, stage')
       .eq('service_order_id', parsed.service_order_id)
@@ -23,12 +21,6 @@ export async function POST(request: NextRequest) {
       .neq('telegram_message_id', 0)
       .eq('stage', 'qc')
       .order('created_at', { ascending: true });
-
-    if (targetChatId) {
-      query = query.eq('telegram_chat_id', targetChatId);
-    }
-
-    const { data: docsResult } = await query;
 
     if (!docsResult || docsResult.length === 0) {
       return NextResponse.json({ error: 'No telegram message found for this service order with QC stage' }, { status: 404 })

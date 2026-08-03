@@ -1607,12 +1607,12 @@ export default function QCReviewModal({
                     <div
                       key={doc.id}
                       className="relative group cursor-pointer rounded-xl overflow-hidden border border-[var(--color-border)] aspect-square bg-[var(--color-card)]"
+                      onClick={() => setPreviewPhotoIndex(index)}
                     >
                       <img
                         src={doc.photo_url}
                         alt={`Photo ${index + 1}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        onClick={() => setPreviewPhotoIndex(index)}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1.5">
                         <span className="text-[10px] text-white font-medium bg-black/50 px-1.5 py-0.5 rounded-md">
