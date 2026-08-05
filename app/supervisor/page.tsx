@@ -91,6 +91,7 @@ export default function SupervisorDashboard() {
 
   // ── Statistik per cabang ──
   const [period, setPeriod] = useState<Period>("hari");
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
   const [branchRevenue, setBranchRevenue] = useState<
     Record<string, BranchRevenue>
   >({});
@@ -280,6 +281,32 @@ export default function SupervisorDashboard() {
     owner: "Owner",
   };
 
+  // Calculate summary totals
+  const calculateSummary = () => {
+    const branchesToSum = selectedBranchFilter
+      ? Object.entries(branchRevenue).filter(
+          ([key]) => key === selectedBranchFilter,
+        )
+      : Object.entries(branchRevenue);
+
+    let totalRevenue = 0,
+      totalCount = 0,
+      totalExpenses = 0,
+      totalServices = 0;
+    for (const [, st] of branchesToSum) {
+      totalRevenue += st.revenue;
+      totalCount += st.count;
+      totalExpenses += st.expenses;
+      totalServices += st.serviceCount;
+    }
+    return { totalRevenue, totalCount, totalExpenses, totalServices };
+  };
+
+  // Filter displayed branches
+  const displayedBranches = selectedBranchFilter
+    ? branches.filter((b) => b.id === selectedBranchFilter)
+    : branches;
+
   const createUser = async () => {
     if (!newEmail.trim() || !newName.trim()) {
       toast.error("Email & nama wajib diisi");
@@ -434,30 +461,125 @@ export default function SupervisorDashboard() {
 
         {tab === "overview" && (
           <div className="space-y-6">
-            {/* Periode Selection */}
-            <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1 w-fit">
-              {(
-                [
-                  { id: "hari", label: "Hari Ini" },
-                  { id: "minggu", label: "Mingguan" },
-                  { id: "bulan", label: "Bulanan" },
-                  { id: "tahun", label: "Tahunan" },
-                ] as Array<{ id: Period; label: string }>
-              ).map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPeriod(p.id)}
-                  aria-pressed={period === p.id}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
-                >
-                  {p.label}
-                </button>
-              ))}
+            {/* Period Selection + Branch Filter */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+              <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1">
+                {(
+                  [
+                    { id: "hari", label: "Hari Ini" },
+                    { id: "minggu", label: "Mingguan" },
+                    { id: "bulan", label: "Bulanan" },
+                    { id: "tahun", label: "Tahunan" },
+                  ] as Array<{ id: Period; label: string }>
+                ).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPeriod(p.id)}
+                    aria-pressed={period === p.id}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={selectedBranchFilter}
+                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                aria-label="Filter by branch"
+                className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+              >
+                <option value="">Semua Cabang</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {/* All Branches Summary Card */}
+            {(() => {
+              const summary = calculateSummary();
+              const avgRevenue =
+                displayedBranches.length > 0
+                  ? Math.floor(summary.totalRevenue / displayedBranches.length)
+                  : 0;
+              const avgTranx =
+                displayedBranches.length > 0
+                  ? Math.floor(summary.totalCount / displayedBranches.length)
+                  : 0;
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={`${period}-${selectedBranchFilter}`}
+                  className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-900/30 rounded-2xl border border-slate-200 dark:border-white/10 p-5 sm:p-6"
+                >
+                  <div className="mb-4">
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-1">
+                      {selectedBranchFilter
+                        ? `Summary ${branches.find((b) => b.id === selectedBranchFilter)?.name}`
+                        : "Summary Semua Cabang"}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                      {period === "hari"
+                        ? "Hari Ini"
+                        : period === "minggu"
+                          ? "Mingguan"
+                          : period === "bulan"
+                            ? "Bulanan"
+                            : "Tahunan"}
+                      {" · "}
+                      {displayedBranches.length} cabang
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                      <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatRupiah(summary.totalRevenue)}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        Total Pendapatan
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">
+                        Rata² {formatRupiah(avgRevenue)}/cabang
+                      </p>
+                    </div>
+                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                      <p className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">
+                        {summary.totalCount}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        Total Transaksi
+                      </p>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">
+                        Rata² {avgTranx}/cabang
+                      </p>
+                    </div>
+                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                      <p className="text-2xl sm:text-3xl font-bold text-violet-600 dark:text-violet-400">
+                        {summary.totalServices}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        Total Services
+                      </p>
+                    </div>
+                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                      <p className="text-2xl sm:text-3xl font-bold text-red-600 dark:text-red-400">
+                        {formatRupiah(summary.totalExpenses)}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        Total Pengeluaran
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })()}
 
             {/* Revenue Cards per Branch - Responsive Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {branches.map((b) => {
+              {displayedBranches.map((b) => {
                 const st = branchRevenue[b.id] || {
                   revenue: 0,
                   count: 0,
@@ -517,7 +639,7 @@ export default function SupervisorDashboard() {
 
             {/* Branch Stats Grid - Responsive */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {branches.map((b) => {
+              {displayedBranches.map((b) => {
                 const s = branchStats[b.id] || { services: 0, teknisi: 0 };
                 return (
                   <motion.div
