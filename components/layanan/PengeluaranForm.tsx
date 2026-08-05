@@ -4,15 +4,32 @@ import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useBranch } from "@/lib/context/BranchContext";
-import { useUpload } from "@/hooks/useUpload";
+import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { MetodePembayaran } from "@/types";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
-import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
+import {
+  hasDraft,
+  loadDraft,
+  saveDraft,
+  clearDraft,
+  saveDraftTextSync,
+} from "@/lib/draftStorage";
 import { useTransactionStore } from "@/stores/transaction-store";
 import {
-  User, DollarSign, FileText, Send, X, Camera, Loader2,
-  Trash2, AlertCircle, Calendar, Wrench, Plus, ChevronDown,
+  User,
+  DollarSign,
+  FileText,
+  Send,
+  X,
+  Camera,
+  Loader2,
+  Trash2,
+  AlertCircle,
+  Calendar,
+  Wrench,
+  Plus,
+  ChevronDown,
 } from "lucide-react";
 
 const metodePembayaranOptions = [
@@ -41,7 +58,13 @@ export default memo(function PengeluaranForm({
   const { user } = useAuthStore();
   const { activeBranch } = useBranch();
   const supabase = createClient();
-  const { uploadFiles, uploading, progress } = useUpload();
+  // uploadKey stabil untuk edit/retry (recover foto dari IndexedDB pakai session key lama)
+  const [uploadKey] = useState(
+    () =>
+      (initialData as any)?.upload_session_key ||
+      `pengeluaran_${user?.id || "anon"}_${Date.now()}`,
+  );
+  const upload = useCentralUpload(uploadKey);
   const fetchTransactions = useTransactionStore((s) => s.fetch);
 
   const [formData, setFormData] = useState({
@@ -57,8 +80,6 @@ export default memo(function PengeluaranForm({
   const [loading, setLoading] = useState(false);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>(() => {
     if (initialData?.photo_urls && Array.isArray(initialData.photo_urls)) {
       return initialData.photo_urls;
@@ -68,20 +89,14 @@ export default memo(function PengeluaranForm({
     }
     return [];
   });
-  const [existingPhotoCount, setExistingPhotoCount] = useState(() => {
-    if (initialData?.photo_urls && Array.isArray(initialData.photo_urls)) {
-      return initialData.photo_urls.length;
-    }
-    if (initialData?.photo_url) {
-      return 1;
-    }
-    return 0;
-  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
   const handleCancel = useCallback(() => {
-    if (!initialData && user?.id) { clearingDraft.current = true; clearDraft("pengeluaran", user.id); }
+    if (!initialData && user?.id) {
+      clearingDraft.current = true;
+      clearDraft("pengeluaran", user.id);
+    }
     restoredRef.current = false;
     onClose?.();
   }, [initialData, user?.id, onClose]);
@@ -96,11 +111,17 @@ export default memo(function PengeluaranForm({
         restoredRef.current = true;
         setFormData((p) => ({ ...p, ...draft.data }));
         if (draft.photoFiles && draft.photoFiles.length > 0) {
-          setPhotoFiles(draft.photoFiles);
-          setPhotoPreviews(draft.photoFiles.map((f) => URL.createObjectURL(f)));
+          const result = await upload.addFiles(draft.photoFiles);
+          if (result.files.length > 0) {
+            setPhotoPreviews((prev) => [
+              ...prev,
+              ...result.files.map((f) => f.preview),
+            ]);
+          }
         }
-        toast.success("Draft pengeluaran ditemukan dan dipulihkan", { duration: 3000 });
-        saveDraft("pengeluaran", user.id, draft.data, draft.photoFiles || undefined);
+        toast.success("Draft pengeluaran ditemukan dan dipulihkan", {
+          duration: 3000,
+        });
       }
     })();
   }, [user?.id]);
@@ -115,13 +136,24 @@ export default memo(function PengeluaranForm({
   // ── Auto-save foto (debounce 2s) ────────────────────────────────────────
   const photoTimer = useRef<any>(null);
   useEffect(() => {
-    if (initialData || !user?.id || photoFiles.length === 0) return;
+    const draftFiles = upload.pendingFiles
+      .filter((f) => f.status === "ready")
+      .map((f) => f.file);
+    if (
+      initialData ||
+      !user?.id ||
+      clearingDraft.current ||
+      draftFiles.length === 0
+    )
+      return;
     if (photoTimer.current) clearTimeout(photoTimer.current);
     photoTimer.current = setTimeout(() => {
-      saveDraft("pengeluaran", user.id, formData, photoFiles).catch(() => {});
+      saveDraft("pengeluaran", user.id, formData, draftFiles).catch(() => {});
     }, 2000);
-    return () => { if (photoTimer.current) clearTimeout(photoTimer.current); };
-  }, [photoFiles, user?.id]);
+    return () => {
+      if (photoTimer.current) clearTimeout(photoTimer.current);
+    };
+  }, [upload.pendingFiles, user?.id]);
 
   useEffect(() => {
     fetchUsers();
@@ -150,45 +182,38 @@ export default memo(function PengeluaranForm({
     if (data) setUsers(data);
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-
-    const valid = files.filter((f) => {
-      if (!f.type.startsWith("image/")) {
-        toast.error(`${f.name} bukan gambar`);
-        return false;
-      }
-      if (f.size > 15 * 1024 * 1024) {
-        toast.error(`${f.name} terlalu besar (max 15MB)`);
-        return false;
-      }
-      return true;
-    });
-
-    setPhotoFiles((prev) => [...prev, ...valid]);
-    valid.forEach((f) =>
-      setPhotoPreviews((prev) => [...prev, URL.createObjectURL(f)]),
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFiles = Array.from(e.target.files || []).filter((f) =>
+      f.type.startsWith("image/"),
     );
+    if (!rawFiles.length) return;
 
+    const result = await upload.addFiles(rawFiles);
+    if (result.files.length > 0) {
+      setPhotoPreviews((prev) => [
+        ...prev,
+        ...result.files.map((f) => f.preview),
+      ]);
+    }
+    if (result.errors.length > 0) {
+      result.errors.forEach((e) => toast.error(e));
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const removePhoto = (idx: number) => {
-    // Only revoke blob URLs for new photos, not existing server URLs
-    if (idx >= existingPhotoCount) {
-      URL.revokeObjectURL(photoPreviews[idx]);
+  const removePhoto = async (idx: number) => {
+    const url = photoPreviews[idx];
+    const isBlob = url.startsWith("blob:");
+    if (isBlob) {
+      const pending = upload.pendingFiles.find((f) => f.preview === url);
+      if (pending) await upload.removeFile(pending.id);
+    } else {
+      URL.revokeObjectURL(url);
     }
-    setPhotoFiles((prev) =>
-      prev.filter((_, i) => i !== idx - existingPhotoCount),
-    );
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== idx));
-    if (idx < existingPhotoCount) {
-      setExistingPhotoCount((c: number) => c - 1);
-    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.item_name.trim()) {
@@ -207,7 +232,11 @@ export default memo(function PengeluaranForm({
       toast.error("Metode pembayaran wajib dipilih");
       return;
     }
-    if (photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id) {
+    if (
+      upload.pendingFiles.length === 0 &&
+      photoPreviews.length === 0 &&
+      !initialData?.id
+    ) {
       toast.error("Wajib upload minimal 1 foto bukti");
       return;
     }
@@ -215,7 +244,14 @@ export default memo(function PengeluaranForm({
     setShowConfirmation(true);
   };
 
+  const submittingRef = useRef(false);
+
   const handleConfirmSubmit = async () => {
+    if (submittingRef.current) {
+      toast.error("Pengeluaran sedang diproses...");
+      return;
+    }
+    submittingRef.current = true;
     setShowConfirmation(false);
     setLoading(true);
     try {
@@ -230,7 +266,10 @@ export default memo(function PengeluaranForm({
         selectedUser = profile || null;
       }
       // When editing, use initialData's handled_by_name as fallback
-      const handlerName = selectedUser?.full_name || initialData?.handled_by_name || user?.full_name;
+      const handlerName =
+        selectedUser?.full_name ||
+        initialData?.handled_by_name ||
+        user?.full_name;
 
       const now = new Date();
       const dayNames = [
@@ -262,7 +301,8 @@ export default memo(function PengeluaranForm({
         metodePembayaranOptions.find(
           (opt) => opt.value === formData.metode_pembayaran,
         )?.label || formData.metode_pembayaran;
-      const transactionDescription = `
+      const transactionDescription = `💰 PENGELUARAN
+
 tanggal : ${fmtDateTime}
 nama barang: ${formData.item_name}
 nominal: Rp ${parseInt(formData.nominal).toLocaleString("id-ID")}
@@ -278,22 +318,125 @@ operator: ${handlerName}`;
             : [];
 
       let photoUrls: string[] = [...existingPhotoUrls];
-      let telegramSent = false;
-      if (photoFiles.length > 0) {
-        const urls = await uploadFiles(photoFiles, {
-          type: "layanan",
-          caption: transactionDescription,
-        });
-        if (urls && urls.length > 0) {
-          photoUrls = [...existingPhotoUrls, ...urls.map((r) => r.url)];
-          telegramSent = true;
-        } else {
-          toast.error("Gagal upload foto");
-          return;
-        }
+      const isEditing = !!initialData?.id;
+      const pendingFiles = upload.pendingFiles.filter(
+        (f) => f.status === "ready",
+      );
+      const hasNewFiles = pendingFiles.length > 0;
+
+      // STEP 1: Simpan pengeluaran dulu (instant)
+      let newTxId: string | undefined;
+      if (isEditing) {
+        const result = await supabase
+          .from("layanan")
+          .update({
+            customer_name: formData.item_name.trim(),
+            customer_whatsapp: "",
+            jenis_layanan: "pengeluaran",
+            handled_by: formData.handled_by,
+            handled_by_name: handlerName,
+            metode_pembayaran: formData.metode_pembayaran,
+            lead_source: "pengeluaran",
+            detail_sku: formData.notes || null,
+            nominal: parseInt(formData.nominal) || 0,
+            notes: formData.notes || null,
+            photo_url: photoUrls[0] || null,
+            photo_urls: photoUrls,
+            updated_at: new Date().toISOString(),
+            upload_session_key: uploadKey,
+          })
+          .eq("id", initialData.id);
+        if (result.error) throw result.error;
+        newTxId = initialData.id;
+        toast.success("Pengeluaran berhasil diperbarui!");
+      } else {
+        const result = await supabase
+          .from("layanan")
+          .insert([
+            {
+              customer_name: formData.item_name.trim(),
+              customer_whatsapp: "",
+              jenis_layanan: "pengeluaran",
+              handled_by: formData.handled_by,
+              handled_by_name: handlerName,
+              metode_pembayaran: formData.metode_pembayaran,
+              lead_source: "pengeluaran",
+              detail_sku: formData.notes || null,
+              nominal: parseInt(formData.nominal) || 0,
+              notes: formData.notes || null,
+              photo_url: photoUrls[0] || null,
+              photo_urls: photoUrls,
+              created_by: user?.id,
+              created_by_name: user?.full_name,
+              status: "completed",
+              branch_id: (activeBranch as any)?.id || null,
+              upload_session_key: uploadKey,
+            },
+          ])
+          .select()
+          .single();
+        if (result.error) throw result.error;
+        newTxId = result.data?.id;
+        toast.success("Pengeluaran berhasil dicatat!");
       }
 
-      if (!telegramSent && photoFiles.length === 0) {
+      // STEP 2: Upload foto di background jika ada file baru
+      const txIdToUpdate = isEditing ? initialData.id : newTxId;
+      if (hasNewFiles && txIdToUpdate) {
+        // Set status PENDING
+        supabase
+          .from("layanan")
+          .update({ upload_status: "PENDING" } as any)
+          .eq("id", txIdToUpdate)
+          .then();
+
+        const filesToUpload = pendingFiles.map((pf) => pf.file);
+
+        upload
+          .legacyUpload(
+            filesToUpload,
+            "layanan",
+            transactionDescription,
+            undefined,
+            (activeBranch as any)?.code,
+          )
+          .then(async (results) => {
+            if (results?.length && txIdToUpdate) {
+              const newPhotoUrls = [...photoUrls, ...results.map((r) => r.url)];
+              try {
+                await supabase
+                  .from("layanan")
+                  .update({
+                    photo_urls: newPhotoUrls,
+                    photo_url: newPhotoUrls[0] || null,
+                    upload_status: "SUCCESS",
+                  } as any)
+                  .eq("id", txIdToUpdate);
+                upload.clear();
+              } catch (err) {
+                console.error("Failed to update photo URLs:", err);
+                upload.clear();
+              }
+            } else if (txIdToUpdate) {
+              await supabase
+                .from("layanan")
+                .update({ upload_status: "FAILED" } as any)
+                .eq("id", txIdToUpdate);
+            }
+          })
+          .catch(async (err) => {
+            console.error("Background upload failed:", err);
+            if (txIdToUpdate) {
+              await supabase
+                .from("layanan")
+                .update({ upload_status: "FAILED" } as any)
+                .eq("id", txIdToUpdate);
+            }
+          });
+      }
+
+      // STEP 3: Telegram message jika tidak ada file baru (edit mode tanpa foto baru)
+      if (!hasNewFiles && !isEditing) {
         try {
           await fetch("/api/telegram", {
             method: "POST",
@@ -308,52 +451,7 @@ operator: ${handlerName}`;
         }
       }
 
-      const isEditing = !!initialData?.id;
-      const payload = {
-        customer_name: formData.item_name.trim(),
-        customer_whatsapp: "",
-        jenis_layanan: "pengeluaran",
-        handled_by: formData.handled_by,
-        handled_by_name: handlerName,
-        metode_pembayaran: formData.metode_pembayaran,
-        lead_source: "pengeluaran",
-        detail_sku: formData.notes || null,
-        nominal: parseInt(formData.nominal) || 0,
-        notes: formData.notes || null,
-        photo_url: photoUrls[0] || null,
-        photo_urls: photoUrls,
-        updated_at: new Date().toISOString(),
-      };
-
-      let error: any = null;
-      if (isEditing) {
-        const result = await supabase
-          .from("layanan")
-          .update(payload)
-          .eq("id", initialData.id);
-        error = result.error;
-      } else {
-        const result = await supabase.from("layanan").insert([
-          {
-            ...payload,
-            created_by: user?.id,
-            created_by_name: user?.full_name,
-            status: "completed",
-            branch_id: (activeBranch as any)?.id || null,
-          },
-        ]);
-        error = result.error;
-      }
-
-      if (error) throw error;
-
-      toast.success(
-        isEditing
-          ? "Pengeluaran berhasil diperbarui!"
-          : "Pengeluaran berhasil dicatat!",
-      );
-
-      photoPreviews.forEach((u) => URL.revokeObjectURL(u));
+      // Cleanup
       setFormData({
         item_name: "",
         handled_by: user?.id || "",
@@ -361,10 +459,12 @@ operator: ${handlerName}`;
         nominal: "",
         notes: "",
       });
-      setPhotoFiles([]);
       setPhotoPreviews([]);
 
-      if (user?.id) { clearingDraft.current = true; clearDraft("pengeluaran", user.id); }
+      if (user?.id) {
+        clearingDraft.current = true;
+        clearDraft("pengeluaran", user.id);
+      }
       restoredRef.current = false;
       fetchTransactions();
       onSuccess?.();
@@ -373,6 +473,7 @@ operator: ${handlerName}`;
       toast.error(err.message || "Gagal menyimpan pengeluaran");
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
@@ -407,12 +508,12 @@ operator: ${handlerName}`;
             </p>
           </div>
         </div>
-          <button
-            onClick={handleCancel}
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <X className="w-4 h-4 text-gray-400" />
-          </button>
+        <button
+          onClick={handleCancel}
+          className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+        >
+          <X className="w-4 h-4 text-gray-400" />
+        </button>
       </div>
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         <div className={sectionClass}>
@@ -629,41 +730,51 @@ operator: ${handlerName}`;
             </div>
           )}
 
-          {uploading && progress > 0 && (
+          {upload.uploading && upload.progress > 0 && (
             <div className="mt-2">
               <div className="flex justify-between text-xs mb-1 text-gray-500">
                 <span>Mengupload foto…</span>
                 <span className="font-semibold text-gray-900 dark:text-gray-100">
-                  {progress}%
+                  {upload.progress}%
                 </span>
               </div>
               <div className="w-full bg-gray-100 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-gray-900 dark:bg-white h-1.5 transition-all duration-300"
-                  style={{ width: `${progress}%` }}
+                  style={{ width: `${upload.progress}%` }}
                 />
               </div>
             </div>
           )}
 
-          {photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id && (
-            <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
-              <AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib
-              diupload
-            </p>
-          )}
+          {upload.pendingFiles.length === 0 &&
+            photoPreviews.length === 0 &&
+            !initialData?.id && (
+              <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Minimal 1 foto wajib
+                diupload
+              </p>
+            )}
         </div>
 
         <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
           <button
             type="submit"
-            disabled={loading || uploading || (photoFiles.length === 0 && photoPreviews.length === 0 && !initialData?.id)}
+            disabled={
+              loading ||
+              upload.uploading ||
+              (upload.pendingFiles.length === 0 &&
+                photoPreviews.length === 0 &&
+                !initialData?.id)
+            }
             className="flex-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold py-3 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
           >
-            {loading || uploading ? (
+            {loading || upload.uploading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                {uploading ? `Uploading ${progress}%…` : "Menyimpan…"}
+                {upload.uploading
+                  ? `Uploading ${upload.progress}%…`
+                  : "Menyimpan…"}
               </>
             ) : (
               <>
@@ -672,13 +783,13 @@ operator: ${handlerName}`;
               </>
             )}
           </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm"
-            >
-              Batal
-            </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-5 bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 font-semibold py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10 transition-all text-sm"
+          >
+            Batal
+          </button>
         </div>
       </form>
 
@@ -776,13 +887,15 @@ operator: ${handlerName}`;
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                disabled={loading || uploading}
+                disabled={loading || upload.uploading}
                 className="flex-1 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading || uploading ? (
+                {loading || upload.uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    {uploading ? `Uploading ${progress}%…` : "Menyimpan…"}
+                    {upload.uploading
+                      ? `Uploading ${upload.progress}%…`
+                      : "Menyimpan…"}
                   </>
                 ) : (
                   <>
