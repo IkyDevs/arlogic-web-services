@@ -17,6 +17,7 @@ import {
   Plus,
   Wallet,
   X,
+  Calendar,
   type LucideIcon,
 } from "lucide-react";
 import ReportModal from "@/components/ui/ReportModal";
@@ -92,6 +93,10 @@ export default function SupervisorDashboard() {
   // ── Statistik per cabang ──
   const [period, setPeriod] = useState<Period>("hari");
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
+  const [dateRangeStart, setDateRangeStart] = useState<string>("");
+  const [dailyData, setDailyData] = useState<
+    Array<{ date: string; revenue: number; count: number }>
+  >([]);
   const [branchRevenue, setBranchRevenue] = useState<
     Record<string, BranchRevenue>
   >({});
@@ -109,7 +114,16 @@ export default function SupervisorDashboard() {
         0,
         0,
       );
-      if (p === "minggu")
+      let end = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59,
+      );
+
+      if (p === "minggu") {
         start = new Date(
           now.getFullYear(),
           now.getMonth(),
@@ -118,11 +132,43 @@ export default function SupervisorDashboard() {
           0,
           0,
         );
-      else if (p === "bulan")
-        start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-      else if (p === "tahun")
-        start = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-      return { start: start.toISOString(), end: now.toISOString() };
+        end = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+        );
+      } else if (p === "bulan") {
+        // Last 30 days (same as Owner Dashboard)
+        start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+        );
+      } else if (p === "tahun") {
+        // Last 365 days (same as Owner Dashboard)
+        start = new Date(now);
+        start.setDate(start.getDate() - 365);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+        );
+      }
+
+      return { start: start.toISOString(), end: end.toISOString() };
     },
     [],
   );
@@ -160,6 +206,51 @@ export default function SupervisorDashboard() {
     }
     setBranchRevenue(out);
   }, [branches, supabase, period, getDateRange]);
+
+  const fetchDailyData = useCallback(
+    async (startDate: string, endDate: string) => {
+      // If a specific date is selected, filter only that date
+      const filterDate = dateRangeStart || startDate;
+      const branchFilter = selectedBranchFilter
+        ? [selectedBranchFilter]
+        : branches.map((b) => b.id);
+      if (branchFilter.length === 0) return;
+
+      const { data } = await supabase
+        .from("layanan")
+        .select("nominal, created_at, branch_id")
+        .in("branch_id", branchFilter)
+        .gte("created_at", new Date(filterDate).toISOString())
+        .lt(
+          "created_at",
+          new Date(
+            new Date(filterDate).getTime() + 24 * 60 * 60 * 1000,
+          ).toISOString(),
+        )
+        .order("created_at", { ascending: false });
+
+      const rows = data || [];
+      const dailyMap: Record<string, { revenue: number; count: number }> = {};
+
+      for (const r of rows) {
+        const date = new Date(r.created_at).toISOString().split("T")[0];
+        if (!dailyMap[date]) {
+          dailyMap[date] = { revenue: 0, count: 0 };
+        }
+        dailyMap[date].revenue += r.nominal || 0;
+        dailyMap[date].count += 1;
+      }
+
+      const sorted = Object.entries(dailyMap)
+        .map(([date, data]) => ({ date, ...data }))
+        .sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        );
+
+      setDailyData(sorted);
+    },
+    [supabase, selectedBranchFilter, branches, dateRangeStart],
+  );
 
   const openStatDetail = async (b: { id: string; name: string }) => {
     const { start, end } = getDateRange(period);
@@ -209,13 +300,28 @@ export default function SupervisorDashboard() {
         { event: "*", schema: "public", table: "layanan" },
         () => {
           fetchStats();
+          const { start, end } = getDateRange(period);
+          fetchDailyData(start, end);
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchStats]);
+  }, [supabase, fetchStats, fetchDailyData, period, getDateRange]);
+
+  // Fetch daily data when period, branch filter, or selected date changes
+  useEffect(() => {
+    const { start, end } = getDateRange(period);
+    const t = setTimeout(() => fetchDailyData(start, end), 0);
+    return () => clearTimeout(t);
+  }, [
+    period,
+    selectedBranchFilter,
+    dateRangeStart,
+    fetchDailyData,
+    getDateRange,
+  ]);
 
   const fetchOverview = useCallback(async () => {
     if (branches.length === 0) return;
@@ -462,7 +568,7 @@ export default function SupervisorDashboard() {
         {tab === "overview" && (
           <div className="space-y-6">
             {/* Period Selection + Branch Filter */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
               <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1">
                 {(
                   [
@@ -482,6 +588,30 @@ export default function SupervisorDashboard() {
                   </button>
                 ))}
               </div>
+
+              {/* Date Picker Button */}
+              <input
+                type="date"
+                value={dateRangeStart}
+                onChange={(e) => setDateRangeStart(e.target.value)}
+                aria-label="Select date for filter"
+                className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 dark:hover:border-amber-700 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+              />
+
+              {/* Reset Filter Button */}
+              {dateRangeStart && (
+                <button
+                  onClick={() => {
+                    setDateRangeStart("");
+                  }}
+                  aria-label="Reset date filter"
+                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+                >
+                  <X className="w-4 h-4" aria-hidden="true" />
+                  <span>Reset</span>
+                </button>
+              )}
+
               <select
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
@@ -513,7 +643,7 @@ export default function SupervisorDashboard() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   key={`${period}-${selectedBranchFilter}`}
-                  className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-900/30 rounded-2xl border border-slate-200 dark:border-white/10 p-5 sm:p-6"
+                  className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-slate-200 dark:border-white/10 p-5 sm:p-6"
                 >
                   <div className="mb-4">
                     <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-1">
@@ -522,13 +652,43 @@ export default function SupervisorDashboard() {
                         : "Summary Semua Cabang"}
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                      {period === "hari"
-                        ? "Hari Ini"
-                        : period === "minggu"
-                          ? "Mingguan"
-                          : period === "bulan"
-                            ? "Bulanan"
-                            : "Tahunan"}
+                      {(() => {
+                        const { start, end } = getDateRange(period);
+                        const startDate = new Date(start);
+                        const endDate = new Date(end);
+                        const daysDiff = Math.ceil(
+                          (endDate.getTime() - startDate.getTime()) /
+                            (1000 * 60 * 60 * 24),
+                        );
+                        const formattedStart = startDate.toLocaleDateString(
+                          "id-ID",
+                          {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        );
+                        const formattedEnd = endDate.toLocaleDateString(
+                          "id-ID",
+                          {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          },
+                        );
+
+                        if (period === "hari") {
+                          return "Hari Ini";
+                        } else if (period === "minggu") {
+                          return `${formattedStart} - ${formattedEnd} (${daysDiff} hari)`;
+                        } else if (period === "bulan") {
+                          return `${formattedStart} - ${formattedEnd} (${daysDiff} hari)`;
+                        } else {
+                          return `${formattedStart} - ${formattedEnd} (${daysDiff} hari)`;
+                        }
+                      })()}
                       {" · "}
                       {displayedBranches.length} cabang
                     </p>
@@ -577,8 +737,64 @@ export default function SupervisorDashboard() {
               );
             })()}
 
-            {/* Revenue Cards per Branch - Responsive Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Daily Breakdown Section */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              key={`daily-${period}-${selectedBranchFilter}`}
+              className="space-y-4"
+            >
+              {/* Daily Cards Grid - Responsive */}
+              {dailyData.length > 0 && dateRangeStart ? (
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border border-amber-200 dark:border-amber-900/30 p-4 sm:p-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
+                    {dailyData.map((day) => {
+                      const dateObj = new Date(day.date);
+                      const formattedDate = dateObj.toLocaleDateString(
+                        "id-ID",
+                        {
+                          weekday: "short",
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        },
+                      );
+                      return (
+                        <motion.div
+                          key={day.date}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="text-left bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border-2 border-transparent hover:border-amber-300 dark:hover:border-amber-700 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a] min-h-[110px] sm:min-h-[120px] flex flex-col justify-between"
+                          role="region"
+                          aria-label={`Revenue on ${formattedDate}: ${formatRupiah(day.revenue)}`}
+                        >
+                          <div>
+                            <p className="text-[11px] sm:text-xs font-bold text-amber-600 dark:text-amber-400 truncate">
+                              {formattedDate}
+                            </p>
+                            <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-2 truncate">
+                              {formatRupiah(day.revenue)}
+                            </p>
+                          </div>
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                            {day.count} transaksi
+                          </p>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : dateRangeStart ? (
+                <div className="text-center py-8 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border border-amber-200 dark:border-amber-900/30">
+                  <p className="text-sm text-amber-700 dark:text-amber-200">
+                    Tidak ada data untuk tanggal ini
+                  </p>
+                </div>
+              ) : null}
+            </motion.div>
+
+            {/* Unified Revenue Cards per Branch - Responsive Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {displayedBranches.map((b) => {
                 const st = branchRevenue[b.id] || {
                   revenue: 0,
@@ -586,70 +802,16 @@ export default function SupervisorDashboard() {
                   expenses: 0,
                   serviceCount: 0,
                 };
+                const s = branchStats[b.id] || { services: 0, teknisi: 0 };
                 return (
                   <button
                     key={b.id}
                     onClick={() => openStatDetail(b)}
                     className="text-left bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 sm:p-5 hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Wallet
-                          className="w-4 h-4 text-blue-500 flex-shrink-0"
-                          aria-hidden="true"
-                        />
-                        <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
-                          {b.name}
-                        </h3>
-                        <span className="text-[10px] font-mono bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-gray-500 flex-shrink-0">
-                          {b.code}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:inline">
-                        Klik → detail
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-center">
-                        <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate">
-                          {formatRupiah(st.revenue)}
-                        </p>
-                        <p className="text-[10px] text-gray-500 mt-1">
-                          Pendapatan
-                        </p>
-                      </div>
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
-                        <p className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
-                          {st.count} / {st.serviceCount}
-                        </p>
-                        <p className="text-[10px] text-gray-500 mt-1">
-                          Transaksi / Service
-                        </p>
-                      </div>
-                    </div>
-                    {st.expenses > 0 && (
-                      <p className="mt-2 text-[11px] text-red-500 dark:text-red-400">
-                        Pengeluaran: {formatRupiah(st.expenses)}
-                      </p>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Branch Stats Grid - Responsive */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayedBranches.map((b) => {
-                const s = branchStats[b.id] || { services: 0, teknisi: 0 };
-                return (
-                  <motion.div
-                    key={b.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 sm:p-5"
-                  >
-                    <div className="flex items-center gap-2 mb-3 min-w-0">
-                      <MapPin
+                    {/* Header */}
+                    <div className="flex items-center gap-2 min-w-0 mb-3">
+                      <Wallet
                         className="w-4 h-4 text-blue-500 flex-shrink-0"
                         aria-hidden="true"
                       />
@@ -660,25 +822,95 @@ export default function SupervisorDashboard() {
                         {b.code}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
-                        <p className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400">
+
+                    {/* Date Subtitle */}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                      {(() => {
+                        const { start, end } = getDateRange(period);
+                        const startDate = new Date(start);
+                        const endDate = new Date(end);
+
+                        if (period === "hari") {
+                          return startDate.toLocaleDateString("id-ID", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          });
+                        } else {
+                          const formattedStart = startDate.toLocaleDateString(
+                            "id-ID",
+                            {
+                              weekday: "short",
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          );
+                          const formattedEnd = endDate.toLocaleDateString(
+                            "id-ID",
+                            {
+                              weekday: "short",
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            },
+                          );
+                          return `${formattedStart} - ${formattedEnd}`;
+                        }
+                      })()}
+                    </p>
+
+                    {/* Unified Metrics Grid - 2x2 */}
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {/* Pendapatan */}
+                      <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2.5 text-center">
+                        <p className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                          {formatRupiah(st.revenue)}
+                        </p>
+                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
+                          Pendapatan
+                        </p>
+                      </div>
+
+                      {/* Transaksi */}
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2.5 text-center">
+                        <p className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">
+                          {st.count}
+                        </p>
+                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
+                          Transaksi
+                        </p>
+                      </div>
+
+                      {/* Service */}
+                      <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2.5 text-center">
+                        <p className="text-sm sm:text-base font-bold text-violet-600 dark:text-violet-400">
                           {s.services}
                         </p>
-                        <p className="text-[10px] text-gray-500 mt-1">
+                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
                           Service
                         </p>
                       </div>
-                      <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 text-center">
-                        <p className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400">
+
+                      {/* Teknisi */}
+                      <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2.5 text-center">
+                        <p className="text-sm sm:text-base font-bold text-orange-600 dark:text-orange-400">
                           {s.teknisi}
                         </p>
-                        <p className="text-[10px] text-gray-500 mt-1">
+                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
                           Teknisi
                         </p>
                       </div>
                     </div>
-                  </motion.div>
+
+                    {/* Expenses indicator */}
+                    {st.expenses > 0 && (
+                      <p className="mt-2.5 text-[10px] text-red-500 dark:text-red-400">
+                        💸 Pengeluaran: {formatRupiah(st.expenses)}
+                      </p>
+                    )}
+                  </button>
                 );
               })}
             </div>
