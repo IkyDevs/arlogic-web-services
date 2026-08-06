@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useBranch } from "@/lib/context/BranchContext";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
+import { extractTelegramRefs, deleteTelegramMessages, editTelegramCaption } from "@/lib/telegram-sync";
 import { MetodePembayaran } from "@/types";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
@@ -317,39 +318,55 @@ operator: ${handlerName}`;
             ? [initialData.photo_url]
             : [];
 
-      let photoUrls: string[] = [...existingPhotoUrls];
       const isEditing = !!initialData?.id;
       const pendingFiles = upload.pendingFiles.filter(
         (f) => f.status === "ready",
       );
       const hasNewFiles = pendingFiles.length > 0;
 
-      // STEP 1: Simpan pengeluaran dulu (instant)
+      // ── FIXED FLOW: Insert transaction FIRST, then upload photos ──────────────
+
+      // TAHAP 1: Simpan pengeluaran dulu dengan status PENDING (jika ada foto baru)
+      // Jika ini gagal, stop total — jangan lanjut ke upload foto.
       let newTxId: string | undefined;
+      const photoStatus = hasNewFiles ? "pending" : "no_photo";
+
       if (isEditing) {
+        const updateData: any = {
+          customer_name: formData.item_name.trim(),
+          customer_whatsapp: "",
+          jenis_layanan: "pengeluaran",
+          handled_by: formData.handled_by,
+          handled_by_name: handlerName,
+          metode_pembayaran: formData.metode_pembayaran,
+          lead_source: "pengeluaran",
+          detail_sku: formData.notes || null,
+          nominal: parseInt(formData.nominal) || 0,
+          notes: formData.notes || null,
+          updated_at: new Date().toISOString(),
+          upload_session_key: uploadKey,
+        };
+
+        // Jika ada foto baru, jangan update photo_url/photo_urls sampai upload selesai
+        if (!hasNewFiles) {
+          updateData.photo_url = existingPhotoUrls[0] || null;
+          updateData.photo_urls = existingPhotoUrls;
+        } else {
+          updateData.photo_status = "pending"; // Tandai sedang upload foto
+        }
+
         const result = await supabase
           .from("layanan")
-          .update({
-            customer_name: formData.item_name.trim(),
-            customer_whatsapp: "",
-            jenis_layanan: "pengeluaran",
-            handled_by: formData.handled_by,
-            handled_by_name: handlerName,
-            metode_pembayaran: formData.metode_pembayaran,
-            lead_source: "pengeluaran",
-            detail_sku: formData.notes || null,
-            nominal: parseInt(formData.nominal) || 0,
-            notes: formData.notes || null,
-            photo_url: photoUrls[0] || null,
-            photo_urls: photoUrls,
-            updated_at: new Date().toISOString(),
-            upload_session_key: uploadKey,
-          })
+          .update(updateData)
           .eq("id", initialData.id);
         if (result.error) throw result.error;
         newTxId = initialData.id;
-        toast.success("Pengeluaran berhasil diperbarui!");
+
+        if (!hasNewFiles) {
+          toast.success("Pengeluaran berhasil diperbarui!");
+        }
       } else {
+        // INSERT baru dengan status PENDING jika ada foto, atau no_photo jika tidak
         const result = await supabase
           .from("layanan")
           .insert([
@@ -364,8 +381,9 @@ operator: ${handlerName}`;
               detail_sku: formData.notes || null,
               nominal: parseInt(formData.nominal) || 0,
               notes: formData.notes || null,
-              photo_url: photoUrls[0] || null,
-              photo_urls: photoUrls,
+              photo_url: null, // Jangan set URL sampai foto upload selesai
+              photo_urls: [],
+              photo_status: photoStatus, // "pending" atau "no_photo"
               created_by: user?.id,
               created_by_name: user?.full_name,
               status: "completed",
@@ -377,21 +395,53 @@ operator: ${handlerName}`;
           .single();
         if (result.error) throw result.error;
         newTxId = result.data?.id;
-        toast.success("Pengeluaran berhasil dicatat!");
+
+        if (!hasNewFiles) {
+          toast.success("Pengeluaran berhasil dicatat!");
+        }
       }
 
-      // STEP 2: Upload foto di background jika ada file baru
-      const txIdToUpdate = isEditing ? initialData.id : newTxId;
-      if (hasNewFiles && txIdToUpdate) {
-        // Set status PENDING
-        supabase
-          .from("layanan")
-          .update({ upload_status: "PENDING" } as any)
-          .eq("id", txIdToUpdate)
-          .then();
+      // Kalau nggak ada foto baru, selesai di sini (edit data-only → edit caption pesan lama, D6)
+      if (!hasNewFiles) {
+        if (isEditing && initialData?.id) {
+          const oldRef = extractTelegramRefs(initialData as any);
+          if (oldRef) {
+            editTelegramCaption(oldRef.chat_id, oldRef.message_ids[0], transactionDescription).then((ok) => {
+              if (!ok) {
+                supabase.from("layanan").update({ telegram_sync: "caption_failed" } as any).eq("id", initialData.id).then((res) => {
+                  if (res.error) console.warn("[Pengeluaran] mark caption_failed error:", res.error);
+                });
+              }
+            });
+          }
+        }
+        // Cleanup
+        setFormData({
+          item_name: "",
+          handled_by: user?.id || "",
+          metode_pembayaran: "cash",
+          nominal: "",
+          notes: "",
+        });
+        setPhotoPreviews([]);
 
+        if (user?.id) {
+          clearingDraft.current = true;
+          clearDraft("pengeluaran", user.id);
+        }
+        restoredRef.current = false;
+        fetchTransactions();
+        onSuccess?.();
+        onClose?.();
+        return;
+      }
+
+      // TAHAP 2: Upload foto ke Telegram (background, nggak block UI)
+      const txIdToUpdate = isEditing ? initialData.id : newTxId;
+      if (txIdToUpdate) {
         const filesToUpload = pendingFiles.map((pf) => pf.file);
 
+        // Upload di background (jangan await, biar UI bisa close)
         upload
           .legacyUpload(
             filesToUpload,
@@ -402,73 +452,85 @@ operator: ${handlerName}`;
           )
           .then(async (results) => {
             if (results?.length && txIdToUpdate) {
-              const newPhotoUrls = [...photoUrls, ...results.map((r) => r.url)];
+              const newPhotoUrls = [
+                ...existingPhotoUrls,
+                ...results.map((r) => r.url),
+              ];
+              const newMessageIds = results.map(r => r.message_id).filter((id: number) => Number.isFinite(id));
+              const newFileIds = results.map(r => r.file_id).filter(Boolean);
               try {
                 await supabase
                   .from("layanan")
                   .update({
                     photo_urls: newPhotoUrls,
                     photo_url: newPhotoUrls[0] || null,
-                    upload_status: "SUCCESS",
+                    photo_status: "completed", // Tandai berhasil
+                    telegram_chat_id: results[0]?.chat_id || null,
+                    telegram_message_id: results[0]?.message_id || null,
+                    telegram_message_ids: newMessageIds,
+                    telegram_file_ids: newFileIds,
+                    telegram_sync: "synced",
                   } as any)
                   .eq("id", txIdToUpdate);
+                // D3: pesan baru sudah terkirim → hapus pesan lama (hanya saat edit & ada ref lama)
+                if (isEditing) {
+                  const oldRef = extractTelegramRefs(initialData as any);
+                  if (oldRef) {
+                    await deleteTelegramMessages(oldRef.chat_id, oldRef.message_ids);
+                  }
+                }
+                console.log(
+                  "[Pengeluaran] Photos uploaded successfully",
+                  newPhotoUrls.length,
+                );
                 upload.clear();
               } catch (err) {
-                console.error("Failed to update photo URLs:", err);
+                console.error("[Pengeluaran] Failed to update photo URLs:", err);
                 upload.clear();
               }
             } else if (txIdToUpdate) {
               await supabase
                 .from("layanan")
-                .update({ upload_status: "FAILED" } as any)
+                .update({ photo_status: "failed" } as any) // Tandai gagal
                 .eq("id", txIdToUpdate);
+              console.error(
+                "[Pengeluaran] Photo upload failed: no results returned",
+              );
             }
           })
           .catch(async (err) => {
-            console.error("Background upload failed:", err);
+            console.error("[Pengeluaran] Background upload failed:", err);
             if (txIdToUpdate) {
               await supabase
                 .from("layanan")
-                .update({ upload_status: "FAILED" } as any)
+                .update({ photo_status: "failed" } as any) // Tandai gagal
                 .eq("id", txIdToUpdate);
             }
           });
-      }
 
-      // STEP 3: Telegram message jika tidak ada file baru (edit mode tanpa foto baru)
-      if (!hasNewFiles && !isEditing) {
-        try {
-          await fetch("/api/telegram", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "layanan",
-              message: transactionDescription,
-            }),
-          });
-        } catch (telegramErr) {
-          console.error("Failed to send expense to telegram:", telegramErr);
+        // Cleanup & close UI immediately (foto upload di background)
+        setFormData({
+          item_name: "",
+          handled_by: user?.id || "",
+          metode_pembayaran: "cash",
+          nominal: "",
+          notes: "",
+        });
+        setPhotoPreviews([]);
+
+        if (user?.id) {
+          clearingDraft.current = true;
+          clearDraft("pengeluaran", user.id);
         }
-      }
+        restoredRef.current = false;
 
-      // Cleanup
-      setFormData({
-        item_name: "",
-        handled_by: user?.id || "",
-        metode_pembayaran: "cash",
-        nominal: "",
-        notes: "",
-      });
-      setPhotoPreviews([]);
-
-      if (user?.id) {
-        clearingDraft.current = true;
-        clearDraft("pengeluaran", user.id);
+        toast.success(
+          "Pengeluaran dicatat. Foto sedang diupload di background…",
+        );
+        fetchTransactions();
+        onSuccess?.();
+        onClose?.();
       }
-      restoredRef.current = false;
-      fetchTransactions();
-      onSuccess?.();
-      onClose?.();
     } catch (err: any) {
       toast.error(err.message || "Gagal menyimpan pengeluaran");
     } finally {

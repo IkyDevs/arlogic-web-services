@@ -64,6 +64,28 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
       })
     }
 
+    // Server-side guardrails (worker ini dipakai langsung oleh client, tanpa lapisan /api/upload)
+    const MAX_FILES = 20
+    const MAX_SIZE_BYTES = 15 * 1024 * 1024
+    const IMAGE_EXT = /^.*\.(jpg|jpeg|png|webp|heic|heif|avif)$/i
+    if (files.length > MAX_FILES) {
+      return new Response(JSON.stringify({ error: `Maksimal ${MAX_FILES} foto per upload` }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    for (const f of files) {
+      if (f.size > MAX_SIZE_BYTES) {
+        return new Response(JSON.stringify({ error: `"${f.name}" terlalu besar (max 15MB)` }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!f.type.startsWith('image/') && !IMAGE_EXT.test(f.name)) {
+        return new Response(JSON.stringify({ error: `"${f.name}" bukan format gambar yang didukung` }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     // Prefer chat_id from client (resolved dari server production), fallback ke env/dua default
     const envMap: Record<string, string | undefined> = {
       attendance: env.TELEGRAM_CHANNEL_ATTENDANCE,

@@ -8,6 +8,12 @@ import { enqueueUpload, enqueueCleanup } from '@/lib/upload/upload-queue'
 import { validateOrigin } from '@/lib/csrf'
 
 export async function POST(request: NextRequest) {
+  // F0: sistem upload 2-fase (Supabase) dinonaktifkan default. Aktifkan hanya bila dibutuhkan.
+  const ENABLED = typeof process !== 'undefined' && process.env?.UPLOAD_TWO_PHASE_ENABLED === '1'
+  if (!ENABLED) {
+    return NextResponse.json({ error: 'Sistem upload 2-fase dinonaktifkan. Gunakan jalur Telegram (legacyUpload).' }, { status: 410 })
+  }
+
   try {
     if (!validateOrigin(request)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

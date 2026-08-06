@@ -195,11 +195,11 @@ describe("usePhotoUpload (centralized hook)", () => {
 describe("uploadConfig", () => {
   it("provides default values", async () => {
     const { uploadConfig } = await import("@/lib/uploadConfig");
-    expect(uploadConfig.IMAGE_COMPRESSION_ENABLED).toBe(false);
+    expect(uploadConfig.IMAGE_COMPRESSION_ENABLED).toBe(true);
     expect(uploadConfig.IMAGE_RESIZE_ENABLED).toBe(false);
     expect(uploadConfig.IMAGE_KEEP_ORIGINAL).toBe(true);
     expect(uploadConfig.IMAGE_MAX_SIZE_MB).toBe(15);
-    expect(uploadConfig.IMAGE_MAX_FILES).toBe(10);
+    expect(uploadConfig.IMAGE_MAX_FILES).toBe(20);
     expect(uploadConfig.IMAGE_UPLOAD_TIMEOUT).toBe(120);
   });
 

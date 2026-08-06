@@ -161,6 +161,15 @@ export async function editMessageCaption(chatId: string, messageId: number, capt
   }
 }
 
+export async function deleteTelegramMessage(chatId: string | number, messageId: number): Promise<boolean> {
+  try {
+    await tgPost("deleteMessage", { chat_id: chatId, message_id: messageId });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadMultipleToTelegram(
   files: Array<{ buffer: Buffer; name: string }>,
   caption: string,

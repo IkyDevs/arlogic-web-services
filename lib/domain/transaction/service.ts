@@ -318,6 +318,11 @@ export async function updateTransaction(
   if (tx.nominal_2 !== undefined) updatePayload.nominal_2 = tx.nominal_2
   if (tx.upload_status !== undefined) updatePayload.upload_status = tx.upload_status
   if (tx.telegram_file_id !== undefined) updatePayload.telegram_file_id = tx.telegram_file_id
+  if (tx.telegram_chat_id !== undefined) updatePayload.telegram_chat_id = tx.telegram_chat_id
+  if (tx.telegram_message_id !== undefined) updatePayload.telegram_message_id = tx.telegram_message_id
+  if (tx.telegram_message_ids !== undefined) updatePayload.telegram_message_ids = tx.telegram_message_ids
+  if (tx.telegram_file_ids !== undefined) updatePayload.telegram_file_ids = tx.telegram_file_ids
+  if (tx.telegram_sync !== undefined) updatePayload.telegram_sync = tx.telegram_sync
   if (tx.upload_session_key !== undefined) updatePayload.upload_session_key = tx.upload_session_key
   if (tx.branch_id !== undefined) updatePayload.branch_id = tx.branch_id
 

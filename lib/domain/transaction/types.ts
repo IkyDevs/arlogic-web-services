@@ -38,6 +38,9 @@ export interface TransactionData {
   telegram_chat_id?: string
   telegram_message_id?: number
   telegram_file_id?: string
+  telegram_message_ids?: number[]
+  telegram_file_ids?: string[]
+  telegram_sync?: string
   upload_session_key?: string
   upload_status?: UploadStatus
   branch_id?: string | null
@@ -103,6 +106,9 @@ export interface LegacyLayananRow {
   telegram_chat_id?: string
   telegram_message_id?: number
   telegram_file_id?: string
+  telegram_message_ids?: number[]
+  telegram_file_ids?: string[]
+  telegram_sync?: string
   upload_session_key?: string
   upload_status?: string
   branch_id?: string | null

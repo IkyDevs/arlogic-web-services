@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
+import { extractTelegramRefs, deleteTelegramMessages, editTelegramCaption } from "@/lib/telegram-sync";
 import { useBranch } from "@/lib/context/BranchContext";
 import {
   jenisLayananLabels,
@@ -797,21 +798,18 @@ export default memo(function LayananForm({
             const newPhotoUrls = [...photoUrls, ...results.map(r => r.url)];
             const newChatId = results[0]?.chat_id;
             const newMsgId = results[0]?.message_id;
+            const newMessageIds = results.map(r => r.message_id).filter((id: number) => Number.isFinite(id));
             const newFileIds = results.map(r => r.file_id).filter(Boolean);
             const primaryFileId = newFileIds[0] || undefined;
 
-            // For edit mode: delete OLD Telegram message before saving new IDs
-            if (isEdit && initialData?.id) {
-              const oldChatId = (initialData as any).telegram_chat_id;
-              const oldMsgId = (initialData as any).telegram_message_id;
-              if (oldChatId && oldMsgId) {
-                try {
-                  await fetch("/api/telegram/delete-message", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ chat_id: oldChatId, message_id: oldMsgId }),
-                  });
-                } catch {}
+            // D3: pesan baru SUDAH terkirim (upload sukses) → barulah hapus pesan lama (semua message_id album).
+            if (isEdit) {
+              const oldRef = extractTelegramRefs(initialData as any);
+              if (oldRef) {
+                const { failed } = await deleteTelegramMessages(oldRef.chat_id, oldRef.message_ids);
+                if (failed.length > 0) {
+                  console.warn('[LayananForm] delete old messages partial fail', failed);
+                }
               }
             }
 
@@ -821,7 +819,10 @@ export default memo(function LayananForm({
                 photo_urls: newPhotoUrls,
                 telegram_chat_id: newChatId || undefined,
                 telegram_message_id: newMsgId || undefined,
+                telegram_message_ids: newMessageIds,
+                telegram_file_ids: newFileIds,
                 upload_status: 'SUCCESS',
+                telegram_sync: 'synced',
               };
               try {
                 await updateTx(txIdToUpdate, { ...updatePayload, telegram_file_id: primaryFileId });
@@ -844,7 +845,10 @@ export default memo(function LayananForm({
                 photo_urls: newPhotoUrls,
                 telegram_chat_id: newChatId || null,
                 telegram_message_id: newMsgId || null,
+                telegram_message_ids: newMessageIds,
+                telegram_file_ids: newFileIds,
                 upload_status: 'SUCCESS',
+                telegram_sync: 'synced',
               } as any).eq('id', txIdToUpdate);
               toast.success(`Foto transaksi ${customerName} berhasil diproses`);
               upload.clear(); // sukses → bersihkan IndexedDB
@@ -915,23 +919,15 @@ export default memo(function LayananForm({
         });
       }
 
-      // STEP 3: Handle Telegram caption update untuk edit mode tanpa foto baru
+      // STEP 3: Edit mode tanpa foto baru → edit caption pesan lama (D6), tidak kirim ulang.
       if (!hasNewFiles && initialData?.id) {
-        if (
-          (initialData as any).telegram_chat_id &&
-          (initialData as any).telegram_message_id
-        ) {
+        const oldRef = extractTelegramRefs(initialData as any);
+        if (oldRef) {
           try {
-            await fetch("/api/telegram/edit-message", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: (initialData as any).telegram_chat_id,
-                message_id: (initialData as any).telegram_message_id,
-                text: mainCaption,
-                is_caption: photoUrls.length > 0,
-              }),
-            });
+            const ok = await editTelegramCaption(oldRef.chat_id, oldRef.message_ids[0], mainCaption);
+            if (!ok) {
+              await updateTx(initialData.id, { telegram_sync: 'caption_failed' }).catch(() => {});
+            }
           } catch {}
         } else {
           try {
