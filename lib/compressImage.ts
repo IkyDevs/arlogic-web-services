@@ -5,7 +5,7 @@ const MAX_DIM = 1920
 const JPEG_QUALITY = 0.8
 
 export function compressImage(file: File): Promise<File> {
-  if (file.size <= COMPRESS_THRESHOLD) return Promise.resolve(file)
+  if (file.type.startsWith('video/') || file.size <= COMPRESS_THRESHOLD) return Promise.resolve(file)
 
   return new Promise((resolve) => {
     const img = new Image()

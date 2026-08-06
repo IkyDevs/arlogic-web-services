@@ -75,14 +75,17 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
            const result = results[i];
            if (result) {
              newPhotoUrls.push(result.url);
-             await supabase.from('service_documentation').insert({
-               service_order_id: service.id,
-               photo_url: result.url,
-               stage: 'progress',
-               uploaded_by: user?.id,
-               telegram_chat_id: result.chat_id,
-               telegram_message_id: result.message_id,
-             });
+await supabase.from('service_documentation').insert({
+                service_order_id: service.id,
+                photo_url: result.url,
+                stage: 'progress',
+                uploaded_by: user?.id,
+                telegram_chat_id: result.chat_id,
+                telegram_message_id: result.message_id,
+                telegram_message_ids: results.map((x) => x.message_id).filter(Number.isFinite),
+                telegram_file_ids: results.map((x) => x.file_id).filter(Boolean),
+                telegram_sync: 'synced',
+              });
            }
          }
        }

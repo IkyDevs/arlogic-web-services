@@ -66,21 +66,26 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
     // Server-side guardrails (worker ini dipakai langsung oleh client, tanpa lapisan /api/upload)
     const MAX_FILES = 20
-    const MAX_SIZE_BYTES = 15 * 1024 * 1024
+    const MAX_IMG_BYTES = 15 * 1024 * 1024
+    const MAX_VIDEO_BYTES = 50 * 1024 * 1024
     const IMAGE_EXT = /^.*\.(jpg|jpeg|png|webp|heic|heif|avif)$/i
+    const VIDEO_EXT = /^.*\.(mp4|mov|webm|3gp|3gpp|avi)$/i
+    const isVideo = (f: File) => f.type.startsWith('video/') || VIDEO_EXT.test(f.name)
+    const isImage = (f: File) => f.type.startsWith('image/') || IMAGE_EXT.test(f.name)
     if (files.length > MAX_FILES) {
-      return new Response(JSON.stringify({ error: `Maksimal ${MAX_FILES} foto per upload` }), {
+      return new Response(JSON.stringify({ error: `Maksimal ${MAX_FILES} file per upload` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
     for (const f of files) {
-      if (f.size > MAX_SIZE_BYTES) {
-        return new Response(JSON.stringify({ error: `"${f.name}" terlalu besar (max 15MB)` }), {
+      const maxBytes = isVideo(f) ? MAX_VIDEO_BYTES : MAX_IMG_BYTES
+      if (f.size > maxBytes) {
+        return new Response(JSON.stringify({ error: `"${f.name}" terlalu besar (max ${isVideo(f) ? '50MB' : '15MB'})` }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
-      if (!f.type.startsWith('image/') && !IMAGE_EXT.test(f.name)) {
-        return new Response(JSON.stringify({ error: `"${f.name}" bukan format gambar yang didukung` }), {
+      if (!isVideo(f) && !isImage(f)) {
+        return new Response(JSON.stringify({ error: `"${f.name}" bukan format gambar/video yang didukung` }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
@@ -101,37 +106,64 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
     // Upload to Telegram
     const botUrl = `${TELEGRAM_API}/bot${env.TELEGRAM_BOT_TOKEN}`
+    const workerBase = request.url.replace(/\/upload$/, '')
     const results: Array<{ file_id: string; url: string; chat_id: string; message_id: number }> = []
 
     if (files.length === 1) {
-      // Single photo → sendPhoto
-      const photoForm = new FormData()
-      photoForm.append('chat_id', chatId)
-      photoForm.append('photo', files[0], files[0].name)
-      if (caption) photoForm.append('caption', caption)
-      photoForm.append('parse_mode', 'HTML')
+      const f = files[0]
+      if (isVideo(f)) {
+        const videoForm = new FormData()
+        videoForm.append('chat_id', chatId)
+        videoForm.append('video', f, f.name)
+        if (caption) videoForm.append('caption', caption)
+        videoForm.append('parse_mode', 'HTML')
 
-      const res = await fetch(`${botUrl}/sendPhoto`, { method: 'POST', body: photoForm })
-      const data: any = await res.json()
+        const res = await fetch(`${botUrl}/sendVideo`, { method: 'POST', body: videoForm })
+        const data: any = await res.json()
 
-      if (!data.ok) {
-        return new Response(JSON.stringify({ error: data.description || 'Telegram API error' }), {
-          status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        if (!data.ok) {
+          return new Response(JSON.stringify({ error: data.description || 'Telegram API error' }), {
+            status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+
+        const msg = data.result
+        const fileId = msg.video?.[msg.video.length - 1]?.file_id || ''
+        results.push({
+          file_id: fileId,
+          url: `${workerBase}/photos/${fileId}`,
+          chat_id: String(msg.chat.id),
+          message_id: msg.message_id,
+        })
+      } else {
+        const photoForm = new FormData()
+        photoForm.append('chat_id', chatId)
+        photoForm.append('photo', f, f.name)
+        if (caption) photoForm.append('caption', caption)
+        photoForm.append('parse_mode', 'HTML')
+
+        const res = await fetch(`${botUrl}/sendPhoto`, { method: 'POST', body: photoForm })
+        const data: any = await res.json()
+
+        if (!data.ok) {
+          return new Response(JSON.stringify({ error: data.description || 'Telegram API error' }), {
+            status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+
+        const msg = data.result
+        const fileId = msg.photo?.[msg.photo.length - 1]?.file_id || ''
+        results.push({
+          file_id: fileId,
+          url: `${workerBase}/photos/${fileId}`,
+          chat_id: String(msg.chat.id),
+          message_id: msg.message_id,
         })
       }
-
-      const msg = data.result
-      const fileId = msg.photo?.[msg.photo.length - 1]?.file_id || ''
-      results.push({
-        file_id: fileId,
-        url: `${request.url.replace(/\/upload$/, '')}/photos/${fileId}`,
-        chat_id: String(msg.chat.id),
-        message_id: msg.message_id,
-      })
     } else {
-      // Multiple photos → sendMediaGroup
+      // Multiple files (foto +/ video) → sendMediaGroup (campuran didukung Telegram)
       const media = files.map((f, idx) => ({
-        type: 'photo',
+        type: isVideo(f) ? 'video' : 'photo',
         media: `attach://file_${idx}`,
         ...(idx === 0 && caption ? { caption } : {}),
       }))
@@ -151,10 +183,11 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
       }
 
       const workerUrl = (fileId: string) =>
-        `${request.url.replace(/\/upload$/, '')}/photos/${fileId}`
+        `${workerBase}/photos/${fileId}`
 
       for (const msg of data.result || []) {
-        const fileId = msg.photo?.[msg.photo.length - 1]?.file_id || ''
+        const mediaArr = msg.photo || msg.video
+        const fileId = mediaArr?.[mediaArr.length - 1]?.file_id || ''
         results.push({
           file_id: fileId,
           url: workerUrl(fileId),

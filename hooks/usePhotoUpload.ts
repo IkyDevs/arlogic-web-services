@@ -107,8 +107,10 @@ export function usePhotoUpload() {
         warn(`VALIDATION FAILED: unsupported format "${f.name}" (${f.type})`)
         return false
       }
-      if (f.size > uploadConfig.IMAGE_MAX_SIZE_BYTES) {
-        toast.error(`"${f.name}" terlalu besar (max ${uploadConfig.IMAGE_MAX_SIZE_MB}MB)`)
+      const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|3gp|3gpp)$/i.test(f.name)
+      const maxBytes = isVideo ? 50 * 1024 * 1024 : uploadConfig.IMAGE_MAX_SIZE_BYTES
+      if (f.size > maxBytes) {
+        toast.error(`"${f.name}" terlalu besar (max ${isVideo ? 50 : uploadConfig.IMAGE_MAX_SIZE_MB}MB)`)
         warn(`VALIDATION FAILED: file too large "${f.name}" (${(f.size / MB).toFixed(1)}MB)`)
         return false
       }

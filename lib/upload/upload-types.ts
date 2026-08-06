@@ -102,6 +102,7 @@ export interface UploadCompleteResponse {
 export interface UploadServiceConfig {
   maxFiles: number
   maxSizeMB: number
+  maxVideoSizeMB: number
   maxTotalSizeMB: number
   compressTargetKB: number
   compressQuality: number

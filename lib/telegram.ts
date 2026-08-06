@@ -170,8 +170,16 @@ export async function deleteTelegramMessage(chatId: string | number, messageId: 
   }
 }
 
+function isVideoName(name: string): boolean {
+  return /\.(mp4|mov|webm|3gp|3gpp|avi)$/i.test(name)
+}
+
+function isVideoFileTg(f: { name: string; mime_type?: string }): boolean {
+  return !!f.mime_type?.startsWith('video/') || isVideoName(f.name)
+}
+
 export async function uploadMultipleToTelegram(
-  files: Array<{ buffer: Buffer; name: string }>,
+  files: Array<{ buffer: Buffer; name: string; mime_type?: string }>,
   caption: string,
   channelType: TelegramChannelType = "service",
   branchCode?: string,
@@ -181,23 +189,39 @@ export async function uploadMultipleToTelegram(
   if (!channelId) throw new Error(`Channel ID for ${channelType} not configured`);
   if (!files?.length) return [];
 
-  const toBlob = (buffer: Buffer): Blob => new Blob([new Uint8Array(buffer)], { type: "image/jpeg" });
+  const toBlob = (buffer: Buffer, mime: string): Blob => new Blob([new Uint8Array(buffer)], { type: mime || "image/jpeg" });
 
   if (files.length === 1) {
-    const result = await sendPhotoBlob(channelId, toBlob(files[0].buffer), files[0].name, caption);
+    const f = files[0];
+    if (isVideoFileTg(f)) {
+      const formData = new FormData();
+      formData.append("chat_id", channelId);
+      formData.append("video", toBlob(f.buffer, f.mime_type || "video/mp4"), f.name);
+      if (caption) formData.append("caption", caption);
+      formData.append("parse_mode", "HTML");
+      const result = await tgPost("sendVideo", formData, true);
+      const chat_id = String(result.chat.id);
+      const message_id = result.message_id;
+      const fileId = result.video?.[result.video.length - 1]?.file_id || "";
+      const url = fileId ? await getFileUrl(fileId) : "";
+      return [{ url: url || "", chat_id, message_id, file_id: fileId }];
+    }
+    const result = await sendPhotoBlob(channelId, toBlob(f.buffer, f.mime_type || "image/jpeg"), f.name, caption);
     return [result];
   }
 
   const media = files.map((f, idx) => ({
-    type: "photo" as const,
+    type: isVideoFileTg(f) ? "video" : "photo",
     media: `attach://file_${idx}`,
-    ...(idx === 0 ? { caption } : {}),
+    ...(idx === 0 && caption ? { caption } : {}),
   }));
 
   const formData = new FormData();
   formData.append("chat_id", channelId);
   formData.append("media", JSON.stringify(media));
-  files.forEach((f, idx) => formData.append(`file_${idx}`, toBlob(f.buffer), `file_${idx}.jpg`));
+  files.forEach((f, idx) =>
+    formData.append(`file_${idx}`, toBlob(f.buffer, f.mime_type || "image/jpeg"), `${idx}.${isVideoFileTg(f) ? "mp4" : "jpg"}`),
+  );
 
   const sendResult = await tgPost("sendMediaGroup", formData, true);
 
@@ -210,9 +234,9 @@ export async function uploadMultipleToTelegram(
     const r = sendResult[i];
     const chat_id = String(r.chat.id);
     const message_id = r.message_id;
-    const photoArray = r.photo;
-    if (photoArray?.length) {
-      const fileId = photoArray[photoArray.length - 1].file_id;
+    const mediaArr = r.photo || r.video;
+    if (mediaArr?.length) {
+      const fileId = mediaArr[mediaArr.length - 1].file_id;
       const url = await getFileUrl(fileId);
       results.push({ url: url || "", chat_id, message_id, file_id: fileId });
     } else {

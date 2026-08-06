@@ -12,6 +12,7 @@ export interface UploadFileResult {
   url: string
   chat_id: string
   message_id: number
+  file_id?: string
 }
 
 interface UploadOptions {
@@ -82,6 +83,7 @@ export function useUpload() {
         url,
         chat_id: data.messages?.[i]?.chat_id || '',
         message_id: data.messages?.[0]?.message_id || 0,
+        file_id: data.file_ids?.[i] || '',
       }))
 
       toast.success(`${results.length} foto berhasil`)

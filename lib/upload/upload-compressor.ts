@@ -1,4 +1,4 @@
-import { uploadServiceConfig } from './upload-config'
+import { uploadServiceConfig, isVideoFile } from './upload-config'
 
 const TARGET_KB = uploadServiceConfig.compressTargetKB
 const QUALITY = uploadServiceConfig.compressQuality / 100
@@ -108,6 +108,7 @@ export async function convertHeicFiles(
 }
 
 export function compressImage(file: File, quality?: number): Promise<File> {
+  if (isVideoFile(file)) return Promise.resolve(file)
   const q = quality ?? QUALITY
   const targetBytes = TARGET_KB * 1024
 

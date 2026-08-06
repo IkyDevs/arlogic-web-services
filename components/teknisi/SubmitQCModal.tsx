@@ -65,12 +65,13 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
     let currentSize = photos.reduce((s, f) => s + f.size, 0);
 
     for (const file of files) {
-      if (photos.length + valid.length >= MAX_FILES) { toast.error(`Maksimal ${MAX_FILES} foto.`); break; }
-      if (file.size > MAX_FILE_SIZE) { toast.error(`"${file.name}" terlalu besar (max 20MB).`); continue; }
-      if (!ALLOWED_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif)$/i)) {
-        toast.error(`"${file.name}" bukan gambar.`); continue;
+      if (photos.length + valid.length >= MAX_FILES) { toast.error(`Maksimal ${MAX_FILES} foto/video.`); break; }
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|3gp|3gpp)$/i.test(file.name);
+      if (file.size > (isVideo ? 50 * 1024 * 1024 : MAX_FILE_SIZE)) { toast.error(`"${file.name}" terlalu besar (max ${isVideo ? 50 : MAX_FILE_SIZE / 1024 / 1024}MB).`); continue; }
+      if (!ALLOWED_TYPES.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|heif|avif|mp4|mov|webm|3gp|3gpp)$/i)) {
+        toast.error(`"${file.name}" bukan gambar/video.`); continue;
       }
-      if (currentSize + file.size > MAX_TOTAL_SIZE) { toast.error(`Total ukuran terlalu besar (max 4MB).`); continue; }
+      if (currentSize + file.size > MAX_TOTAL_SIZE) { toast.error(`Total ukuran terlalu besar (max ${MAX_TOTAL_SIZE / 1024 / 1024}MB).`); continue; }
       valid.push(file);
       previews.push(URL.createObjectURL(file));
       currentSize += file.size;
@@ -134,7 +135,7 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
 
   const handleSubmit = async () => {
     if (!service || !user) return;
-    if (photos.length === 0) { toast.error("Setidaknya harus ada 1 foto."); return; }
+    if (photos.length === 0) { toast.error("Setidaknya harus ada 1 foto/video."); return; }
     setSubmitting(true);
     try {
       const now = new Date();
@@ -186,6 +187,9 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
             uploaded_by: user.id,
             telegram_chat_id: r.chat_id,
             telegram_message_id: r.message_id,
+            telegram_message_ids: results.map((x) => x.message_id).filter(Number.isFinite),
+            telegram_file_ids: results.map((x) => x.file_id).filter(Boolean),
+            telegram_sync: "synced",
           });
         }
       }
@@ -319,7 +323,7 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
                 className="aspect-square border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center hover:border-gray-900 transition-colors bg-gray-50 dark:bg-white/5">
                 <Camera className="w-6 h-6 text-gray-300" />
               </button>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
+              <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePhotoUpload} className="hidden" />
             </div>
           </div>
 

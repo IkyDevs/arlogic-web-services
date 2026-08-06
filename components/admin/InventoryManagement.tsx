@@ -266,6 +266,9 @@ export default function InventoryManagement({
 
     setLoading(true);
     let photoUrl = "";
+    let tgChatId: string | null = null;
+    let tgMessageId: number | null = null;
+    let tgFileId: string | undefined;
 
     try {
       if (transferPhotoFile) {
@@ -281,13 +284,14 @@ export default function InventoryManagement({
 ⏰ ${new Date().toLocaleString("id-ID")}
  `;
 
-        photoUrl =
-          (
-            await uploadFile(transferPhotoFile, {
-              type: "inventory",
-              caption: caption,
-            })
-          )?.url || "";
+        const transferUpload = await uploadFile(transferPhotoFile, {
+          type: "inventory",
+          caption: caption,
+        });
+        photoUrl = transferUpload?.url || "";
+        tgChatId = transferUpload?.chat_id || null;
+        tgMessageId = transferUpload?.message_id || null;
+        tgFileId = transferUpload?.file_id;
       }
 
       const { error: transferError } = await supabase
@@ -300,6 +304,11 @@ export default function InventoryManagement({
           notes: transferNotes || null,
           photo_url: photoUrl || null,
           created_by: user?.id,
+          telegram_chat_id: tgChatId,
+          telegram_message_id: tgMessageId,
+          telegram_message_ids: tgMessageId ? [tgMessageId] : [],
+          telegram_file_ids: tgFileId ? [tgFileId] : [],
+          telegram_sync: "synced",
         });
 
       if (transferError) throw transferError;
@@ -351,6 +360,9 @@ export default function InventoryManagement({
 
     setLoading(true);
     let photoUrl = "";
+    let tgChatId: string | null = null;
+    let tgMessageId: number | null = null;
+    let tgFileId: string | undefined;
 
     try {
       if (photoFile) {
@@ -370,13 +382,14 @@ export default function InventoryManagement({
 ⏰ ${new Date().toLocaleString("id-ID")}
  `;
 
-        photoUrl =
-          (
-            await uploadFile(photoFile, {
-              type: "inventory",
-              caption: itemCaption,
-            })
-          )?.url || "";
+        const itemUpload = await uploadFile(photoFile, {
+          type: "inventory",
+          caption: itemCaption,
+        });
+        photoUrl = itemUpload?.url || "";
+        tgChatId = itemUpload?.chat_id || null;
+        tgMessageId = itemUpload?.message_id || null;
+        tgFileId = itemUpload?.file_id;
         setUploadingPhoto(false);
       }
 
@@ -390,6 +403,11 @@ export default function InventoryManagement({
         min_stock: parseInt(formData.min_stock) || 0,
         price: parseInt(formData.price) || 0,
         photo_url: photoUrl || null,
+        telegram_chat_id: tgChatId,
+        telegram_message_id: tgMessageId,
+        telegram_message_ids: tgMessageId ? [tgMessageId] : [],
+        telegram_file_ids: tgFileId ? [tgFileId] : [],
+        telegram_sync: "synced",
       };
 
       if (editingId) {

@@ -14,6 +14,27 @@ ALTER TABLE public.service_documentation
   ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
 
+-- Tabel lain yang menyimpan hasil upload (agar protokol edit/hapus pesan lama bekerja)
+ALTER TABLE public.service_timeline
+  ADD COLUMN IF NOT EXISTS telegram_message_ids JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
+
+ALTER TABLE public.attendances
+  ADD COLUMN IF NOT EXISTS telegram_message_ids JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
+
+ALTER TABLE public.stock_transfers
+  ADD COLUMN IF NOT EXISTS telegram_message_ids JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
+
+ALTER TABLE public.inventory
+  ADD COLUMN IF NOT EXISTS telegram_message_ids JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
+
 -- Backfill: pindahkan telegram_message_id (single) lama ke array agar hapus-lama tetap berfungsi
 UPDATE public.layanan
 SET telegram_message_ids = to_jsonb(ARRAY[telegram_message_id])

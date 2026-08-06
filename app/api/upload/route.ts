@@ -4,6 +4,7 @@ import { validateOrigin } from '@/lib/csrf'
 import { rateLimitIP } from '@/lib/rate-limit'
 import { UploadType } from '@/lib/validation/schemas'
 import { uploadConfig, isAllowedFile } from '@/lib/uploadConfig'
+import { isVideoFile } from '@/lib/upload/upload-config'
 import sharp from 'sharp'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 
@@ -95,11 +96,13 @@ export async function POST(request: NextRequest) {
 
     let totalSize = 0
     for (const f of files) {
-      if (f.size > uploadConfig.IMAGE_MAX_SIZE_BYTES) {
-        return NextResponse.json({ error: `"${f.name}" terlalu besar (max ${uploadConfig.IMAGE_MAX_SIZE_MB}MB)` }, { status: 400 })
+      const isVideo = isVideoFile(f)
+      const maxBytes = isVideo ? 50 * 1024 * 1024 : uploadConfig.IMAGE_MAX_SIZE_BYTES
+      if (f.size > maxBytes) {
+        return NextResponse.json({ error: `"${f.name}" terlalu besar (max ${isVideo ? 50 : uploadConfig.IMAGE_MAX_SIZE_MB}MB)` }, { status: 400 })
       }
       if (!isAllowedFile(f)) {
-        return NextResponse.json({ error: `"${f.name}" bukan format gambar yang didukung` }, { status: 400 })
+        return NextResponse.json({ error: `"${f.name}" bukan format gambar/video yang didukung` }, { status: 400 })
       }
       totalSize += f.size
     }
@@ -123,7 +126,8 @@ export async function POST(request: NextRequest) {
           const arrayBuffer = await file.arrayBuffer()
           let buffer: Buffer = Buffer.from(arrayBuffer)
           let ext = file.name.split('.').pop() || 'jpg'
-          if (buffer.length > COMPRESS_THRESHOLD) {
+          const isVideo = isVideoFile(file)
+          if (buffer.length > COMPRESS_THRESHOLD && !isVideo) {
             try {
               const compressed = await sharp(buffer)
                 .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
@@ -138,7 +142,7 @@ export async function POST(request: NextRequest) {
             }
           }
           const name = `${type}/${timestamp}_${Math.random().toString(36).substring(2, 8)}.${ext}`
-          return { buffer, name }
+          return { buffer, name, mime_type: file.type || (isVideo ? 'video/mp4' : 'image/jpeg') }
         } catch {
           return null
         }

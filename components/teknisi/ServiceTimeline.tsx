@@ -75,31 +75,42 @@ const removePhoto = () => {
   const addTimelineUpdate = async (message: string, status?: string) => {
     if (!message.trim()) { toast.error('Masukkan pesan'); return }
     setLoading(true)
-    let photoUrl = null
-    try {
-      const d = new Date();
-      const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-      const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-      const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
-      let fullCaption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message || 'Progress service'}\nstatus: ${status || 'in_progress'}`;
+      let photoUrl = null
+      let tgChatId: string | null = null
+      let tgMessageId: number | null = null
+      let tgFileId: string | undefined
+      try {
+        const d = new Date();
+        const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+        const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+        const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+        let fullCaption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message || 'Progress service'}\nstatus: ${status || 'in_progress'}`;
 
-      if (selectedPhoto) {
-        const uploadResult = await uploadFile(selectedPhoto, { type: 'teknisi_update', caption: fullCaption })
-        if (!uploadResult) { toast.error('Failed to upload photo'); return }
-        photoUrl = uploadResult.url
-      }
-      
-      // 1. Insert ke service_timeline
-      const { error: timelineError } = await supabase.from('service_timeline').insert({
-        service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
-        message: message || 'Progress service',
-        photo_url: photoUrl,
-        details: { 
-          updated_by: user?.full_name, 
-          timestamp: new Date().toISOString(), 
-          has_photo: !!photoUrl,
+        if (selectedPhoto) {
+          const uploadResult = await uploadFile(selectedPhoto, { type: 'teknisi_update', caption: fullCaption })
+          if (!uploadResult) { toast.error('Failed to upload photo'); return }
+          photoUrl = uploadResult.url
+          tgChatId = uploadResult.chat_id || null
+          tgMessageId = uploadResult.message_id || null
+          tgFileId = uploadResult.file_id
         }
-      })
+
+        // 1. Insert ke service_timeline
+        const { error: timelineError } = await supabase.from('service_timeline').insert({
+          service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
+          message: message || 'Progress service',
+          photo_url: photoUrl,
+          details: { 
+            updated_by: user?.full_name, 
+            timestamp: new Date().toISOString(), 
+            has_photo: !!photoUrl,
+          },
+          telegram_chat_id: tgChatId,
+          telegram_message_id: tgMessageId,
+          telegram_message_ids: tgMessageId ? [tgMessageId] : [],
+          telegram_file_ids: tgFileId ? [tgFileId] : [],
+          telegram_sync: 'synced',
+        })
       if (timelineError) throw timelineError
 
       toast.success('Update added!')

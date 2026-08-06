@@ -1,4 +1,4 @@
-import { isAllowedFile, getMaxSizeBytes, uploadServiceConfig } from './upload-config'
+import { isAllowedFile, isVideoFile, getMaxSizeBytes, getVideoMaxSizeBytes, uploadServiceConfig } from './upload-config'
 import { PendingFile } from './upload-types'
 
 export interface ValidationResult {
@@ -32,8 +32,10 @@ export function validateFiles(
       continue
     }
 
-    if (f.size > maxSizeBytes) {
-      errors.push(`"${f.name}" terlalu besar (max ${uploadServiceConfig.maxSizeMB}MB)`)
+    const isVideo = isVideoFile(f)
+    const maxBytes = isVideo ? getVideoMaxSizeBytes() : maxSizeBytes
+    if (f.size > maxBytes) {
+      errors.push(`"${f.name}" terlalu besar (max ${isVideo ? uploadServiceConfig.maxVideoSizeMB : uploadServiceConfig.maxSizeMB}MB)`)
       continue
     }
 

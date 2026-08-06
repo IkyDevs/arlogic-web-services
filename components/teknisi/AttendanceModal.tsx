@@ -40,6 +40,7 @@ export default function AttendanceModal({
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { user } = useAuthStore()
   const { activeBranch } = useBranch()
@@ -163,6 +164,23 @@ export default function AttendanceModal({
       } else if (error.name === 'NotFoundError') {
         setCameraError('No camera found on this device')
         toast.error('No camera detected')
+      } else if (error.name === 'NotReadableError') {
+        setCameraError('Kamera sedang dipakai aplikasi lain. Tutup aplikasi lain lalu coba lagi.')
+        toast.error('Kamera tidak dapat diakses')
+      } else if (error.name === 'OverconstrainedError') {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+          streamRef.current = stream
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream
+            videoRef.current.onloadedmetadata = () => videoRef.current?.play()
+          }
+          setCameraError(null)
+          setPermissionDenied(false)
+        } catch (e2: any) {
+          setCameraError(`Tidak dapat mengakses kamera: ${e2.message}`)
+          toast.error('Gagal mengakses kamera')
+        }
       } else {
         setCameraError(`Cannot access camera: ${error.message}`)
         toast.error('Failed to access camera')
@@ -218,6 +236,21 @@ export default function AttendanceModal({
         }, 'image/jpeg', 0.95)
       }
     }
+  }
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Pilih file gambar')
+      return
+    }
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    stopCamera()
+    setStep('location')
+    getCurrentLocation()
   }
 
   const getCurrentLocation = () => {
@@ -334,6 +367,9 @@ export default function AttendanceModal({
     }
 
     let photoUrl: string | null = null
+    let tgChatId: string | null = null
+    let tgMessageId: number | null = null
+    let tgFileId: string | undefined
     if (!isCheckIn) {
       const defaultCheckOutNotes = checkOutNotes.trim() || "absen pulang";
       let caption = `ABSEN PULANG
@@ -347,10 +383,14 @@ lembur: ${lembur}`
         caption = caption + `\nlembur: YA\ncatatan: ${defaultCheckOutNotes}`
       }
 
-      photoUrl = (await uploadFile(photoFile, {
+      const res = await uploadFile(photoFile, {
         type: 'attendance',
         caption: caption
-      }))?.url || null
+      })
+      photoUrl = res?.url || null
+      tgChatId = res?.chat_id || null
+      tgMessageId = res?.message_id || null
+      tgFileId = res?.file_id
     } else {
       const defaultCheckInNotes = checkInNotes.trim() || "absen masuk";
       const caption = `ABSEN MASUK
@@ -359,10 +399,14 @@ role: ${role}
 nama: ${user?.full_name}
 catatan: ${defaultCheckInNotes}`
 
-      photoUrl = (await uploadFile(photoFile, {
+      const res = await uploadFile(photoFile, {
         type: 'attendance',
         caption: caption
-      }))?.url || null
+      })
+      photoUrl = res?.url || null
+      tgChatId = res?.chat_id || null
+      tgMessageId = res?.message_id || null
+      tgFileId = res?.file_id
     }
 
     if (!photoUrl) {
@@ -382,6 +426,11 @@ catatan: ${defaultCheckInNotes}`
              status: 'checked_in',
              notes: checkInNotes.trim() || "absen masuk",
              branch_id: (activeBranch as any)?.id || null,
+             telegram_chat_id: tgChatId,
+             telegram_message_id: tgMessageId,
+             telegram_message_ids: tgMessageId ? [tgMessageId] : [],
+             telegram_file_ids: tgFileId ? [tgFileId] : [],
+             telegram_sync: 'synced',
            })
 
         if (dbError) throw dbError
@@ -409,7 +458,12 @@ catatan: ${defaultCheckInNotes}`
              total_minutes: diffMinutes,
              overtime_minutes: overtimeMinutes,
              is_overtime: isOvertime,
-             notes: checkOutNotes.trim() || "absen pulang"
+             notes: checkOutNotes.trim() || "absen pulang",
+             telegram_chat_id: tgChatId,
+             telegram_message_id: tgMessageId,
+             telegram_message_ids: tgMessageId ? [tgMessageId] : [],
+             telegram_file_ids: tgFileId ? [tgFileId] : [],
+             telegram_sync: 'synced',
            })
            .eq('id', existingAttendance?.id)
            .eq('teknisi_id', user?.id)
@@ -496,6 +550,13 @@ catatan: ${defaultCheckInNotes}`
                   <button onClick={startCamera} className="btn-primary text-sm">
                     Coba Lagi
                   </button>
+                  <button
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="mt-2 w-full text-sm text-slate-600 border border-slate-300 rounded-lg py-2 hover:bg-slate-50 transition-all"
+                  >
+                    Pilih dari Galeri
+                  </button>
+                  <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleGallerySelect} />
                 </div>
               ) : (
                 <>

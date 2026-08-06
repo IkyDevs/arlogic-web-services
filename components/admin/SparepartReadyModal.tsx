@@ -49,9 +49,17 @@ export default function SparepartReadyModal({
 
     try {
       let photoUrl = null
+      let tgChatId: string | null = null
+      let tgMessageId: number | null = null
+      let tgFileId: string | undefined
       if (photoFile) {
         const result = await uploadFile(photoFile, { type: 'service' })
-        if (result) photoUrl = result.url
+        if (result) {
+          photoUrl = result.url
+          tgChatId = result.chat_id || null
+          tgMessageId = result.message_id || null
+          tgFileId = result.file_id
+        }
       }
 
       // Update dengan po_status yang valid
@@ -77,7 +85,12 @@ export default function SparepartReadyModal({
           action: 'sparepart_ready',
           photo: photoUrl,
           notes: notes
-        }
+        },
+        telegram_chat_id: tgChatId,
+        telegram_message_id: tgMessageId,
+        telegram_message_ids: tgMessageId ? [tgMessageId] : [],
+        telegram_file_ids: tgFileId ? [tgFileId] : [],
+        telegram_sync: 'synced',
       })
 
       await supabase.from('notifications').insert({

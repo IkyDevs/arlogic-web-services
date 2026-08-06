@@ -82,6 +82,11 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         photo_urls: photoUrl ? [photoUrl] : [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} via ${formData.metode_pembayaran}`,
         branch_id: (activeBranch as any)?.id || null,
+        telegram_chat_id: uploadResult?.chat_id || null,
+        telegram_message_id: uploadResult?.message_id || null,
+        telegram_message_ids: uploadResult?.message_id ? [uploadResult.message_id] : [],
+        telegram_file_ids: uploadResult?.file_id ? [uploadResult.file_id] : [],
+        telegram_sync: "synced",
       }).select("id").single();
 
       if (errA) { toast.error("Gagal simpan cashdraw: " + errA.message); return; }
@@ -98,6 +103,11 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         photo_urls: photoUrl ? [photoUrl] : [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} (kompensasi cash)`,
         branch_id: (activeBranch as any)?.id || null,
+        telegram_chat_id: uploadResult?.chat_id || null,
+        telegram_message_id: uploadResult?.message_id || null,
+        telegram_message_ids: uploadResult?.message_id ? [uploadResult.message_id] : [],
+        telegram_file_ids: uploadResult?.file_id ? [uploadResult.file_id] : [],
+        telegram_sync: "synced",
       });
 
       if (errB) { toast.error("Gagal simpan pengeluaran cash: " + errB.message); return; }

@@ -751,6 +751,9 @@ export default function QueueList({
             uploaded_by: user.id,
             telegram_chat_id: r.chat_id,
             telegram_message_id: r.message_id,
+            telegram_message_ids: results.map((x) => x.message_id).filter(Number.isFinite),
+            telegram_file_ids: results.map((x) => x.file_id).filter(Boolean),
+            telegram_sync: "synced",
           });
         }
       }
