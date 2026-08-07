@@ -436,101 +436,99 @@ operator: ${handlerName}`;
         return;
       }
 
-      // TAHAP 2: Upload foto ke Telegram (background, nggak block UI)
+      // TAHAP 2: Upload foto ke Telegram — di-await agar photo_urls tersimpan sebelum UI ditutup
       const txIdToUpdate = isEditing ? initialData.id : newTxId;
+      let uploadOk = false;
       if (txIdToUpdate) {
         const filesToUpload = pendingFiles.map((pf) => pf.file);
 
-        // Upload di background (jangan await, biar UI bisa close)
-        upload
-          .legacyUpload(
+        try {
+          const results = await upload.legacyUpload(
             filesToUpload,
             "layanan",
             transactionDescription,
             undefined,
             (activeBranch as any)?.code,
-          )
-          .then(async (results) => {
-            if (results?.length && txIdToUpdate) {
-              const newPhotoUrls = [
-                ...existingPhotoUrls,
-                ...results.map((r) => r.url),
-              ];
-              const newMessageIds = results.map(r => r.message_id).filter((id: number) => Number.isFinite(id));
-              const newFileIds = results.map(r => r.file_id).filter(Boolean);
-              try {
-                await supabase
-                  .from("layanan")
-                  .update({
-                    photo_urls: newPhotoUrls,
-                    photo_url: newPhotoUrls[0] || null,
-                    photo_status: "completed", // Tandai berhasil
-                    telegram_chat_id: results[0]?.chat_id || null,
-                    telegram_message_id: results[0]?.message_id || null,
-                    telegram_message_ids: newMessageIds,
-                    telegram_file_ids: newFileIds,
-                    telegram_sync: "synced",
-                  } as any)
-                  .eq("id", txIdToUpdate);
-                // D3: pesan baru sudah terkirim → hapus pesan lama (hanya saat edit & ada ref lama)
-                if (isEditing) {
-                  const oldRef = extractTelegramRefs(initialData as any);
-                  if (oldRef) {
-                    await deleteTelegramMessages(oldRef.chat_id, oldRef.message_ids);
-                  }
-                }
-                console.log(
-                  "[Pengeluaran] Photos uploaded successfully",
-                  newPhotoUrls.length,
-                );
-                upload.clear();
-              } catch (err) {
-                console.error("[Pengeluaran] Failed to update photo URLs:", err);
-                upload.clear();
+          );
+
+          if (results?.length) {
+            const newPhotoUrls = [
+              ...existingPhotoUrls,
+              ...results.map((r) => r.url),
+            ];
+            const newMessageIds = results.map(r => r.message_id).filter((id: number) => Number.isFinite(id));
+            const newFileIds = results.map(r => r.file_id).filter(Boolean);
+            const { error: updateErr } = await supabase
+              .from("layanan")
+              .update({
+                photo_urls: newPhotoUrls,
+                photo_url: newPhotoUrls[0] || null,
+                photo_status: "completed", // Tandai berhasil
+                upload_status: "SUCCESS",
+                telegram_chat_id: results[0]?.chat_id || null,
+                telegram_message_id: results[0]?.message_id || null,
+                telegram_message_ids: newMessageIds,
+                telegram_file_ids: newFileIds,
+                telegram_sync: "synced",
+              } as any)
+              .eq("id", txIdToUpdate);
+            if (updateErr) throw updateErr;
+
+            // D3: pesan baru sudah terkirim → hapus pesan lama (hanya saat edit & ada ref lama)
+            if (isEditing) {
+              const oldRef = extractTelegramRefs(initialData as any);
+              if (oldRef) {
+                await deleteTelegramMessages(oldRef.chat_id, oldRef.message_ids);
               }
-            } else if (txIdToUpdate) {
-              await supabase
-                .from("layanan")
-                .update({ photo_status: "failed" } as any) // Tandai gagal
-                .eq("id", txIdToUpdate);
-              console.error(
-                "[Pengeluaran] Photo upload failed: no results returned",
-              );
             }
-          })
-          .catch(async (err) => {
-            console.error("[Pengeluaran] Background upload failed:", err);
-            if (txIdToUpdate) {
-              await supabase
-                .from("layanan")
-                .update({ photo_status: "failed" } as any) // Tandai gagal
-                .eq("id", txIdToUpdate);
-            }
-          });
-
-        // Cleanup & close UI immediately (foto upload di background)
-        setFormData({
-          item_name: "",
-          handled_by: user?.id || "",
-          metode_pembayaran: "cash",
-          nominal: "",
-          notes: "",
-        });
-        setPhotoPreviews([]);
-
-        if (user?.id) {
-          clearingDraft.current = true;
-          clearDraft("pengeluaran", user.id);
+            console.log(
+              "[Pengeluaran] Photos uploaded successfully",
+              newPhotoUrls.length,
+            );
+            upload.clear();
+            uploadOk = true;
+          }
+        } catch (err: any) {
+          console.error("[Pengeluaran] Upload failed:", err);
         }
-        restoredRef.current = false;
 
-        toast.success(
-          "Pengeluaran dicatat. Foto sedang diupload di background…",
-        );
-        fetchTransactions();
-        onSuccess?.();
-        onClose?.();
+        if (!uploadOk) {
+          // Upload gagal — tandai failed + pertahankan IndexedDB untuk retry
+          await supabase
+            .from("layanan")
+            .update({ photo_status: "failed", upload_status: "FAILED" } as any)
+            .eq("id", txIdToUpdate);
+          window.dispatchEvent(
+            new CustomEvent("layanan-retry-upload", {
+              detail: { txId: txIdToUpdate },
+            }),
+          );
+        }
       }
+
+      setFormData({
+        item_name: "",
+        handled_by: user?.id || "",
+        metode_pembayaran: "cash",
+        nominal: "",
+        notes: "",
+      });
+      setPhotoPreviews([]);
+
+      if (user?.id) {
+        clearingDraft.current = true;
+        clearDraft("pengeluaran", user.id);
+      }
+      restoredRef.current = false;
+
+      if (uploadOk) {
+        toast.success("Pengeluaran berhasil dicatat!");
+      } else {
+        toast.error("Pengeluaran tersimpan, tetapi foto gagal diupload. Akan dicoba lagi.");
+      }
+      fetchTransactions();
+      onSuccess?.();
+      onClose?.();
     } catch (err: any) {
       toast.error(err.message || "Gagal menyimpan pengeluaran");
     } finally {

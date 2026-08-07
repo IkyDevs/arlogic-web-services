@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
 import { useBranch } from '@/lib/context/BranchContext'
-import { useUpload } from '@/hooks/useUpload'
+import { useCentralUpload } from '@/hooks/useCentralUpload'
+import { buildTelegramMetadata } from '@/lib/telegram-metadata'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import { Camera, MapPin, X, CheckCircle, Loader, AlertCircle, LogOut, LogIn, Clock, User } from 'lucide-react'
@@ -44,7 +45,12 @@ export default function AttendanceModal({
   const supabase = createClient()
   const { user } = useAuthStore()
   const { activeBranch } = useBranch()
-  const { uploadFile, uploading, progress } = useUpload()
+  const [sessionKey] = useState(
+    () => `attendance_${user?.id || 'anon'}_${Date.now()}`,
+  )
+  const upload = useCentralUpload(sessionKey)
+  const [localProgress, setLocalProgress] = useState(0)
+  const { uploading } = upload
 
   const isCheckIn = type === 'check_in'
   const title = isCheckIn ? 'Absen Masuk' : 'Absen Pulang'
@@ -253,6 +259,33 @@ export default function AttendanceModal({
     getCurrentLocation()
   }
 
+  const doUpload = async (caption: string) => {
+    try {
+      setLocalProgress(10)
+      const timer = setInterval(() => {
+        setLocalProgress((prev) => {
+          if (prev >= 90) return prev
+          return prev + 15
+        })
+      }, 400)
+      
+      const arr = await upload.legacyUpload(
+        [photoFile!],
+        'attendance',
+        caption,
+        undefined,
+        (activeBranch as any)?.code,
+      )
+      clearInterval(timer)
+      setLocalProgress(100)
+      return arr?.[0] || null
+    } catch (e: any) {
+      toast.error(e?.message || 'Gagal upload foto')
+      setLocalProgress(0)
+      return null
+    }
+  }
+
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported')
@@ -370,6 +403,7 @@ export default function AttendanceModal({
     let tgChatId: string | null = null
     let tgMessageId: number | null = null
     let tgFileId: string | undefined
+    let uploadResult: Awaited<ReturnType<typeof doUpload>> = null
     if (!isCheckIn) {
       const defaultCheckOutNotes = checkOutNotes.trim() || "absen pulang";
       let caption = `ABSEN PULANG
@@ -383,14 +417,11 @@ lembur: ${lembur}`
         caption = caption + `\nlembur: YA\ncatatan: ${defaultCheckOutNotes}`
       }
 
-      const res = await uploadFile(photoFile, {
-        type: 'attendance',
-        caption: caption
-      })
-      photoUrl = res?.url || null
-      tgChatId = res?.chat_id || null
-      tgMessageId = res?.message_id || null
-      tgFileId = res?.file_id
+      uploadResult = await doUpload(caption)
+      photoUrl = uploadResult?.url || null
+      tgChatId = uploadResult?.chat_id || null
+      tgMessageId = uploadResult?.message_id || null
+      tgFileId = uploadResult?.file_id
     } else {
       const defaultCheckInNotes = checkInNotes.trim() || "absen masuk";
       const caption = `ABSEN MASUK
@@ -399,14 +430,11 @@ role: ${role}
 nama: ${user?.full_name}
 catatan: ${defaultCheckInNotes}`
 
-      const res = await uploadFile(photoFile, {
-        type: 'attendance',
-        caption: caption
-      })
-      photoUrl = res?.url || null
-      tgChatId = res?.chat_id || null
-      tgMessageId = res?.message_id || null
-      tgFileId = res?.file_id
+      uploadResult = await doUpload(caption)
+      photoUrl = uploadResult?.url || null
+      tgChatId = uploadResult?.chat_id || null
+      tgMessageId = uploadResult?.message_id || null
+      tgFileId = uploadResult?.file_id
     }
 
     if (!photoUrl) {
@@ -426,11 +454,7 @@ catatan: ${defaultCheckInNotes}`
              status: 'checked_in',
              notes: checkInNotes.trim() || "absen masuk",
              branch_id: (activeBranch as any)?.id || null,
-             telegram_chat_id: tgChatId,
-             telegram_message_id: tgMessageId,
-             telegram_message_ids: tgMessageId ? [tgMessageId] : [],
-             telegram_file_ids: tgFileId ? [tgFileId] : [],
-             telegram_sync: 'synced',
+             ...buildTelegramMetadata(uploadResult ? [uploadResult] : []),
            })
 
         if (dbError) throw dbError
@@ -459,11 +483,7 @@ catatan: ${defaultCheckInNotes}`
              overtime_minutes: overtimeMinutes,
              is_overtime: isOvertime,
              notes: checkOutNotes.trim() || "absen pulang",
-             telegram_chat_id: tgChatId,
-             telegram_message_id: tgMessageId,
-             telegram_message_ids: tgMessageId ? [tgMessageId] : [],
-             telegram_file_ids: tgFileId ? [tgFileId] : [],
-             telegram_sync: 'synced',
+             ...buildTelegramMetadata(uploadResult ? [uploadResult] : []),
            })
            .eq('id', existingAttendance?.id)
            .eq('teknisi_id', user?.id)
@@ -643,14 +663,14 @@ catatan: ${defaultCheckInNotes}`
 
               {uploading && (
                 <div className="mb-3">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span>Mengupload...</span>
-                    <span>{progress}%</span>
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Mengirim bukti...</span>
+                    <span>{localProgress}%</span>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5">
-                    <div
-                      className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                      style={{ width: `${progress}%` }}
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className="bg-slate-900 h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${localProgress}%` }}
                     />
                   </div>
                 </div>

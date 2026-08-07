@@ -16,6 +16,8 @@ ALTER TABLE public.service_documentation
 
 -- Tabel lain yang menyimpan hasil upload (agar protokol edit/hapus pesan lama bekerja)
 ALTER TABLE public.service_timeline
+  ADD COLUMN IF NOT EXISTS telegram_chat_id      TEXT  DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS telegram_message_id   INT8  DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS telegram_message_ids JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
@@ -26,11 +28,15 @@ ALTER TABLE public.attendances
   ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
 
 ALTER TABLE public.stock_transfers
+  ADD COLUMN IF NOT EXISTS telegram_chat_id      TEXT  DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS telegram_message_id   INT8  DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS telegram_message_ids JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';
 
 ALTER TABLE public.inventory
+  ADD COLUMN IF NOT EXISTS telegram_chat_id      TEXT  DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS telegram_message_id   INT8  DEFAULT NULL,
   ADD COLUMN IF NOT EXISTS telegram_message_ids JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS telegram_file_ids   JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS telegram_sync       TEXT  DEFAULT 'synced';

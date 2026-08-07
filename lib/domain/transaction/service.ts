@@ -107,6 +107,9 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
     upload_session_key: row.upload_session_key,
     branch_id: row.branch_id,
     upload_status: (row.upload_status || 'NONE') as UploadStatus,
+    ...((row.jenis_layanan === "pengeluaran" || row.jenis_layanan === "cashdraw")
+      ? { jenis_layanan: row.jenis_layanan as JenisLayanan, nominal: row.nominal, detail_sku: row.detail_sku }
+      : {}),
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

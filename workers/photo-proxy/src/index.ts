@@ -17,25 +17,95 @@ export interface Env {
   TELEGRAM_CHANNEL_KASPIN?: string
   TELEGRAM_CHANNEL_TEKNISI_UPDATE?: string
   TELEGRAM_CHANNEL_QC_UPDATE?: string
+  /** Rate limit: maks upload per window. Default 30. */
+  RATE_LIMIT_MAX?: string
+  /** Rate limit: panjang window dalam detik. Default 60. */
+  RATE_LIMIT_WINDOW_SEC?: string
 }
 
-// ─── Upload: receive files → Telegram → return URLs ────────────────
+// ─── Security helpers ───────────────────────────────────────────────
+
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://arlogic-web-services.vercel.app',
+  'https://arlogic.com',
+  'https://www.arlogic.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+]
+
+function getAllowedOrigins(env: Env): Set<string> {
+  const override = process.env?.ALLOWED_ORIGINS || (env as any)?.ALLOWED_ORIGINS
+  if (!override) return new Set(DEFAULT_ALLOWED_ORIGINS)
+  return new Set(override.split(',').map((o) => o.trim()).filter(Boolean))
+}
+
+function isOriginAllowed(origin: string | null, allowed: Set<string>): boolean {
+  if (!origin) return false
+  for (const a of allowed) {
+    if (a.startsWith('*.')) {
+      if (origin.endsWith(a.slice(1))) return true
+      continue
+    }
+    if (origin === a) return true
+  }
+  return false
+}
+
+// In-memory sliding window: { ip: [timestamps] }
+const rlStore = new Map<string, number[]>()
+async function rateLimit(
+  ip: string,
+  max: number,
+  windowSec: number,
+): Promise<{ ok: boolean; retryAfter: number }> {
+  const now = Date.now()
+  const windowMs = windowSec * 1000
+  const hits = (rlStore.get(ip) || []).filter((t) => now - t < windowMs)
+  if (hits.length >= max) {
+    const retryAfter = Math.max(1, Math.ceil((hits[0] + windowMs - now) / 1000))
+    return { ok: false, retryAfter }
+  }
+  hits.push(now)
+  rlStore.set(ip, hits)
+  return { ok: true, retryAfter: 0 }
+}
 
 async function handleUpload(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
   }
 
-  // CORS
-  const origin = request.headers.get('Origin') || '*'
+  const allowed = getAllowedOrigins(env)
+  const origin = request.headers.get('Origin') || ''
   const corsHeaders = {
-    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Origin': origin ? origin : 'https://arlogic-web-services.vercel.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   }
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
+  }
+
+  if (origin && !isOriginAllowed(origin, allowed)) {
+    return new Response(JSON.stringify({ error: 'Origin tidak diizinkan' }), {
+      status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const rateMax = Number(env.RATE_LIMIT_MAX || 30)
+  const rateWindowSec = Number(env.RATE_LIMIT_WINDOW_SEC || 60)
+  const ip = (request.headers.get('CF-Connecting-IP') ||
+    request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+    'unknown') as string
+  {
+    const rl = await rateLimit(ip, rateMax, rateWindowSec)
+    if (!rl.ok) {
+      return new Response(JSON.stringify({ error: 'Terlalu banyak permintaan. Coba lagi beberapa saat.' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) },
+      })
+    }
   }
 
   if (!env.TELEGRAM_BOT_TOKEN) {

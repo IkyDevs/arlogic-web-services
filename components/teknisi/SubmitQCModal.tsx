@@ -9,7 +9,8 @@ import {
   Check, Trash2, Clock, User, Watch,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { useCentralUpload } from "@/hooks/useCentralUpload";
+import { buildTelegramMetadata } from "@/lib/telegram-metadata";
 import { uploadConfig } from "@/lib/uploadConfig";
 
 const MAX_FILES = uploadConfig.IMAGE_MAX_FILES;
@@ -36,7 +37,9 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { user } = useAuthStore();
-  const { addAndUpload } = usePhotoUpload();
+  const [sessionKey] = useState(() => `qc_${service.id || 'anon'}_${Date.now()}`);
+  const upload = useCentralUpload(sessionKey);
+  const [localProgress, setLocalProgress] = useState(0);
 
   useEffect(() => {
     fetchItems();
@@ -173,7 +176,24 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
         notes.trim() ? `Keterangan Teknisi :\n${notes.trim()}` : null,
       ].filter(Boolean).join("\n\n");
 
-      const results = await addAndUpload(photos, { type: 'qc_update', caption: sections });
+      setLocalProgress(10);
+      const timer = setInterval(() => {
+        setLocalProgress((prev) => {
+          if (prev >= 90) return prev
+          return prev + 15
+        });
+      }, 500);
+
+      const results = await upload.legacyUpload(
+        photos,
+        'qc_update',
+        sections,
+        undefined,
+        (service as any)?.branch_code || undefined
+      );
+
+      clearInterval(timer);
+      setLocalProgress(100);
 
       const uploadedUrls: string[] = [];
       if (results.length > 0) {
@@ -185,11 +205,7 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
             photo_url: r.url,
             stage: "qc",
             uploaded_by: user.id,
-            telegram_chat_id: r.chat_id,
-            telegram_message_id: r.message_id,
-            telegram_message_ids: results.map((x) => x.message_id).filter(Number.isFinite),
-            telegram_file_ids: results.map((x) => x.file_id).filter(Boolean),
-            telegram_sync: "synced",
+            ...buildTelegramMetadata(results),
           });
         }
       }
@@ -335,6 +351,21 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
               rows={2} className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none"
               placeholder="Catatan untuk QC..." />
           </div>
+
+          {submitting && (
+            <div className="mb-2">
+              <div className="flex justify-between text-xs text-slate-500 mb-1">
+                <span>Mengirim ke QC...</span>
+                <span>{localProgress}%</span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-white/10 rounded-full h-1 overflow-hidden">
+                <div 
+                  className="bg-indigo-600 h-1 rounded-full transition-all duration-300"
+                  style={{ width: `${localProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <button onClick={handleSubmit} disabled={submitting}
             className="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm">

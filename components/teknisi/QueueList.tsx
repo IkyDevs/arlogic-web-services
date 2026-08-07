@@ -6,7 +6,8 @@ import { useBranchScope } from "@/lib/context/useBranchScope";
 import { useAuthStore } from "@/stores/authStore";
 import { ServiceOrder } from "@/types";
 import toast from "react-hot-toast";
-import { usePhotoUpload } from "@/hooks/usePhotoUpload";
+import { useCentralUpload } from "@/hooks/useCentralUpload";
+import { buildTelegramMetadata } from "@/lib/telegram-metadata";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
@@ -125,7 +126,9 @@ export default function QueueList({
   const supabase = createClient();
   const { branchId } = useBranchScope();
   const { user } = useAuthStore();
-  const { addAndUpload: qcUpload } = usePhotoUpload();
+  const [sessionKey] = useState(() => `qc_queue_${user?.id || 'anon'}_${Date.now()}`);
+  const upload = useCentralUpload(sessionKey);
+  const [localProgress, setLocalProgress] = useState(0);
 
   useEffect(() => {
     fetchQueues();
@@ -730,30 +733,35 @@ export default function QueueList({
       const caption = sections.filter(Boolean).join("\n\n");
 
       const uploadedUrls: string[] = [];
-      let firstChatId = "";
-      let firstMessageId = 0;
-      const results = await qcUpload(qcPhotos, {
-        type: 'qc_update',
+
+      setLocalProgress(10);
+      const timer = setInterval(() => {
+        setLocalProgress((prev) => {
+          if (prev >= 90) return prev
+          return prev + 15
+        });
+      }, 500);
+
+      const results = await upload.legacyUpload(
+        qcPhotos,
+        'qc_update',
         caption,
-      });
+        undefined,
+        (selectedService as any)?.branch_code || undefined
+      );
+
+      clearInterval(timer);
+      setLocalProgress(100);
       if (results.length > 0) {
         for (let i = 0; i < results.length; i++) {
           const r = results[i];
           uploadedUrls.push(r.url);
-          if (!firstChatId && r.chat_id) {
-            firstChatId = r.chat_id;
-            firstMessageId = r.message_id;
-          }
           await supabase.from("service_documentation").insert({
             service_order_id: selectedService.id,
             photo_url: r.url,
             stage: "qc",
             uploaded_by: user.id,
-            telegram_chat_id: r.chat_id,
-            telegram_message_id: r.message_id,
-            telegram_message_ids: results.map((x) => x.message_id).filter(Number.isFinite),
-            telegram_file_ids: results.map((x) => x.file_id).filter(Boolean),
-            telegram_sync: "synced",
+            ...buildTelegramMetadata(results),
           });
         }
       }

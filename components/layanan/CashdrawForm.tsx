@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useBranch } from "@/lib/context/BranchContext";
-import { useUpload } from "@/hooks/useUpload";
+import { useCentralUpload } from "@/hooks/useCentralUpload";
+import { buildTelegramMetadata } from "@/lib/telegram-metadata";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { X, Camera, Loader2, Send, User, Wallet, Hash, DollarSign, Phone } from "lucide-react";
@@ -19,7 +20,12 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
   const { user } = useAuthStore();
   const { activeBranch } = useBranch();
   const supabase = createClient();
-  const { uploadFile, uploading, progress } = useUpload();
+  const [sessionKey] = useState(
+    () => `cashdraw_${user?.id || "anon"}_${Date.now()}`,
+  );
+  const upload = useCentralUpload(sessionKey);
+  const [localProgress, setLocalProgress] = useState(0);
+  const { uploading } = upload;
   const fetchTransactions = useTransactionStore((s) => s.fetch);
 
   const [formData, setFormData] = useState({
@@ -63,9 +69,29 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
 
     setSubmitting(true);
     try {
-      // Upload foto
-      const uploadResult = await uploadFile(photoFile, { type: "layanan", caption: `Cashdraw ${formData.staff_name}` });
+      setLocalProgress(10);
+      const timer = setInterval(() => {
+        setLocalProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + 15;
+        });
+      }, 400);
+
+      const uploadResults = await upload.legacyUpload(
+        [photoFile],
+        "layanan",
+        `Cashdraw ${formData.staff_name}`,
+        undefined,
+        (activeBranch as any)?.code,
+      );
+      const uploadResult = uploadResults?.[0] || null;
+      clearInterval(timer);
+      setLocalProgress(100);
       const photoUrl = uploadResult?.url || "";
+
+      const telegramMeta = buildTelegramMetadata(
+        uploadResult ? [uploadResult] : [],
+      );
 
       // Dapatkan no hp staff
       const { data: staffProfile } = await supabase.from("profiles").select("phone").eq("id", selectedUserId).single();
@@ -82,11 +108,7 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         photo_urls: photoUrl ? [photoUrl] : [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} via ${formData.metode_pembayaran}`,
         branch_id: (activeBranch as any)?.id || null,
-        telegram_chat_id: uploadResult?.chat_id || null,
-        telegram_message_id: uploadResult?.message_id || null,
-        telegram_message_ids: uploadResult?.message_id ? [uploadResult.message_id] : [],
-        telegram_file_ids: uploadResult?.file_id ? [uploadResult.file_id] : [],
-        telegram_sync: "synced",
+        ...telegramMeta,
       }).select("id").single();
 
       if (errA) { toast.error("Gagal simpan cashdraw: " + errA.message); return; }
@@ -103,11 +125,7 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         photo_urls: photoUrl ? [photoUrl] : [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} (kompensasi cash)`,
         branch_id: (activeBranch as any)?.id || null,
-        telegram_chat_id: uploadResult?.chat_id || null,
-        telegram_message_id: uploadResult?.message_id || null,
-        telegram_message_ids: uploadResult?.message_id ? [uploadResult.message_id] : [],
-        telegram_file_ids: uploadResult?.file_id ? [uploadResult.file_id] : [],
-        telegram_sync: "synced",
+        ...telegramMeta,
       });
 
       if (errB) { toast.error("Gagal simpan pengeluaran cash: " + errB.message); return; }
@@ -222,10 +240,24 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         </div>
 
         {/* Submit */}
+        {submitting && (
+          <div>
+            <div className="flex justify-between text-xs text-slate-500 mb-1">
+              <span>Mengirim bukti...</span>
+              <span>{localProgress}%</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+              <div
+                className="bg-emerald-600 h-1 rounded-full transition-all duration-300"
+                style={{ width: `${localProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
         <button type="submit" disabled={submitting || uploading}
           className="w-full py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-700 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50">
           {submitting || uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          {submitting ? "Memproses..." : uploading ? `Upload ${Math.round(progress)}%` : "Ajukan Cashdraw"}
+          {submitting ? "Memproses..." : uploading ? `Mengirim bukti ${Math.round(localProgress)}%` : "Ajukan Cashdraw"}
         </button>
       </form>
     </motion.div>
