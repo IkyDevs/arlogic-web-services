@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ensureProfile } from '@/lib/supabase/profile'
 import { useRouter } from 'next/navigation'
 import { BranchProvider } from '@/lib/context/BranchContext'
-
+// asd
 export default function Providers({ children }: { children: React.ReactNode }) {
   const { user, setUser, setIsLoading, logout } = useAuthStore()
   const supabase = createClient()
