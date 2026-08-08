@@ -136,7 +136,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
     // Server-side guardrails (worker ini dipakai langsung oleh client, tanpa lapisan /api/upload)
     const MAX_FILES = 20
-    const MAX_IMG_BYTES = 15 * 1024 * 1024
+    const MAX_IMG_BYTES = 10 * 1024 * 1024
     const MAX_VIDEO_BYTES = 50 * 1024 * 1024
     const IMAGE_EXT = /^.*\.(jpg|jpeg|png|webp|heic|heif|avif)$/i
     const VIDEO_EXT = /^.*\.(mp4|mov|webm|3gp|3gpp|avi)$/i
@@ -382,7 +382,17 @@ async function handlePhotoProxy(request: Request, env: Env): Promise<Response> {
     /\.heic$/i.test(filePath) ? 'image/heic' :
     /\.gif$/i.test(filePath) ? 'image/gif' :
     ''
-  const contentType = mimeFromExt || fileRes.headers.get('content-type') || 'image/jpeg'
+  // Fallback: telusuri magic bytes file (berlaku saat path Telegram tanpa ekstensi,
+  // yang jika didefault ke image/jpeg membuat video tidak bisa diputar).
+  const bytes = new Uint8Array(buffer)
+  let sniffed = ''
+  if (bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11])
+    sniffed = brand === 'qt  ' ? 'video/quicktime' : 'video/mp4'
+  } else if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    sniffed = 'video/webm'
+  }
+  const contentType = sniffed || mimeFromExt || fileRes.headers.get('content-type') || 'image/jpeg'
   const total = buffer.byteLength
 
   const baseHeaders: Record<string, string> = {

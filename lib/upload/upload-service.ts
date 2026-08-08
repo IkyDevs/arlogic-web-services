@@ -25,6 +25,7 @@ import { uploadServiceConfig } from './upload-config'
 import { validateFiles, checkDuplicateFiles, validateCorrupted } from './upload-validator'
 import { compressFilesGenerator, compressToTarget } from './upload-compressor'
 import { generateId, createObjectURL, revokeObjectURL } from './upload-utils'
+import { ensureUploadableVideo } from '@/lib/video/transcode'
 import {
   saveFileToIndexedDB,
   getFileFromIndexedDB,
@@ -359,6 +360,7 @@ export class UploadService {
     caption?: string,
     timeout?: number,
     branchCode?: string,
+    onTranscodeProgress?: (percent: number) => void,
   ): Promise<Array<{ url: string; chat_id: string; message_id: number; file_id?: string }>> {
     console.log('[DEBUG:UploadService] legacyUpload CALLED', {
       files_count: files.length,
@@ -384,6 +386,12 @@ export class UploadService {
     const urls = [workerUrl].filter(Boolean)
     let lastError: any = null
 
+    // Video dipastikan playable + ≤48MB (HEVC→H.264, re-encode bila besar)
+    const preparedFiles: File[] = []
+    for (const f of files) {
+      preparedFiles.push(await ensureUploadableVideo(f, onTranscodeProgress))
+    }
+
     for (let i = 0; i < urls.length; i++) {
       const uploadUrl = urls[i]
       if (!uploadUrl) continue
@@ -395,7 +403,7 @@ export class UploadService {
       if (chatId) fd.append('chat_id', chatId)
       if (branchCode) fd.append('branch', branchCode)
       if (caption) fd.append('caption', caption)
-      for (const f of files) fd.append('files', f, f.name)
+      for (const f of preparedFiles) fd.append('files', f, f.name)
 
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), timeout || 120000)

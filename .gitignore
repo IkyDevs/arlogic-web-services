@@ -50,6 +50,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# cloudflare worker local dev artifacts
+workers/photo-proxy/.wrangler/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

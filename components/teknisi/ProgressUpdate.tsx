@@ -84,6 +84,7 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
             caption,
             undefined,
             undefined,
+            (p) => setLocalProgress(Math.min(85, 10 + Math.round(p * 0.75))),
           )
           clearInterval(timer)
           setLocalProgress(100)

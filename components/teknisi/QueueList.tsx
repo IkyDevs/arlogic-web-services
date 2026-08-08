@@ -751,7 +751,8 @@ export default function QueueList({
         'qc_update',
         caption,
         undefined,
-        (selectedService as any)?.branch_code || undefined
+        (selectedService as any)?.branch_code || undefined,
+        (p) => setLocalProgress(Math.min(85, 10 + Math.round(p * 0.75))),
       );
 
       clearInterval(timer);

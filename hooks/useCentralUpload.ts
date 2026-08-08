@@ -56,6 +56,7 @@ export interface UseCentralUploadReturn {
     caption?: string,
     timeout?: number,
     branchCode?: string,
+    onTranscodeProgress?: (percent: number) => void,
   ) => Promise<
     Array<{
       url: string;
@@ -288,6 +289,7 @@ export function useCentralUpload(sessionKey: string): UseCentralUploadReturn {
       caption?: string,
       timeout?: number,
       branchCode?: string,
+      onTranscodeProgress?: (percent: number) => void,
     ): Promise<
       Array<{
         url: string;
@@ -304,6 +306,7 @@ export function useCentralUpload(sessionKey: string): UseCentralUploadReturn {
           caption,
           timeout,
           branchCode,
+          onTranscodeProgress,
         );
         return results;
       } finally {

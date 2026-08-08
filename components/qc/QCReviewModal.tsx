@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isPlayableVideo } from "@/lib/media-utils";
 import SmartMedia from "@/components/ui/SmartMedia";
+import VideoThumb from "@/components/ui/VideoThumb";
 import { motion } from "framer-motion";
 import {
   X,
@@ -50,6 +51,38 @@ interface QCReviewModalProps {
   reviewerName?: string;
 }
 
+// Kecocokan fallback media ke event timeline untuk data lama: dokumentasi yang
+// diunggah ≤3 menit dari event dianggap bagian event tersebut.
+const MEDIA_MATCH_MS = 3 * 60 * 1000;
+
+function resolveEventMedia(
+  event: any,
+  docs: any[],
+): Array<{ url: string; mediaType: string | null }> {
+  const stored =
+    event.photo_urls ||
+    event.details?.all_photo_urls ||
+    (event.photo_url ? [event.photo_url] : null);
+  if (Array.isArray(stored) && stored.length > 0) {
+    const types = event.media_types || event.details?.media_types || [];
+    const primary = event.media_type || event.details?.media_type || null;
+    return stored
+      .filter((u: string) => typeof u === "string" && u.length > 0)
+      .map((u: string, i: number) => ({
+        url: u,
+        mediaType: types?.[i] || (i === 0 ? primary : null) || null,
+      }));
+  }
+  const t = new Date(event.created_at).getTime();
+  return docs
+    .filter(
+      (d) =>
+        d.photo_url &&
+        Math.abs(new Date(d.created_at).getTime() - t) <= MEDIA_MATCH_MS,
+    )
+    .map((d) => ({ url: d.photo_url, mediaType: d.media_type || null }));
+}
+
 export default function QCReviewModal({
   service,
   onClose,
@@ -90,6 +123,11 @@ export default function QCReviewModal({
   );
   const [previewZoomed, setPreviewZoomed] = useState(false);
   const [hasDraftData, setHasDraftData] = useState(false);
+  const [tlPreview, setTlPreview] = useState<{
+    url: string;
+    mediaType: string | null;
+  } | null>(null);
+  const validDocs = documentations.filter((d) => !!d.photo_url);
   const initialLoadDone = useRef(false);
   const supabase = createClient();
   const userId = reviewerId || "qc";
@@ -1527,6 +1565,49 @@ export default function QCReviewModal({
                         <p className="text-sm text-[var(--color-text)] font-medium">
                           {event.message}
                         </p>
+                        {(resolveEventMedia(event, documentations) || []).length >
+                          0 && (
+                          <div className="mt-2 space-y-2">
+                            {resolveEventMedia(event, documentations).map(
+                              (media, mediaIndex) =>
+                                isPlayableVideo(
+                                  media.mediaType,
+                                  media.url,
+                                ) ? (
+                                  <button
+                                    key={mediaIndex}
+                                    type="button"
+                                    onClick={() => setTlPreview(media)}
+                                    className="block w-full rounded-lg overflow-hidden border border-[var(--color-border)] bg-black relative group cursor-pointer"
+                                  >
+                                    <VideoThumb
+                                      src={media.url}
+                                      className="w-full max-h-72 object-contain bg-black"
+                                    />
+                                    <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                      <span className="bg-black/50 text-white rounded-full p-2 group-hover:bg-black/70">
+                                        ▶
+                                      </span>
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    key={mediaIndex}
+                                    type="button"
+                                    onClick={() => setTlPreview(media)}
+                                    className="block w-full rounded-lg overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)]"
+                                  >
+                                    <img
+                                      src={media.url}
+                                      alt=""
+                                      loading="lazy"
+                                      className="w-full max-h-72 object-contain"
+                                    />
+                                  </button>
+                                ),
+                            )}
+                          </div>
+                        )}
                         {event.details?.spareparts &&
                           event.details.spareparts.length > 0 && (
                             <div className="mt-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
@@ -1594,7 +1675,7 @@ export default function QCReviewModal({
                     Dokumentasi
                   </h4>
                   <span className="text-[10px] bg-[var(--color-card)] text-[var(--color-text-tertiary)] px-2 py-0.5 rounded-full border border-[var(--color-border)]">
-                    {documentations.length} foto
+                    {validDocs.length} foto
                   </span>
                 </div>
                 {expandedSections.photos ? (
@@ -1605,23 +1686,30 @@ export default function QCReviewModal({
               </button>
               {expandedSections.photos && (
                 <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                  {documentations.map((doc, index) => (
+                  {validDocs.map((doc, index) => (
                     <div
                       key={doc.id}
                       className="relative group cursor-pointer rounded-xl overflow-hidden border border-[var(--color-border)] aspect-square bg-[var(--color-card)]"
                       onClick={() => setPreviewPhotoIndex(index)}
                     >
-                      <img
-                        src={doc.photo_url}
-                        alt={`Photo ${index + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                      {isPlayableVideo(doc.media_type, doc.photo_url) && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <span className="bg-black/60 text-white text-xs font-semibold rounded-full px-2.5 py-1">
-                            ▶ Video
+                      {isPlayableVideo(doc.media_type, doc.photo_url) ? (
+                        <div className="relative w-full h-full">
+                          <VideoThumb
+                            src={doc.photo_url}
+                            className="w-full h-full object-contain bg-black"
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className="bg-black/50 text-white rounded-full p-1.5">
+                              ▶
+                            </span>
                           </span>
                         </div>
+                      ) : (
+                        <img
+                          src={doc.photo_url}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1.5">
                         <span className="text-[10px] text-white font-medium bg-black/50 px-1.5 py-0.5 rounded-md">
@@ -1692,7 +1780,7 @@ export default function QCReviewModal({
       </motion.div>
 
       {/* Photo Preview Modal */}
-      {previewPhotoIndex !== null && documentations[previewPhotoIndex] && (
+      {previewPhotoIndex !== null && validDocs[previewPhotoIndex] && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
           onClick={() => {
@@ -1709,17 +1797,17 @@ export default function QCReviewModal({
             <div className="flex items-center justify-between w-full mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-white text-sm">
-                  {previewPhotoIndex + 1} / {documentations.length}
+                  {previewPhotoIndex + 1} / {validDocs.length}
                 </span>
                 <span className="text-white/60 text-xs bg-white/10 px-2 py-0.5 rounded">
-                  {documentations[previewPhotoIndex].stage}
+                  {validDocs[previewPhotoIndex].stage}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() =>
                     window.open(
-                      documentations[previewPhotoIndex].photo_url,
+                      validDocs[previewPhotoIndex].photo_url,
                       "_blank",
                     )
                   }
@@ -1748,14 +1836,14 @@ export default function QCReviewModal({
               </div>
             </div>
             <SmartMedia
-              src={documentations[previewPhotoIndex].photo_url}
-              mediaType={documentations[previewPhotoIndex].media_type}
+              src={validDocs[previewPhotoIndex].photo_url}
+              mediaType={validDocs[previewPhotoIndex].media_type}
               imgClassName="max-w-full max-h-[75vh] rounded-lg object-contain bg-black"
               videoClassName="max-w-full max-h-[75vh] rounded-lg object-contain bg-black"
             />
-            {documentations.length > 1 && (
+            {validDocs.length > 1 && (
               <div className="flex items-center justify-center gap-2 mt-3">
-                {documentations.map((_, i) => (
+                {validDocs.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => {
@@ -1779,19 +1867,47 @@ export default function QCReviewModal({
                 Previous
               </button>
               <button
-                onClick={() => {
-                  setPreviewPhotoIndex(
-                    Math.min(documentations.length - 1, previewPhotoIndex + 1),
-                  );
-                  setPreviewZoomed(false);
-                }}
-                disabled={previewPhotoIndex >= documentations.length - 1}
+onClick={() => {
+                    setPreviewPhotoIndex(
+                      Math.min(validDocs.length - 1, previewPhotoIndex + 1),
+                    );
+                    setPreviewZoomed(false);
+                  }}
+                  disabled={previewPhotoIndex >= validDocs.length - 1}
                 className="px-4 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm disabled:opacity-30 transition-colors"
               >
                 Next
               </button>
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {tlPreview && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[80] p-4"
+          onClick={() => setTlPreview(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-end w-full mb-3">
+              <button
+                onClick={() => setTlPreview(null)}
+                className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <SmartMedia
+              src={tlPreview.url}
+              mediaType={tlPreview.mediaType}
+              imgClassName="max-w-full max-h-[75vh] rounded-lg object-contain bg-black"
+              videoClassName="max-w-full max-h-[75vh] rounded-lg object-contain bg-black"
+            />
+          </div>
         </div>
       )}
     </div>

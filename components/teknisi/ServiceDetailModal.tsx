@@ -29,6 +29,7 @@ import toast from "react-hot-toast";
 import { useAuthStore } from "@/stores/authStore";
 import { isPlayableVideo } from "@/lib/media-utils";
 import SmartMedia from "@/components/ui/SmartMedia";
+import VideoThumb from "@/components/ui/VideoThumb";
 
 interface ServiceDetailModalProps {
   isOpen: boolean;
@@ -69,11 +70,10 @@ export default function ServiceDetailModal({
       .order("created_at", { ascending: true });
 
     if (data) {
-      setPhotos(
-        (data as any[]).map((p) => p.photo_url),
-      );
+      const withUrl = (data as any[]).filter((p) => !!p.photo_url);
+      setPhotos(withUrl.map((p) => p.photo_url));
       setPhotoTypes(
-        (data as any[]).map((p) =>
+        withUrl.map((p) =>
           isPlayableVideo(p.media_type, p.photo_url) ? "video" : "image",
         ),
       );
@@ -267,14 +267,20 @@ export default function ServiceDetailModal({
                           setShowFullscreen(true);
                         }}
                       >
-                        <SmartMedia
-                          src={photo}
-                          mediaType={photoTypes[index]}
-                          imgClassName="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          videoClassName="w-full h-full object-contain bg-black"
-                        />
+                        {photoTypes[index] === "video" ? (
+                          <VideoThumb
+                            src={photo}
+                            className="w-full h-full object-contain bg-black"
+                          />
+                        ) : (
+                          <SmartMedia
+                            src={photo}
+                            mediaType="image"
+                            imgClassName="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        )}
                         {photoTypes[index] === "video" && (
-                          <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <span className="bg-black/50 text-white rounded-full p-2">
                               ▶
                             </span>

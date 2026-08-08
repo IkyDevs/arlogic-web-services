@@ -202,7 +202,7 @@ export async function uploadMultipleToTelegram(
       const result = await tgPost("sendVideo", formData, true);
       const chat_id = String(result.chat.id);
       const message_id = result.message_id;
-      const fileId = result.video?.[result.video.length - 1]?.file_id || "";
+      const fileId = result.video?.file_id || "";
       const url = fileId ? await getFileUrl(fileId) : "";
       return [{ url: url || "", chat_id, message_id, file_id: fileId }];
     }
@@ -234,14 +234,10 @@ export async function uploadMultipleToTelegram(
     const r = sendResult[i];
     const chat_id = String(r.chat.id);
     const message_id = r.message_id;
-    const mediaArr = r.photo || r.video;
-    if (mediaArr?.length) {
-      const fileId = mediaArr[mediaArr.length - 1].file_id;
-      const url = await getFileUrl(fileId);
-      results.push({ url: url || "", chat_id, message_id, file_id: fileId });
-    } else {
-      results.push({ url: "", chat_id, message_id, file_id: "" });
-    }
+    const photoArr = Array.isArray(r.photo) && r.photo.length > 0 ? r.photo : null;
+    const fileId = photoArr ? photoArr[photoArr.length - 1].file_id : r.video?.file_id || "";
+    const url = await getFileUrl(fileId);
+    results.push({ url: url || "", chat_id, message_id, file_id: fileId });
   }
 
   return results;
