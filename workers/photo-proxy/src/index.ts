@@ -198,7 +198,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
         }
 
         const msg = data.result
-        const fileId = msg.video?.[msg.video.length - 1]?.file_id || ''
+        const fileId = msg.video?.file_id || ''
         results.push({
           file_id: fileId,
           url: `${workerBase}/photos/${fileId}`,
@@ -258,8 +258,10 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
 
         if (data.ok) {
           for (const msg of data.result || []) {
-            const mediaArr = msg.photo || msg.video
-            const fileId = mediaArr?.[mediaArr.length - 1]?.file_id || ''
+            const mediaArr = msg.photo
+            const fileId = mediaArr
+              ? mediaArr[mediaArr.length - 1]?.file_id || ''
+              : msg.video?.file_id || ''
             results.push({
               file_id: fileId,
               url: workerUrl(fileId),
