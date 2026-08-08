@@ -8,6 +8,7 @@ import { ServiceOrder } from "@/types";
 import toast from "react-hot-toast";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { buildTelegramMetadata } from "@/lib/telegram-metadata";
+import { mediaTypeFromFile } from "@/lib/media-utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
@@ -120,6 +121,9 @@ export default function QueueList({
   );
   const qcInitialItemsRef = useRef<any[]>([]);
   const [serviceInfoPhotos, setServiceInfoPhotos] = useState<string[]>([]);
+  const [serviceInfoPhotoTypes, setServiceInfoPhotoTypes] = useState<
+    Array<"image" | "video">
+  >([]);
   const [serviceInfoPhotosLoading, setServiceInfoPhotosLoading] =
     useState(false);
 
@@ -761,6 +765,9 @@ export default function QueueList({
             photo_url: r.url,
             stage: "qc",
             uploaded_by: user.id,
+            media_type: qcPhotos[i]
+              ? mediaTypeFromFile(qcPhotos[i])
+              : "image",
             ...buildTelegramMetadata(results),
           });
         }
@@ -852,12 +859,15 @@ export default function QueueList({
 
     const { data } = await supabase
       .from("service_documentation")
-      .select("photo_url")
+      .select("photo_url, media_type")
       .eq("service_order_id", service.id)
       .order("created_at", { ascending: true });
 
     if (data) {
       setServiceInfoPhotos(data.map((p) => p.photo_url));
+      setServiceInfoPhotoTypes(
+        data.map((p) => (p.media_type === "video" ? "video" : "image")),
+      );
     }
     setServiceInfoPhotosLoading(false);
   };
@@ -1633,11 +1643,15 @@ export default function QueueList({
                             className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => window.open(photo, "_blank")}
                           >
-                            <img
-                              src={photo}
-                              alt={`Foto ${i + 1}`}
-                              className="w-full h-full object-cover"
-                            />
+                            {serviceInfoPhotoTypes[i] === "video" ? (
+                              <video src={photo} className="w-full h-full object-cover" />
+                            ) : (
+                              <img
+                                src={photo}
+                                alt={`Foto ${i + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
                           </div>
                         ))}
                       </div>

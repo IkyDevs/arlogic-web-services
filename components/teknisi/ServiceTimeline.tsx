@@ -3,13 +3,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
-import { useUpload } from '@/hooks/useUpload'
+import { useCentralUpload } from '@/hooks/useCentralUpload'
+import { buildTelegramMetadata } from '@/lib/telegram-metadata'
+import { isVideoFile } from '@/lib/upload/upload-config'
+import { isPlayableVideo, mediaTypeFromFile } from '@/lib/media-utils'
+import SmartMedia from '@/components/ui/SmartMedia'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Clock, Send, CheckCircle, AlertCircle,
   Wrench, Package, Camera, User, MessageSquare,
   ChevronDown, ChevronUp, Phone,
-  Check, X, Loader, Plus, ExternalLink
+  Check, X, Loader, Plus, ExternalLink, Video
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -40,9 +44,13 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   const [showTemplates, setShowTemplates] = useState(false)
   const [spareparts, setSpareparts] = useState<Array<{ name: string; qty: number; price: number }>>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { user } = useAuthStore()
-  const { uploadFile, uploading, progress } = useUpload()
+  const [sessionKey] = useState(() => `timeline_${serviceId}_${Date.now()}`)
+  const upload = useCentralUpload(sessionKey)
+  const [uploading, setUploading] = useState(false)
+  const [localProgress, setLocalProgress] = useState(0)
 
   useEffect(() => {
     fetchTimeline()
@@ -70,15 +78,14 @@ const removePhoto = () => {
     if (photoPreview) URL.revokeObjectURL(photoPreview)
     setPhotoPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (videoInputRef.current) videoInputRef.current.value = ''
   }
 
   const addTimelineUpdate = async (message: string, status?: string) => {
     if (!message.trim()) { toast.error('Masukkan pesan'); return }
     setLoading(true)
       let photoUrl = null
-      let tgChatId: string | null = null
-      let tgMessageId: number | null = null
-      let tgFileId: string | undefined
+      let uploadResult: Awaited<ReturnType<typeof upload.legacyUpload>>[number] | null = null
       try {
         const d = new Date();
         const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
@@ -86,30 +93,36 @@ const removePhoto = () => {
         const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
         let fullCaption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message || 'Progress service'}\nstatus: ${status || 'in_progress'}`;
 
+        let mediaType: 'image' | 'video' = 'image'
         if (selectedPhoto) {
-          const uploadResult = await uploadFile(selectedPhoto, { type: 'teknisi_update', caption: fullCaption })
-          if (!uploadResult) { toast.error('Failed to upload photo'); return }
-          photoUrl = uploadResult.url
-          tgChatId = uploadResult.chat_id || null
-          tgMessageId = uploadResult.message_id || null
-          tgFileId = uploadResult.file_id
+          mediaType = mediaTypeFromFile(selectedPhoto)
+          setUploading(true)
+          setLocalProgress(10)
+          const timer = setInterval(() => {
+            setLocalProgress((prev) => {
+              if (prev >= 90) return prev
+              return prev + 15
+            })
+          }, 400)
+          const results = await upload.legacyUpload([selectedPhoto], 'teknisi_update', fullCaption)
+          clearInterval(timer)
+          setLocalProgress(100)
+          uploadResult = results?.[0] || null
+          if (!uploadResult) { setUploading(false); toast.error('Failed to upload photo'); return }
         }
+        const telegramMeta = buildTelegramMetadata(uploadResult ? [uploadResult] : [])
 
-        // 1. Insert ke service_timeline
         const { error: timelineError } = await supabase.from('service_timeline').insert({
           service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
           message: message || 'Progress service',
-          photo_url: photoUrl,
-          details: { 
-            updated_by: user?.full_name, 
-            timestamp: new Date().toISOString(), 
-            has_photo: !!photoUrl,
+          photo_url: uploadResult?.url || null,
+          details: {
+            updated_by: user?.full_name,
+            timestamp: new Date().toISOString(),
+            has_photo: !!uploadResult,
+            media_type: uploadResult ? mediaType : null,
           },
-          telegram_chat_id: tgChatId,
-          telegram_message_id: tgMessageId,
-          telegram_message_ids: tgMessageId ? [tgMessageId] : [],
-          telegram_file_ids: tgFileId ? [tgFileId] : [],
-          telegram_sync: 'synced',
+          ...telegramMeta,
         })
       if (timelineError) throw timelineError
 
@@ -118,7 +131,7 @@ const removePhoto = () => {
       removePhoto()
       if (onUpdate) onUpdate()
     } catch (error: any) { toast.error(error.message) }
-    finally { setLoading(false) }
+    finally { setLoading(false); setUploading(false); setLocalProgress(0) }
   }
 
   const sendToCustomer = () => {
@@ -179,8 +192,13 @@ const removePhoto = () => {
                     </div>
                     <p className="text-sm text-gray-700">{update.message}</p>
                     {update.photo_url && (
-                      <img src={update.photo_url} alt="Update" className="mt-2 rounded-lg border border-gray-200 max-h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(update.photo_url, '_blank')} />
+                      <SmartMedia
+                        src={update.photo_url}
+                        mediaType={update.details?.media_type}
+                        imgClassName="mt-2 rounded-lg border border-gray-200 max-h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        videoClassName="mt-2 rounded-lg border border-gray-200 max-h-48 w-full object-contain bg-black"
+                        imgOnClick={() => window.open(update.photo_url, '_blank')}
+                      />
                     )}
                   </div>
                 </motion.div>
@@ -220,9 +238,13 @@ const removePhoto = () => {
           )}
         </AnimatePresence>
 
-        {photoPreview && (
+        {photoPreview && selectedPhoto && (
           <div className="relative mb-3">
-            <img src={photoPreview} alt="Preview" className="w-full h-28 object-cover rounded-xl border border-gray-200" />
+            {isVideoFile(selectedPhoto) ? (
+              <video src={photoPreview} controls className="w-full h-40 object-cover rounded-xl border border-gray-200" />
+            ) : (
+              <img src={photoPreview} alt="Preview" className="w-full h-28 object-cover rounded-xl border border-gray-200" />
+            )}
             <button onClick={removePhoto} className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"><X className="w-4 h-4" /></button>
           </div>
         )}
@@ -236,9 +258,15 @@ const removePhoto = () => {
         <div className="flex gap-2 mt-2 flex-wrap">
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
-            <Camera className="w-4 h-4" />{uploading ? `${progress}%` : 'Foto'}
+            <Camera className="w-4 h-4" />{uploading ? `${localProgress}%` : 'Foto'}
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
+
+          <button onClick={() => videoInputRef.current?.click()} disabled={uploading}
+            className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
+            <Video className="w-4 h-4" /> Video
+          </button>
+          <input ref={videoInputRef} type="file" accept="video/*" onChange={handlePhotoSelect} className="hidden" />
 
           <button onClick={() => addTimelineUpdate(newMessage)} disabled={loading || (!newMessage.trim() && !selectedPhoto)}
             className="flex-1 min-w-[100px] px-4 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1">

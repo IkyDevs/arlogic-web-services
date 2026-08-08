@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isPlayableVideo } from "@/lib/media-utils";
+import SmartMedia from "@/components/ui/SmartMedia";
 import { useBranchScope } from "@/lib/context/useBranchScope";
 import { motion } from "framer-motion";
 import {
@@ -78,7 +80,10 @@ export default function DoneService() {
     timeline: true,
     photos: true,
   });
-  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [previewPhoto, setPreviewPhoto] = useState<{
+    url: string;
+    media_type?: string | null;
+  } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -522,13 +527,17 @@ export default function DoneService() {
                                 <div
                                   key={p.id}
                                   className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer"
-                                  onClick={() => setPreviewPhoto(p.photo_url)}
+                                  onClick={() => setPreviewPhoto({ url: p.photo_url, media_type: p.media_type })}
                                 >
-                                  <img
-                                    src={p.photo_url}
-                                    alt="Before"
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                  />
+                                  {isPlayableVideo(p.media_type, p.photo_url) ? (
+                                    <video src={p.photo_url} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <img
+                                      src={p.photo_url}
+                                      alt="Before"
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    />
+                                  )}
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                                     <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                   </div>
@@ -549,13 +558,17 @@ export default function DoneService() {
                                 <div
                                   key={`${p.id}`}
                                   className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer"
-                                  onClick={() => setPreviewPhoto(p.photo_url)}
+                                  onClick={() => setPreviewPhoto({ url: p.photo_url, media_type: p.media_type })}
                                 >
-                                  <img
-                                    src={p.photo_url}
-                                    alt="During"
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                  />
+                                  {isPlayableVideo(p.media_type, p.photo_url) ? (
+                                    <video src={p.photo_url} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <img
+                                      src={p.photo_url}
+                                      alt="During"
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    />
+                                  )}
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                                     <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                   </div>
@@ -576,13 +589,17 @@ export default function DoneService() {
                                 <div
                                   key={p.id}
                                   className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white cursor-pointer"
-                                  onClick={() => setPreviewPhoto(p.photo_url)}
+                                  onClick={() => setPreviewPhoto({ url: p.photo_url, media_type: p.media_type })}
                                 >
-                                  <img
-                                    src={p.photo_url}
-                                    alt="After"
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                  />
+                                  {isPlayableVideo(p.media_type, p.photo_url) ? (
+                                    <video src={p.photo_url} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <img
+                                      src={p.photo_url}
+                                      alt="After"
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    />
+                                  )}
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                                     <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                   </div>
@@ -617,14 +634,15 @@ export default function DoneService() {
               >
                 <Download
                   className="w-4 h-4"
-                  onClick={() => window.open(previewPhoto, "_blank")}
+                  onClick={() => window.open(previewPhoto.url, "_blank")}
                 />
                 <X className="w-5 h-5" />
               </button>
-              <img
-                src={previewPhoto}
-                alt="Preview"
-                className="max-w-full max-h-[80vh] rounded-xl shadow-2xl"
+              <SmartMedia
+                src={previewPhoto.url}
+                mediaType={previewPhoto.media_type}
+                imgClassName="max-w-full max-h-[80vh] rounded-xl shadow-2xl"
+                videoClassName="max-w-full max-h-[80vh] rounded-xl shadow-2xl bg-black"
               />
             </motion.div>
           </div>

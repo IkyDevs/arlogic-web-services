@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { X, Camera, CheckCircle, Loader, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { usePhotoUpload } from '@/hooks/usePhotoUpload'
+import { useCentralUpload } from '@/hooks/useCentralUpload'
+import { buildTelegramMetadata } from '@/lib/telegram-metadata'
 
 interface SparepartReadyModalProps {
   isOpen: boolean
@@ -25,7 +26,11 @@ export default function SparepartReadyModal({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
-  const { uploadFile } = usePhotoUpload()
+  const [sessionKey] = useState(
+    () => `sparepart_${service?.id || 'anon'}_${Date.now()}`,
+  )
+  const upload = useCentralUpload(sessionKey)
+  const [localProgress, setLocalProgress] = useState(0)
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -49,18 +54,22 @@ export default function SparepartReadyModal({
 
     try {
       let photoUrl = null
-      let tgChatId: string | null = null
-      let tgMessageId: number | null = null
-      let tgFileId: string | undefined
+      let uploadResult: Awaited<ReturnType<typeof upload.legacyUpload>>[number] | null = null
       if (photoFile) {
-        const result = await uploadFile(photoFile, { type: 'service' })
-        if (result) {
-          photoUrl = result.url
-          tgChatId = result.chat_id || null
-          tgMessageId = result.message_id || null
-          tgFileId = result.file_id
-        }
+        setLocalProgress(10)
+        const timer = setInterval(() => {
+          setLocalProgress((prev) => {
+            if (prev >= 90) return prev
+            return prev + 15
+          })
+        }, 400)
+        const results = await upload.legacyUpload([photoFile], 'service')
+        clearInterval(timer)
+        setLocalProgress(100)
+        uploadResult = results?.[0] || null
+        if (uploadResult) photoUrl = uploadResult.url
       }
+      const telegramMeta = buildTelegramMetadata(uploadResult ? [uploadResult] : [])
 
       // Update dengan po_status yang valid
       const { error } = await supabase
@@ -86,11 +95,7 @@ export default function SparepartReadyModal({
           photo: photoUrl,
           notes: notes
         },
-        telegram_chat_id: tgChatId,
-        telegram_message_id: tgMessageId,
-        telegram_message_ids: tgMessageId ? [tgMessageId] : [],
-        telegram_file_ids: tgFileId ? [tgFileId] : [],
-        telegram_sync: 'synced',
+        ...telegramMeta,
       })
 
       await supabase.from('notifications').insert({
@@ -181,6 +186,20 @@ export default function SparepartReadyModal({
             />
           </div>
 
+          {loading && (
+            <div>
+              <div className="flex justify-between text-xs text-slate-500 mb-1">
+                <span>Mengirim bukti...</span>
+                <span>{localProgress}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
+                <div
+                  className="bg-green-500 h-1 rounded-full transition-all duration-300"
+                  style={{ width: `${localProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
           <button
             onClick={handleSubmit}
             disabled={loading}

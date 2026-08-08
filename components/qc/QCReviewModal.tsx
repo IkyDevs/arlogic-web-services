@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isPlayableVideo } from "@/lib/media-utils";
+import SmartMedia from "@/components/ui/SmartMedia";
 import { motion } from "framer-motion";
 import {
   X,
@@ -1614,6 +1616,13 @@ export default function QCReviewModal({
                         alt={`Photo ${index + 1}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       />
+                      {isPlayableVideo(doc.media_type, doc.photo_url) && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <span className="bg-black/60 text-white text-xs font-semibold rounded-full px-2.5 py-1">
+                            ▶ Video
+                          </span>
+                        </div>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1.5">
                         <span className="text-[10px] text-white font-medium bg-black/50 px-1.5 py-0.5 rounded-md">
                           {doc.stage || "Progress"}
@@ -1738,11 +1747,11 @@ export default function QCReviewModal({
                 </button>
               </div>
             </div>
-            <img
+            <SmartMedia
               src={documentations[previewPhotoIndex].photo_url}
-              alt={`Photo ${previewPhotoIndex + 1}`}
-              className={`max-w-full max-h-[75vh] rounded-lg object-contain transition-all duration-200 ${previewZoomed ? "scale-150 cursor-zoom-out" : "cursor-zoom-in"}`}
-              onClick={() => setPreviewZoomed(!previewZoomed)}
+              mediaType={documentations[previewPhotoIndex].media_type}
+              imgClassName="max-w-full max-h-[75vh] rounded-lg object-contain bg-black"
+              videoClassName="max-w-full max-h-[75vh] rounded-lg object-contain bg-black"
             />
             {documentations.length > 1 && (
               <div className="flex items-center justify-center gap-2 mt-3">

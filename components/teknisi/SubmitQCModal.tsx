@@ -11,6 +11,8 @@ import {
 import toast from "react-hot-toast";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { buildTelegramMetadata } from "@/lib/telegram-metadata";
+import { mediaTypeFromFile } from "@/lib/media-utils";
+import { isVideoFile } from "@/lib/upload/upload-config";
 import { uploadConfig } from "@/lib/uploadConfig";
 
 const MAX_FILES = uploadConfig.IMAGE_MAX_FILES;
@@ -205,6 +207,7 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
             photo_url: r.url,
             stage: "qc",
             uploaded_by: user.id,
+            media_type: photos[i] ? mediaTypeFromFile(photos[i]) : "image",
             ...buildTelegramMetadata(results),
           });
         }
@@ -331,12 +334,16 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
             <div className="grid grid-cols-3 gap-2 mb-3">
               {photoPreviews.map((preview, i) => (
                 <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50">
-                  <img src={preview} alt="" className="w-full h-full object-cover" />
+                  {photos[i] && isVideoFile(photos[i]) ? (
+                    <video src={preview} className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={preview} alt="" className="w-full h-full object-cover" />
+                  )}
                   <button onClick={() => removePhoto(i)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100"><X className="w-3 h-3" /></button>
                 </div>
               ))}
               <button onClick={() => fileInputRef.current?.click()}
-                className="aspect-square border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center hover:border-gray-900 transition-colors bg-gray-50 dark:bg-white/5">
+                className="aspect-video border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center hover:border-gray-900 transition-colors bg-gray-50 dark:bg-white/5">
                 <Camera className="w-6 h-6 text-gray-300" />
               </button>
               <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePhotoUpload} className="hidden" />

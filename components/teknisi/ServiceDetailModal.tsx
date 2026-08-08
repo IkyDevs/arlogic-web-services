@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/stores/authStore";
+import { isPlayableVideo } from "@/lib/media-utils";
+import SmartMedia from "@/components/ui/SmartMedia";
 
 interface ServiceDetailModalProps {
   isOpen: boolean;
@@ -45,6 +47,7 @@ export default function ServiceDetailModal({
 }: ServiceDetailModalProps) {
   const [loading, setLoading] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [photoTypes, setPhotoTypes] = useState<Array<"image" | "video">>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showFullscreen, setShowFullscreen] = useState(false);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
@@ -61,12 +64,19 @@ export default function ServiceDetailModal({
     setLoadingPhotos(true);
     const { data } = await supabase
       .from("service_documentation")
-      .select("photo_url")
+      .select("photo_url, media_type")
       .eq("service_order_id", service.id)
       .order("created_at", { ascending: true });
 
     if (data) {
-      setPhotos(data.map((p) => p.photo_url));
+      setPhotos(
+        (data as any[]).map((p) => p.photo_url),
+      );
+      setPhotoTypes(
+        (data as any[]).map((p) =>
+          isPlayableVideo(p.media_type, p.photo_url) ? "video" : "image",
+        ),
+      );
     }
     setLoadingPhotos(false);
   };
@@ -257,11 +267,19 @@ export default function ServiceDetailModal({
                           setShowFullscreen(true);
                         }}
                       >
-                        <img
+                        <SmartMedia
                           src={photo}
-                          alt={`Service ${index + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          mediaType={photoTypes[index]}
+                          imgClassName="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          videoClassName="w-full h-full object-contain bg-black"
                         />
+                        {photoTypes[index] === "video" && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="bg-black/50 text-white rounded-full p-2">
+                              ▶
+                            </span>
+                          </span>
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                           <span className="text-white text-[10px] font-medium bg-black/50 px-2 py-0.5 rounded-full">
                             Foto {index + 1}
@@ -444,10 +462,11 @@ export default function ServiceDetailModal({
                 </button>
 
                 <div className="relative w-full h-[70vh] flex items-center justify-center">
-                  <img
+                  <SmartMedia
                     src={photos[currentPhotoIndex]}
-                    alt={`Service photo ${currentPhotoIndex + 1}`}
-                    className="max-w-full max-h-full object-contain rounded-xl"
+                    mediaType={photoTypes[currentPhotoIndex]}
+                    imgClassName="max-w-full max-h-full object-contain rounded-xl"
+                    videoClassName="max-w-full max-h-full object-contain rounded-xl bg-black"
                   />
                 </div>
 

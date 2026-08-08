@@ -34,7 +34,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
 ]
 
 function getAllowedOrigins(env: Env): Set<string> {
-  const override = process.env?.ALLOWED_ORIGINS || (env as any)?.ALLOWED_ORIGINS
+  const override = env?.ALLOWED_ORIGINS
   if (!override) return new Set(DEFAULT_ALLOWED_ORIGINS)
   return new Set(override.split(',').map((o) => o.trim()).filter(Boolean))
 }
@@ -231,39 +231,73 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
         })
       }
     } else {
-      // Multiple files (foto +/ video) → sendMediaGroup (campuran didukung Telegram)
-      const media = files.map((f, idx) => ({
-        type: isVideo(f) ? 'video' : 'photo',
-        media: `attach://file_${idx}`,
-        ...(idx === 0 && caption ? { caption } : {}),
-      }))
-
-      const mediaForm = new FormData()
-      mediaForm.append('chat_id', chatId)
-      mediaForm.append('media', JSON.stringify(media))
-      files.forEach((f, idx) => mediaForm.append(`file_${idx}`, f, f.name))
-
-      const res = await fetch(`${botUrl}/sendMediaGroup`, { method: 'POST', body: mediaForm })
-      const data: any = await res.json()
-
-      if (!data.ok) {
-        return new Response(JSON.stringify({ error: data.description || 'Telegram API error' }), {
-          status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+      // Multiple files → sendMediaGroup, dibagi per 10 (batas album Telegram)
+      const ALBUM_MAX = 10
+      const chunks: File[][] = []
+      for (let i = 0; i < files.length; i += ALBUM_MAX) {
+        chunks.push(files.slice(i, i + ALBUM_MAX))
       }
 
-      const workerUrl = (fileId: string) =>
-        `${workerBase}/photos/${fileId}`
+      const workerUrl = (fileId: string) => `${workerBase}/photos/${fileId}`
 
-      for (const msg of data.result || []) {
-        const mediaArr = msg.photo || msg.video
-        const fileId = mediaArr?.[mediaArr.length - 1]?.file_id || ''
-        results.push({
-          file_id: fileId,
-          url: workerUrl(fileId),
-          chat_id: String(msg.chat.id),
-          message_id: msg.message_id,
-        })
+      for (let c = 0; c < chunks.length; c++) {
+        const chunk = chunks[c]
+        const media = chunk.map((f, idx) => ({
+          type: isVideo(f) ? 'video' : 'photo',
+          media: `attach://file_${idx}`,
+          ...(c === 0 && idx === 0 && caption ? { caption } : {}),
+        }))
+
+        const mediaForm = new FormData()
+        mediaForm.append('chat_id', chatId)
+        mediaForm.append('media', JSON.stringify(media))
+        chunk.forEach((f, idx) => mediaForm.append(`file_${idx}`, f, f.name))
+
+        const res = await fetch(`${botUrl}/sendMediaGroup`, { method: 'POST', body: mediaForm })
+        const data: any = await res.json()
+
+        if (data.ok) {
+          for (const msg of data.result || []) {
+            const mediaArr = msg.photo || msg.video
+            const fileId = mediaArr?.[mediaArr.length - 1]?.file_id || ''
+            results.push({
+              file_id: fileId,
+              url: workerUrl(fileId),
+              chat_id: String(msg.chat.id),
+              message_id: msg.message_id,
+            })
+          }
+          continue
+        }
+
+        // Album gagal (mis. IMAGE_PROCESS_FAILED pada 1 file) → fallback kirim per-file
+        // agar satu foto bermasalah tidak menggagalkan seluruh batch
+        for (const f of chunk) {
+          const single = new FormData()
+          single.append('chat_id', chatId)
+          single.append(isVideo(f) ? 'video' : 'photo', f, f.name)
+          if (f === chunk[0] && caption) single.append('caption', caption)
+          single.append('parse_mode', 'HTML')
+
+          const singleRes = await fetch(
+            isVideo(f)
+              ? `${botUrl}/sendVideo`
+              : `${botUrl}/sendPhoto`,
+            { method: 'POST', body: single },
+          )
+          const singleData: any = await singleRes.json()
+          if (!singleData.ok) continue
+
+          const msg = singleData.result
+          const mediaArr = msg.photo || msg.video
+          const fileId = mediaArr?.[mediaArr.length - 1]?.file_id || ''
+          results.push({
+            file_id: fileId,
+            url: workerUrl(fileId),
+            chat_id: String(msg.chat.id),
+            message_id: msg.message_id,
+          })
+        }
       }
     }
 
@@ -308,11 +342,14 @@ async function handlePhotoProxy(request: Request, env: Env): Promise<Response> {
   const fileId = match[1]
   if (!env.TELEGRAM_BOT_TOKEN) return new Response('Missing token', { status: 500 })
 
-  // Try cache
+  // Try cache (hanya untk response penuh, bukan 206 Range)
   const cache = caches.default
   const cacheKey = `https://photos.cache/${fileId}`
-  const cached = await cache.match(cacheKey)
-  if (cached) return cached
+  const hasRange = request.headers.has('Range')
+  if (!hasRange) {
+    const cached = await cache.match(cacheKey)
+    if (cached) return cached
+  }
 
   // getFile → file_path
   const getFile = await fetch(`${TELEGRAM_API}/bot${env.TELEGRAM_BOT_TOKEN}/getFile`, {
@@ -330,13 +367,60 @@ async function handlePhotoProxy(request: Request, env: Env): Promise<Response> {
   if (!fileRes.ok) return new Response('Failed to fetch', { status: 502 })
 
   const buffer = await fileRes.arrayBuffer()
-  const contentType = fileRes.headers.get('content-type') || 'image/jpeg'
+  // Telegram download headers sering `application/octet-stream` atau kosong → browser
+  // menolak memutar video. MIME ditentukan dari ekstensi file Telegram sebagai sumber paling akurat.
+  const filePath = (fileData.result.file_path || '').toLowerCase()
+  const mimeFromExt =
+    /\.mp4$/i.test(filePath) ? 'video/mp4' :
+    /\.(mov|qt)$/i.test(filePath) ? 'video/quicktime' :
+    /\.webm$/i.test(filePath) ? 'video/webm' :
+    /\.(3gp|3gpp)$/i.test(filePath) ? 'video/3gpp' :
+    /\.png$/i.test(filePath) ? 'image/png' :
+    /\.webp$/i.test(filePath) ? 'image/webp' :
+    /\.heic$/i.test(filePath) ? 'image/heic' :
+    /\.gif$/i.test(filePath) ? 'image/gif' :
+    ''
+  const contentType = mimeFromExt || fileRes.headers.get('content-type') || 'image/jpeg'
+  const total = buffer.byteLength
+
+  const baseHeaders: Record<string, string> = {
+    'Content-Type': contentType,
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': `public, max-age=${CACHE_TTL}`,
+    'Access-Control-Allow-Origin': '*',
+  }
+
+  // Range request (video → browser minta 206 partial)
+  if (hasRange) {
+    const rangeHeader = request.headers.get('Range') || ''
+    const m = rangeHeader.match(/bytes=(\d*)-(\d*)/)
+    if (m) {
+      let start = m[1] === '' ? 0 : parseInt(m[1], 10)
+      let end = m[2] === '' ? total - 1 : parseInt(m[2], 10)
+      if (isNaN(start) || start < 0) start = 0
+      if (isNaN(end) || end >= total) end = total - 1
+      if (start > end || start >= total) {
+        return new Response(null, {
+          status: 416,
+          headers: { ...baseHeaders, 'Content-Range': `bytes */${total}` },
+        })
+      }
+      const slice = buffer.slice(start, end + 1)
+      return new Response(slice, {
+        status: 206,
+        headers: {
+          ...baseHeaders,
+          'Content-Range': `bytes ${start}-${end}/${total}`,
+          'Content-Length': String(slice.byteLength),
+        },
+      })
+    }
+  }
 
   const response = new Response(buffer, {
     headers: {
-      'Content-Type': contentType,
-      'Cache-Control': `public, max-age=${CACHE_TTL}`,
-      'Access-Control-Allow-Origin': '*',
+      ...baseHeaders,
+      'Content-Length': String(total),
     },
   })
 

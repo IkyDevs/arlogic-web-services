@@ -25,8 +25,10 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
   );
   const upload = useCentralUpload(sessionKey);
   const [localProgress, setLocalProgress] = useState(0);
-  const { uploading } = upload;
+  const uploading = upload.uploading;
   const fetchTransactions = useTransactionStore((s) => s.fetch);
+  const updateTx = useTransactionStore((s) => s.update);
+  const submittingRef = useRef(false);
 
   const [formData, setFormData] = useState({
     staff_name: user?.full_name || "",
@@ -66,37 +68,37 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
     if (!formData.metode_pembayaran) { toast.error("Pilih metode pembayaran"); return; }
     if (!photoFile) { toast.error("Upload bukti pembayaran"); return; }
     if (!selectedUserId) { toast.error("Staff tidak valid"); return; }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
 
     setSubmitting(true);
     try {
-      setLocalProgress(10);
-      const timer = setInterval(() => {
-        setLocalProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + 15;
-        });
-      }, 400);
+      // Simpan foto ke IndexedDB untuk recovery bila upload gagal
+      if (photoFile) {
+        await upload.addFiles([photoFile]).catch(() => {});
+      }
 
-      const uploadResults = await upload.legacyUpload(
-        [photoFile],
-        "layanan",
-        `Cashdraw ${formData.staff_name}`,
-        undefined,
-        (activeBranch as any)?.code,
-      );
-      const uploadResult = uploadResults?.[0] || null;
-      clearInterval(timer);
-      setLocalProgress(100);
-      const photoUrl = uploadResult?.url || "";
+      const now = new Date();
+      const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+      const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      const fmtDateTime = `${dayNames[now.getDay()]}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}, ${now.getHours().toString().padStart(2, "0")}.${now.getMinutes().toString().padStart(2, "0")}.${now.getSeconds().toString().padStart(2, "0")}`;
+      const metodeLabels: Record<string, string> = {
+        qris: "QRIS",
+        tf_bca: "TF BCA",
+        tf_mandiri: "TF Mandiri",
+      };
+      const caption = `💰 CASHDRAW
 
-      const telegramMeta = buildTelegramMetadata(
-        uploadResult ? [uploadResult] : [],
-      );
+tanggal : ${fmtDateTime}
+staff : ${formData.staff_name}
+nominal : Rp ${nominal.toLocaleString("id-ID")}
+jenis pembayaran : ${metodeLabels[formData.metode_pembayaran] || formData.metode_pembayaran}
+operator : ${user?.full_name || "Admin"}`;
 
       // Dapatkan no hp staff
       const { data: staffProfile } = await supabase.from("profiles").select("phone").eq("id", selectedUserId).single();
 
-      // Entry A: cashdraw (QRIS/TF bertambah)
+      // Entry A: cashdraw (QRIS/TF bertambah) — simpan instan tanpa URL foto
       const { data: entryA, error: errA } = await supabase.from("layanan").insert({
         customer_name: formData.staff_name,
         customer_whatsapp: staffProfile?.phone || formData.staff_phone,
@@ -105,16 +107,18 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         nominal: nominal,
         handled_by: selectedUserId,
         handled_by_name: formData.staff_name,
-        photo_urls: photoUrl ? [photoUrl] : [],
+        photo_urls: [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} via ${formData.metode_pembayaran}`,
         branch_id: (activeBranch as any)?.id || null,
-        ...telegramMeta,
+        upload_session_key: sessionKey,
+        photo_status: "pending",
+        upload_status: "PENDING",
       }).select("id").single();
 
       if (errA) { toast.error("Gagal simpan cashdraw: " + errA.message); return; }
 
-      // Entry B: pengeluaran (Cash berkurang)
-      const { error: errB } = await supabase.from("layanan").insert({
+      // Entry B: pengeluaran (Cash berkurang) — simpan instan tanpa URL foto
+      const { data: entryB, error: errB } = await supabase.from("layanan").insert({
         customer_name: formData.staff_name,
         customer_whatsapp: staffProfile?.phone || formData.staff_phone,
         jenis_layanan: "pengeluaran",
@@ -122,41 +126,90 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
         nominal: nominal,
         handled_by: selectedUserId,
         handled_by_name: formData.staff_name,
-        photo_urls: photoUrl ? [photoUrl] : [],
+        photo_urls: [],
         notes: `Cashdraw: ${formData.staff_name} tarik tunai Rp ${nominal.toLocaleString("id-ID")} (kompensasi cash)`,
         branch_id: (activeBranch as any)?.id || null,
-        ...telegramMeta,
-      });
+        upload_session_key: sessionKey,
+        photo_status: "pending",
+        upload_status: "PENDING",
+      }).select("id").single();
 
       if (errB) { toast.error("Gagal simpan pengeluaran cash: " + errB.message); return; }
 
-      // Kirim ke Telegram (buku kas)
-      const botToken = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
-      const chatId = process.env.NEXT_PUBLIC_TELEGRAM_BOOK_CASH;
-      if (botToken && chatId) {
-        const msg = `🧾 *CASHDRAW*\\n\\n👤 Staff: ${formData.staff_name}\\n💰 Nominal: Rp ${nominal.toLocaleString("id-ID")}\\n💳 Metode: ${formData.metode_pembayaran}\\n📅 ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
-        try {
-          await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: "Markdown" }),
-          });
-          if (photoUrl) {
-            await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, photo: photoUrl, caption: `Bukti cashdraw ${formData.staff_name}` }),
-            });
-          }
-        } catch {}
-      }
+      const cashdrawId = entryA?.id;
+      const pengeluaranId = entryB?.id;
 
-      toast.success("Cashdraw berhasil");
+      // Popup langsung close — staff lanjut kerja
+      toast.success("Cashdraw berhasil disimpan! Foto diproses di background.");
       fetchTransactions();
       onSuccess?.();
       onClose?.();
+
+      // Upload background → update KEDUA baris + store
+      if (cashdrawId && pengeluaranId) {
+        upload
+          .legacyUpload([photoFile], "layanan", caption, undefined, (activeBranch as any)?.code)
+          .then(async (results) => {
+            const r = results?.[0];
+            if (r?.url) {
+              const meta = buildTelegramMetadata([r]);
+              const payload = {
+                photo_urls: [r.url],
+                photo_url: r.url,
+                photo_status: "completed",
+                upload_status: "SUCCESS",
+                ...meta,
+              } as any;
+              const [upA, upB] = await Promise.all([
+                supabase.from("layanan").update(payload).eq("id", cashdrawId),
+                supabase.from("layanan").update(payload).eq("id", pengeluaranId),
+              ]);
+              if (upA.error) throw upA.error;
+              if (upB.error) throw upB.error;
+
+              // Update store lokal (foto langsung tampil tanpa refresh)
+              updateTx(cashdrawId, { photo_urls: [r.url], photo_url: r.url, upload_status: "SUCCESS" as any });
+              updateTx(pengeluaranId, { photo_urls: [r.url], photo_url: r.url, upload_status: "SUCCESS" as any });
+              upload.clear();
+
+              // Kirim ke Telegram (buku kas)
+              const botToken = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
+              const bookChatId = process.env.NEXT_PUBLIC_TELEGRAM_BOOK_CASH;
+              if (botToken && bookChatId) {
+                const msg = `🧾 *CASHDRAW*\\n\\n👤 Staff: ${formData.staff_name}\\n💰 Nominal: Rp ${nominal.toLocaleString("id-ID")}\\n💳 Metode: ${formData.metode_pembayaran}\\n📅 ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+                try {
+                  await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chat_id: bookChatId, text: msg, parse_mode: "Markdown" }),
+                  });
+                  await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chat_id: bookChatId, photo: r.url, caption: `Bukti cashdraw ${formData.staff_name}` }),
+                  });
+                } catch {}
+              }
+            } else {
+              throw new Error("Foto gagal dikirim");
+            }
+          })
+          .catch(async (err: any) => {
+            console.error("[Cashdraw] Background upload failed:", err);
+            const failedPayload = { photo_status: "failed", upload_status: "FAILED" } as any;
+            const updA = await supabase.from("layanan").update(failedPayload).eq("id", cashdrawId);
+            const updB = await supabase.from("layanan").update(failedPayload).eq("id", pengeluaranId);
+            if (updA.error || updB.error) {
+              console.error("[Cashdraw] Failed to mark FAILED:", updA.error || updB.error);
+            }
+            window.dispatchEvent(
+              new CustomEvent("layanan-retry-upload", { detail: { txId: pengeluaranId } }),
+            );
+          });
+      }
     } catch (err: any) {
       toast.error("Gagal: " + err.message);
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   };
 

@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useBranchScope } from "@/lib/context/useBranchScope";
 import { useBranch } from "@/lib/context/BranchContext";
 import { useAuthStore } from "@/stores/authStore";
-import { useUpload } from "@/hooks/useUpload";
+import { useCentralUpload } from "@/hooks/useCentralUpload";
+import { buildTelegramMetadata } from "@/lib/telegram-metadata";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -45,7 +46,11 @@ export default function InventoryManagement({
   const { branches, activeBranch } = useBranch();
   const isCentral = activeBranch?.is_central === true || activeBranch?.code === "JBR";
   const { user } = useAuthStore();
-  const { uploadFile, uploading, progress } = useUpload();
+  const [sessionKey] = useState(
+    () => `inventory_${user?.id || "anon"}_${Date.now()}`,
+  );
+  const upload = useCentralUpload(sessionKey);
+  const [localProgress, setLocalProgress] = useState(0);
 
   const [formData, setFormData] = useState({
     item_name: "",
@@ -266,9 +271,9 @@ export default function InventoryManagement({
 
     setLoading(true);
     let photoUrl = "";
-    let tgChatId: string | null = null;
-    let tgMessageId: number | null = null;
-    let tgFileId: string | undefined;
+    let transferUploadResult: Awaited<
+      ReturnType<typeof upload.legacyUpload>
+    >[number] | null = null;
 
     try {
       if (transferPhotoFile) {
@@ -284,15 +289,26 @@ export default function InventoryManagement({
 ⏰ ${new Date().toLocaleString("id-ID")}
  `;
 
-        const transferUpload = await uploadFile(transferPhotoFile, {
-          type: "inventory",
-          caption: caption,
-        });
-        photoUrl = transferUpload?.url || "";
-        tgChatId = transferUpload?.chat_id || null;
-        tgMessageId = transferUpload?.message_id || null;
-        tgFileId = transferUpload?.file_id;
+        setLocalProgress(10);
+        const timer = setInterval(() => {
+          setLocalProgress((prev) => {
+            if (prev >= 90) return prev;
+            return prev + 15;
+          });
+        }, 400);
+        const results = await upload.legacyUpload(
+          [transferPhotoFile],
+          "inventory",
+          caption,
+        );
+        clearInterval(timer);
+        setLocalProgress(100);
+        transferUploadResult = results?.[0] || null;
+        photoUrl = transferUploadResult?.url || "";
       }
+      const transferTelegramMeta = buildTelegramMetadata(
+        transferUploadResult ? [transferUploadResult] : [],
+      );
 
       const { error: transferError } = await supabase
         .from("stock_transfers")
@@ -304,11 +320,7 @@ export default function InventoryManagement({
           notes: transferNotes || null,
           photo_url: photoUrl || null,
           created_by: user?.id,
-          telegram_chat_id: tgChatId,
-          telegram_message_id: tgMessageId,
-          telegram_message_ids: tgMessageId ? [tgMessageId] : [],
-          telegram_file_ids: tgFileId ? [tgFileId] : [],
-          telegram_sync: "synced",
+          ...transferTelegramMeta,
         });
 
       if (transferError) throw transferError;
@@ -360,9 +372,9 @@ export default function InventoryManagement({
 
     setLoading(true);
     let photoUrl = "";
-    let tgChatId: string | null = null;
-    let tgMessageId: number | null = null;
-    let tgFileId: string | undefined;
+    let itemUploadResult: Awaited<
+      ReturnType<typeof upload.legacyUpload>
+    >[number] | null = null;
 
     try {
       if (photoFile) {
@@ -382,16 +394,27 @@ export default function InventoryManagement({
 ⏰ ${new Date().toLocaleString("id-ID")}
  `;
 
-        const itemUpload = await uploadFile(photoFile, {
-          type: "inventory",
-          caption: itemCaption,
-        });
-        photoUrl = itemUpload?.url || "";
-        tgChatId = itemUpload?.chat_id || null;
-        tgMessageId = itemUpload?.message_id || null;
-        tgFileId = itemUpload?.file_id;
+        setLocalProgress(10);
+        const timer = setInterval(() => {
+          setLocalProgress((prev) => {
+            if (prev >= 90) return prev;
+            return prev + 15;
+          });
+        }, 400);
+        const results = await upload.legacyUpload(
+          [photoFile],
+          "inventory",
+          itemCaption,
+        );
+        clearInterval(timer);
+        setLocalProgress(100);
+        itemUploadResult = results?.[0] || null;
+        photoUrl = itemUploadResult?.url || "";
         setUploadingPhoto(false);
       }
+      const itemTelegramMeta = buildTelegramMetadata(
+        itemUploadResult ? [itemUploadResult] : [],
+      );
 
       const dataToInsert = {
         item_name: formData.item_name,
@@ -403,11 +426,7 @@ export default function InventoryManagement({
         min_stock: parseInt(formData.min_stock) || 0,
         price: parseInt(formData.price) || 0,
         photo_url: photoUrl || null,
-        telegram_chat_id: tgChatId,
-        telegram_message_id: tgMessageId,
-        telegram_message_ids: tgMessageId ? [tgMessageId] : [],
-        telegram_file_ids: tgFileId ? [tgFileId] : [],
-        telegram_sync: "synced",
+        ...itemTelegramMeta,
       };
 
       if (editingId) {

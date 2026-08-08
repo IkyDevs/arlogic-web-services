@@ -2,6 +2,8 @@
 
 import { use, useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isPlayableVideo } from "@/lib/media-utils";
+import SmartMedia from "@/components/ui/SmartMedia";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import ServiceCostBreakdown from "@/components/ui/ServiceCostBreakdown";
@@ -68,7 +70,11 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
   const [copiedId, setCopiedId] = useState(false);
   const [queuePosition, setQueuePosition] = useState<{ position: number; total: number; currentWork: string | null; currentWorkPos: number | null } | null>(null);
   const [expandedSections, setExpandedSections] = useState({ device: true, items: false, timeline: true, photos: false });
-  const [photoModal, setPhotoModal] = useState<string | null>(null);
+  interface PhotoModalState {
+  url: string;
+  media_type?: string | null;
+}
+  const [photoModal, setPhotoModal] = useState<PhotoModalState | null>(null);
   const [branchContact, setBranchContact] = useState<{ name: string; phone: string } | null>(null);
   const [trackingRequestName, setTrackingRequestName] = useState("");
   const [trackingRequestInvoice, setTrackingRequestInvoice] = useState("");
@@ -657,8 +663,12 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
                     {initialPhotos.map((photo, i) => (
                       <motion.div key={photo.id || i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
                         className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square cursor-pointer"
-                        onClick={() => setPhotoModal(photo.photo_url)}>
-                        <img src={photo.photo_url} alt={"Kondisi Awal " + (i + 1)} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                        onClick={() => setPhotoModal({ url: photo.photo_url, media_type: photo.media_type })}>
+                        {isPlayableVideo(photo.media_type, photo.photo_url) ? (
+                          <video src={photo.photo_url} className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={photo.photo_url} alt={"Kondisi Awal " + (i + 1)} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                        )}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
                             <Search className="w-4 h-4 text-slate-800" />
@@ -687,16 +697,26 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
                   {initialPhotos.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-slate-500 mb-2">Kondisi Awal</p>
-                      <img src={initialPhotos[0].photo_url} alt="Before"
-                        className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
-                        onClick={() => setPhotoModal(initialPhotos[0].photo_url)} />
+                      {isPlayableVideo(initialPhotos[0].media_type, initialPhotos[0].photo_url) ? (
+                        <video src={initialPhotos[0].photo_url} className="rounded-xl border border-slate-200 w-full aspect-square object-cover" onClick={() => setPhotoModal({ url: initialPhotos[0].photo_url, media_type: 'video' })} />
+                      ) : (
+                        <img src={initialPhotos[0].photo_url} alt="Before"
+                          className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
+                          onClick={() => setPhotoModal({ url: initialPhotos[0].photo_url, media_type: initialPhotos[0].media_type })} />
+                      )}
                     </div>
                   )}
                   <div>
                     <p className="text-xs font-medium text-slate-500 mb-2">Hasil Service</p>
-                    <img src={qcPhotos[0].photo_url} alt="After"
-                      className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
-                      onClick={() => setPhotoModal(qcPhotos[0].photo_url)} />
+                    {qcPhotos.length > 0 && (
+                      isPlayableVideo(qcPhotos[0].media_type, qcPhotos[0].photo_url) ? (
+                        <video src={qcPhotos[0].photo_url} className="rounded-xl border border-slate-200 w-full aspect-square object-cover" onClick={() => setPhotoModal({ url: qcPhotos[0].photo_url, media_type: 'video' })} />
+                      ) : (
+                        <img src={qcPhotos[0].photo_url} alt="After"
+                          className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
+                          onClick={() => setPhotoModal({ url: qcPhotos[0].photo_url, media_type: qcPhotos[0].media_type })} />
+                      )
+                    )}
                   </div>
                 </div>
               </div>
@@ -772,8 +792,13 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
                         </div>
                         <p className="text-sm text-slate-700">{update.message}</p>
                         {update.photo_url && (
-                          <img src={update.photo_url} alt="Progress" className="mt-2 rounded-lg border border-slate-200 max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(update.photo_url, "_blank")} />
+                          <SmartMedia
+                            src={update.photo_url}
+                            mediaType={update.details?.media_type}
+                            imgClassName="mt-2 rounded-lg border border-slate-200 max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            videoClassName="mt-2 rounded-lg border border-slate-200 max-h-48 w-full object-contain bg-black"
+                            imgOnClick={() => window.open(update.photo_url, "_blank")}
+                          />
                         )}
                       </div>
                     </div>
@@ -904,7 +929,12 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
             <button onClick={() => setPhotoModal(null)} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors">
               <X className="w-6 h-6" />
             </button>
-            <img src={photoModal} alt="Photo" className="w-full rounded-2xl shadow-2xl" />
+            <SmartMedia
+              src={photoModal.url}
+              mediaType={photoModal.media_type}
+              imgClassName="w-full rounded-2xl shadow-2xl"
+              videoClassName="w-full rounded-2xl shadow-2xl bg-black"
+            />
           </motion.div>
         </div>
       )}
