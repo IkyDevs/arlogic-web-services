@@ -57,3 +57,4 @@ workers/photo-proxy/.wrangler/
 *.tsbuildinfo
 next-env.d.ts
 c.txt
+.env*
