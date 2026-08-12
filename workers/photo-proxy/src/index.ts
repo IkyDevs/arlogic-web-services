@@ -182,13 +182,15 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
     if (files.length === 1) {
       const f = files[0]
       if (isVideo(f)) {
+        // JANGAN ganti ke sendVideo: Telegram re-encode → kualitas rusak.
+        // sendDocument menyimpan file asli; playable via /photos/:file_id.
         const videoForm = new FormData()
         videoForm.append('chat_id', chatId)
-        videoForm.append('video', f, f.name)
+        videoForm.append('document', f, f.name)
         if (caption) videoForm.append('caption', caption)
         videoForm.append('parse_mode', 'HTML')
 
-        const res = await fetch(`${botUrl}/sendVideo`, { method: 'POST', body: videoForm })
+        const res = await fetch(`${botUrl}/sendDocument`, { method: 'POST', body: videoForm })
         const data: any = await res.json()
 
         if (!data.ok) {
@@ -198,7 +200,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
         }
 
         const msg = data.result
-        const fileId = msg.video?.file_id || ''
+        const fileId = msg.document?.file_id || msg.video?.file_id || ''
         results.push({
           file_id: fileId,
           url: `${workerBase}/photos/${fileId}`,
@@ -243,7 +245,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
       for (let c = 0; c < chunks.length; c++) {
         const chunk = chunks[c]
         const media = chunk.map((f, idx) => ({
-          type: isVideo(f) ? 'video' : 'photo',
+          type: isVideo(f) ? 'document' : 'photo',
           media: `attach://file_${idx}`,
           ...(c === 0 && idx === 0 && caption ? { caption } : {}),
         }))
@@ -261,7 +263,7 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
             const mediaArr = msg.photo
             const fileId = mediaArr
               ? mediaArr[mediaArr.length - 1]?.file_id || ''
-              : msg.video?.file_id || ''
+              : msg.document?.file_id || msg.video?.file_id || ''
             results.push({
               file_id: fileId,
               url: workerUrl(fileId),
@@ -277,13 +279,13 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
         for (const f of chunk) {
           const single = new FormData()
           single.append('chat_id', chatId)
-          single.append(isVideo(f) ? 'video' : 'photo', f, f.name)
+          single.append(isVideo(f) ? 'document' : 'photo', f, f.name)
           if (f === chunk[0] && caption) single.append('caption', caption)
           single.append('parse_mode', 'HTML')
 
           const singleRes = await fetch(
             isVideo(f)
-              ? `${botUrl}/sendVideo`
+              ? `${botUrl}/sendDocument`
               : `${botUrl}/sendPhoto`,
             { method: 'POST', body: single },
           )
@@ -291,8 +293,10 @@ async function handleUpload(request: Request, env: Env): Promise<Response> {
           if (!singleData.ok) continue
 
           const msg = singleData.result
-          const mediaArr = msg.photo || msg.video
-          const fileId = mediaArr?.[mediaArr.length - 1]?.file_id || ''
+          const photo = msg.photo
+          const fileId = photo
+            ? photo[photo.length - 1]?.file_id || ''
+            : msg.document?.file_id || msg.video?.file_id || ''
           results.push({
             file_id: fileId,
             url: workerUrl(fileId),
@@ -391,6 +395,12 @@ async function handlePhotoProxy(request: Request, env: Env): Promise<Response> {
     sniffed = brand === 'qt  ' ? 'video/quicktime' : 'video/mp4'
   } else if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
     sniffed = 'video/webm'
+  } else if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    sniffed = 'image/jpeg'
+  } else if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    sniffed = 'image/png'
+  } else if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
+    sniffed = 'image/webp'
   }
   const contentType = sniffed || mimeFromExt || fileRes.headers.get('content-type') || 'image/jpeg'
   const total = buffer.byteLength
