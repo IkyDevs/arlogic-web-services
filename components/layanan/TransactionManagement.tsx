@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
-import { motion } from "framer-motion";
-import { Search, X, ShoppingCart, FileText, Receipt, Banknote, TrendingUp, Phone } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, X, ShoppingCart, FileText, Receipt, Banknote, Phone } from "lucide-react";
 import LayananList from "./LayananList";
 import PengeluaranForm from "./PengeluaranForm";
 import CashdrawForm from "./CashdrawForm";
@@ -15,6 +15,7 @@ import { computeAnalytics } from "@/lib/domain/transaction/service";
 import { jenisLayananLabels } from "@/lib/domain/transaction/enums";
 import { useBranchScope } from "@/lib/context/useBranchScope";
 import BranchSelector from "@/components/ui/BranchSelector";
+import { PeriodFilter, type PeriodValue, DEFAULT_PERIOD } from "@/components/filters/PeriodFilter";
 
 const paymentLabels: Record<string, string> = {
   cash: "Cash", qris: "QRIS", edc: "EDC", transfer: "Transfer",
@@ -22,15 +23,67 @@ const paymentLabels: Record<string, string> = {
   edc_mandiri: "EDC Mandiri", bri: "BRI", kudus: "Kudus", split_payment: "Split Payment",
 };
 
+// Cache untuk hasil fetch
+type CacheKey = string;
+interface CacheEntry {
+  transactions: any[];
+  analytics: any;
+  timestamp: number;
+}
+const transactionCache = new Map<CacheKey, CacheEntry>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 menit
+
+function getCacheKey(periodValue: PeriodValue, branchId?: string | null): CacheKey {
+  const periodStr = periodValue.type === "hari" ? periodValue.date :
+    periodValue.type === "bulan" ? periodValue.month :
+    periodValue.type === "tahun" ? periodValue.year :
+    periodValue.type === "custom" ? `${periodValue.range?.start}-${periodValue.range?.end}` :
+    "default";
+  return `${branchId || 'all'}-${periodValue.type}-${periodStr}`;
+}
+
+function getCachedData(key: CacheKey): CacheEntry | null {
+  const entry = transactionCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_DURATION) {
+    transactionCache.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function setCachedData(key: CacheKey, transactions: any[], analytics: any) {
+  transactionCache.set(key, { transactions, analytics, timestamp: Date.now() });
+}
+
+// Loading animation component
+function LoadingSpinner() {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 space-y-4">
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-slate-900 animate-spin" />
+        <div className="absolute inset-0 w-12 h-12 rounded-full border-4 border-transparent border-t-blue-500 animate-spin" style={{ animationDuration: '1.5s' }} />
+      </div>
+      <div className="flex flex-col items-center space-y-1">
+        <p className="text-sm font-medium text-slate-600 animate-pulse">Memuat data...</p>
+        <div className="flex space-x-1">
+          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TransactionManagement({ isDark = false }: { isDark?: boolean }) {
   const { transactions, analytics, fetch, loading } = useTransactionStore();
   const { branchId } = useBranchScope();
-  const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun" | "custom">("hari");
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
-  const [customRange, setCustomRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
-  const [showCustomRange, setShowCustomRange] = useState(false);
+  
+  // Period filter state
+  const [periodValue, setPeriodValue] = useState<PeriodValue>(DEFAULT_PERIOD);
+  
+  // UI states
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[]; filterKey?: string; filterType?: string } | null>(null);
   const [activeStatusFilter, setActiveStatusFilter] = useState<string>("");
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -38,48 +91,100 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editData, setEditData] = useState<any>(null);
+  
+  // Refs
+  const fetchTimeoutRef = useRef<NodeJS.Timeout>();
+  const isInitialMount = useRef(true);
 
-  const getFetchParams = useCallback(() => {
-    switch (filterPeriod) {
+  // Convert PeriodValue to fetch params
+  const getFetchParams = useCallback((value: PeriodValue) => {
+    switch (value.type) {
       case "hari":
-        return { dateFilter: selectedDate };
+        return { dateFilter: value.date };
       case "bulan":
-        return { monthFilter: selectedMonth };
+        return { monthFilter: value.month };
       case "tahun":
-        return { yearFilter: selectedYear };
+        return { yearFilter: value.year };
       case "custom":
-        if (customRange.start && customRange.end) {
-          return { customRange };
+        if (value.range?.start && value.range?.end) {
+          return { customRange: value.range };
         }
         return {};
       default:
         return {};
     }
-  }, [filterPeriod, selectedDate, selectedMonth, selectedYear, customRange]);
+  }, []);
 
-  const fetchWithFilter = useCallback(() => {
-    const params = getFetchParams();
-    fetch(
-      params.dateFilter,
-      branchId,
-      params.monthFilter,
-      params.yearFilter,
-      params.customRange
-    );
+  // Debounced fetch with cache
+  const fetchWithPeriod = useCallback((value: PeriodValue) => {
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+    
+    fetchTimeoutRef.current = setTimeout(async () => {
+      const cacheKey = getCacheKey(value, branchId);
+      
+      // Check cache first
+      const cached = getCachedData(cacheKey);
+      if (cached) {
+        useTransactionStore.setState({ 
+          transactions: cached.transactions, 
+          analytics: cached.analytics,
+          loading: false 
+        });
+        return;
+      }
+      
+      try {
+        const params = getFetchParams(value);
+        await fetch(
+          params.dateFilter,
+          branchId,
+          params.monthFilter,
+          params.yearFilter,
+          params.customRange
+        );
+        
+        // Cache the result
+        const state = useTransactionStore.getState();
+        setCachedData(cacheKey, state.transactions, state.analytics);
+      } catch (err) {
+        console.error("Fetch error:", err);
+        toast.error("Gagal memuat data");
+      }
+    }, 300);
   }, [fetch, branchId, getFetchParams]);
 
+  // Handle period change
+  const handlePeriodChange = useCallback((value: PeriodValue) => {
+    setPeriodValue(value);
+    fetchWithPeriod(value);
+  }, [fetchWithPeriod]);
+
+  // Initial fetch
   useEffect(() => {
-    fetchWithFilter();
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      fetchWithPeriod(DEFAULT_PERIOD);
+    }
+    
     const cleanup = realtimeService;
     const ids = [
-      cleanup.subscribe("layanan", "INSERT", () => fetchWithFilter()),
-      cleanup.subscribe("layanan", "UPDATE", () => fetchWithFilter()),
-      cleanup.subscribe("layanan", "DELETE", () => fetchWithFilter()),
+      cleanup.subscribe("layanan", "INSERT", () => {
+        transactionCache.clear();
+        fetchWithPeriod(periodValue);
+      }),
+      cleanup.subscribe("layanan", "UPDATE", () => {
+        transactionCache.clear();
+        fetchWithPeriod(periodValue);
+      }),
+      cleanup.subscribe("layanan", "DELETE", () => {
+        transactionCache.clear();
+        fetchWithPeriod(periodValue);
+      }),
     ];
     return () => ids.forEach((id) => cleanup.unsubscribe(id));
-  }, [fetchWithFilter]);
+  }, [fetchWithPeriod, periodValue]);
 
-  // Listen retry upload: buka edit form + recover foto dari IndexedDB
+  // Listen retry upload
   useEffect(() => {
     const handler = (e: any) => {
       const txId = e.detail?.txId;
@@ -95,10 +200,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
     return () => window.removeEventListener("layanan-retry-upload", handler);
   }, []);
 
-  const filteredTransactions = useMemo(() => {
-    return transactions;
-  }, [transactions]);
-
+  const filteredTransactions = useMemo(() => transactions, [transactions]);
   const filteredAnalytics = useMemo(() => computeAnalytics(filteredTransactions), [filteredTransactions]);
 
   const BarItem = ({ label, value, pct, onClick }: { label: string; value: string | number; pct: number; onClick?: () => void }) => (
@@ -178,6 +280,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
 
   return (
     <div className="flex-1 flex flex-col gap-2 overflow-hidden min-h-0">
+      {/* Desktop Header */}
       <div className="hidden sm:flex items-start justify-between gap-4 flex-shrink-0">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Total Pendapatan</p>
@@ -205,46 +308,16 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <BranchSelector />
-            <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
-              {(["hari", "bulan", "tahun", "custom"] as const).map((p) => (
-                <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
-                  className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"}`}>
-                  {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : p === "tahun" ? "Tahunan" : "Range"}
-                </button>
-              ))}
-            {filterPeriod === "hari" && (
-              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[110px]" />
-            )}
-            {filterPeriod === "bulan" && (
-              <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}
-                className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[130px]" />
-            )}
-            {filterPeriod === "tahun" && (
-              <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} min="2000" max="2100"
-                className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[80px]" />
-            )}
-            {filterPeriod === "custom" && (
-              <div className="flex items-center gap-1 ml-1 pr-1">
-                <input type="date" value={customRange.start} onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
-                  className="px-1.5 py-1.5 text-[10px] border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[100px]" />
-                <span className="text-[10px] text-slate-400">-</span>
-                <input type="date" value={customRange.end} onChange={(e) => setCustomRange(prev => {
-                  const newEnd = e.target.value;
-                  if (prev.start && newEnd && newEnd < prev.start) {
-                    toast.error("Tanggal akhir tidak boleh lebih awal dari tanggal mulai");
-                    return prev;
-                  }
-                  return { ...prev, end: newEnd };
-                })}
-                  className="px-1.5 py-1.5 text-[10px] border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[100px]" />
-              </div>
-            )}
-            </div>
+            <PeriodFilter
+              value={periodValue}
+              onChange={handlePeriodChange}
+              showReset={true}
+            />
           </div>
         </div>
       </div>
 
+      {/* Mobile Header */}
       <div className="sm:hidden space-y-2 flex-shrink-0">
         <p className="text-[10px] font-semibold text-slate-400 uppercase">Total Pendapatan</p>
         <p className="text-xl font-bold text-slate-900">{formatRupiah(filteredAnalytics.totalRevenue)}</p>
@@ -253,6 +326,16 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           <span className="text-slate-300">|</span>
           <span className="text-slate-500">Peng: {formatRupiah(filteredAnalytics.totalExpenses)}</span>
         </div>
+        
+        {/* Mobile Filter */}
+        <div className="flex items-center gap-2">
+          <PeriodFilter
+            value={periodValue}
+            onChange={handlePeriodChange}
+            showReset={true}
+          />
+        </div>
+        
         <div className="flex flex-wrap items-center gap-1.5">
           <button onClick={() => setShowAddForm(true)}
             className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center justify-center gap-1.5 shadow-sm">
@@ -269,6 +352,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
         </div>
       </div>
 
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 flex-shrink-0">
         {[
           { label: "Pemasukan", value: formatRupiah(filteredAnalytics.totalRevenue), color: "green" },
@@ -283,6 +367,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
         ))}
       </div>
 
+      {/* Analytics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 flex-shrink-0">
         <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
           <p className="text-[10px] md:text-sm font-bold text-blue-600 uppercase mb-1 md:mb-2">Jenis Layanan</p>
@@ -359,6 +444,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
         </div>
       </div>
 
+      {/* Transaction List */}
       <div className="flex-1 flex flex-col min-h-0">
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 flex-shrink-0">
@@ -369,12 +455,17 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
             <span className="text-[10px] font-medium text-slate-400">{filteredAnalytics.total} total</span>
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
-            <LayananList isAdmin={true} compact={false} statusFilter={activeStatusFilter} onEdit={handleEdit} />
+            {loading ? (
+              <LoadingSpinner />
+            ) : (
+              <LayananList isAdmin={true} compact={false} statusFilter={activeStatusFilter} onEdit={handleEdit} />
+            )}
           </div>
         </div>
       </div>
 
       <FilterModal />
+      
       {showAddForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
           <LayananForm onSuccess={() => setShowAddForm(false)} onClose={() => setShowAddForm(false)} />

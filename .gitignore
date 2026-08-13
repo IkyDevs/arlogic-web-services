@@ -58,3 +58,6 @@ workers/photo-proxy/.wrangler/
 next-env.d.ts
 c.txt
 .env*
+
+# opencode session files
+.omo/
