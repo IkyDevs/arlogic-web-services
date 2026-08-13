@@ -13,7 +13,7 @@ export function MonthSelector({ selectedMonth, onChange, year }: MonthSelectorPr
   const currentMonth = new Date().toISOString().slice(0, 7)
 
   return (
-    <div className="grid grid-cols-3 gap-1.5 p-2">
+    <div className="grid grid-cols-3 gap-2 sm:gap-1.5 p-2">
       {MONTH_NAMES.map((monthName, index) => {
         const monthValue = String(index + 1).padStart(2, "0")
         const fullMonth = `${year}-${monthValue}`
@@ -25,7 +25,7 @@ export function MonthSelector({ selectedMonth, onChange, year }: MonthSelectorPr
             key={monthValue}
             onClick={() => onChange(fullMonth)}
             className={`
-              relative px-2 py-2.5 rounded-lg text-xs font-medium transition-all
+              relative px-3 py-3 sm:px-2 sm:py-2.5 rounded-lg text-sm sm:text-xs font-medium transition-all
               ${
                 isSelected
                   ? "bg-slate-900 text-white shadow-sm"

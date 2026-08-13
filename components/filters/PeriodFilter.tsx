@@ -72,21 +72,21 @@ export function PeriodFilter({
         onClick={() => !disabled && setIsDropdownOpen(!isDropdownOpen)}
         disabled={disabled}
         className={`
-          flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg 
-          text-xs font-medium transition-all shadow-sm
+          flex items-center gap-2 px-3 py-2.5 bg-white border border-slate-200 rounded-lg 
+          text-xs font-medium transition-all shadow-sm min-h-[38px]
           ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 hover:border-slate-300 cursor-pointer"}
           ${isDropdownOpen ? "ring-2 ring-slate-900/10 border-slate-300" : ""}
         `}
       >
-        <Calendar className="w-3.5 h-3.5 text-slate-500" />
+        <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
         <span className="hidden sm:inline max-w-[150px] truncate">
           {displayLabel}
         </span>
-        <span className="sm:hidden max-w-[100px] truncate">
+        <span className="sm:hidden max-w-[80px] truncate text-[11px]">
           {shortLabel}
         </span>
         <ChevronDown
-          className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${
+          className={`w-3 h-3 text-slate-400 transition-transform duration-200 flex-shrink-0 ${
             isDropdownOpen ? "rotate-180" : ""
           }`}
         />
@@ -97,14 +97,14 @@ export function PeriodFilter({
         onClick={() => !disabled && setIsRangeModalOpen(true)}
         disabled={disabled}
         className={`
-          flex items-center gap-1.5 px-2.5 py-2 bg-white border border-slate-200 rounded-lg 
-          text-xs font-medium transition-all shadow-sm
+          flex items-center gap-1.5 px-2.5 py-2.5 bg-white border border-slate-200 rounded-lg 
+          text-xs font-medium transition-all shadow-sm min-h-[38px]
           ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 hover:border-slate-300 cursor-pointer"}
           ${value.type === "custom" ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800" : "text-slate-600"}
         `}
         title="Range Tanggal"
       >
-        <Filter className="w-3.5 h-3.5" />
+        <Filter className="w-3.5 h-3.5 flex-shrink-0" />
         <span className="hidden sm:inline">Range</span>
       </button>
 
@@ -114,8 +114,8 @@ export function PeriodFilter({
           onClick={handleReset}
           disabled={disabled}
           className={`
-            p-2 bg-white border border-slate-200 rounded-lg text-slate-400
-            transition-all shadow-sm
+            p-2.5 bg-white border border-slate-200 rounded-lg text-slate-400
+            transition-all shadow-sm min-h-[38px] min-w-[38px] flex items-center justify-center
             ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 hover:text-slate-600 cursor-pointer"}
           `}
           title="Reset ke Hari Ini"
