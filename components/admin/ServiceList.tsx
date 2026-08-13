@@ -35,6 +35,16 @@ const movementIcons: Record<string, any> = {
   analog_digital: Watch, smartwatch: Smartphone,
 };
 
+const statusOptions = [
+  { value: "", label: "Semua Status" },
+  { value: "pending", label: "Menunggu" },
+  { value: "assigned", label: "Ditugaskan" },
+  { value: "in_progress", label: "Dalam Pengerjaan" },
+  { value: "qc_pending", label: "Quality Check" },
+  { value: "completed", label: "Selesai" },
+  { value: "cancelled", label: "Dibatalkan" },
+];
+
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
@@ -43,7 +53,7 @@ function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
 }
 
-function getStatusColor(status: string) {
+const getStatusColor = (status: string) => {
   const map: Record<string, string> = {
     pending: "bg-slate-100 text-slate-700 border-slate-200",
     assigned: "bg-blue-100 text-blue-700 border-blue-200",
@@ -53,11 +63,21 @@ function getStatusColor(status: string) {
     sparepart_ready: "bg-teal-100 text-teal-700 border-teal-200",
     qc_pending: "bg-indigo-100 text-indigo-700 border-indigo-200",
     revision_required: "bg-rose-100 text-rose-700 border-rose-200",
-    completed: "bg-green-100 text-green-700 border-green-200",
+    completed: "bg-green-100 text-green-200 border-green-200",
     cancelled: "bg-red-100 text-red-700 border-red-200",
   };
   return map[status] || map.pending;
 }
+
+const statusFilterOptions = [
+  { value: "", label: "Semua Status" },
+  { value: "pending", label: "Menunggu" },
+  { value: "assigned", label: "Ditugaskan" },
+  { value: "in_progress", label: "Dalam Pengerjaan" },
+  { value: "qc_pending", label: "QC Pending" },
+  { value: "completed", label: "Selesai" },
+  { value: "cancelled", label: "Dibatalkan" },
+];
 
 export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const supabase = createClient();
@@ -66,6 +86,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [movementFilter, setMovementFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
@@ -81,8 +102,9 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
   const fetchServices = async () => {
     setLoading(true);
-    let q = supabase.from("service_orders").select("*").neq("status", "done").order(sortField, { ascending: sortDir === "asc" });
+    let q = supabase.from("service_orders").select("*, profiles:assigned_teknisi_id(full_name)").neq("status", "done").order(sortField, { ascending: sortDir === "asc" });
     if (branchId) q = q.eq("branch_id", branchId);
+    if (statusFilter) q = q.eq("status", statusFilter);
     if (movementFilter) q = q.eq("watch_movement", movementFilter);
     if (categoryFilter) q = q.eq("category", categoryFilter);
     if (search.trim()) {
@@ -391,6 +413,10 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-[10px] text-slate-500">Estimasi Biaya</p>
                   <p className="text-sm font-bold text-slate-900">{selectedService.estimated_cost ? fmtRupiah(selectedService.estimated_cost) : "-"}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <p className="text-[10px] text-slate-500">Teknisi</p>
+                  <p className="text-sm font-bold text-slate-900">{(selectedService.profiles as any)?.full_name || "-"}</p>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-emerald-100">
                   <p className="text-[10px] text-slate-500">Down Payment</p>

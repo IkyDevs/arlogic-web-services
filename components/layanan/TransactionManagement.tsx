@@ -25,25 +25,59 @@ const paymentLabels: Record<string, string> = {
 export default function TransactionManagement({ isDark = false }: { isDark?: boolean }) {
   const { transactions, analytics, fetch, loading } = useTransactionStore();
   const { branchId } = useBranchScope();
-  const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun">("hari");
+  const [filterPeriod, setFilterPeriod] = useState<"hari" | "bulan" | "tahun" | "custom">("hari");
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const [customRange, setCustomRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [showCustomRange, setShowCustomRange] = useState(false);
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[]; filterKey?: string; filterType?: string } | null>(null);
+  const [activeStatusFilter, setActiveStatusFilter] = useState<string>("");
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showCashdrawForm, setShowCashdrawForm] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editData, setEditData] = useState<any>(null);
 
+  const getFetchParams = useCallback(() => {
+    switch (filterPeriod) {
+      case "hari":
+        return { dateFilter: selectedDate };
+      case "bulan":
+        return { monthFilter: selectedMonth };
+      case "tahun":
+        return { yearFilter: selectedYear };
+      case "custom":
+        if (customRange.start && customRange.end) {
+          return { customRange };
+        }
+        return {};
+      default:
+        return {};
+    }
+  }, [filterPeriod, selectedDate, selectedMonth, selectedYear, customRange]);
+
+  const fetchWithFilter = useCallback(() => {
+    const params = getFetchParams();
+    fetch(
+      params.dateFilter,
+      branchId,
+      params.monthFilter,
+      params.yearFilter,
+      params.customRange
+    );
+  }, [fetch, branchId, getFetchParams]);
+
   useEffect(() => {
-    fetch(undefined, branchId);
+    fetchWithFilter();
     const cleanup = realtimeService;
     const ids = [
-      cleanup.subscribe("layanan", "INSERT", () => fetch(undefined, branchId)),
-      cleanup.subscribe("layanan", "UPDATE", () => fetch(undefined, branchId)),
-      cleanup.subscribe("layanan", "DELETE", () => fetch(undefined, branchId)),
+      cleanup.subscribe("layanan", "INSERT", () => fetchWithFilter()),
+      cleanup.subscribe("layanan", "UPDATE", () => fetchWithFilter()),
+      cleanup.subscribe("layanan", "DELETE", () => fetchWithFilter()),
     ];
     return () => ids.forEach((id) => cleanup.unsubscribe(id));
-  }, [fetch, branchId]);
+  }, [fetchWithFilter]);
 
   // Listen retry upload: buka edit form + recover foto dari IndexedDB
   useEffect(() => {
@@ -62,18 +96,8 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   }, []);
 
   const filteredTransactions = useMemo(() => {
-    let data = transactions;
-    if (filterPeriod === "hari") {
-      data = data.filter((d) => d.created_at?.startsWith(selectedDate));
-    } else if (filterPeriod === "bulan") {
-      const month = new Date().toISOString().slice(0, 7);
-      data = data.filter((d) => d.created_at?.startsWith(month));
-    } else {
-      const year = String(new Date().getFullYear());
-      data = data.filter((d) => d.created_at?.startsWith(year));
-    }
-    return data;
-  }, [transactions, filterPeriod, selectedDate]);
+    return transactions;
+  }, [transactions]);
 
   const filteredAnalytics = useMemo(() => computeAnalytics(filteredTransactions), [filteredTransactions]);
 
@@ -86,8 +110,11 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
     </div>
   );
 
-  const openFilterModal = useCallback((title: string, filterFn: (item: any) => boolean) => {
+  const openFilterModal = useCallback((title: string, filterFn: (item: any) => boolean, statusFilter?: string) => {
     setFilterModal({ title, filtered: filteredTransactions.filter(filterFn) });
+    if (statusFilter) {
+      setActiveStatusFilter(statusFilter);
+    }
   }, [filteredTransactions]);
 
   const handleEdit = useCallback((item: any) => {
@@ -179,15 +206,39 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           <div className="flex items-center gap-2 flex-wrap">
             <BranchSelector />
             <div className="flex items-center gap-1 bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
-              {(["hari", "bulan", "tahun"] as const).map((p) => (
+              {(["hari", "bulan", "tahun", "custom"] as const).map((p) => (
                 <button key={p} onClick={() => { setFilterPeriod(p); if (p === "hari") setSelectedDate(new Date().toISOString().split("T")[0]); }}
                   className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-all ${filterPeriod === p ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"}`}>
-                  {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : "Tahunan"}
+                  {p === "hari" ? "Harian" : p === "bulan" ? "Bulanan" : p === "tahun" ? "Tahunan" : "Range"}
                 </button>
               ))}
             {filterPeriod === "hari" && (
               <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
                 className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[110px]" />
+            )}
+            {filterPeriod === "bulan" && (
+              <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}
+                className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[130px]" />
+            )}
+            {filterPeriod === "tahun" && (
+              <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} min="2000" max="2100"
+                className="ml-0.5 px-1.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[80px]" />
+            )}
+            {filterPeriod === "custom" && (
+              <div className="flex items-center gap-1 ml-1 pr-1">
+                <input type="date" value={customRange.start} onChange={(e) => setCustomRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="px-1.5 py-1.5 text-[10px] border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[100px]" />
+                <span className="text-[10px] text-slate-400">-</span>
+                <input type="date" value={customRange.end} onChange={(e) => setCustomRange(prev => {
+                  const newEnd = e.target.value;
+                  if (prev.start && newEnd && newEnd < prev.start) {
+                    toast.error("Tanggal akhir tidak boleh lebih awal dari tanggal mulai");
+                    return prev;
+                  }
+                  return { ...prev, end: newEnd };
+                })}
+                  className="px-1.5 py-1.5 text-[10px] border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-slate-900/10 w-[100px]" />
+              </div>
             )}
             </div>
           </div>
@@ -261,12 +312,12 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
               <p className="text-[9px] md:text-xs text-slate-400">Total</p>
             </div>
             <div className="text-center md:text-left py-1.5 md:py-3 px-1 md:px-2 bg-amber-50 rounded border border-amber-200 cursor-pointer hover:bg-amber-100"
-              onClick={() => openFilterModal("Waiting (Aktif)", (item) => item.status === "active")}>
+              onClick={() => openFilterModal("Waiting (Aktif)", (item) => item.status === "active", "active")}>
               <p className="text-sm md:text-lg font-bold text-amber-700">{filteredAnalytics.active}</p>
               <p className="text-[9px] md:text-xs text-amber-600">Active</p>
             </div>
             <div className="text-center md:text-left py-1.5 md:py-3 px-1 md:px-2 bg-green-50 rounded border border-green-200 cursor-pointer hover:bg-green-100"
-              onClick={() => openFilterModal("Done (Selesai)", (item) => item.status === "completed")}>
+              onClick={() => openFilterModal("Done (Selesai)", (item) => item.status === "completed", "completed")}>
               <p className="text-sm md:text-lg font-bold text-green-700">{filteredAnalytics.completed}</p>
               <p className="text-[9px] md:text-xs text-green-600">Done</p>
             </div>
@@ -318,7 +369,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
             <span className="text-[10px] font-medium text-slate-400">{filteredAnalytics.total} total</span>
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
-            <LayananList isAdmin={true} compact={false} dateFilter={filterPeriod === "hari" ? selectedDate : undefined} onEdit={handleEdit} />
+            <LayananList isAdmin={true} compact={false} statusFilter={activeStatusFilter} onEdit={handleEdit} />
           </div>
         </div>
       </div>

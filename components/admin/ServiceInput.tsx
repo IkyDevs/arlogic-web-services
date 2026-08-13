@@ -193,11 +193,14 @@ export default function ServiceInput({
         .in("jenis_layanan", ["dp_service", "DP Service"])
         .is("linked_service_order_id", null);
       if (name && phone.length >= 8) {
-        query = query.or(`customer_name.ilike.%${name}%,customer_whatsapp.ilike.%${phone}%`);
+        // FIX: Hanya tampilkan DP jika nama dan no HP persis sama dengan transaksi
+        query = query
+          .eq("customer_name", name)
+          .eq("customer_whatsapp", phone);
       } else if (name) {
-        query = query.ilike("customer_name", `%${name}%`);
+        query = query.eq("customer_name", name);
       } else {
-        query = query.ilike("customer_whatsapp", `%${phone}%`);
+        query = query.eq("customer_whatsapp", phone);
       }
       const { data, error } = await query.order("created_at", { ascending: false }).limit(50);
       if (error) {

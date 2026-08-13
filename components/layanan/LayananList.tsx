@@ -38,6 +38,7 @@ interface LayananListProps {
   isAdmin?: boolean;
   compact?: boolean;
   dateFilter?: string;
+  statusFilter?: string;
   onEdit?: (layanan: any) => void;
 }
 
@@ -391,23 +392,27 @@ export default function LayananList({
   isAdmin = false,
   compact = false,
   dateFilter,
+  statusFilter,
   onEdit,
 }: LayananListProps) {
   const { transactions, loading, updateStatus, remove } = useTransactionStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterJenis, setFilterJenis] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState(statusFilter || "");
   const [filterMetode, setFilterMetode] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [detailTx, setDetailTx] = useState<TransactionData | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [photoGallery, setPhotoGallery] = useState<string[] | null>(null);
 
+  useEffect(() => {
+    if (statusFilter !== undefined) {
+      setFilterStatus(statusFilter);
+    }
+  }, [statusFilter]);
+
   const filtered = useMemo(() => {
     let data = transactions;
-    if (dateFilter) {
-      data = data.filter((d) => d.created_at?.startsWith(dateFilter));
-    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       data = data.filter(
@@ -430,12 +435,17 @@ export default function LayananList({
       data = data.filter((t) => t.status === filterStatus);
     }
     if (filterMetode) {
-      data = data.filter((t) => t.metode_pembayaran === filterMetode);
+      data = data.filter((t) => {
+        if (!t.split_payment && t.metode_pembayaran === filterMetode) return true;
+        if (t.split_payment) {
+          return t.metode_pembayaran_1 === filterMetode || t.metode_pembayaran_2 === filterMetode;
+        }
+        return false;
+      });
     }
     return data;
   }, [
     transactions,
-    dateFilter,
     searchQuery,
     filterJenis,
     filterStatus,

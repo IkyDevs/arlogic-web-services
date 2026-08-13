@@ -12,7 +12,7 @@ interface TransactionState {
 }
 
 interface TransactionActions {
-  fetch: (dateFilter?: string, branchId?: string | null) => Promise<void>
+  fetch: (dateFilter?: string, branchId?: string | null, monthFilter?: string, yearFilter?: string, customRange?: { start: string; end: string }) => Promise<void>
   create: (tx: TransactionData, userId: string, userName: string) => Promise<TransactionData>
   update: (id: string, tx: Partial<TransactionData>) => Promise<void>
   remove: (id: string) => Promise<void>
@@ -44,10 +44,10 @@ export const useTransactionStore = create<TransactionStore>()(
     error: null,
     lastFetched: null,
 
-    fetch: async (dateFilter?: string, branchId?: string | null) => {
+    fetch: async (dateFilter?: string, branchId?: string | null, monthFilter?: string, yearFilter?: string, customRange?: { start: string; end: string }) => {
       set({ loading: true, error: null })
       try {
-        const transactions = await txService.fetchAllTransactions(dateFilter, branchId)
+        const transactions = await txService.fetchAllTransactions(dateFilter, branchId, monthFilter, yearFilter, customRange)
         const analytics = txService.computeAnalytics(transactions)
         set({ transactions, analytics, loading: false, lastFetched: new Date().toISOString() })
       } catch (err: unknown) {

@@ -236,12 +236,23 @@ export default function QueueList({
     setLoading(false);
   };
 
-  const takeProject = async (service: ExtendedServiceOrder) => {
+  const [showTakeConfirm, setShowTakeConfirm] = useState(false);
+  const [pendingTakeService, setPendingTakeService] = useState<ExtendedServiceOrder | null>(null);
+
+  const requestTakeProject = async (service: ExtendedServiceOrder) => {
     const activeCount = myServices.length;
     if (activeCount >= 2) {
       toast.error("Maksimal 2 proyek aktif. Selesaikan proyek lain dulu.");
       return;
     }
+    // Show confirmation popup
+    setPendingTakeService(service);
+    setShowTakeConfirm(true);
+  };
+
+  const confirmTakeProject = async () => {
+    if (!pendingTakeService) return;
+    
     const { error } = await supabase
       .from("service_orders")
       .update({
@@ -249,13 +260,13 @@ export default function QueueList({
         status: "assigned",
         start_date: new Date().toISOString(),
       })
-      .eq("id", service.id);
+      .eq("id", pendingTakeService.id);
 
     if (error) {
       toast.error("Gagal mengambil proyek");
     } else {
       await supabase.from("service_timeline").insert({
-        service_order_id: service.id,
+        service_order_id: pendingTakeService.id,
         teknisi_id: teknisiId,
         status: "assigned",
         message: `Service diambil oleh teknisi`,
@@ -265,6 +276,13 @@ export default function QueueList({
       fetchQueues();
       setShowDetailModal(false);
     }
+    setShowTakeConfirm(false);
+    setPendingTakeService(null);
+  };
+
+  const cancelTakeProject = () => {
+    setShowTakeConfirm(false);
+    setPendingTakeService(null);
   };
 
   const takeWithPending = async (service: ExtendedServiceOrder) => {
@@ -1286,9 +1304,9 @@ export default function QueueList({
                           className="flex-1 px-5 py-2.5 text-sm bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
                           <Eye className="w-4 h-4" /> DETAIL
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); takeProject(service); }}
+<button onClick={(e) => { e.stopPropagation(); openTakeConfirm(service); }}
                           className="flex-1 px-5 py-2.5 text-sm bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
-                          <CheckCircle className="w-4 h-4" /> AMBIL
+                            <CheckCircle className="w-4 h-4" /> AMBIL
                         </button>
                       </div>
                     </div>

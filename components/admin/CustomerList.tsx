@@ -80,20 +80,29 @@ export default function CustomerList() {
       const phones = (data || []).map((c) => c.phone).filter(Boolean);
       let layananCounts: Record<string, number> = {};
       let serviceCounts: Record<string, number> = {};
+      let lastTransactionDates: Record<string, string> = {};
 
       if (phones.length > 0) {
         const [layananRes, serviceRes] = await Promise.all([
-          supabase.from("layanan").select("customer_whatsapp").in("customer_whatsapp", phones),
-          supabase.from("service_orders").select("customer_phone").in("customer_phone", phones),
+          supabase.from("layanan").select("customer_whatsapp, created_at").in("customer_whatsapp", phones),
+          supabase.from("service_orders").select("customer_phone, created_at").in("customer_phone", phones),
         ]);
 
         for (const r of layananRes.data || []) {
           const p = r.customer_whatsapp || "";
           layananCounts[p] = (layananCounts[p] || 0) + 1;
+          const txDate = r.created_at;
+          if (txDate && (!lastTransactionDates[p] || txDate > lastTransactionDates[p])) {
+            lastTransactionDates[p] = txDate;
+          }
         }
         for (const r of serviceRes.data || []) {
           const p = r.customer_phone || "";
           serviceCounts[p] = (serviceCounts[p] || 0) + 1;
+          const txDate = r.created_at;
+          if (txDate && (!lastTransactionDates[p] || txDate > lastTransactionDates[p])) {
+            lastTransactionDates[p] = txDate;
+          }
         }
       }
 
@@ -107,6 +116,7 @@ export default function CustomerList() {
         alamat: c.alamat || "",
         layananCount: layananCounts[c.phone] || 0,
         serviceCount: serviceCounts[c.phone] || 0,
+        lastTransactionDate: lastTransactionDates[c.phone] || null,
       }));
 
       if (append) {
@@ -158,18 +168,27 @@ export default function CustomerList() {
       const phones = (data || []).map((c: any) => c.phone).filter(Boolean);
       let layananCounts: Record<string, number> = {};
       let serviceCounts: Record<string, number> = {};
+      let lastTransactionDates: Record<string, string> = {};
       if (phones.length > 0) {
         const [layananRes, serviceRes] = await Promise.all([
-          supabase.from("layanan").select("customer_whatsapp").in("customer_whatsapp", phones),
-          supabase.from("service_orders").select("customer_phone").in("customer_phone", phones),
+          supabase.from("layanan").select("customer_whatsapp, created_at").in("customer_whatsapp", phones),
+          supabase.from("service_orders").select("customer_phone, created_at").in("customer_phone", phones),
         ]);
         for (const r of layananRes.data || []) {
           const p = r.customer_whatsapp || "";
           layananCounts[p] = (layananCounts[p] || 0) + 1;
+          const txDate = r.created_at;
+          if (txDate && (!lastTransactionDates[p] || txDate > lastTransactionDates[p])) {
+            lastTransactionDates[p] = txDate;
+          }
         }
         for (const r of serviceRes.data || []) {
           const p = r.customer_phone || "";
           serviceCounts[p] = (serviceCounts[p] || 0) + 1;
+          const txDate = r.created_at;
+          if (txDate && (!lastTransactionDates[p] || txDate > lastTransactionDates[p])) {
+            lastTransactionDates[p] = txDate;
+          }
         }
       }
       setCustomers((data || []).map((c: any) => ({
@@ -182,6 +201,7 @@ export default function CustomerList() {
         alamat: c.alamat || "",
         layananCount: layananCounts[c.phone] || 0,
         serviceCount: serviceCounts[c.phone] || 0,
+        lastTransactionDate: lastTransactionDates[c.phone] || null,
       })));
       setSearching(false);
     }, 400);
@@ -363,12 +383,18 @@ export default function CustomerList() {
       // Default filter: pernah transaksi
       if (customerFilter === "pernah_transaksi") list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
       else if (customerFilter === "minggu_ini") {
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        list = list.filter(c => {
+          if (!c.lastTransactionDate) return false;
+          return c.lastTransactionDate >= weekAgo;
+        });
       }
       else if (customerFilter === "bulan_ini") {
-        const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-        list = list.filter(c => c.layananCount > 0 || c.serviceCount > 0);
+        const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        list = list.filter(c => {
+          if (!c.lastTransactionDate) return false;
+          return c.lastTransactionDate >= monthAgo;
+        });
       }
       if (pointMin) list = list.filter(c => (c.point || 0) >= parseInt(pointMin));
       if (pointMax) list = list.filter(c => (c.point || 0) <= parseInt(pointMax));
@@ -382,7 +408,7 @@ export default function CustomerList() {
       return list;
     }
     return customers;
-  }, [customers, sortBy, sortDir, pointMin, pointMax, periodFilter, search, customerFilter]);
+  }, [customers, sortBy, sortDir, pointMin, pointMax, search, customerFilter]);
 
   return (
     <div className="space-y-4">
@@ -429,12 +455,6 @@ export default function CustomerList() {
               <option value="semua">Semua Customer</option>
               <option value="minggu_ini">Minggu Ini</option>
               <option value="bulan_ini">Bulan Ini</option>
-            </select>
-            <select value={periodFilter} onChange={(e) => setPeriodFilter(e.target.value)}
-              className="px-2.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">
-              <option value="all">Semua Waktu</option>
-              <option value="week">Minggu Ini</option>
-              <option value="month">Bulan Ini</option>
             </select>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
               className="px-2.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10">

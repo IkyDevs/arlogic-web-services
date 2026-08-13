@@ -91,7 +91,8 @@ export default function SupervisorDashboard() {
   const [rolling, setRolling] = useState(false);
 
   // ── Statistik per cabang ──
-  const [period, setPeriod] = useState<Period>("hari");
+  const [period, setPeriod] = useState<Period | "custom">("hari");
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
   const [dateRangeStart, setDateRangeStart] = useState<string>("");
   const [dailyData, setDailyData] = useState<

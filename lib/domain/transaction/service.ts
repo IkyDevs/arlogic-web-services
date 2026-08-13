@@ -194,7 +194,13 @@ function getSupabase() {
   return createClient()
 }
 
-export async function fetchAllTransactions(dateFilter?: string, branchId?: string | null): Promise<TransactionData[]> {
+export async function fetchAllTransactions(
+  dateFilter?: string,
+  branchId?: string | null,
+  monthFilter?: string,
+  yearFilter?: string,
+  customRange?: { start: string; end: string }
+): Promise<TransactionData[]> {
   const supabase = getSupabase()
   let query = supabase.from("layanan").select("*, layanan_items(*)")
   if (branchId) {
@@ -204,9 +210,23 @@ export async function fetchAllTransactions(dateFilter?: string, branchId?: strin
     query = query
       .gte("created_at", `${dateFilter}T00:00:00`)
       .lte("created_at", `${dateFilter}T23:59:59`)
+  } else if (monthFilter) {
+    const [year, month] = monthFilter.split("-")
+    const lastDay = new Date(Number(year), Number(month), 0).getDate()
+    query = query
+      .gte("created_at", `${monthFilter}-01T00:00:00`)
+      .lte("created_at", `${monthFilter}-${String(lastDay).padStart(2, "0")}T23:59:59`)
+  } else if (yearFilter) {
+    query = query
+      .gte("created_at", `${yearFilter}-01-01T00:00:00`)
+      .lte("created_at", `${yearFilter}-12-31T23:59:59`)
+  } else if (customRange?.start && customRange?.end) {
+    query = query
+      .gte("created_at", `${customRange.start}T00:00:00`)
+      .lte("created_at", `${customRange.end}T23:59:59`)
   }
   query = query.order("created_at", { ascending: false })
-  if (!dateFilter) query = query.limit(200)
+  if (!dateFilter && !monthFilter && !yearFilter && !customRange) query = query.limit(200)
 
   const { data, error } = await query
   if (error) throw error

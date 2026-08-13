@@ -70,6 +70,7 @@ export default function QCDashboard() {
   const [sparepartResults, setSparepartResults] = useState<any[]>([]);
   const [sparepartSearching, setSparepartSearching] = useState(false);
   const [showSparepartResults, setShowSparepartResults] = useState(false);
+  const [centralBranchId, setCentralBranchId] = useState<string | null>(null);
 
   // QC Recall
   const [completedServices, setCompletedServices] = useState<any[]>([]);
@@ -93,11 +94,16 @@ export default function QCDashboard() {
   const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
+    const fetchCentralBranch = async () => {
+      const { data } = await supabase.from("branches").select("id").ilike("name", "%Pusat%").maybeSingle();
+      if (data) setCentralBranchId(data.id);
+    };
+    fetchCentralBranch();
     fetchServices();
     fetchCompletedServices();
     fetchTeknisiList();
     checkTodayAttendance();
-  }, []);
+  }, [centralBranchId]);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -172,8 +178,8 @@ export default function QCDashboard() {
 
   const fetchServices = async () => {
     setLoading(true);
-    // Scope per cabang untuk role qc (supervisor global lihat semua)
-    const branchScope = isQc && user?.branch_id ? { branch_id: user.branch_id } : {};
+    // Filter ke cabang user jika QC atau Supervisor
+    const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
@@ -193,7 +199,7 @@ export default function QCDashboard() {
   };
 
   const fetchCompletedServices = async () => {
-    const branchScope = isQc && user?.branch_id ? { branch_id: user.branch_id } : {};
+    const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
@@ -220,7 +226,7 @@ export default function QCDashboard() {
 
   const fetchPendingApprovals = async () => {
     // Cari service yang ada timeline pending_teknisi TANPA timeline pending_approved setelahnya
-    const branchScope = isQc && user?.branch_id ? { branch_id: user.branch_id } : {};
+    const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data: allServices } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
@@ -362,7 +368,6 @@ export default function QCDashboard() {
 
   const menuItems: { id: string; label: string; icon: any; count?: number }[] = [
     { id: "all", label: "Semua", icon: ClipboardCheck },
-    { id: "completed", label: "Completed", icon: CheckCircle, count: completedServices.length },
     { id: "pending-approval", label: "Pending", icon: Clock, count: pendingApprovals.length },
     { id: "absensi", label: "Absensi", icon: Calendar },
     { id: "customer", label: "Customer", icon: Users },
