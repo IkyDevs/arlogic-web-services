@@ -23,7 +23,7 @@ export function usePeriodFilter({
 }: UsePeriodFilterOptions = {}): UsePeriodFilterReturn {
   const [value, setValueState] = useState<PeriodValue>(initialValue)
   const [isChanging, setIsChanging] = useState(false)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const onChangeRef = useRef(onChange)
 
   // Keep onChange ref up to date

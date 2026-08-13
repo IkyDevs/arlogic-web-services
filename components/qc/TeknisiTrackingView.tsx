@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ClipboardCheck, Wrench, Clock, Eye } from 'lucide-react'
 
 export default function TeknisiTrackingView({ teknisiName, onViewDetails }: { teknisiName: string, onViewDetails: (svc: any) => void }) {
-  const [data, setData] = useState({ review: [], processing: [], pending: [] });
+  const [data, setData] = useState<{ review: any[], processing: any[], pending: any[] }>({ review: [], processing: [], pending: [] });
   const supabase = createClient();
 
   useEffect(() => {

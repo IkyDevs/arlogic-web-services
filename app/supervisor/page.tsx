@@ -25,7 +25,7 @@ import UserAvatar from "@/components/ui/UserAvatar";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
 
 type Tab = "overview" | "users";
-type Period = "hari" | "minggu" | "bulan" | "tahun";
+type Period = "hari" | "minggu" | "bulan" | "tahun" | "custom";
 
 interface BranchRevenue {
   revenue: number;

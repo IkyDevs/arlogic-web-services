@@ -190,7 +190,7 @@ export default function ServiceInput({
       let query = supabase
         .from("layanan")
         .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at, customer_name, customer_whatsapp")
-        .in("jenis_layanan", ["dp_service", "DP Service"])
+        .eq("jenis_layanan", "dp_service")
         .is("linked_service_order_id", null);
       if (name && phone.length >= 8) {
         // FIX: Hanya tampilkan DP jika nama dan no HP persis sama dengan transaksi

@@ -24,7 +24,7 @@ export function PeriodFilter({
 }: PeriodFilterProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false)
-  const buttonRef = useRef<HTMLButtonElement>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
 
   const displayLabel = getPeriodDisplayLabel(value)
   const shortLabel = getPeriodShortLabel(value)

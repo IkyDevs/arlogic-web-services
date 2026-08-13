@@ -93,7 +93,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   const [editData, setEditData] = useState<any>(null);
   
   // Refs
-  const fetchTimeoutRef = useRef<NodeJS.Timeout>();
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const isInitialMount = useRef(true);
 
   // Convert PeriodValue to fetch params

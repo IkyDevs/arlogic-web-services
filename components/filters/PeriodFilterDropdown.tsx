@@ -13,7 +13,7 @@ interface PeriodFilterDropdownProps {
   value: PeriodValue
   onChange: (value: PeriodValue) => void
   onReset: () => void
-  anchorRef: React.RefObject<HTMLElement>
+  anchorRef: React.RefObject<HTMLElement | null>
 }
 
 export function PeriodFilterDropdown({

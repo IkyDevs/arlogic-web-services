@@ -1304,7 +1304,7 @@ export default function QueueList({
                           className="flex-1 px-5 py-2.5 text-sm bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
                           <Eye className="w-4 h-4" /> DETAIL
                         </button>
-<button onClick={(e) => { e.stopPropagation(); openTakeConfirm(service); }}
+                        <button onClick={(e) => { e.stopPropagation(); requestTakeProject(service); }}
                           className="flex-1 px-5 py-2.5 text-sm bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
                             <CheckCircle className="w-4 h-4" /> AMBIL
                         </button>
@@ -1455,7 +1455,7 @@ export default function QueueList({
             isOpen={showDetailModal}
             onClose={() => setShowDetailModal(false)}
             service={selectedService}
-            onTake={() => takeProject(selectedService)}
+            onTake={() => requestTakeProject(selectedService)}
             onSkip={() => setShowDetailModal(false)}
           />
 

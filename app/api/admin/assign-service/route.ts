@@ -1,10 +1,10 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { rateLimitIP } from "@/lib/rate-limit";
 
 // POST - Assign service to technician
 export async function POST(request: Request) {
-  const supabase = createRouteHandlerClient();
+  const supabase = await createClient();
   
   // Rate limiting
   const rl = rateLimitIP(request);
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     .eq("assigned_teknisi_id", user.id)
     .in("status", ["assigned", "in_progress", "qc_pending"]);
 
-  if (activeCount >= 2) {
+  if ((activeCount || 0) >= 2) {
     return NextResponse.json({ 
       error: "Maksimal 2 proyek aktif. Selesaikan proyek lain dulu.",
       activeCount 
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
 
 // GET - Check if service can be taken (for confirmation popup)
 export async function GET(request: Request) {
-  const supabase = createRouteHandlerClient();
+  const supabase = await createClient();
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -140,7 +140,7 @@ export async function GET(request: Request) {
     .eq("assigned_teknisi_id", user.id)
     .in("status", ["assigned", "in_progress", "qc_pending"]);
 
-  const maxActiveReached = activeCount >= 2;
+  const maxActiveReached = (activeCount || 0) >= 2;
 
   return NextResponse.json({
     success: true,
@@ -149,10 +149,8 @@ export async function GET(request: Request) {
         id: service.id,
         invoice_number: service.invoice_number,
         customer_name: service.customer_name,
-        // @ts-expect-error - optional fields
-        watch_brand: service.watch_brand || service.device_brand,
-        // @ts-expect-error - optional fields
-        watch_model: service.watch_model || service.device_model,
+        watch_brand: (service as any).watch_brand || (service as any).device_brand,
+        watch_model: (service as any).watch_model || (service as any).device_model,
         issue_description: service.issue_description,
         created_at: service.created_at,
       },
