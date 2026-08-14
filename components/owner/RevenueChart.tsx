@@ -1,26 +1,28 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Area
+  LineChart, Line, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Brush
 } from 'recharts'
-import { TrendingUp, Calendar } from 'lucide-react'
-import { format, eachDayOfInterval, subDays } from 'date-fns'
-import { id } from 'date-fns/locale'
+import { TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useBranch } from '@/lib/context/BranchContext'
+import { computeBranchSeries, type Granularity } from '@/lib/owner/stats'
 
 interface RevenueChartProps {
-  data: any
   dateRange: { start: Date; end: Date }
-  comparePeriod: 'month' | 'year'
 }
 
-export default function RevenueChart({ data, dateRange, comparePeriod }: RevenueChartProps) {
+const LINE_COLORS = ['#2563eb', '#f59e0b', '#0d9488', '#8b5cf6', '#06b6d4', '#f43f5e', '#10b981']
+
+export default function RevenueChart({ dateRange }: RevenueChartProps) {
   const supabase = createClient()
+  const { activeBranchId, branches } = useBranch()
+  const gradId = useId()
   const [chartData, setChartData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'daily' | 'cumulative'>('daily')
+  const [granularity, setGranularity] = useState<Granularity>('day')
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -30,56 +32,68 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  const rangeDays =
+    (dateRange.end.getTime() - dateRange.start.getTime()) / (24 * 60 * 60 * 1000)
+
   useEffect(() => {
-    fetchDailyRevenue()
+    setGranularity(rangeDays <= 8 ? 'day' : rangeDays <= 45 ? 'week' : 'month')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange])
 
-  const fetchDailyRevenue = async () => {
+  useEffect(() => {
+    fetchSeries()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange, activeBranchId, granularity])
+
+  const branchMatch = activeBranchId ? { branch_id: activeBranchId } : {}
+
+  const branchNameOf = (id: string) =>
+    branches.find((b) => b.id === id)?.name || (id === 'unassigned' ? 'Tanpa Cabang' : 'Cabang lain')
+
+  const fetchSeries = async () => {
     setLoading(true)
     try {
       const start = dateRange.start
       const end = dateRange.end
-      // Ambil semua transaksi per hari (revenue - expense)
-      const [layananRes, expenseRes] = await Promise.all([
-        supabase.from("layanan").select("nominal, created_at").gte("created_at", start.toISOString()).lte("created_at", end.toISOString()).neq("jenis_layanan", "pengeluaran"),
-        supabase.from("layanan").select("nominal, created_at").gte("created_at", start.toISOString()).lte("created_at", end.toISOString()).eq("jenis_layanan", "pengeluaran"),
+      const [servicesRes, layananRes, expenseRes] = await Promise.all([
+        supabase.from("service_orders").select("id, branch_id, created_at, status, service_items(price, quantity)")
+          .match(branchMatch).gte("created_at", start.toISOString()).lte("created_at", end.toISOString()),
+        supabase.from("layanan").select("id, branch_id, nominal, jenis_layanan, status, created_at")
+          .match(branchMatch).gte("created_at", start.toISOString()).lte("created_at", end.toISOString())
+          .neq("jenis_layanan", "pengeluaran"),
+        supabase.from("layanan").select("id, branch_id, nominal, jenis_layanan, status, created_at")
+          .match(branchMatch).gte("created_at", start.toISOString()).lte("created_at", end.toISOString())
+          .eq("jenis_layanan", "pengeluaran"),
       ])
 
-      // Group by date
-      const revenueByDate: Record<string, number> = {}
-      const expenseByDate: Record<string, number> = {}
+      const series = computeBranchSeries(
+        servicesRes.data || [],
+        [...(layananRes.data || []), ...(expenseRes.data || [])],
+        { start, end, granularity },
+      )
 
-      for (const r of layananRes.data || []) {
-        const d = format(new Date(r.created_at), "yyyy-MM-dd")
-        revenueByDate[d] = (revenueByDate[d] || 0) + (r.nominal || 0)
-      }
-      for (const r of expenseRes.data || []) {
-        const d = format(new Date(r.created_at), "yyyy-MM-dd")
-        expenseByDate[d] = (expenseByDate[d] || 0) + (r.nominal || 0)
-      }
+      const branchesWithData = new Set<string>()
+      series.forEach((b) => Object.keys(b.byBranch).forEach((k) => branchesWithData.add(k)))
+      const visibleBranches = activeBranchId
+        ? [activeBranchId]
+        : [...branchesWithData]
 
-      // Build array per hari
-      const days = eachDayOfInterval({ start, end })
-      let cumulative = 0
-      const dataPoints = days.map((day) => {
-        const key = format(day, "yyyy-MM-dd")
-        const rev = revenueByDate[key] || 0
-        const exp = expenseByDate[key] || 0
-        const net = rev - exp
-        cumulative += net
-        return {
-          date: format(day, "d MMM", { locale: id }),
-          fullDate: format(day, "EEEE, d MMMM yyyy", { locale: id }),
-          revenue: rev,
-          expenses: exp,
-          net,
-          cumulative,
-        }
-      })
-
-      setChartData(dataPoints)
+      setChartData(
+        series.map((bucket) => {
+          const row: Record<string, any> = {
+            label: bucket.label,
+            fullLabel: bucket.fullLabel,
+            revenue: bucket.revenue,
+            expenses: bucket.expenses,
+          }
+          visibleBranches.forEach((bid) => {
+            row[branchNameOf(bid)] = bucket.byBranch[bid]?.revenue ?? 0
+          })
+          return row
+        }),
+      )
     } catch (err) {
-      console.error("Failed to fetch daily revenue:", err)
+      console.error("Failed to fetch revenue series:", err)
     } finally {
       setLoading(false)
     }
@@ -88,107 +102,125 @@ export default function RevenueChart({ data, dateRange, comparePeriod }: Revenue
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const item = payload[0]?.payload
+      const branchKeys = Object.keys(chartData[0] || {}).filter(
+        (k) => !['label', 'fullLabel', 'revenue', 'expenses'].includes(k),
+      )
+      const seen = new Set<string>()
+      const branchEntries = payload.filter((entry: any) => {
+        if (entry.dataKey === 'revenue' || entry.dataKey === 'expenses' || seen.has(entry.dataKey)) return false
+        seen.add(entry.dataKey)
+        return true
+      })
+      if (branchEntries.length === 0) return null
       return (
         <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-4">
-          <p className="font-semibold text-sm text-slate-900 mb-2">{item?.fullDate || label}</p>
-          <p className="text-sm text-emerald-600">
-            <span className="font-medium">Revenue:</span>{' '}
-            <span className="font-semibold">Rp {(item?.revenue || 0).toLocaleString()}</span>
-          </p>
-          <p className="text-sm text-red-500">
-            <span className="font-medium">Expenses:</span>{' '}
-            <span className="font-semibold">Rp {(item?.expenses || 0).toLocaleString()}</span>
-          </p>
-          <p className="text-sm text-blue-600 mt-1">
-            <span className="font-medium">Net:</span>{' '}
-            <span className="font-semibold">Rp {(item?.net || 0).toLocaleString()}</span>
-          </p>
-          {viewMode === 'cumulative' && (
-            <p className="text-sm text-slate-700 mt-1 border-t border-slate-100 pt-1">
-              <span className="font-medium">Cumulative:</span>{' '}
-              <span className="font-semibold">Rp {(item?.cumulative || 0).toLocaleString()}</span>
+          <p className="font-semibold text-sm text-slate-900 mb-2">{item?.fullLabel || label}</p>
+          {branchEntries.map((entry: any) => (
+            <p key={entry.dataKey} className="text-sm flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full inline-block"
+                style={{ background: LINE_COLORS[branchKeys.indexOf(entry.dataKey) % LINE_COLORS.length] }} />
+              <span className="font-medium">{entry.dataKey}:</span>{' '}
+              <span className="font-semibold">Rp {(entry.value || 0).toLocaleString()}</span>
             </p>
-          )}
+          ))}
         </div>
       )
     }
     return null
   }
 
-  const displayData = viewMode === 'cumulative' ? chartData : chartData
-  const dataKey = viewMode === 'cumulative' ? 'cumulative' : 'net'
-
-  const totalRevenue = chartData.reduce((s, d) => s + d.revenue, 0)
-  const totalExpenses = chartData.reduce((s, d) => s + d.expenses, 0)
-
-  const formatRupiah = (v: number) =>
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v)
+  const granularityLabel = granularity === 'day' ? 'Harian' : granularity === 'week' ? 'Mingguan' : 'Bulanan'
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6 w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center flex-shrink-0">
             <TrendingUp className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Revenue Harian</h3>
-            <p className="text-xs text-slate-400">{chartData.length} hari data</p>
+            <h3 className="font-semibold text-slate-900 text-sm sm:text-base">Revenue Overview</h3>
+            <p className="text-xs text-slate-400">Pendapatan per cabang · {granularityLabel}</p>
           </div>
         </div>
         <div className="flex gap-1.5">
-          <button onClick={() => setViewMode('daily')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'daily' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-            Harian
-          </button>
-          <button onClick={() => setViewMode('cumulative')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${viewMode === 'cumulative' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-            Kumulatif
-          </button>
+          {(['day', 'week', 'month'] as Granularity[]).map((g) => (
+            <button
+              key={g}
+              onClick={() => setGranularity(g)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                granularity === g
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {g === 'day' ? 'Day' : g === 'week' ? 'Week' : 'Month'}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="w-full h-[300px] sm:h-[400px]">
+      <div className="w-full h-[300px] sm:h-[400px] rounded-lg"
+        style={{ background: 'linear-gradient(to bottom, #f8fafc, #ffffff)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm">Memuat data grafik...</div>
-        ) : displayData.length === 0 ? (
+        ) : chartData.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm">Tidak ada data</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={displayData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="date" stroke="#6C757D" fontSize={isMobile ? 9 : 11}
+              <XAxis dataKey="label" stroke="#6C757D" fontSize={isMobile ? 9 : 11}
                 tick={{ fill: '#6C757D' }} axisLine={{ stroke: '#e2e8f0' }}
-                interval={Math.max(Math.floor(displayData.length / 15), 1)} />
+                interval={Math.max(Math.floor(chartData.length / 15), 1)} />
               <YAxis stroke="#6C757D" fontSize={isMobile ? 9 : 11}
                 tick={{ fill: '#6C757D' }} axisLine={{ stroke: '#e2e8f0' }}
                 tickFormatter={(v) => isMobile ? `${(v / 1000000).toFixed(1)}jt` : `Rp${(v / 1000000).toFixed(1)}jt`}
                 domain={['auto', 'auto']} />
               <Tooltip content={<CustomTooltip />} />
               <defs>
-                <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
-                </linearGradient>
+                {Object.keys(chartData[0] || {})
+                  .filter((k) => !['label', 'fullLabel', 'revenue', 'expenses'].includes(k))
+                  .map((branchName, i) => (
+                    <linearGradient key={branchName} id={`${gradId}-area-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={LINE_COLORS[i % LINE_COLORS.length]} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={LINE_COLORS[i % LINE_COLORS.length]} stopOpacity={0.04} />
+                    </linearGradient>
+                  ))}
               </defs>
-              <Area type="monotone" dataKey={dataKey} stroke="none" fill="url(#colorNet)" />
-              <Line type="monotone" dataKey={dataKey} stroke="#2563EB" strokeWidth={2}
-                dot={false} activeDot={{ r: 5, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} />
+              {Object.keys(chartData[0] || {})
+                .filter((k) => !['label', 'fullLabel', 'revenue', 'expenses'].includes(k))
+                .map((branchName, i) => (
+                  <Area key={`area-${branchName}`} type="monotone" dataKey={branchName}
+                    stroke="none" fill={`url(#${gradId}-area-${i})`} />
+                ))}
+              {Object.keys(chartData[0] || {})
+                .filter((k) => !['label', 'fullLabel', 'revenue', 'expenses'].includes(k))
+                .map((branchName, i) => (
+                  <Line key={branchName} type="monotone" dataKey={branchName}
+                    stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2.5}
+                    dot={false} activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }} />
+                ))}
+              <Brush dataKey="label" height={28} travellerWidth={8}
+                stroke="#2563eb" fill="#f8fafc" />
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-slate-200">
-        <div className="text-center p-3 bg-slate-50 rounded-lg">
-          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Revenue</p>
-          <p className="text-sm sm:text-lg font-bold text-emerald-600 truncate">{formatRupiah(totalRevenue)}</p>
+      {!loading && chartData.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-4 pt-3 border-t border-slate-100">
+          {Object.keys(chartData[0])
+            .filter((k) => !['label', 'fullLabel', 'revenue', 'expenses'].includes(k))
+            .map((branchName, i) => (
+              <span key={branchName} className="flex items-center gap-1.5 text-xs text-slate-600">
+                <span className="w-2 h-2 rounded-full inline-block"
+                  style={{ background: LINE_COLORS[i % LINE_COLORS.length] }} />
+                {branchName}
+              </span>
+            ))}
         </div>
-        <div className="text-center p-3 bg-slate-50 rounded-lg">
-          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Total Expenses</p>
-          <p className="text-sm sm:text-lg font-bold text-red-500 truncate">{formatRupiah(totalExpenses)}</p>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

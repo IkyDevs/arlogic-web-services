@@ -41,7 +41,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
         ['FINANCIAL SUMMARY'],
         ['Metric', 'Amount'],
         ['Total Revenue', formatCurrency(data?.revenue || 0)],
-        ['Total Expenses', formatCurrency(data?.expenses || 0)],
+        ['Total Expenses', formatCurrency(data?.totalExpenses || 0)],
         ['Net Profit', formatCurrency(data?.profit || 0)],
         ['Profit Margin', data?.revenue ? `${((data.profit / data.revenue) * 100).toFixed(2)}%` : '0%'],
         [],
@@ -117,7 +117,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
       const financialData = [
         ['Metric', 'Amount'],
         ['Total Revenue', formatCurrency(data?.revenue || 0)],
-        ['Total Expenses', formatCurrency(data?.expenses || 0)],
+        ['Total Expenses', formatCurrency(data?.totalExpenses || 0)],
         ['Net Profit', formatCurrency(data?.profit || 0)],
         ['Profit Margin', data?.revenue ? `${((data.profit / data.revenue) * 100).toFixed(2)}%` : '0%'],
       ]
@@ -386,7 +386,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
                 <thead><tr><th>Metric</th><th>Amount</th></tr></thead>
                 <tbody>
                   <tr><td class="metric-label">Total Revenue</td><td class="metric-value revenue">${formatCurrency(data?.revenue || 0)}</td></tr>
-                  <tr><td class="metric-label">Total Expenses</td><td class="metric-value expense">${formatCurrency(data?.expenses || 0)}</td></tr>
+                  <tr><td class="metric-label">Total Expenses</td><td class="metric-value expense">${formatCurrency(data?.totalExpenses || 0)}</td></tr>
                   <tr><td class="metric-label">Net Profit</td><td class="metric-value profit">${formatCurrency(data?.profit || 0)}</td></tr>
                   <tr><td class="metric-label">Profit Margin</td><td class="metric-value">${data?.revenue ? ((data.profit / data.revenue) * 100).toFixed(2) : 0}%</td></tr>
                 </tbody>

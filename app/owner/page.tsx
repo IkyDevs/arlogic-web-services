@@ -51,6 +51,7 @@ import BranchSelector from "@/components/ui/BranchSelector";
 import UserAvatar from "@/components/ui/UserAvatar";
 import { useBranch } from "@/lib/context/BranchContext";
 import ReportModal from "@/components/ui/ReportModal";
+import { computeOwnerStats, type OwnerStats } from "@/lib/owner/stats";
 
 // Dynamic imports
 const RevenueChart = dynamic(() => import("@/components/owner/RevenueChart"), {
@@ -103,7 +104,6 @@ const ClosingApproval = dynamic(() => import("@/components/admin/ClosingApproval
 });
 
 type DateRange = "today" | "week" | "month" | "custom";
-type PeriodType = "month" | "year";
 type ActiveTab =
   | "overview"
   | "revenue"
@@ -114,17 +114,7 @@ type ActiveTab =
   | "customer"
   | "tracking";
 
-interface DashboardData {
-  revenue: number;
-  todayRevenue: number;
-  todayExpenses: number;
-  monthExpenses: number;
-  completedServices: number;
-  totalServices: number;
-  activeServices: number;
-  activeTechnicians: number;
-  averageCompletionTime: number;
-  technicianPerformance: any[];
+interface DashboardData extends OwnerStats {
   monthlyComparison: {
     revenue: number;
     growth: number;
@@ -151,7 +141,6 @@ export default function OwnerDashboard() {
   );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [comparePeriod, setComparePeriod] = useState<PeriodType>("month");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -164,7 +153,7 @@ export default function OwnerDashboard() {
       fetchUnreadCount();
     }, 30000);
     return () => clearInterval(interval);
-  }, [dateRange, customStartDate, customEndDate]);
+  }, [dateRange, customStartDate, customEndDate, activeBranchId]);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -249,135 +238,52 @@ export default function OwnerDashboard() {
         .match(activeBranchId ? { branch_id: activeBranchId } : {})
         .eq("role", "teknisi");
 
-      let revenue = 0;
-      services?.forEach((service) => {
-        const serviceTotal =
-          service.service_items?.reduce((sum: number, item: any) => {
-            return sum + (Number(item.price) * (item.quantity || 1) || 0);
-          }, 0) || 0;
-        revenue += serviceTotal;
-      });
-
-      // Add transaction revenue
-      let transactionRevenue = 0;
-      transactions?.forEach((trans) => {
-        transactionRevenue += Number(trans.nominal) || 0;
-      });
-
-      const totalRevenue = revenue + transactionRevenue;
-      const completedServices =
-        services?.filter((s) => s.status === "completed").length || 0;
-      const totalServices = services?.length || 0;
-      const activeTechnicians = new Set(
-        attendances?.filter((a) => !a.check_out).map((a) => a.teknisi_id),
-      ).size;
-
-      const completionTimes =
-        services
-          ?.filter((s) => s.completed_at && s.created_at)
-          .map((s) => {
-            const created = new Date(s.created_at);
-            const completed = new Date(s.completed_at);
-            return (
-              (completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
-            );
-          }) || [];
-
-      const averageCompletionTime =
-        completionTimes.length > 0
-          ? completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length
-          : 0;
-
-      const techMap: Record<string, any> = {};
-      services
-        ?.filter((s) => s.assigned_teknisi_id)
-        .forEach((service) => {
-          const techId = service.assigned_teknisi_id;
-          const techName =
-            techProfiles?.find((t) => t.id === techId)?.full_name || "Unknown";
-          const serviceRevenue =
-            service.service_items?.reduce((sum: number, item: any) => {
-              return sum + (Number(item.price) * (item.quantity || 1) || 0);
-            }, 0) || 0;
-
-          if (!techMap[techId]) {
-            techMap[techId] = {
-              id: techId,
-              name: techName,
-              completed: 0,
-              revenue: 0,
-            };
-          }
-          if (service.status === "completed") techMap[techId].completed++;
-          techMap[techId].revenue += serviceRevenue;
-        });
-
-      const technicianPerformance = Object.values(techMap);
+      const stats = computeOwnerStats(
+        {
+          services: services || [],
+          transactions: transactions || [],
+          attendances: attendances || [],
+          techProfiles: techProfiles || [],
+        },
+        { now: new Date() },
+      );
 
       const previousStart = subMonths(start, 1);
       const previousEnd = subMonths(end, 1);
       const { data: previousServices } = await supabase
         .from("service_orders")
         .select("*, service_items(*)")
+        .match(activeBranchId ? { branch_id: activeBranchId } : {})
         .gte("created_at", previousStart.toISOString())
         .lte("created_at", previousEnd.toISOString());
 
       const { data: previousTransactions } = await supabase
         .from("layanan")
         .select("*")
+        .match(activeBranchId ? { branch_id: activeBranchId } : {})
         .gte("created_at", previousStart.toISOString())
         .lte("created_at", previousEnd.toISOString());
 
-      let previousRevenue = 0;
-      previousServices?.forEach((service) => {
-        const serviceTotal =
-          service.service_items?.reduce((sum: number, item: any) => {
-            return sum + (Number(item.price) * (item.quantity || 1) || 0);
-          }, 0) || 0;
-        previousRevenue += serviceTotal;
-      });
-
-      let previousTransactionRevenue = 0;
-      previousTransactions?.forEach((trans) => {
-        previousTransactionRevenue += Number(trans.nominal) || 0;
-      });
-
-      const previousTotalRevenue = previousRevenue + previousTransactionRevenue;
+      const previousStats = computeOwnerStats(
+        {
+          services: previousServices || [],
+          transactions: previousTransactions || [],
+          attendances: [],
+          techProfiles: [],
+        },
+        { now: new Date() },
+      );
 
       const revenueGrowth =
-        previousTotalRevenue === 0
+        previousStats.revenue === 0
           ? 100
-          : ((totalRevenue - previousTotalRevenue) / previousTotalRevenue) *
+          : ((stats.revenue - previousStats.revenue) / previousStats.revenue) *
             100;
 
-      // Today & month expenses from layanan
-      const now = new Date();
-      const todayStr = now.toISOString().split("T")[0];
-      const monthStr = todayStr.slice(0, 7);
-      const todayExpensesVal = (transactions || [])
-        .filter((t: any) => t.jenis_layanan === "pengeluaran" && t.created_at?.startsWith(todayStr))
-        .reduce((s: number, t: any) => s + (Number(t.nominal) || 0), 0);
-      const monthExpensesVal = (transactions || [])
-        .filter((t: any) => t.jenis_layanan === "pengeluaran" && t.created_at?.startsWith(monthStr))
-        .reduce((s: number, t: any) => s + (Number(t.nominal) || 0), 0);
-      const todayRevenueVal = (transactions || [])
-        .filter((t: any) => t.jenis_layanan !== "pengeluaran" && t.created_at?.startsWith(todayStr))
-        .reduce((s: number, t: any) => s + (Number(t.nominal) || 0), 0);
-      const activeServicesCount = services?.filter((s: any) => s.status !== "completed" && s.status !== "done" && s.status !== "cancelled").length || 0;
-
       setDashboardData({
-        revenue: totalRevenue,
-        todayRevenue: todayRevenueVal,
-        todayExpenses: todayExpensesVal,
-        monthExpenses: monthExpensesVal,
-        completedServices,
-        totalServices,
-        activeServices: activeServicesCount,
-        activeTechnicians,
-        averageCompletionTime,
-        technicianPerformance,
+        ...stats,
         monthlyComparison: {
-          revenue: totalRevenue,
+          revenue: stats.revenue,
           growth: revenueGrowth,
         },
       });
@@ -792,20 +698,11 @@ export default function OwnerDashboard() {
                   </div>
                 </div>
 
-                {/* Charts Row */}
-                <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+                {/* Charts Row - full width, stacked */}
+                <div className="space-y-4 sm:space-y-6">
                   <div className="bg-white rounded-[24px] border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-200">
-                      <h3 className="font-semibold text-slate-900 text-sm sm:text-base">
-                        Revenue Trend
-                      </h3>
-                    </div>
                     <div className="p-3 sm:p-5">
-                      <RevenueChart
-                        data={dashboardData}
-                        dateRange={getDateRangeValues()}
-                        comparePeriod={comparePeriod}
-                      />
+                      <RevenueChart dateRange={getDateRangeValues()} />
                     </div>
                   </div>
 
@@ -906,11 +803,7 @@ export default function OwnerDashboard() {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <div className="bg-white rounded-[24px] border border-gray-200 shadow-sm p-4 sm:p-5">
-                  <RevenueChart
-                    data={dashboardData}
-                    dateRange={getDateRangeValues()}
-                    comparePeriod={comparePeriod}
-                  />
+                  <RevenueChart dateRange={getDateRangeValues()} />
                 </div>
               </motion.div>
             )}
