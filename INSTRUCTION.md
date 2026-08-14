@@ -479,4 +479,8 @@ Jangan asumsikan saya paham dampak teknis yang tidak kamu sebutkan.
 Jangan bilang "sudah saya perbaiki semua" tanpa menyebutkan apa saja yang diperiksa.
 Jangan mengubah lebih dari yang diminta tanpa persetujuan saya, kecuali untuk mencegah bug yang sudah kamu identifikasi (dan itu pun harus disebutkan dulu).
 
+
+
+dan tolong diingat, ketika selesai menggarap suatu fitur atau melakukan revisi, di akhir tolong bun tsc dan bun build untuk cek error
+
 🚀 READY TO WORK!
