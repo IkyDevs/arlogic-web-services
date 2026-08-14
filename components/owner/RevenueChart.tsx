@@ -8,7 +8,7 @@ import {
 import { TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useBranch } from '@/lib/context/BranchContext'
-import { computeBranchSeries, type Granularity } from '@/lib/owner/stats'
+import { computeBranchSeries, UNASSIGNED_BRANCH, type Granularity } from '@/lib/owner/stats'
 
 interface RevenueChartProps {
   dateRange: { start: Date; end: Date }
@@ -74,6 +74,7 @@ export default function RevenueChart({ dateRange }: RevenueChartProps) {
 
       const branchesWithData = new Set<string>()
       series.forEach((b) => Object.keys(b.byBranch).forEach((k) => branchesWithData.add(k)))
+      branchesWithData.delete(UNASSIGNED_BRANCH)
       const visibleBranches = activeBranchId
         ? [activeBranchId]
         : [...branchesWithData]

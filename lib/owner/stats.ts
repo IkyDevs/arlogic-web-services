@@ -262,7 +262,7 @@ export interface BranchBucket {
   byBranch: Record<string, { revenue: number; expenses: number }>;
 }
 
-const UNASSIGNED_BRANCH = "unassigned";
+export const UNASSIGNED_BRANCH = "unassigned";
 
 /** Jakarta date string of the Monday starting this date's ISO week. */
 function weekKey(d: Date): string {
