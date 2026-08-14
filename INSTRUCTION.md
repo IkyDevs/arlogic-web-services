@@ -454,4 +454,29 @@ Commitment:
 
     ✅ Selalu test sebelum commit
 
+
+
+
+tambahan :
+
+
+Konteks
+Saya bekerja di codebase yang sudah berjalan (bukan project baru dari nol). Setiap perubahan yang kamu buat HARUS mempertimbangkan dampaknya ke bagian lain dari sistem, bukan hanya bagian yang saya minta ubah.
+Aturan Sebelum Melakukan Perubahan
+Analisis dependensi dulu, jangan langsung edit. Sebelum mengubah kode apa pun, cari semua tempat yang memakai/memanggil/mereferensikan fungsi, komponen, variabel, tabel database, atau endpoint yang akan saya minta ubah. Gunakan pencarian (grep/search) ke seluruh codebase, bukan cuma file yang sedang dibuka.
+Sebutkan dependensi yang ditemukan sebelum mengubah kode. Tulis daftar: "Fitur/file berikut menggunakan X: [daftar]". Kalau ada fitur lain yang akan terdampak (seperti fitur C yang bergantung ke fitur A), sebutkan secara eksplisit sebelum melanjutkan.
+Jangan menghapus atau mengubah signature/struktur yang dipakai tempat lain tanpa konfirmasi. Kalau perubahan yang saya minta akan mengubah nama fungsi, parameter, struktur data, kolom database, atau response API yang dipakai fitur lain — tanyakan dulu apakah saya mau fitur lain itu ikut disesuaikan, atau saya mau pendekatan lain yang tidak mengubah kontrak yang sudah ada (backward compatible).
+Kalau perubahan berdampak luas, berikan opsi. Contoh: "Opsi 1: ubah fitur A dan sekaligus update fitur C supaya tidak bug. Opsi 2: buat versi baru dari fungsi ini supaya fitur A berubah tapi fitur C tetap pakai versi lama." Biarkan saya yang memutuskan.
+Setelah selesai edit, lakukan pengecekan ulang (self-check). Setelah mengubah kode, cek ulang semua tempat yang tadi teridentifikasi di langkah 1 — pastikan tidak ada yang jadi rusak (broken import, tipe data tidak cocok, field yang hilang, dsb). Laporkan hasil pengecekan ini ke saya, bukan cuma bilang "sudah selesai".
+Jangan melakukan perubahan di luar scope tanpa bilang. Kalau saya minta revisi fitur A saja, jangan diam-diam mengubah fitur lain kecuali itu memang dibutuhkan supaya fitur A tidak bug — dan itu pun harus disebutkan dulu di poin 3-4, bukan langsung dieksekusi.
+Untuk perubahan skema database, selalu sebutkan dampaknya ke query/model lain. Kalau saya minta ubah struktur tabel, sebutkan semua query, model (ORM), atau tipe (TypeScript type/interface) yang akan terdampak, dan apakah butuh migration.
+Format Respons yang Saya Mau
+Sebelum kasih kode: ringkasan singkat "ini yang akan saya ubah, ini dampaknya, ini yang saya cek."
+Sesudah kasih kode: ringkasan "ini yang sudah saya cek ulang, ini yang aman, ini yang perlu saya perhatikan manual."
+Kalau ragu apakah suatu perubahan aman atau tidak, bilang ragu — jangan asal jalan.
+Larangan
+Jangan asumsikan saya paham dampak teknis yang tidak kamu sebutkan.
+Jangan bilang "sudah saya perbaiki semua" tanpa menyebutkan apa saja yang diperiksa.
+Jangan mengubah lebih dari yang diminta tanpa persetujuan saya, kecuali untuk mencegah bug yang sudah kamu identifikasi (dan itu pun harus disebutkan dulu).
+
 🚀 READY TO WORK!
