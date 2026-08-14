@@ -143,7 +143,7 @@ export default function CustomerList() {
     fetchCustomers(true, "");
   };
 
-  useEffect(() => { fetchCustomers(false, ""); }, []);
+  useEffect(() => { fetchCustomers(false, ""); }, [branchId]);
 
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);

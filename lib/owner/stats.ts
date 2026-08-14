@@ -5,15 +5,20 @@ const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 export interface ServiceItem {
   price: number | string | null;
   quantity?: number | null;
+  name?: string | null;
 }
 
 export interface ServiceOrder {
   id: string;
   status: string;
   created_at: string;
+  updated_at?: string | null;
   completed_at?: string | null;
   assigned_teknisi_id?: string | null;
   branch_id?: string | null;
+  watch_brand?: string | null;
+  invoice_number?: string | null;
+  customer_name?: string | null;
   service_items?: ServiceItem[] | null;
 }
 
@@ -251,7 +256,7 @@ export function computeDailySeries(
   return points;
 }
 
-export type Granularity = "day" | "week" | "month";
+export type Granularity = "day" | "week" | "month" | "year";
 
 export interface BranchBucket {
   key: string;
@@ -277,6 +282,10 @@ function monthKey(d: Date): string {
   return jakartaDateKey(d).slice(0, 7);
 }
 
+function yearKey(d: Date): string {
+  return jakartaDateKey(d).slice(0, 4);
+}
+
 /** Per-branch revenue/expense series bucketed by granularity (zero-filled). */
 export function computeBranchSeries(
   services: ServiceOrder[],
@@ -288,6 +297,7 @@ export function computeBranchSeries(
   const bucketKeyOf = (d: Date): string => {
     if (granularity === "day") return jakartaDateKey(d);
     if (granularity === "week") return weekKey(d);
+    if (granularity === "year") return yearKey(d);
     return monthKey(d);
   };
 
@@ -369,6 +379,9 @@ export function computeBranchSeries(
     } else if (granularity === "week") {
       label = d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
       fullLabel = `Minggu ${d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`;
+    } else if (granularity === "year") {
+      label = String(d.getUTCFullYear());
+      fullLabel = `Tahun ${d.getUTCFullYear()}`;
     } else {
       label = d.toLocaleDateString("id-ID", { month: "short" });
       fullLabel = d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });

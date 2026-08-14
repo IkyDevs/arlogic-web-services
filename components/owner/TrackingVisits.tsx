@@ -2,26 +2,32 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
 import { Search, Eye, ArrowRight, ExternalLink } from "lucide-react";
 
 export default function TrackingVisits() {
   const supabase = createClient();
+  const { activeBranchId } = useBranch();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchLogs = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("tracking_logs")
       .select("*, service_orders!inner(customer_name, invoice_number, token, branch_id, branches(name))")
       .order("visited_at", { ascending: false })
       .limit(100);
+    if (activeBranchId) {
+      query = query.eq("service_orders.branch_id", activeBranchId);
+    }
+    const { data } = await query;
     if (data) setLogs(data);
     setLoading(false);
   };
 
-  useEffect(() => { fetchLogs(); }, []);
+  useEffect(() => { fetchLogs(); }, [activeBranchId]);
 
   return (
     <div className="space-y-4">

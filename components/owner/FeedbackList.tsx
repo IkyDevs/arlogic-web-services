@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Star, Search, TrendingUp, MessageSquare, User, Calendar, Filter, X, AlertCircle, Watch, Clock, CheckCircle, Wrench, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useBranch } from '@/lib/context/BranchContext'
 import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
 
@@ -25,6 +26,7 @@ interface Feedback {
 
 export default function FeedbackList() {
   const supabase = createClient()
+  const { activeBranchId } = useBranch()
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +40,8 @@ export default function FeedbackList() {
 
   useEffect(() => {
     fetchFeedbacks()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBranchId])
 
   const fetchFeedbacks = async () => {
     setLoading(true)
@@ -58,14 +61,18 @@ export default function FeedbackList() {
         return
       }
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('feedbacks')
         .select(`
           *,
-          service_orders(invoice_number, watch_brand)
+          service_orders!inner(invoice_number, watch_brand, branch_id)
         `)
         .order('created_at', { ascending: false })
         .limit(100)
+      if (activeBranchId) {
+        query = query.eq('service_orders.branch_id', activeBranchId)
+      }
+      const { data, error } = await query
 
       if (error) {
         console.error('Error fetching feedbacks:', error)
@@ -338,7 +345,7 @@ export default function FeedbackList() {
 
                   {/* Comment */}
                   {fb.comment && (
-                    <p className="text-sm text-slate-600 mt-2 italic">"{fb.comment}"</p>
+                    <p className="text-sm text-slate-600 mt-2 italic">&quot;{fb.comment}&quot;</p>
                   )}
 
                   {/* Meta info */}

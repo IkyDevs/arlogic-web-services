@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Download, FileSpreadsheet, FileText, Printer, X, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
+import type { OwnerStats, TechnicianPerf } from '@/lib/owner/stats'
 
 // Dynamic imports untuk menghindari SSR issues
 const dynamicImport = async () => {
@@ -14,7 +15,7 @@ const dynamicImport = async () => {
 }
 
 interface ExportButtonProps {
-  data: any
+  data: OwnerStats
   dateRange: { start: Date; end: Date }
 }
 
@@ -66,8 +67,8 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
           ['Technician Name', 'Services Completed', 'Revenue Generated']
         ]
 
-        data.technicianPerformance.forEach((tech: any) => {
-          techData.push([tech.name || 'Unknown', tech.completed || 0, formatCurrency(tech.revenue || 0)])
+        data.technicianPerformance.forEach((tech: TechnicianPerf) => {
+          techData.push([tech.name || 'Unknown', String(tech.completed || 0), formatCurrency(tech.revenue || 0)])
         })
 
         const techSheet = XLSX.utils.aoa_to_sheet(techData)
@@ -140,7 +141,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
       })
 
       // Service Statistics
-      let finalY = (doc as any).lastAutoTable.finalY + 15
+      let finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15
 
       if (finalY > 250) {
         doc.addPage()
@@ -179,7 +180,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
 
       // Technician Performance
       if (data?.technicianPerformance && data.technicianPerformance.length > 0) {
-        finalY = (doc as any).lastAutoTable.finalY + 15
+        finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15
 
         if (finalY > 250) {
           doc.addPage()
@@ -192,7 +193,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
 
         const techData = [
           ['Technician', 'Completed', 'Revenue'],
-          ...data.technicianPerformance.map((tech: any) => [
+          ...data.technicianPerformance.map((tech: TechnicianPerf) => [
             tech.name || 'Unknown',
             (tech.completed || 0).toString(),
             formatCurrency(tech.revenue || 0)
@@ -419,7 +420,7 @@ export default function ExportButton({ data, dateRange }: ExportButtonProps) {
               <table>
                 <thead><tr><th>Technician</th><th>Completed</th><th>Revenue</th></tr></thead>
                 <tbody>
-                  ${data.technicianPerformance.map((tech: any) => `
+                  ${data.technicianPerformance.map((tech: TechnicianPerf) => `
                     <tr>
                       <td class="metric-label">${tech.name || 'Unknown'}</td>
                       <td class="metric-value">${tech.completed || 0}</td>

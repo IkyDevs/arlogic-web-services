@@ -30,7 +30,7 @@ export default function ClosingApproval() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchClosings(); }, []);
+  useEffect(() => { fetchClosings(); }, [activeBranchId]);
 
   const handleApprove = async (closing: any) => {
     const notes = approveNotes[closing.id] || "";
