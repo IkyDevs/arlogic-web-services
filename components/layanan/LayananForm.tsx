@@ -1147,7 +1147,7 @@ export default memo(function LayananForm({
                 <input
                   type="tel"
                   value={customerWhatsapp}
-                  onChange={(e) => setCustomerWhatsapp(e.target.value)}
+                  onChange={(e) => setCustomerWhatsapp(e.target.value.replace(/[^0-9]/g, ""))}
                   className={`${inputClass} pl-9`}
                   placeholder="081234567890"
                   required

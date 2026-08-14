@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/authStore";
 import { hasDraft, loadDraft, saveDraft, clearDraft, saveDraftTextSync } from "@/lib/draftStorage";
+import { useDebounce } from "@/hooks/useDebounce"; // Import useDebounce
 import {
   User,
   Watch,
@@ -141,6 +142,7 @@ export default function ServiceInput({
   const [selectedDpId, setSelectedDpId] = useState<string | null>(null);
   const [dpMode, setDpMode] = useState<"manual" | "from_transaction">("manual");
   const [dpSearch, setDpSearch] = useState("");
+  const debouncedDpSearch = useDebounce(dpSearch, 300); // Debounced version of dpSearch
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
 
@@ -181,36 +183,35 @@ export default function ServiceInput({
   }, [user?.id]);
 
   // ── Fetch DP transaksi customer ────────────────────────────────────────
+  const fetchDpTransactions = useCallback(async (searchTerm: string) => {
+    if (dpMode !== "from_transaction") return;
+
+    let query = supabase
+      .from("layanan")
+      .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at, customer_name, customer_whatsapp")
+      .eq("jenis_layanan", "dp_service")
+      .is("linked_service_order_id", null);
+
+    if (searchTerm) {
+      // Search by name OR phone when dpSearch is active
+      query = query.or(`customer_name.ilike.%${searchTerm}%,customer_whatsapp.ilike.%${searchTerm}%`);
+      query = query.limit(50); // Increase limit when searching
+    } else {
+      query = query.limit(20); // Default limit
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Gagal memuat DP: " + error.message);
+      return;
+    }
+    setDpTransactions(data || []);
+  }, [dpMode]);
+
   useEffect(() => {
     if (dpMode !== "from_transaction") return;
-    const name = formData.cs_name?.trim();
-    const phone = formData.cs_phone?.replace(/\D/g, "");
-    if (!name && !phone) return;
-    const fetchDp = async () => {
-      let query = supabase
-        .from("layanan")
-        .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at, customer_name, customer_whatsapp")
-        .eq("jenis_layanan", "dp_service")
-        .is("linked_service_order_id", null);
-      if (name && phone.length >= 8) {
-        // FIX: Hanya tampilkan DP jika nama dan no HP persis sama dengan transaksi
-        query = query
-          .eq("customer_name", name)
-          .eq("customer_whatsapp", phone);
-      } else if (name) {
-        query = query.eq("customer_name", name);
-      } else {
-        query = query.eq("customer_whatsapp", phone);
-      }
-      const { data, error } = await query.order("created_at", { ascending: false }).limit(50);
-      if (error) {
-        toast.error("Gagal memuat DP: " + error.message);
-        return;
-      }
-      setDpTransactions(data || []);
-    };
-    fetchDp();
-  }, [dpMode, formData.cs_name, formData.cs_phone]);
+    fetchDpTransactions(debouncedDpSearch);
+  }, [debouncedDpSearch, dpMode, fetchDpTransactions]);
 
   // ── Auto-save text segera (sync) ─────────────────────────────────────────
   useEffect(() => {
