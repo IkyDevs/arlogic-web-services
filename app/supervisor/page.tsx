@@ -91,13 +91,10 @@ export default function SupervisorDashboard() {
 
   // ── Statistik per cabang ──
   const [period, setPeriod] = useState<Period | "custom">("hari");
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
   const [dateRangeStart, setDateRangeStart] = useState<string>("");
   const [dateRangeEnd, setDateRangeEnd] = useState<string>("");
   const [openPicker, setOpenPicker] = useState<null | "minggu" | "bulan">(null);
-  const [dailyData, setDailyData] = useState<
-    Array<{ date: string; revenue: number; count: number }>
-  >([]);
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
   const [branchRevenue, setBranchRevenue] = useState<
     Record<string, BranchRevenue>
   >({});
@@ -235,64 +232,6 @@ export default function SupervisorDashboard() {
     setBranchRevenue(out);
   }, [branches, supabase, activeRange]);
 
-  const fetchDailyData = useCallback(
-    async (startDate: string, endDate: string) => {
-      // If a specific date is selected, filter only that date
-      const filterDate = dateRangeStart || startDate;
-      const branchFilter = selectedBranchFilter
-        ? [selectedBranchFilter]
-        : branches.map((b) => b.id);
-      if (branchFilter.length === 0) return;
-
-      const { data } = await supabase
-        .from("layanan")
-        .select("nominal, created_at, branch_id")
-        .in("branch_id", branchFilter)
-        .gte("created_at", new Date(filterDate).toISOString())
-        .lt(
-          "created_at",
-          new Date(
-            new Date(filterDate).getTime() + 24 * 60 * 60 * 1000,
-          ).toISOString(),
-        )
-        .order("created_at", { ascending: false });
-
-      const rows = data || [];
-      const dailyMap: Record<string, { revenue: number; count: number }> = {};
-
-      for (const r of rows) {
-        const date = new Date(r.created_at).toISOString().split("T")[0];
-        if (!dailyMap[date]) {
-          dailyMap[date] = { revenue: 0, count: 0 };
-        }
-        dailyMap[date].revenue += r.nominal || 0;
-        dailyMap[date].count += 1;
-      }
-
-      const sorted = Object.entries(dailyMap)
-        .map(([date, data]) => ({ date, ...data }))
-        .sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-        );
-
-      setDailyData(sorted);
-    },
-    [supabase, selectedBranchFilter, branches, dateRangeStart],
-  );
-
-  // Fetch daily data when period, branch filter, or selected date changes
-  useEffect(() => {
-    const { start, end } = getDateRange(period);
-    const t = setTimeout(() => fetchDailyData(start, end), 0);
-    return () => clearTimeout(t);
-  }, [
-    period,
-    selectedBranchFilter,
-    dateRangeStart,
-    fetchDailyData,
-    getDateRange,
-  ]);
-
   const fetchOverview = useCallback(async () => {
     if (branches.length === 0) return;
     const { start, end } = activeRange();
@@ -395,8 +334,6 @@ export default function SupervisorDashboard() {
         { event: "*", schema: "public", table: "layanan" },
         () => {
           fetchStats();
-          const { start, end } = getDateRange(period);
-          fetchDailyData(start, end);
         },
       )
       .on(
@@ -412,7 +349,7 @@ export default function SupervisorDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchStats, fetchDailyData, period, getDateRange, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview]);
+  }, [supabase, fetchStats, period, getDateRange, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview]);
 
   useEffect(() => {
     const t = setTimeout(fetchOverview, 0);
@@ -910,61 +847,6 @@ export default function SupervisorDashboard() {
               );
             })()}
 
-            {/* Daily Breakdown Section */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              key={`daily-${period}-${selectedBranchFilter}`}
-              className="space-y-4"
-            >
-              {/* Daily Cards Grid - Responsive */}
-              {dailyData.length > 0 && dateRangeStart ? (
-                <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border border-amber-200 dark:border-amber-900/30 p-4 sm:p-6">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
-                    {dailyData.map((day) => {
-                      const dateObj = new Date(day.date);
-                      const formattedDate = dateObj.toLocaleDateString(
-                        "id-ID",
-                        {
-                          weekday: "short",
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        },
-                      );
-                      return (
-                        <motion.div
-                          key={day.date}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="text-left bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border-2 border-transparent hover:border-amber-300 dark:hover:border-amber-700 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a] min-h-[110px] sm:min-h-[120px] flex flex-col justify-between"
-                          role="region"
-                          aria-label={`Revenue on ${formattedDate}: ${formatRupiah(day.revenue)}`}
-                        >
-                          <div>
-                            <p className="text-[11px] sm:text-xs font-bold text-amber-600 dark:text-amber-400 truncate">
-                              {formattedDate}
-                            </p>
-                            <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-2 truncate">
-                              {formatRupiah(day.revenue)}
-                            </p>
-                          </div>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
-                            {day.count} transaksi
-                          </p>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : dateRangeStart ? (
-                <div className="text-center py-8 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border border-amber-200 dark:border-amber-900/30">
-                  <p className="text-sm text-amber-700 dark:text-amber-200">
-                    Tidak ada data untuk tanggal ini
-                  </p>
-                </div>
-              ) : null}
-            </motion.div>
 
             {/* Unified Revenue Cards per Branch - Responsive Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
