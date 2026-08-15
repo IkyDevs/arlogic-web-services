@@ -30,6 +30,14 @@ import { formatRupiah } from "@/lib/domain/shared/formatters";
 type Tab = "overview" | "users";
 type Period = "hari" | "minggu" | "bulan" | "tahun" | "custom";
 
+const MONTH_NAMES = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+const isoDate = (y: number, m: number, d: number) =>
+  `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
 interface BranchRevenue {
   revenue: number;
   count: number;
@@ -83,9 +91,10 @@ export default function SupervisorDashboard() {
 
   // ── Statistik per cabang ──
   const [period, setPeriod] = useState<Period | "custom">("hari");
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
   const [dateRangeStart, setDateRangeStart] = useState<string>("");
+  const [dateRangeEnd, setDateRangeEnd] = useState<string>("");
+  const [openPicker, setOpenPicker] = useState<null | "minggu" | "bulan">(null);
   const [dailyData, setDailyData] = useState<
     Array<{ date: string; revenue: number; count: number }>
   >([]);
@@ -168,9 +177,33 @@ export default function SupervisorDashboard() {
     [],
   );
 
+  const activeRange = useCallback((): { start: string; end: string } => {
+    if (dateRangeStart) {
+      const s = new Date(dateRangeStart);
+      const e = dateRangeEnd ? new Date(dateRangeEnd) : new Date(dateRangeStart);
+      return {
+        start: s.toISOString(),
+        end: new Date(e.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      };
+    }
+    return getDateRange(period);
+  }, [dateRangeStart, dateRangeEnd, period, getDateRange]);
+
+  const selectCustom = (start: string, end: string) => {
+    setDateRangeStart(start);
+    setDateRangeEnd(end);
+    setOpenPicker(null);
+  };
+
+  const clearCustom = () => {
+    setDateRangeStart("");
+    setDateRangeEnd("");
+    setOpenPicker(null);
+  };
+
   const fetchStats = useCallback(async () => {
     if (branches.length === 0) return;
-    const { start, end } = getDateRange(period);
+    const { start, end } = activeRange();
     const out: Record<string, BranchRevenue> = {};
     for (const b of branches) {
       const { data } = await supabase
@@ -200,7 +233,7 @@ export default function SupervisorDashboard() {
       };
     }
     setBranchRevenue(out);
-  }, [branches, supabase, period, getDateRange]);
+  }, [branches, supabase, activeRange]);
 
   const fetchDailyData = useCallback(
     async (startDate: string, endDate: string) => {
@@ -262,7 +295,7 @@ export default function SupervisorDashboard() {
 
   const fetchOverview = useCallback(async () => {
     if (branches.length === 0) return;
-    const { start, end } = getDateRange(period);
+    const { start, end } = activeRange();
     const stats: Record<string, { services: number; teknisi: number }> = {};
     for (const b of branches) {
       const [{ count: svc }, { count: teks }] = await Promise.all([
@@ -281,7 +314,7 @@ export default function SupervisorDashboard() {
       stats[b.id] = { services: svc || 0, teknisi: teks || 0 };
     }
     setBranchStats(stats);
-  }, [branches, supabase, period, getDateRange]);
+  }, [branches, supabase, activeRange]);
 
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
@@ -297,7 +330,7 @@ export default function SupervisorDashboard() {
   }, [supabase]);
 
   const fetchServiceStatus = useCallback(async () => {
-    const { start, end } = getDateRange(period);
+    const { start, end } = activeRange();
     const { data } = await supabase
       .from("service_orders")
       .select("branch_id, status")
@@ -311,10 +344,10 @@ export default function SupervisorDashboard() {
       out[r.branch_id][r.status] = (out[r.branch_id][r.status] || 0) + 1;
     }
     setServiceStatus(out);
-  }, [supabase, period, getDateRange]);
+  }, [supabase, activeRange]);
 
   const fetchTeknisiWorkload = useCallback(async () => {
-    const { start, end } = getDateRange(period);
+    const { start, end } = activeRange();
     const { data: teks } = await supabase
       .from("profiles")
       .select("id, full_name, branch_id")
@@ -344,7 +377,7 @@ export default function SupervisorDashboard() {
       perBranch[t.branch_id].push({ name: t.full_name, active: countMap[t.id] || 0 });
     }
     setTeknisiWorkload(perBranch);
-  }, [supabase, period, getDateRange]);
+  }, [supabase, activeRange]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -506,6 +539,28 @@ export default function SupervisorDashboard() {
     }
   };
 
+  const now = new Date();
+  const weeksInMonth = (() => {
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+    const out: Array<{ label: string; start: string; end: string; display: string }> = [];
+    let d = 1;
+    let w = 1;
+    while (d <= days) {
+      const e = Math.min(d + 6, days);
+      out.push({
+        label: `Minggu ${w}`,
+        start: isoDate(year, month, d),
+        end: isoDate(year, month, e),
+        display: `${d} – ${e} ${MONTH_NAMES[month]}`,
+      });
+      d += 7;
+      w += 1;
+    }
+    return out;
+  })();
+
   return (
     <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex flex-col lg:flex-row pb-20 lg:pb-0">
       {/* Desktop Sidebar */}
@@ -593,7 +648,7 @@ export default function SupervisorDashboard() {
         {tab === "overview" && (
           <div className="space-y-6">
             {/* Period Selection + Branch Filter */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap relative">
               <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1">
                 {(
                   [
@@ -605,29 +660,122 @@ export default function SupervisorDashboard() {
                 ).map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => setPeriod(p.id)}
-                    aria-pressed={period === p.id}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
+                    onClick={() => {
+                      if (p.id === "minggu" || p.id === "bulan") {
+                        setOpenPicker((v) => (v === p.id ? null : (p.id as "minggu" | "bulan")));
+                      } else {
+                        clearCustom();
+                        setPeriod(p.id);
+                      }
+                    }}
+                    aria-pressed={period === p.id || openPicker === p.id}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id || openPicker === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
                   >
                     {p.label}
                   </button>
                 ))}
               </div>
 
-              {/* Date Picker Button */}
-              <input
-                type="date"
-                value={dateRangeStart}
-                onChange={(e) => setDateRangeStart(e.target.value)}
-                aria-label="Select date for filter"
-                className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-300 dark:hover:border-amber-700 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
-              />
+              {openPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setOpenPicker(null)} />
+                  {openPicker === "minggu" && (
+                    <div className="absolute top-full mt-1 z-50 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg p-2 w-64">
+                      <p className="text-xs font-bold text-gray-700 dark:text-gray-200 px-2 py-1">
+                        {MONTH_NAMES[now.getMonth()]} {now.getFullYear()}
+                      </p>
+                      {weeksInMonth.map((w) => (
+                        <button
+                          key={w.label}
+                          onClick={() => selectCustom(w.start, w.end)}
+                          className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                        >
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">{w.label}</span>
+                          <span className="text-gray-400"> : {w.display}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {openPicker === "bulan" && (
+                    <div className="absolute top-full mt-1 z-50 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg p-2 w-72 grid grid-cols-2 gap-1 max-h-72 overflow-y-auto">
+                      {MONTH_NAMES.map((name, i) => {
+                        const days = new Date(now.getFullYear(), i + 1, 0).getDate();
+                        return (
+                          <button
+                            key={name}
+                            onClick={() =>
+                              selectCustom(
+                                isoDate(now.getFullYear(), i, 1),
+                                isoDate(now.getFullYear(), i, days),
+                              )
+                            }
+                            className="text-left px-3 py-2 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                          >
+                            <span className="font-semibold text-gray-900 dark:text-gray-100">{name}</span>
+                            <span className="block text-[10px] text-gray-400">
+                              1 – {days} {name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {(() => {
+                const { start, end } = activeRange();
+                const fmt = (d: string) =>
+                  new Date(d).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  });
+                const label = dateRangeStart
+                  ? dateRangeEnd
+                    ? `${fmt(dateRangeStart)} – ${fmt(dateRangeEnd)}`
+                    : fmt(dateRangeStart)
+                  : period === "hari"
+                    ? fmt(start)
+                    : `${fmt(start)} – ${fmt(end)}`;
+                return (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                    <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                    {label}
+                  </span>
+                );
+              })()}
+
+              {/* Custom Range: Dari - Sampai */}
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                Dari
+                <input
+                  type="date"
+                  value={dateRangeStart}
+                  onChange={(e) => setDateRangeStart(e.target.value)}
+                  aria-label="Dari tanggal"
+                  className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Sampai
+                <input
+                  type="date"
+                  value={dateRangeEnd}
+                  min={dateRangeStart || undefined}
+                  onChange={(e) => setDateRangeEnd(e.target.value)}
+                  aria-label="Sampai tanggal"
+                  className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                />
+              </label>
 
               {/* Reset Filter Button */}
               {dateRangeStart && (
                 <button
                   onClick={() => {
                     setDateRangeStart("");
+                    setDateRangeEnd("");
                   }}
                   aria-label="Reset date filter"
                   className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
