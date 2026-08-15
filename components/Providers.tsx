@@ -14,50 +14,66 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const redirectingRef = useRef(false)
 
   useEffect(() => {
-    const getUser = async () => {
-      try {
-        const { data: { user: authUser }, error } = await supabase.auth.getUser()
+    let cancelled = false;
 
+    const applyProfile = async (authUser: any): Promise<void> => {
+      try {
+        const profile = await ensureProfile(supabase, authUser);
+        if (!cancelled) setUser(profile);
+      } catch (profileErr) {
+        console.warn('Profile initialization skipped:', profileErr);
+        if (!cancelled) {
+          setUser({
+            id: authUser.id,
+            email: authUser.email || '',
+            full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
+            role: authUser.user_metadata?.role || 'teknisi',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          } as any)
+        }
+      }
+    };
+
+    const verifySession = async () => {
+      try {
+        const { data: { user: authUser }, error } = await supabase.auth.getUser();
         if (authUser && !error) {
-          try {
-            const profile = await ensureProfile(supabase, authUser)
-            setUser(profile)
-          } catch (profileErr: any) {
-            console.warn('Profile initialization skipped:', profileErr)
-            setUser({
-              id: authUser.id,
-              email: authUser.email || '',
-              full_name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
-              role: authUser.user_metadata?.role || 'teknisi',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            } as any)
-          }
-        } else {
-          // getUser gagal — coba getSession sebagai fallback
-          try {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session?.user) {
-              const profile = await ensureProfile(supabase, session.user)
-              setUser(profile)
-            } else {
-              setUser(null)
+          await applyProfile(authUser);
+        } else if (error) {
+          // Token benar-benar salah/kadaluarsa — bersihkan, tapi jangan reset kalau cuma error sesaat
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.user && !cancelled) {
+            setUser(null);
+            logout();
+            if (!redirectingRef.current) {
+              redirectingRef.current = true;
+              router.push('/login');
             }
-          } catch {
-            // Both getUser and getSession failed — keep current user if exists
-            if (!user) setUser(null)
           }
         }
-      } catch (err) {
-        console.error('Unexpected error in getUser:', err)
-        // Keep current user from zustand persist if already set
-        if (!user) setUser(null)
-      } finally {
-        setIsLoading(false)
+      } catch {
+        // Network blip — biarkan user dari fast path
       }
-    }
+    };
 
-    getUser()
+    const fastPath = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Baca session dari storage (instant, tanpa network) — dashboard render segera
+          await applyProfile(session.user);
+        } else {
+          await verifySession();
+        }
+      } catch {
+        await verifySession();
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    fastPath();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {

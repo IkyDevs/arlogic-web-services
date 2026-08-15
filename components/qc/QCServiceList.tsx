@@ -10,7 +10,10 @@ interface QCServiceListProps {
 
 export default function QCServiceList({ services, onViewDetails }: QCServiceListProps) {
   const formatRupiah = (nominal: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal)
+    const formatted = new Intl.NumberFormat('id-ID', {
+      maximumFractionDigits: 0,
+    }).format(nominal)
+    return `Rp ${formatted}`
   }
 
   const formatDate = (date: string) => {

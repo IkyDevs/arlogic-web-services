@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import ReportModal from "@/components/ui/ReportModal";
 import UserAvatar from "@/components/ui/UserAvatar";
+import BranchStatsCard from "@/components/supervisor/BranchStatsCard";
+import BranchComparisonTable from "@/components/supervisor/BranchComparisonTable";
+import BranchDetailModal from "@/components/supervisor/BranchDetailModal";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
 
 type Tab = "overview" | "users";
@@ -34,24 +37,6 @@ interface BranchRevenue {
   serviceCount: number;
 }
 
-interface StatDetail {
-  branchId: string;
-  branchName: string;
-  revenue: number;
-  count: number;
-  expenses: number;
-  byMetode: Record<string, number>;
-  byJenis: Record<string, number>;
-  recent: Array<{
-    id: string;
-    customer_name: string;
-    nominal: number;
-    metode_pembayaran: string;
-    jenis_layanan: string;
-    created_at: string;
-  }>;
-}
-
 export default function SupervisorDashboard() {
   const { user, logout } = useAuthStore();
   const { branches } = useBranch();
@@ -62,6 +47,12 @@ export default function SupervisorDashboard() {
 
   const [branchStats, setBranchStats] = useState<
     Record<string, { services: number; teknisi: number }>
+  >({});
+  const [serviceStatus, setServiceStatus] = useState<
+    Record<string, Record<string, number>>
+  >({});
+  const [teknisiWorkload, setTeknisiWorkload] = useState<
+    Record<string, Array<{ name: string; active: number }>>
   >({});
   const [users, setUsers] = useState<
     Array<{
@@ -101,8 +92,11 @@ export default function SupervisorDashboard() {
   const [branchRevenue, setBranchRevenue] = useState<
     Record<string, BranchRevenue>
   >({});
-  const [statDetail, setStatDetail] = useState<StatDetail | null>(null);
-  const [showStatModal, setShowStatModal] = useState(false);
+  const [detailBranch, setDetailBranch] = useState<{
+    id: string;
+    name: string;
+    code?: string;
+  } | null>(null);
 
   const getDateRange = useCallback(
     (p: Period): { start: string; end: string } => {
@@ -253,64 +247,6 @@ export default function SupervisorDashboard() {
     [supabase, selectedBranchFilter, branches, dateRangeStart],
   );
 
-  const openStatDetail = async (b: { id: string; name: string }) => {
-    const { start, end } = getDateRange(period);
-    const { data } = await supabase
-      .from("layanan")
-      .select(
-        "id, customer_name, nominal, metode_pembayaran, jenis_layanan, created_at",
-      )
-      .eq("branch_id", b.id)
-      .gte("created_at", start)
-      .lte("created_at", end)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    const rows = data || [];
-    const byMetode: Record<string, number> = {};
-    const byJenis: Record<string, number> = {};
-    let revenue = 0,
-      expenses = 0;
-    for (const r of rows) {
-      const isExp = r.jenis_layanan === "pengeluaran";
-      byMetode[r.metode_pembayaran || "unknown"] =
-        (byMetode[r.metode_pembayaran || "unknown"] || 0) + (r.nominal || 0);
-      byJenis[r.jenis_layanan || "lainnya"] =
-        (byJenis[r.jenis_layanan || "lainnya"] || 0) + (r.nominal || 0);
-      if (isExp) expenses += r.nominal || 0;
-      else revenue += r.nominal || 0;
-    }
-    setStatDetail({
-      branchId: b.id,
-      branchName: b.name,
-      revenue,
-      count: rows.length,
-      expenses,
-      byMetode,
-      byJenis,
-      recent: rows,
-    });
-    setShowStatModal(true);
-  };
-
-  // Realtime: auto-refresh tanpa reload
-  useEffect(() => {
-    const channel = supabase
-      .channel("supervisor-stats")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "layanan" },
-        () => {
-          fetchStats();
-          const { start, end } = getDateRange(period);
-          fetchDailyData(start, end);
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, fetchStats, fetchDailyData, period, getDateRange]);
-
   // Fetch daily data when period, branch filter, or selected date changes
   useEffect(() => {
     const { start, end } = getDateRange(period);
@@ -326,13 +262,16 @@ export default function SupervisorDashboard() {
 
   const fetchOverview = useCallback(async () => {
     if (branches.length === 0) return;
+    const { start, end } = getDateRange(period);
     const stats: Record<string, { services: number; teknisi: number }> = {};
     for (const b of branches) {
       const [{ count: svc }, { count: teks }] = await Promise.all([
         supabase
           .from("service_orders")
           .select("id", { count: "exact", head: true })
-          .eq("branch_id", b.id),
+          .eq("branch_id", b.id)
+          .gte("created_at", start)
+          .lte("created_at", end),
         supabase
           .from("profiles")
           .select("id", { count: "exact", head: true })
@@ -342,7 +281,7 @@ export default function SupervisorDashboard() {
       stats[b.id] = { services: svc || 0, teknisi: teks || 0 };
     }
     setBranchStats(stats);
-  }, [branches, supabase]);
+  }, [branches, supabase, period, getDateRange]);
 
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
@@ -356,6 +295,91 @@ export default function SupervisorDashboard() {
     setUsers(data || []);
     setLoadingUsers(false);
   }, [supabase]);
+
+  const fetchServiceStatus = useCallback(async () => {
+    const { start, end } = getDateRange(period);
+    const { data } = await supabase
+      .from("service_orders")
+      .select("branch_id, status")
+      .gte("created_at", start)
+      .lte("created_at", end)
+      .limit(10000);
+    if (!data) return;
+    const out: Record<string, Record<string, number>> = {};
+    for (const r of data) {
+      if (!out[r.branch_id]) out[r.branch_id] = {};
+      out[r.branch_id][r.status] = (out[r.branch_id][r.status] || 0) + 1;
+    }
+    setServiceStatus(out);
+  }, [supabase, period, getDateRange]);
+
+  const fetchTeknisiWorkload = useCallback(async () => {
+    const { start, end } = getDateRange(period);
+    const { data: teks } = await supabase
+      .from("profiles")
+      .select("id, full_name, branch_id")
+      .eq("role", "teknisi");
+    if (!teks?.length) return;
+    const ids = teks.map((t: any) => t.id);
+    const { data: active } = await supabase
+      .from("service_orders")
+      .select("assigned_teknisi_id")
+      .in("assigned_teknisi_id", ids)
+      .in("status", [
+        "assigned",
+        "in_progress",
+        "waiting_sparepart",
+        "sparepart_ready",
+        "qc_pending",
+      ])
+      .gte("created_at", start)
+      .lte("created_at", end);
+    const countMap: Record<string, number> = {};
+    for (const r of active || []) {
+      countMap[r.assigned_teknisi_id] = (countMap[r.assigned_teknisi_id] || 0) + 1;
+    }
+    const perBranch: Record<string, Array<{ name: string; active: number }>> = {};
+    for (const t of teks) {
+      if (!perBranch[t.branch_id]) perBranch[t.branch_id] = [];
+      perBranch[t.branch_id].push({ name: t.full_name, active: countMap[t.id] || 0 });
+    }
+    setTeknisiWorkload(perBranch);
+  }, [supabase, period, getDateRange]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      fetchServiceStatus();
+      fetchTeknisiWorkload();
+    }, 0);
+    return () => clearTimeout(t);
+  }, [fetchServiceStatus, fetchTeknisiWorkload]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("supervisor-stats")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "layanan" },
+        () => {
+          fetchStats();
+          const { start, end } = getDateRange(period);
+          fetchDailyData(start, end);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_orders" },
+        () => {
+          fetchServiceStatus();
+          fetchTeknisiWorkload();
+          fetchOverview();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchStats, fetchDailyData, period, getDateRange, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview]);
 
   useEffect(() => {
     const t = setTimeout(fetchOverview, 0);
@@ -803,118 +827,58 @@ export default function SupervisorDashboard() {
                   expenses: 0,
                   serviceCount: 0,
                 };
-                const s = branchStats[b.id] || { services: 0, teknisi: 0 };
+                const { start } = getDateRange(period);
+                const startDate = new Date(start);
+                const dateLabel =
+                  period === "hari"
+                    ? startDate.toLocaleDateString("id-ID", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })
+                    : startDate.toLocaleDateString("id-ID", {
+                        weekday: "short",
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      });
                 return (
-                  <button
+                  <BranchStatsCard
                     key={b.id}
-                    onClick={() => openStatDetail(b)}
-                    className="text-left bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 sm:p-5 hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
-                  >
-                    {/* Header */}
-                    <div className="flex items-center gap-2 min-w-0 mb-3">
-                      <Wallet
-                        className="w-4 h-4 text-blue-500 flex-shrink-0"
-                        aria-hidden="true"
-                      />
-                      <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
-                        {b.name}
-                      </h3>
-                      <span className="text-[10px] font-mono bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-gray-500 flex-shrink-0">
-                        {b.code}
-                      </span>
-                    </div>
-
-                    {/* Date Subtitle */}
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                      {(() => {
-                        const { start, end } = getDateRange(period);
-                        const startDate = new Date(start);
-                        const endDate = new Date(end);
-
-                        if (period === "hari") {
-                          return startDate.toLocaleDateString("id-ID", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          });
-                        } else {
-                          const formattedStart = startDate.toLocaleDateString(
-                            "id-ID",
-                            {
-                              weekday: "short",
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            },
-                          );
-                          const formattedEnd = endDate.toLocaleDateString(
-                            "id-ID",
-                            {
-                              weekday: "short",
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            },
-                          );
-                          return `${formattedStart} - ${formattedEnd}`;
-                        }
-                      })()}
-                    </p>
-
-                    {/* Unified Metrics Grid - 2x2 */}
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {/* Pendapatan */}
-                      <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2.5 text-center">
-                        <p className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate">
-                          {formatRupiah(st.revenue)}
-                        </p>
-                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
-                          Pendapatan
-                        </p>
-                      </div>
-
-                      {/* Transaksi */}
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2.5 text-center">
-                        <p className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">
-                          {st.count}
-                        </p>
-                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
-                          Transaksi
-                        </p>
-                      </div>
-
-                      {/* Service */}
-                      <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2.5 text-center">
-                        <p className="text-sm sm:text-base font-bold text-violet-600 dark:text-violet-400">
-                          {s.services}
-                        </p>
-                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
-                          Service
-                        </p>
-                      </div>
-
-                      {/* Teknisi */}
-                      <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2.5 text-center">
-                        <p className="text-sm sm:text-base font-bold text-orange-600 dark:text-orange-400">
-                          {s.teknisi}
-                        </p>
-                        <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">
-                          Teknisi
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Expenses indicator */}
-                    {st.expenses > 0 && (
-                      <p className="mt-2.5 text-[10px] text-red-500 dark:text-red-400">
-                        💸 Pengeluaran: {formatRupiah(st.expenses)}
-                      </p>
-                    )}
-                  </button>
+                    branch={b}
+                    revenue={st.revenue}
+                    count={st.count}
+                    expenses={st.expenses}
+                    serviceCount={st.serviceCount}
+                    status={serviceStatus[b.id] || {}}
+                    teknisi={teknisiWorkload[b.id] || []}
+                    dateLabel={dateLabel}
+                    onClick={() =>
+                      setDetailBranch({ id: b.id, name: b.name, code: b.code })
+                    }
+                  />
                 );
               })}
             </div>
+
+            <BranchComparisonTable
+              rows={displayedBranches.map((b) => {
+                const st = branchRevenue[b.id];
+                const s = branchStats[b.id];
+                const status = serviceStatus[b.id] || {};
+                const teks = teknisiWorkload[b.id] || [];
+                return {
+                  branchName: b.name,
+                  revenue: st?.revenue || 0,
+                  transactions: st?.count || 0,
+                  services: s?.services || 0,
+                  status,
+                  teknisiCount: s?.teknisi || teks.length || 0,
+                  activeLoad: teks.reduce((a, t) => a + t.active, 0),
+                };
+              })}
+            />
           </div>
         )}
 
@@ -1150,154 +1114,19 @@ export default function SupervisorDashboard() {
         )}
       </main>
 
-      {/* Popup Detail Statistik per Cabang */}
-      <AnimatePresence>
-        {showStatModal && statDetail && (
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[90] p-4"
-            onClick={() => setShowStatModal(false)}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="statModalTitle"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-white/10 max-h-[85vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between sticky top-0 bg-white dark:bg-[#1c1c1c]">
-                <div>
-                  <h3
-                    id="statModalTitle"
-                    className="text-lg font-bold text-gray-900 dark:text-gray-100"
-                  >
-                    Statistik {statDetail.branchName}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    {period === "hari"
-                      ? "Hari Ini"
-                      : period === "minggu"
-                        ? "Mingguan"
-                        : period === "bulan"
-                          ? "Bulanan"
-                          : "Tahunan"}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowStatModal(false)}
-                  aria-label="Close details"
-                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600"
-                >
-                  <X className="w-4 h-4 text-gray-400" aria-hidden="true" />
-                </button>
-              </div>
-
-              <div className="p-4 sm:p-6 space-y-5">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 text-center">
-                    <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 truncate">
-                      {formatRupiah(statDetail.revenue)}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-1">Pendapatan</p>
-                  </div>
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-center">
-                    <p className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {statDetail.count}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-1">Transaksi</p>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 text-center">
-                    <p className="text-base sm:text-lg font-bold text-red-600 dark:text-red-400 truncate">
-                      {formatRupiah(statDetail.expenses)}
-                    </p>
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      Pengeluaran
-                    </p>
-                  </div>
-                </div>
-
-                {/* By Payment Method */}
-                {Object.keys(statDetail.byMetode).length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                      Per Metode Pembayaran
-                    </p>
-                    <div className="space-y-1.5">
-                      {Object.entries(statDetail.byMetode).map(([k, v]) => (
-                        <div
-                          key={k}
-                          className="flex items-center justify-between text-xs sm:text-sm"
-                        >
-                          <span className="text-gray-600 dark:text-gray-300 truncate">
-                            {k}
-                          </span>
-                          <span className="font-semibold text-gray-900 dark:text-gray-100 flex-shrink-0">
-                            {formatRupiah(v)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* By Service Type */}
-                {Object.keys(statDetail.byJenis).length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                      Per Jenis Layanan
-                    </p>
-                    <div className="space-y-1.5">
-                      {Object.entries(statDetail.byJenis).map(([k, v]) => (
-                        <div
-                          key={k}
-                          className="flex items-center justify-between text-xs sm:text-sm"
-                        >
-                          <span className="text-gray-600 dark:text-gray-300 truncate">
-                            {k}
-                          </span>
-                          <span className="font-semibold text-gray-900 dark:text-gray-100 flex-shrink-0">
-                            {formatRupiah(v)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Transactions */}
-                {statDetail.recent.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                      Transaksi Terbaru
-                    </p>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                      {statDetail.recent.slice(0, 20).map((r) => (
-                        <div
-                          key={r.id}
-                          className="flex items-center justify-between text-xs border-b border-gray-100 dark:border-white/5 pb-1.5"
-                        >
-                          <span className="text-gray-600 dark:text-gray-300 truncate">
-                            {r.customer_name}{" "}
-                            <span className="text-gray-400">
-                              ({r.jenis_layanan})
-                            </span>
-                          </span>
-                          <span className="font-semibold text-gray-900 dark:text-gray-100 flex-shrink-0">
-                            {formatRupiah(r.nominal)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {detailBranch && (
+        <BranchDetailModal
+          branch={detailBranch}
+          revenue={
+            branchRevenue[detailBranch.id]?.revenue || 0
+          }
+          transactions={branchRevenue[detailBranch.id]?.count || 0}
+          expenses={branchRevenue[detailBranch.id]?.expenses || 0}
+          status={serviceStatus[detailBranch.id] || {}}
+          teknisi={teknisiWorkload[detailBranch.id] || []}
+          onClose={() => setDetailBranch(null)}
+        />
+      )}
 
       {/* Bottom Navigation Bar for Mobile/Tablet */}
       <nav

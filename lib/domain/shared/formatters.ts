@@ -1,12 +1,10 @@
 // ─── Domain Formatters (Single Source of Truth) ────────────────────
 
 export function formatRupiah(n: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
+  const formatted = new Intl.NumberFormat("id-ID", {
     maximumFractionDigits: 0,
   }).format(n)
+  return `Rp ${formatted}`
 }
 
 export function formatDate(
