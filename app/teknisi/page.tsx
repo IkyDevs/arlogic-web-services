@@ -143,25 +143,6 @@ export default function TeknisiDashboard() {
   const router = useRouter();
   const supabase = createClient();
 
-  // Force absensi popup for non-owner staff
-  useEffect(() => {
-    if (!user || loading) return;
-    if (!todayAttendance) {
-      const checkRole = async () => {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        if (profile && profile.role !== "owner") {
-          setAttendanceType("check_in");
-          setShowAttendance(true);
-        }
-      };
-      checkRole();
-    }
-  }, [loading, user, todayAttendance]);
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
