@@ -53,10 +53,15 @@ import {
   AlertCircle,
   Calendar,
   Wrench,
+  Search,
   Plus,
   ChevronDown,
+  
 } from "lucide-react";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
+import ServicePickupPicker, {
+  ServicePickupResult,
+} from "@/components/layanan/ServicePickupPicker";
 import { useTransactionStore } from "@/stores/transaction-store";
 
 interface LayananFormProps {
@@ -197,6 +202,13 @@ export default memo(function LayananForm({
   const [loadingPhotos, setLoadingPhotos] = useState<{ key: string; name: string }[]>([]);
   const [showOtherHandler, setShowOtherHandler] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pickupTargetIdx, setPickupTargetIdx] = useState<number | null>(null);
+  const [linkedServiceOrderIds, setLinkedServiceOrderIds] = useState<string[]>(() => {
+    if (Array.isArray(initialData?.linked_service_order_ids)) return initialData.linked_service_order_ids;
+    if (initialData?.linked_service_order_id) return [initialData.linked_service_order_id];
+    return [];
+  });
+  const [pickedInvoices, setPickedInvoices] = useState<string[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>(() => {
     if (initialData?.photo_urls?.length) return initialData.photo_urls;
     if (initialData?.photo_url) return [initialData.photo_url];
@@ -218,6 +230,10 @@ export default memo(function LayananForm({
   const showCustomLeadSource = leadSource === "tulis_sendiri";
 
   const total = useMemo(() => calculateTransactionTotal(items), [items]);
+
+  const hasAmbilJam = items.some(
+    (i) => i.jenis_layanan === "ambil_jam_service",
+  );
 
   const derivedNominal2 = useMemo(() => {
     if (metodePembayaran !== "split_payment") return splitPayment.nominal_2;
@@ -298,6 +314,60 @@ export default memo(function LayananForm({
       );
     },
     [],
+  );
+
+  const handlePickService = useCallback(
+    (services: ServicePickupResult[]) => {
+      if (!services.length) return;
+      const notes = services
+        .map((svc) => {
+          const jasa = svc.final_jasa_total || 0;
+          const sp = svc.final_sparepart_total || 0;
+          const discount = svc.discount || 0;
+          const dp = svc.down_payment || 0;
+          const lines = [
+            `Service: ${svc.invoice_number}`,
+            ...svc.items.map(
+              (it) =>
+                `- ${it.name}${it.quantity > 1 ? ` x${it.quantity}` : ""} : ${formatRupiah((it.price || 0) * it.quantity)}`,
+            ),
+            `Jasa: ${formatRupiah(jasa)}`,
+            `Sparepart: ${formatRupiah(sp)}`,
+            `Subtotal: ${formatRupiah(jasa + sp)}`,
+          ];
+          if (discount > 0) lines.push(`Diskon: -${formatRupiah(discount)}`);
+          if (dp > 0) lines.push(`DP: -${formatRupiah(dp)}`);
+          lines.push(`Total: ${formatRupiah(svc.final_cost || 0)}`);
+          return lines.join("\n");
+        })
+        .join("\n\n");
+      const patch: TransactionServiceItem = {
+        jenis_layanan: "ambil_jam_service",
+        skus: services.map((svc) => ({
+          sku: svc.invoice_number,
+          nominal: svc.final_cost || 0,
+        })),
+        notes,
+      };
+      setItems((prev) => {
+        const targetIdx =
+          pickupTargetIdx ??
+          prev.findIndex((i) => i.jenis_layanan === "ambil_jam_service");
+        if (targetIdx < 0) {
+          return [...prev, patch];
+        }
+        return prev
+          .map((it, i) => (i === targetIdx ? { ...it, ...patch } : it))
+          .filter(
+            (it, i) =>
+              !(it.jenis_layanan === "ambil_jam_service" && i !== targetIdx),
+          );
+      });
+      setLinkedServiceOrderIds(services.map((s) => s.id));
+      setPickedInvoices(services.map((s) => s.invoice_number));
+      setPickupTargetIdx(null);
+    },
+    [pickupTargetIdx],
   );
 
   const handleCancel = useCallback(() => {
@@ -491,6 +561,11 @@ export default memo(function LayananForm({
     e.preventDefault();
     setErrors([]);
 
+    if (hasAmbilJam && linkedServiceOrderIds.length === 0) {
+      toast.error("Wajib pilih minimal 1 service untuk Ambil Jam Service");
+      return;
+    }
+
     const validationErrors = validateTransaction({
       customer_name: customerName,
       customer_whatsapp: customerWhatsapp,
@@ -656,6 +731,7 @@ export default memo(function LayananForm({
           photo_urls: photoUrls,
           upload_session_key: uploadKey,
           branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
+          linked_service_order_ids: hasAmbilJam ? linkedServiceOrderIds : undefined,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -693,6 +769,7 @@ export default memo(function LayananForm({
           telegram_message_id: tgMessageId,
           upload_session_key: uploadKey,
           branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
+          linked_service_order_ids: hasAmbilJam ? linkedServiceOrderIds : undefined,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -1199,6 +1276,40 @@ export default memo(function LayananForm({
                     })}
                   </select>
 
+                  {item.jenis_layanan === "ambil_jam_service" && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2.5">
+                      {linkedServiceOrderIds.length > 0 ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 truncate">
+                              ✓ {pickedInvoices.length > 0
+                                ? `${pickedInvoices.length} service: ${pickedInvoices.join(", ")}`
+                                : `${linkedServiceOrderIds.length} service terhubung`}
+                            </p>
+                            <p className="text-[10px] text-blue-500">
+                              Nominal &amp; rincian otomatis dari service
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPickupTargetIdx(itemIdx)}
+                            className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 underline flex-shrink-0"
+                          >
+                            Ganti
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setPickupTargetIdx(itemIdx)}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-all"
+                        >
+                          <Search className="w-3.5 h-3.5" /> Pilih Service Selesai
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     {item.skus.map((sku, skuIdx) => (
                       <div
@@ -1251,12 +1362,12 @@ export default memo(function LayananForm({
                     </button>
                   </div>
 
-                  <input
-                    type="text"
+                  <textarea
                     value={item.notes}
                     onChange={(e) => updateItemNotes(itemIdx, e.target.value)}
-                    placeholder="Catatan (opsional)"
-                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                    placeholder="Catatan (bisa pakai enter / baris baru)"
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10 resize-y"
                   />
                 </div>
               </div>
@@ -1578,6 +1689,14 @@ export default memo(function LayananForm({
           </button>
         </div>
       </form>
+
+      <ServicePickupPicker
+        open={pickupTargetIdx !== null}
+        branchId={user?.branch_id ?? (activeBranch as any)?.id}
+        alreadyLinkedIds={linkedServiceOrderIds}
+        onClose={() => setPickupTargetIdx(null)}
+        onSelect={handlePickService}
+      />
 
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">

@@ -44,6 +44,8 @@ export interface TransactionData {
   upload_session_key?: string
   upload_status?: UploadStatus
   branch_id?: string | null
+  linked_service_order_id?: string | null
+  linked_service_order_ids?: string[] | null
   created_at?: string
   updated_at?: string
 }

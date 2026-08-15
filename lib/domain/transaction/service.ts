@@ -107,6 +107,8 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
     upload_session_key: row.upload_session_key,
     branch_id: row.branch_id,
     upload_status: (row.upload_status || 'NONE') as UploadStatus,
+    linked_service_order_id: (row as any).linked_service_order_id || null,
+    linked_service_order_ids: (row as any).linked_service_order_ids || null,
     ...((row.jenis_layanan === "pengeluaran" || row.jenis_layanan === "cashdraw")
       ? { jenis_layanan: row.jenis_layanan as JenisLayanan, nominal: row.nominal, detail_sku: row.detail_sku }
       : {}),
@@ -293,6 +295,8 @@ export async function createTransaction(
       upload_status: tx.upload_status || 'NONE',
       upload_session_key: tx.upload_session_key || null,
       branch_id: tx.branch_id || null,
+      linked_service_order_id: tx.linked_service_order_id || null,
+      linked_service_order_ids: tx.linked_service_order_ids || null,
     })
     .select("id, created_at")
     .single()
@@ -309,6 +313,17 @@ export async function createTransaction(
     }))
     const { error: itemErr } = await supabase.from("layanan_items").insert(itemRows)
     if (itemErr) console.error("Gagal simpan items:", itemErr)
+  }
+
+  if (
+    tx.items.some((i) => i.jenis_layanan === "ambil_jam_service") &&
+    Array.isArray(tx.linked_service_order_ids) &&
+    tx.linked_service_order_ids.length > 0
+  ) {
+    await supabase
+      .from("service_orders")
+      .update({ status: "done" })
+      .in("id", tx.linked_service_order_ids)
   }
 
   return { ...tx, id: newLayanan.id, created_at: newLayanan.created_at }
@@ -348,6 +363,8 @@ export async function updateTransaction(
   if (tx.telegram_sync !== undefined) updatePayload.telegram_sync = tx.telegram_sync
   if (tx.upload_session_key !== undefined) updatePayload.upload_session_key = tx.upload_session_key
   if (tx.branch_id !== undefined) updatePayload.branch_id = tx.branch_id
+  if (tx.linked_service_order_id !== undefined) updatePayload.linked_service_order_id = tx.linked_service_order_id
+  if (tx.linked_service_order_ids !== undefined) updatePayload.linked_service_order_ids = tx.linked_service_order_ids
 
   if (tx.items !== undefined) {
     const total = calculateTransactionTotal(tx.items)
