@@ -30,6 +30,7 @@ import toast from "react-hot-toast";
 import QCSidebar from "@/components/qc/QCSidebar";
 import QCStats from "@/components/qc/QCStats";
 import QCServiceList from "@/components/qc/QCServiceList";
+import TeknisiTrackingView from "@/components/qc/TeknisiTrackingView";
 import QCReviewModal from "@/components/qc/QCReviewModal";
 import QCRecallModal from "@/components/qc/QCRecallModal";
 import AttendanceModal from "@/components/teknisi/AttendanceModal";
@@ -62,6 +63,7 @@ export default function QCDashboard() {
   const [teknisiList, setTeknisiList] = useState<string[]>([]);
   const [showTeknisiFilter, setShowTeknisiFilter] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [processingServices, setProcessingServices] = useState<any[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -164,10 +166,12 @@ export default function QCDashboard() {
   }, []);
 
   const fetchTeknisiList = async () => {
+    const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("profiles")
       .select("full_name")
       .eq("role", "teknisi")
+      .match(branchScope)
       .order("full_name");
 
     if (data) {
@@ -196,6 +200,25 @@ export default function QCDashboard() {
       setFilteredServices(mapped);
     }
     setLoading(false);
+  };
+
+  const fetchProcessingServices = async () => {
+    const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
+    const { data } = await supabase
+      .from("service_orders")
+      .select("*, profiles:assigned_teknisi_id(full_name)")
+      .in("status", ["assigned", "in_progress"])
+      .match(branchScope)
+      .order("created_at", { ascending: true })
+      .limit(500);
+
+    if (data) {
+      const mapped = data.map((s: any) => ({
+        ...s,
+        teknisi_name: s.profiles?.full_name || "-",
+      }));
+      setProcessingServices(mapped);
+    }
   };
 
   const fetchCompletedServices = async () => {
@@ -292,6 +315,17 @@ export default function QCDashboard() {
       setApprovingId(null);
     }
   };
+
+  const isTeknisiTab =
+    activeTab !== "all" &&
+    !["pending-approval", "absensi", "customer", "management-transaction", "done", "service", "completed"].includes(activeTab);
+
+  useEffect(() => {
+    if (isTeknisiTab) {
+      fetchProcessingServices();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTeknisiTab]);
 
   const filterByTeknisi = (teknisiName: string) => {
     if (teknisiName === "all") {
@@ -604,6 +638,20 @@ export default function QCDashboard() {
                 ))
               )}
             </div>
+          ) : isTeknisiTab ? (
+            <TeknisiTrackingView
+              teknisiName={activeTab}
+              review={filteredServices}
+              processing={processingServices.filter(
+                (s) => s.teknisi_name === activeTab,
+              )}
+              pending={pendingApprovals.filter(
+                (p) => p.profiles?.full_name === activeTab,
+              )}
+              onViewDetails={viewServiceDetails}
+              onApprovePending={handleApprovePending}
+              approvingId={approvingId}
+            />
           ) : (
             <>
               <QCStats

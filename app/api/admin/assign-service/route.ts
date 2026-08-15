@@ -32,12 +32,30 @@ export async function POST(request: Request) {
   // Verify service exists and is in pending status
   const { data: service, error: fetchError } = await supabase
     .from("service_orders")
-    .select("id, status, assigned_teknisi_id, invoice_number, customer_name")
+    .select("id, status, assigned_teknisi_id, invoice_number, customer_name, branch_id")
     .eq("id", serviceOrderId)
     .single();
 
   if (fetchError || !service) {
     return NextResponse.json({ error: "Service not found" }, { status: 404 });
+  }
+
+  // Block cross-branch pickup: teknisi hanya bisa ambil service dari cabangnya sendiri
+  const { data: teknisiProfile } = await supabase
+    .from("profiles")
+    .select("branch_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (
+    teknisiProfile?.branch_id &&
+    service.branch_id &&
+    teknisiProfile.branch_id !== service.branch_id
+  ) {
+    return NextResponse.json(
+      { error: "Service dari cabang lain. Tidak bisa diambil." },
+      { status: 403 },
+    );
   }
 
   // Check if service is already assigned
@@ -121,7 +139,7 @@ export async function GET(request: Request) {
   // Get service details
   const { data: service } = await supabase
     .from("service_orders")
-    .select("id, status, assigned_teknisi_id, invoice_number, customer_name, watch_brand, device_brand, watch_model, device_model, issue_description, created_at")
+    .select("id, status, assigned_teknisi_id, invoice_number, customer_name, branch_id, watch_brand, device_brand, watch_model, device_model, issue_description, created_at")
     .eq("id", serviceOrderId)
     .single();
 
@@ -131,7 +149,20 @@ export async function GET(request: Request) {
 
   // Check if already assigned
   const isAssigned = !!service.assigned_teknisi_id;
-  const canAssign = !isAssigned && service.status === "pending" && teknisiId === user.id;
+  let branchMismatch = false;
+  if (!isAssigned && service.status === "pending") {
+    const { data: teknisiProfile } = await supabase
+      .from("profiles")
+      .select("branch_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    branchMismatch = !!(
+      teknisiProfile?.branch_id &&
+      service.branch_id &&
+      teknisiProfile.branch_id !== service.branch_id
+    );
+  }
+  const canAssign = !isAssigned && service.status === "pending" && teknisiId === user.id && !branchMismatch;
 
   // Count active projects for this technician
   const { count: activeCount } = await supabase

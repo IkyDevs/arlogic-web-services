@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -72,6 +73,7 @@ function resolveRange(
 
 export default function OwnerDashboard() {
   const { user, logout } = useAuthStore();
+  const supabase = createClient();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -102,6 +104,7 @@ export default function OwnerDashboard() {
   };
 
   const handleLogout = async () => {
+    await supabase.auth.signOut();
     logout();
     router.push("/login");
   };
