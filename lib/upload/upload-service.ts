@@ -361,6 +361,7 @@ export class UploadService {
     timeout?: number,
     branchCode?: string,
     onTranscodeProgress?: (percent: number) => void,
+    onUploadProgress?: (percent: number) => void,
   ): Promise<Array<{ url: string; chat_id: string; message_id: number; file_id?: string }>> {
     console.log('[DEBUG:UploadService] legacyUpload CALLED', {
       files_count: files.length,
@@ -386,7 +387,7 @@ export class UploadService {
     const urls = [workerUrl].filter(Boolean)
     let lastError: any = null
 
-    // Video dipastikan playable + ≤48MB (HEVC→H.264, re-encode bila besar)
+    // Video dipastikan playable + ≤15MB (HEVC/webm→H.264, re-encode bila besar)
     const preparedFiles: File[] = []
     for (const f of files) {
       preparedFiles.push(await ensureUploadableVideo(f, onTranscodeProgress))
@@ -405,23 +406,30 @@ export class UploadService {
       if (caption) fd.append('caption', caption)
       for (const f of preparedFiles) fd.append('files', f, f.name)
 
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), timeout || 120000)
-
       try {
-        const res = await fetch(uploadUrl, { method: 'POST', body: fd, signal: controller.signal })
-        clearTimeout(timer)
-        const text = await res.text()
+        // XHR + upload.onprogress → progress upload asli (fetch tidak punya ini)
+        const result = await new Promise<{ status: number; text: string }>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', uploadUrl)
+          xhr.timeout = timeout || 120000
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) onUploadProgress?.(Math.round((e.loaded / e.total) * 100))
+          }
+          xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText })
+          xhr.onerror = () => reject(new Error('Koneksi terputus'))
+          xhr.ontimeout = () => reject(new Error('Upload timeout. Coba lagi.'))
+          xhr.send(fd)
+        })
+        const text = result.text
         let data: any
-        try { data = JSON.parse(text) } catch { throw new Error(`Server error (HTTP ${res.status})`) }
-        if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
+        try { data = JSON.parse(text) } catch { throw new Error(`Server error (HTTP ${result.status})`) }
+        if (result.status < 200 || result.status >= 300) throw new Error(data.details || data.error || `Upload gagal (${result.status})`)
         if (!data.urls?.length) throw new Error('Foto gagal dikirim')
 
         return data.urls.map((url: string, i: number) => ({
           url, chat_id: data.messages?.[i]?.chat_id || '', message_id: data.messages?.[i]?.message_id || 0, file_id: data.file_ids?.[i] || '',
         }))
       } catch (e: any) {
-        clearTimeout(timer)
         lastError = e
         console.warn('[DEBUG:UploadService] upload failed, trying next endpoint:', uploadUrl, e.message)
       }

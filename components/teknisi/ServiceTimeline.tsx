@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
 import { useCentralUpload } from '@/hooks/useCentralUpload'
 import { buildTelegramMetadata } from '@/lib/telegram-metadata'
 import { isVideoFile } from '@/lib/upload/upload-config'
+import { ensureUploadableVideo } from '@/lib/video/transcode'
 import { isPlayableVideo, mediaTypeFromFile, getVideoDurationMs } from '@/lib/media-utils'
 import SmartMedia from '@/components/ui/SmartMedia'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,7 +14,7 @@ import {
   Clock, Send, CheckCircle, AlertCircle,
   Wrench, Package, Camera, User, MessageSquare,
   ChevronDown, ChevronUp, Phone,
-  Check, X, Loader, Plus, ExternalLink, Video, Square
+  Check, X, Loader, Plus, ExternalLink, Video
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -35,13 +36,7 @@ const updateTemplates = [
   { icon: Check, label: 'Selesai', message: 'Service selesai, siap diambil customer', status: 'completed' },
 ]
 
-const MAX_RECORD_SEC = 120
-
-function formatCountdown(totalSec: number): string {
-  const m = Math.floor(totalSec / 60)
-  const s = totalSec % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
+const MAX_VIDEO_SEC = 60
 
 export default function ServiceTimeline({ serviceId, customerPhone, customerName, invoiceNumber, onUpdate }: ServiceTimelineProps) {
   const [timeline, setTimeline] = useState<any[]>([])
@@ -53,123 +48,14 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   const [spareparts, setSpareparts] = useState<Array<{ name: string; qty: number; price: number }>>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
+  const recordInputRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
   const { user } = useAuthStore()
   const [sessionKey] = useState(() => `timeline_${serviceId}_${Date.now()}`)
   const upload = useCentralUpload(sessionKey)
   const [uploading, setUploading] = useState(false)
   const [localProgress, setLocalProgress] = useState(0)
-  const [showRecorder, setShowRecorder] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const [recordLeft, setRecordLeft] = useState(MAX_RECORD_SEC)
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const recordTimerRef = useRef<number | null>(null)
-  const livePreviewRef = useRef<HTMLVideoElement>(null)
-
-  const stopStream = () => {
-    streamRef.current?.getTracks().forEach((t) => t.stop())
-    streamRef.current = null
-  }
-
-  const clearRecordTimer = () => {
-    if (recordTimerRef.current !== null) {
-      clearInterval(recordTimerRef.current)
-      recordTimerRef.current = null
-    }
-  }
-
-  const stopRecording = useCallback(() => {
-    clearRecordTimer()
-    if (recorderRef.current && recorderRef.current.state === 'recording') {
-      recorderRef.current.stop()
-    }
-  }, [])
-
-  const cancelRecording = () => {
-    clearRecordTimer()
-    if (recorderRef.current && recorderRef.current.state === 'recording') {
-      chunksRef.current = []
-      recorderRef.current.onstop = null
-      recorderRef.current.stop()
-    }
-    stopStream()
-    setShowRecorder(false)
-    setRecording(false)
-    setRecordLeft(MAX_RECORD_SEC)
-  }
-
-  const startRecording = async () => {
-    setShowRecorder(true)
-    setRecording(false)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: true,
-      })
-      streamRef.current = stream
-      const mime = ['video/mp4', 'video/webm;codecs=h264', 'video/webm'].find((m) =>
-        MediaRecorder.isTypeSupported(m),
-      )
-      const rec = new MediaRecorder(stream, {
-        ...(mime ? { mimeType: mime } : {}),
-        videoBitsPerSecond: 12_000_000,
-      })
-      recorderRef.current = rec
-      chunksRef.current = []
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data)
-      }
-      rec.onstop = () => {
-        stopStream()
-        const type = rec.mimeType || 'video/webm'
-        const blob = new Blob(chunksRef.current, { type })
-        const ext = type.includes('mp4') ? 'mp4' : 'webm'
-        const file = new File([blob], `rekaman-${Date.now()}.${ext}`, { type })
-        setSelectedPhoto(file)
-        setPhotoPreview(URL.createObjectURL(blob))
-        setShowRecorder(false)
-        setRecording(false)
-        setRecordLeft(MAX_RECORD_SEC)
-        toast.success('Rekaman siap dikirim')
-      }
-      setRecording(true)
-      setRecordLeft(MAX_RECORD_SEC)
-      rec.start()
-      recordTimerRef.current = window.setInterval(() => {
-        setRecordLeft((s) => {
-          if (s <= 1) {
-            stopRecording()
-            return 0
-          }
-          return s - 1
-        })
-      }, 1000)
-    } catch {
-      cancelRecording()
-      toast.error('Tidak dapat mengakses kamera. Periksa izin browser.')
-    }
-  }
-
-  useEffect(() => {
-    const el = livePreviewRef.current
-    const stream = streamRef.current
-    if (el && stream) {
-      el.srcObject = stream
-      el.play().catch(() => {})
-    }
-  }, [showRecorder, recording])
-
-  useEffect(() => {
-    return () => {
-      clearRecordTimer()
-      if (recorderRef.current && recorderRef.current.state === 'recording') {
-        recorderRef.current.stop()
-      }
-      stopStream()
-    }
-  }, [stopRecording])
+  const [processingVideo, setProcessingVideo] = useState(false)
 
   useEffect(() => {
     fetchTimeline()
@@ -186,18 +72,33 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      if (isVideoFile(file)) {
-        const dur = await getVideoDurationMs(file)
-        if (dur > MAX_RECORD_SEC * 1000) {
-          toast.error(`Video terlalu panjang (${Math.round(dur / 1000)} detik). Maksimal ${MAX_RECORD_SEC / 60} menit.`)
-          e.target.value = ''
-          return
-        }
+    if (!file) return
+    if (isVideoFile(file)) {
+      const dur = await getVideoDurationMs(file)
+      if (dur > MAX_VIDEO_SEC * 1000) {
+        toast.error(`Video terlalu panjang (${Math.round(dur / 1000)} detik). Maksimal ${MAX_VIDEO_SEC / 60} menit.`)
+        e.target.value = ''
+        return
       }
-      setSelectedPhoto(file)
-      setPhotoPreview(URL.createObjectURL(file))
+      setProcessingVideo(true)
+      setLocalProgress(0)
+      try {
+        const readyFile = await ensureUploadableVideo(file, (p) => setLocalProgress(p))
+        setSelectedPhoto(readyFile)
+        setPhotoPreview(URL.createObjectURL(readyFile))
+        const mb = (readyFile.size / (1024 * 1024)).toFixed(1)
+        toast.success(`Video siap dikirim (${mb} MB)`)
+      } catch (err: any) {
+        toast.error(err?.message || 'Video gagal diproses. Coba video lain.')
+        e.target.value = ''
+      } finally {
+        setProcessingVideo(false)
+        setLocalProgress(0)
+      }
+      return
     }
+    setSelectedPhoto(file)
+    setPhotoPreview(URL.createObjectURL(file))
   }
 
 const removePhoto = () => {
@@ -206,6 +107,7 @@ const removePhoto = () => {
     setPhotoPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (videoInputRef.current) videoInputRef.current.value = ''
+    if (recordInputRef.current) recordInputRef.current.value = ''
   }
 
   const addTimelineUpdate = async (message: string, status?: string) => {
@@ -224,15 +126,16 @@ const removePhoto = () => {
         if (selectedPhoto) {
           mediaType = mediaTypeFromFile(selectedPhoto)
           setUploading(true)
-          setLocalProgress(10)
-          const timer = setInterval(() => {
-            setLocalProgress((prev) => {
-              if (prev >= 90) return prev
-              return prev + 15
-            })
-          }, 400)
-          const results = await upload.legacyUpload([selectedPhoto], 'teknisi_update', fullCaption)
-          clearInterval(timer)
+          setLocalProgress(0)
+          const results = await upload.legacyUpload(
+            [selectedPhoto],
+            'teknisi_update',
+            fullCaption,
+            undefined,
+            undefined,
+            undefined,
+            (p) => setLocalProgress(p),
+          )
           setLocalProgress(100)
           uploadResult = results?.[0] || null
           if (!uploadResult) { setUploading(false); toast.error('Failed to upload photo'); return }
@@ -365,51 +268,6 @@ const removePhoto = () => {
           )}
         </AnimatePresence>
 
-        {showRecorder && (
-          <div className="fixed inset-0 z-[70] bg-black flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-900/95">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
-                <span className="text-sm font-medium text-white" aria-live="polite">
-                  {recording ? `Merekam... sisa ${formatCountdown(recordLeft)}` : 'Menyiapkan kamera...'}
-                </span>
-              </div>
-              <span className="text-xs text-gray-400" aria-hidden="true">⏱ Maks {MAX_RECORD_SEC / 60} menit</span>
-            </div>
-            <div className="flex-1 relative bg-black min-h-0">
-              <video
-                ref={livePreviewRef}
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex justify-center gap-4 p-5 pb-8 bg-gray-900/95">
-              {recording ? (
-                <button
-                  onClick={stopRecording}
-                  className="px-8 py-3 bg-red-600 text-white rounded-2xl text-base font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
-                >
-                  <Square className="w-5 h-5" /> Stop
-                </button>
-              ) : (
-                <button
-                  onClick={startRecording}
-                  className="px-8 py-3 bg-white text-gray-900 rounded-2xl text-base font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
-                >
-                  <Video className="w-5 h-5" /> Mulai Rekam
-                </button>
-              )}
-              <button
-                onClick={cancelRecording}
-                className="px-6 py-3 bg-white/10 text-white rounded-2xl text-base hover:bg-white/20 transition-colors"
-              >
-                Batal
-              </button>
-            </div>
-          </div>
-        )}
-
         {photoPreview && selectedPhoto && (
           <div className="relative mb-3">
             {isVideoFile(selectedPhoto) ? (
@@ -423,29 +281,51 @@ const removePhoto = () => {
 
 
 
+        {(processingVideo || uploading) && (
+          <div className="mb-3 rounded-xl bg-gray-900 text-white px-4 py-2.5 text-sm flex items-center gap-2" role="status" aria-live="polite">
+            <Loader className="w-4 h-4 animate-spin" />
+            <span className="flex-1">{processingVideo ? 'Mengompres video...' : 'Mengirim...'}</span>
+            <span className="font-semibold tabular-nums">{localProgress}%</span>
+          </div>
+        )}
+
         <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Tulis update progress service..." rows={2}
           className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 resize-none" />
 
         <div className="flex gap-2 mt-2 flex-wrap">
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading || processingVideo}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
-            <Camera className="w-4 h-4" />{uploading ? `${localProgress}%` : 'Foto'}
+            <Camera className="w-4 h-4" /> Foto
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
 
-          <button onClick={startRecording} disabled={uploading}
+          <button
+            onClick={() => {
+              if (window.confirm(`⚠️ Rekam video maksimal ${MAX_VIDEO_SEC / 60} menit.\nVideo lebih dari itu akan dikompres otomatis sebelum dikirim.`)) {
+                recordInputRef.current?.click()
+              }
+            }}
+            disabled={uploading || processingVideo}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Video className="w-4 h-4" /> Rekam Langsung
           </button>
+          <input
+            ref={recordInputRef}
+            type="file"
+            accept="video/*"
+            capture="environment"
+            onChange={handlePhotoSelect}
+            className="hidden"
+          />
 
-          <button onClick={() => videoInputRef.current?.click()} disabled={uploading}
+          <button onClick={() => videoInputRef.current?.click()} disabled={uploading || processingVideo}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Camera className="w-4 h-4" /> Video Galeri
           </button>
           <input ref={videoInputRef} type="file" accept="video/*" onChange={handlePhotoSelect} className="hidden" />
 
-          <button onClick={() => addTimelineUpdate(newMessage)} disabled={loading || (!newMessage.trim() && !selectedPhoto)}
+          <button onClick={() => addTimelineUpdate(newMessage)} disabled={loading || processingVideo || (!newMessage.trim() && !selectedPhoto)}
             className="flex-1 min-w-[100px] px-4 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1">
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Kirim

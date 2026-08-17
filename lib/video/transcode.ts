@@ -4,8 +4,8 @@ import { getVideoDurationMs } from "@/lib/media-utils";
 
 export type VideoCodec = "h264" | "hevc" | "other";
 
-const HEVC_RE = /hvc1\.|hev1\./;
-const H264_RE = /avc1\.|avc3\./;
+const HEVC_RE = /hvc1|hev1/;
+const H264_RE = /avc1|avc3/;
 const HEAD_BYTES = 4 * 1024 * 1024;
 const MAX_INPUT_BYTES = 120 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 48 * 1024 * 1024;
@@ -144,7 +144,7 @@ async function encodeH264(
  * 50MB Telegram) berapa pun durasi rekaman teknisi.
  * - Video HEVC/h.265 (iPhone) → transkode H.264.
  * - Video H.264 tapi >48MB → re-encode lebih kecil.
- * - Video normal (≤48MB, H.264/WebM) → tidak disentuh.
+ * - Video normal (≤48MB, H.264) → tidak disentuh.
  * Gagal → throw pesan jelas agar upload tidak diam-diam menghasilkan video rusak.
  */
 export async function ensureUploadableVideo(
