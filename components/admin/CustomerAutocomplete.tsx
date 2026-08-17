@@ -61,8 +61,8 @@ export default function CustomerAutocomplete({
       let query = supabase
         .from("customers")
         .select("name, phone, point")
-        .eq("branch_id", branchId || "")
         .limit(10);
+      if (branchId) query = query.eq("branch_id", branchId);
 
       if (searchLastDigits) {
         // Cari nama cocok + 4 digit terakhir phone

@@ -623,18 +623,21 @@ In : ${now}`;
           const rawName = formData.cs_name.trim().replace(/^CS\s*/i, "");
           const baseName = rawName.endsWith(` ${last4}`) ? rawName : `${rawName} ${last4}`;
           const custName = baseName.startsWith("CS ") ? baseName : `CS ${baseName}`;
-          const { data: existingCust, error: checkErr } = await supabase
+          let custQuery = supabase
             .from("customers")
             .select("id, name")
             .eq("phone", custPhone)
-            .eq("branch_id", (activeBranch as any)?.id || "")
-            .maybeSingle();
+            .limit(10);
+          if ((activeBranch as any)?.id) custQuery = custQuery.eq("branch_id", (activeBranch as any)?.id);
+          const { data: existingCustList, error: checkErr } = await custQuery;
           if (checkErr) throw checkErr;
-          if (existingCust) {
-            await supabase
-              .from("customers")
-              .update({ last_transaction: new Date().toISOString() })
-              .eq("id", existingCust.id);
+          if (existingCustList && existingCustList.length > 0) {
+            for (const c of existingCustList) {
+              await supabase
+                .from("customers")
+                .update({ last_transaction: new Date().toISOString() })
+                .eq("id", c.id);
+            }
           } else {
             const { error: insertErr } = await supabase
               .from("customers")

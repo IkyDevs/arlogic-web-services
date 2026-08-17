@@ -157,8 +157,8 @@ export default function CustomerList() {
       const qDigits = q.replace(/\D/g, "");
       let query = supabase
         .from("customers")
-        .select("id, name, phone, point, profesi, email, alamat")
-        .eq("branch_id", branchId || "");
+        .select("id, name, phone, point, profesi, email, alamat");
+      if (branchId) query = query.eq("branch_id", branchId);
       if (qDigits) {
         query = query.or(`name.ilike.%${q}%,phone.ilike.%${qDigits}%`);
       } else {

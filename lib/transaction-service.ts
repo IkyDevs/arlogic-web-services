@@ -483,18 +483,21 @@ export async function syncCustomer(
   const baseName = rawName.endsWith(` ${last4}`) ? rawName : `${rawName} ${last4}`;
   const custName = baseName.startsWith("CS ") ? baseName : `CS ${baseName}`;
 
-  const { data: existingCust } = await supabase
+  let custQuery = supabase
     .from("customers")
     .select("id")
     .eq("phone", custPhone)
-    .eq("branch_id", branchId || "")
-    .maybeSingle();
+    .limit(10);
+  if (branchId) custQuery = custQuery.eq("branch_id", branchId);
+  const { data: existingCustList } = await custQuery;
 
-  if (existingCust) {
-    await supabase
-      .from("customers")
-      .update({ last_transaction: new Date().toISOString(), branch_id: branchId || null })
-      .eq("id", existingCust.id);
+  if (existingCustList && existingCustList.length > 0) {
+    for (const c of existingCustList) {
+      await supabase
+        .from("customers")
+        .update({ last_transaction: new Date().toISOString(), branch_id: branchId || null })
+        .eq("id", c.id);
+    }
   } else {
     const { error: insertErr } = await supabase
       .from("customers")
