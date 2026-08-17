@@ -166,7 +166,7 @@ export async function ensureUploadableVideo(
   }
 
   const codec = detectVideoCodec(head);
-  if (codec !== "hevc" && file.size <= MAX_OUTPUT_BYTES) return file;
+  if (codec === "h264" && file.size <= MAX_OUTPUT_BYTES) return file;
 
   let ffmpeg: FFmpeg;
   try {

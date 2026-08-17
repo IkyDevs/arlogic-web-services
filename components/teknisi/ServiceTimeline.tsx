@@ -101,17 +101,14 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   }
 
   const startRecording = async () => {
+    setShowRecorder(true)
+    setRecording(false)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: true,
       })
       streamRef.current = stream
-      const previewEl = livePreviewRef.current
-      if (previewEl) {
-        previewEl.srcObject = stream
-        await previewEl.play().catch(() => {})
-      }
       const mime = ['video/mp4', 'video/webm;codecs=h264', 'video/webm'].find((m) =>
         MediaRecorder.isTypeSupported(m),
       )
@@ -137,7 +134,6 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
         setRecordLeft(MAX_RECORD_SEC)
         toast.success('Rekaman siap dikirim')
       }
-      setShowRecorder(true)
       setRecording(true)
       setRecordLeft(MAX_RECORD_SEC)
       rec.start()
@@ -151,9 +147,19 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
         })
       }, 1000)
     } catch {
+      cancelRecording()
       toast.error('Tidak dapat mengakses kamera. Periksa izin browser.')
     }
   }
+
+  useEffect(() => {
+    const el = livePreviewRef.current
+    const stream = streamRef.current
+    if (el && stream) {
+      el.srcObject = stream
+      el.play().catch(() => {})
+    }
+  }, [showRecorder, recording])
 
   useEffect(() => {
     return () => {
@@ -360,41 +366,43 @@ const removePhoto = () => {
         </AnimatePresence>
 
         {showRecorder && (
-          <div className="mb-3 rounded-xl border border-gray-200 bg-black overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2 bg-gray-900">
+          <div className="fixed inset-0 z-[70] bg-black flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-900/95">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
-                <span className="text-xs font-medium text-white" aria-live="polite">
-                  {recording ? `Merekam... sisa ${formatCountdown(recordLeft)}` : 'Siap merekam'}
+                <span className="text-sm font-medium text-white" aria-live="polite">
+                  {recording ? `Merekam... sisa ${formatCountdown(recordLeft)}` : 'Menyiapkan kamera...'}
                 </span>
               </div>
-              <span className="text-[10px] text-gray-400" aria-hidden="true">⏱ Maks {MAX_RECORD_SEC / 60} menit</span>
+              <span className="text-xs text-gray-400" aria-hidden="true">⏱ Maks {MAX_RECORD_SEC / 60} menit</span>
             </div>
-            <video
-              ref={livePreviewRef}
-              muted
-              playsInline
-              className="w-full max-h-56 object-cover bg-black"
-            />
-            <div className="flex justify-center gap-3 p-3">
+            <div className="flex-1 relative bg-black min-h-0">
+              <video
+                ref={livePreviewRef}
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex justify-center gap-4 p-5 pb-8 bg-gray-900/95">
               {recording ? (
                 <button
                   onClick={stopRecording}
-                  className="px-5 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2"
+                  className="px-8 py-3 bg-red-600 text-white rounded-2xl text-base font-semibold hover:bg-red-700 transition-colors flex items-center gap-2"
                 >
-                  <Square className="w-4 h-4" /> Stop
+                  <Square className="w-5 h-5" /> Stop
                 </button>
               ) : (
                 <button
                   onClick={startRecording}
-                  className="px-5 py-2 bg-white text-gray-900 rounded-xl text-sm font-medium hover:bg-gray-100 transition-colors flex items-center gap-2"
+                  className="px-8 py-3 bg-white text-gray-900 rounded-2xl text-base font-semibold hover:bg-gray-100 transition-colors flex items-center gap-2"
                 >
-                  <Video className="w-4 h-4" /> Mulai Rekam
+                  <Video className="w-5 h-5" /> Mulai Rekam
                 </button>
               )}
               <button
                 onClick={cancelRecording}
-                className="px-4 py-2 bg-white/10 text-white rounded-xl text-sm hover:bg-white/20 transition-colors"
+                className="px-6 py-3 bg-white/10 text-white rounded-2xl text-base hover:bg-white/20 transition-colors"
               >
                 Batal
               </button>
