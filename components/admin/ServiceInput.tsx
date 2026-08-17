@@ -504,6 +504,11 @@ In : ${now}`;
                   telegram_message_id: r.message_id,
                 }));
                 await supabase.from("service_documentation").insert(docInserts);
+                // Foto sudah masuk → refresh list/detail supaya tampil tanpa refresh manual
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("new-service"));
+                }
+                toast.success("Foto berhasil diupload!");
               }
             }
 

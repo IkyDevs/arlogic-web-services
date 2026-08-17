@@ -129,10 +129,14 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
   // Auto-refresh ketika service baru ditambahkan (Add Service)
   useEffect(() => {
-    const handler = () => fetchServices();
+    const handler = () => {
+      fetchServices();
+      // Detail sedang terbuka → refetch foto juga (upload background selesai belakangan)
+      if (showModal && selectedService) openDetail(selectedService);
+    };
     window.addEventListener("new-service", handler);
     return () => window.removeEventListener("new-service", handler);
-  }, [movementFilter, categoryFilter, sortField, sortDir]);
+  }, [movementFilter, categoryFilter, sortField, sortDir, showModal, selectedService]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchServices(), 300);
