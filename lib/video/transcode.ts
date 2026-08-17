@@ -17,7 +17,7 @@ function loadFFmpeg(): Promise<FFmpeg> {
   if (!ffmpegPromise) {
     // Core single-threaded: tidak butuh SharedArrayBuffer/COOP-COEP headers
     ffmpegPromise = (async () => {
-      const base = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
+      const base = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
       const ffmpeg = new FFmpeg();
       await ffmpeg.load({
         coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, "text/javascript"),
