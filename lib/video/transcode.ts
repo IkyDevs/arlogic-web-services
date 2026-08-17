@@ -67,9 +67,9 @@ const AUDIO_KBPS = 96;
 const MIN_VIDEO_KBPS = 350;
 const MAX_VIDEO_KBPS = 12000;
 const MAX_SIDE_BY_KBPS: Array<[number, number]> = [
-  [4500, 1920],
-  [2500, 1280],
-  [1200, 854],
+  [6000, 1920],
+  [3000, 1280],
+  [1500, 854],
   [0, 640],
 ];
 

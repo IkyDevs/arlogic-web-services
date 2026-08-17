@@ -76,7 +76,8 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
         setBypassVideoTranscode(true)
         setSelectedPhoto(file)
         setPhotoPreview(URL.createObjectURL(file))
-        toast.success('Video siap dikirim (kualitas asli)')
+        const mb = (file.size / (1024 * 1024)).toFixed(1)
+        toast.success(`Video siap dikirim (${mb} MB)`)
         return
       }
       setBypassVideoTranscode(false)
