@@ -7,7 +7,7 @@ import { useCentralUpload } from '@/hooks/useCentralUpload'
 import { buildTelegramMetadata } from '@/lib/telegram-metadata'
 import { isVideoFile } from '@/lib/upload/upload-config'
 import { ensureUploadableVideo } from '@/lib/video/transcode'
-import { isPlayableVideo, mediaTypeFromFile, getVideoDurationMs } from '@/lib/media-utils'
+import { isPlayableVideo, mediaTypeFromFile } from '@/lib/media-utils'
 import SmartMedia from '@/components/ui/SmartMedia'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -36,10 +36,7 @@ const updateTemplates = [
   { icon: Check, label: 'Selesai', message: 'Service selesai, siap diambil customer', status: 'completed' },
 ]
 
-const MAX_VIDEO_SEC = 60
-
-export default function ServiceTimeline({ serviceId, customerPhone, customerName, invoiceNumber, onUpdate }: ServiceTimelineProps) {
-  const [timeline, setTimeline] = useState<any[]>([])
+export default function ServiceTimeline({ serviceId, customerPhone, customerName, invoiceNumber, onUpdate }: ServiceTimelineProps) {  const [timeline, setTimeline] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -74,12 +71,6 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     const file = e.target.files?.[0]
     if (!file) return
     if (isVideoFile(file)) {
-      const dur = await getVideoDurationMs(file)
-      if (dur > MAX_VIDEO_SEC * 1000) {
-        toast.error(`Video terlalu panjang (${Math.round(dur / 1000)} detik). Maksimal ${MAX_VIDEO_SEC / 60} menit.`)
-        e.target.value = ''
-        return
-      }
       setProcessingVideo(true)
       setLocalProgress(0)
       try {
@@ -301,11 +292,7 @@ const removePhoto = () => {
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
 
           <button
-            onClick={() => {
-              if (window.confirm(`⚠️ Rekam video maksimal ${MAX_VIDEO_SEC / 60} menit.\nVideo lebih dari itu akan dikompres otomatis sebelum dikirim.`)) {
-                recordInputRef.current?.click()
-              }
-            }}
+            onClick={() => recordInputRef.current?.click()}
             disabled={uploading || processingVideo}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Video className="w-4 h-4" /> Rekam Langsung
