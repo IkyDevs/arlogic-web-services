@@ -29,6 +29,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://arlogic-web-services.vercel.app',
   'https://arlogic.com',
   'https://www.arlogic.com',
+  'https://arlogic.id',
+  'https://www.arlogic.id',
   'http://localhost:3000',
   'http://localhost:3001',
 ]
