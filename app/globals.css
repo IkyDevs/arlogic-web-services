@@ -2,6 +2,8 @@
 
 /* Dark variant: matches when <html data-theme="dark"> */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* Light variant: matches when <html data-theme="light"> */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 
 /* =====================================================
    DESIGN TOKENS — Monochrome Reference Theme
@@ -52,6 +54,13 @@
   --radius-button: 12px;
   --radius-input: 12px;
   --radius-pill: 9999px;
+
+  /* Technician dashboard (appended) */
+  --color-elevated: #ffffff;
+  --color-sidebar: #ffffff;
+  --color-accent-teal: #0d9488;
+  --color-accent-teal-strong: #0f766e;
+  --color-accent-teal-soft: #ccfbf1;
 }
 
 /* Dark mode */
@@ -80,6 +89,13 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  /* Technician dashboard (appended) */
+  --color-elevated: #111923;
+  --color-sidebar: #0d1219;
+  --color-accent-teal: #14b8a6;
+  --color-accent-teal-strong: #0f766e;
+  --color-accent-teal-soft: rgba(20, 184, 166, 0.13);
 }
 
 /* =====================================================

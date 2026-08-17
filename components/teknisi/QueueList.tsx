@@ -76,6 +76,21 @@ const ALLOWED_TYPES = [
   "image/avif",
 ];
 
+const DARK_BADGE: Record<string, string> = {
+  assigned: "dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/25",
+  in_progress: "dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25",
+  req_sparepart_admin:
+    "dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/25",
+  po_pending: "dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/25",
+  sparepart_ready:
+    "dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25",
+  qc_pending: "dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/25",
+  revision_required:
+    "dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/25",
+  pending: "dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-500/30",
+  completed: "dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25",
+};
+
 export default function QueueList({
   teknisiId,
   onTakeProject,
@@ -981,7 +996,7 @@ export default function QueueList({
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 shadow-sm"
+              className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] p-4"
             >
               <div className="flex items-center gap-2 mb-3">
                 <Skeleton variant="text" width="30%" />
@@ -1023,23 +1038,27 @@ export default function QueueList({
   return (
     <div className="space-y-6">
       {/* Tab Switcher */}
-      <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1.5 shadow-sm flex gap-1">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-1 rounded-xl flex gap-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setQueueTab(tab.id)}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 h-10 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
               queueTab === tab.id
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-white/5"
+                ? "bg-[var(--color-elevated)] text-[var(--color-text)] shadow-sm"
+                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-elevated)]/50"
             }`}
           >
-            {tab.label}{" "}
+            {tab.label}
             {tab.count > 0 && (
               <span
-                className={`ml-1.5 text-xs ${queueTab === tab.id ? "text-white/80" : "text-gray-400"}`}
+                className={`inline-flex items-center justify-center min-w-[20px] px-1.5 h-5 rounded-full text-[11px] font-semibold ${
+                  queueTab === tab.id
+                    ? "bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)]"
+                    : "bg-[var(--color-elevated)] text-[var(--color-text-tertiary)]"
+                }`}
               >
-                ({tab.count})
+                {tab.count}
               </span>
             )}
           </button>
@@ -1049,26 +1068,26 @@ export default function QueueList({
       {queueTab === "my" && (
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
-              <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+            <div className="w-9 h-9 bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)] rounded-xl flex items-center justify-center flex-shrink-0">
+              <Wrench className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-bold text-[var(--color-text)]">
               Proyek Saya ({activeCount})
             </h3>
           </div>
 
           {myServices.length === 0 ? (
-            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
-              <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm font-medium text-gray-500">
+            <div className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] p-8 text-center">
+              <Package className="w-12 h-12 mx-auto mb-2 text-[var(--color-text-tertiary)]" />
+              <p className="text-sm font-medium text-[var(--color-text-secondary)]">
                 Belum ada proyek yang diambil
               </p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                 Ambil proyek dari daftar di bawah
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:gap-4">
               {myServices.map((service, index) => {
                 const statusBadge = getStatusBadge(service.status);
                 const lastUpdateMessage =
@@ -1081,41 +1100,41 @@ export default function QueueList({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                     onClick={() => viewMyServiceInfo(service)}
-                    className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer"
+                    className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-border-strong)] transition-colors overflow-hidden cursor-pointer"
                   >
-                    <div className="p-4 space-y-3">
+                    <div className="p-4 sm:p-5 space-y-3">
                       {/* Row 1: Invoice + Status badges */}
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
+                        <span className="px-2 py-1 bg-[var(--color-elevated)] text-[var(--color-accent-teal)] border border-[var(--color-border)] text-xs font-mono font-semibold rounded-md">
                           {service.invoice_number}
                         </span>
                         <span
-                          className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusBadge.color}`}
+                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border ${statusBadge.color} ${DARK_BADGE[service.status] || ""}`}
                         >
                           {statusBadge.label}
                         </span>
                         {service.status === "revision_required" && (
-                          <span className="px-2 py-0.5 text-xs bg-red-600 text-white font-bold rounded-full border border-red-700">
+                          <span className="px-2.5 py-1 text-[11px] bg-[var(--color-danger-bg)] text-[var(--color-danger)] font-bold rounded-full border border-[var(--color-danger)]/25">
                             REJECT QC
                           </span>
                         )}
                         {service.status === "req_sparepart_admin" && (
-                          <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full border border-orange-200">
+                          <span className="px-2.5 py-1 text-[11px] bg-[var(--color-warning-bg)] text-[var(--color-warning)] font-medium rounded-full border border-[var(--color-warning)]/25">
                             ⏳ Menunggu Admin
                           </span>
                         )}
                         {service.status === "po_pending" && (
-                          <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full border border-purple-200">
+                          <span className="px-2.5 py-1 text-[11px] bg-[var(--color-info-bg)] text-[var(--color-info)] font-medium rounded-full border border-[var(--color-info)]/25">
                             📦 PO Diproses
                           </span>
                         )}
                         {service.status === "sparepart_ready" && (
-                          <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full border border-green-200">
+                          <span className="px-2.5 py-1 text-[11px] bg-[var(--color-success-bg)] text-[var(--color-success)] font-medium rounded-full border border-[var(--color-success)]/25">
                             ✅ Siap Diambil
                           </span>
                         )}
                         {service.last_update && (
-                          <span className="text-xs text-gray-400 ml-auto">
+                          <span className="text-[11px] text-[var(--color-text-tertiary)] ml-auto">
                             {new Date(
                               service.last_update.created_at,
                             ).toLocaleDateString()}
@@ -1123,43 +1142,43 @@ export default function QueueList({
                         )}
                       </div>
 
-                      {/* Row 2: Customer + Watch (full width) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
-                          <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs text-gray-500">Customer</p>
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                              {service.customer_name}
-                            </p>
-                          </div>
+                      {/* Row 2: Customer + Device metadata */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <User className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" />
+                          <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-tertiary)] flex-shrink-0">
+                            Customer
+                          </span>
+                          <span className="text-sm font-medium text-[var(--color-text)] truncate">
+                            {service.customer_name}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2 p-2.5 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
-                          <Watch className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs text-gray-500">Device</p>
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                              {service.watch_brand || service.device_brand}{" "}
-                              {service.watch_model || service.device_model}
-                            </p>
-                          </div>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Watch className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" />
+                          <span className="text-[11px] uppercase tracking-wide text-[var(--color-text-tertiary)] flex-shrink-0">
+                            Device
+                          </span>
+                          <span className="text-sm font-medium text-[var(--color-text)] truncate">
+                            {service.watch_brand || service.device_brand}{" "}
+                            {service.watch_model || service.device_model}
+                          </span>
                         </div>
                       </div>
 
                       {/* Row 3: Issue description */}
-                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                      <p className="text-sm text-[var(--color-text-secondary)] line-clamp-2">
                         {service.issue_description}
                       </p>
 
                       {service.last_update && (
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                           <Clock className="w-3 h-3" />
-                          <span>Terakhir: {lastUpdateMessage}</span>
+                          <span className="truncate">Terakhir: {lastUpdateMessage}</span>
                         </div>
                       )}
 
                       {/* Row 4: Action buttons — always at bottom */}
-                      <div className="flex gap-2 flex-wrap pt-2 border-t border-gray-100 dark:border-white/5">
+                      <div className="flex gap-2 flex-wrap pt-3 border-t border-[var(--color-border)]">
                         {(service.status === "assigned" ||
                           service.status === "in_progress" ||
                           service.status === "revision_required") && (
@@ -1169,7 +1188,7 @@ export default function QueueList({
                                 e.stopPropagation();
                                 openUpdate(service);
                               }}
-                              className="px-3 py-1.5 text-xs bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-all flex items-center gap-1"
+                              className="h-9 px-3.5 text-xs bg-[var(--color-elevated)] text-[var(--color-text)] border border-[var(--color-border)] font-semibold rounded-lg hover:bg-[var(--color-surface)] transition-colors flex items-center gap-1.5"
                             >
                               <Wrench className="w-3.5 h-3.5" /> UPDATE
                             </button>
@@ -1178,7 +1197,7 @@ export default function QueueList({
                                 e.stopPropagation();
                                 openSubmitQC(service);
                               }}
-                              className="px-3 py-1.5 text-xs bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-1"
+                              className="h-9 px-3.5 text-xs bg-[var(--color-accent-teal-strong)] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
                             >
                               <CheckCircle className="w-3.5 h-3.5" /> SUBMIT QC
                             </button>
@@ -1187,7 +1206,7 @@ export default function QueueList({
                                 e.stopPropagation();
                                 takeWithPending(service);
                               }}
-                              className="px-3 py-1.5 text-xs bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-all flex items-center gap-1"
+                              className="h-9 px-3.5 text-xs bg-[var(--color-warning-bg)] text-[var(--color-warning)] font-semibold rounded-lg hover:opacity-80 transition-opacity flex items-center gap-1.5"
                             >
                               <Clock className="w-3.5 h-3.5" /> PENDING
                             </button>
@@ -1200,14 +1219,14 @@ export default function QueueList({
                               e.stopPropagation();
                               sendReminderToAdmin(service);
                             }}
-                            className="px-3 py-1.5 text-xs bg-yellow-500 text-white font-medium rounded-xl hover:bg-yellow-600 transition-all flex items-center gap-1"
+                            className="h-9 px-3.5 text-xs bg-[var(--color-warning-bg)] text-[var(--color-warning)] font-semibold rounded-lg hover:opacity-80 transition-opacity flex items-center gap-1.5"
                           >
                             <Bell className="w-3.5 h-3.5" /> REMINDER
                           </button>
                         )}
                         {service.status === "qc_pending" && (
                           <>
-                            <span className="px-3 py-1.5 text-xs bg-purple-100 text-purple-700 border border-purple-300 rounded-xl flex items-center gap-1 font-medium">
+                            <span className="h-9 px-3.5 text-xs bg-[var(--color-info-bg)] text-[var(--color-info)] border border-[var(--color-info)]/25 rounded-lg flex items-center gap-1.5 font-semibold">
                               <Clock className="w-3.5 h-3.5" /> QC
                             </span>
                             <button
@@ -1215,7 +1234,7 @@ export default function QueueList({
                                 e.stopPropagation();
                                 pullFromQC(service);
                               }}
-                              className="px-3 py-1.5 text-xs bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 transition-all flex items-center gap-1"
+                              className="h-9 px-3.5 text-xs bg-[var(--color-danger-bg)] text-[var(--color-danger)] font-semibold rounded-lg hover:opacity-80 transition-opacity flex items-center gap-1.5"
                             >
                               <Undo2 className="w-3.5 h-3.5" /> TARIK KEMBALI
                             </button>
@@ -1234,78 +1253,76 @@ export default function QueueList({
       {queueTab === "available" && (
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center flex-shrink-0">
-              <Package className="w-4 h-4 text-white dark:text-gray-900" />
+            <div className="w-9 h-9 bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)] rounded-xl flex items-center justify-center flex-shrink-0">
+              <Package className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-bold text-[var(--color-text)]">
               List Service ({pendingServices.length})
             </h3>
           </div>
 
           {pendingServices.length === 0 ? (
-            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
-              <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-              <p className="text-sm font-medium text-gray-500">
+            <div className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] p-8 text-center">
+              <CheckCircle className="w-12 h-12 mx-auto mb-2 text-[var(--color-success)]" />
+              <p className="text-sm font-medium text-[var(--color-text-secondary)]">
                 Tidak ada service baru
               </p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                 Semua service sudah diambil
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:gap-4">
               {pendingServices.map((service, index) => (
                 <motion.div
                   key={service.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-gray-900 dark:hover:border-white"
+                  className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] hover:border-[var(--color-border-strong)] transition-colors cursor-pointer"
                   onClick={() => viewServiceDetails(service)}
                 >
-                  <div className="p-5 sm:p-6">
+                  <div className="p-4 sm:p-5">
                     <div className="flex flex-col gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0 space-y-3">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-2.5 py-1 bg-gray-900 text-white text-xs font-mono rounded-md">
-                              {service.invoice_number}
-                            </span>
-                            <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full border border-green-200">
-                              BARU
-                            </span>
-                            {service.category && <span className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">{service.category}</span>}
-                          </div>
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="px-2.5 py-1 bg-[var(--color-elevated)] text-[var(--color-accent-teal)] border border-[var(--color-border)] text-xs font-mono font-semibold rounded-md">
+                            {service.invoice_number}
+                          </span>
+                          <span className="px-2.5 py-1 bg-[var(--color-success-bg)] text-[var(--color-success)] text-[11px] font-semibold rounded-full border border-[var(--color-success)]/25">
+                            BARU
+                          </span>
+                          {service.category && <span className="px-2.5 py-1 bg-[var(--color-info-bg)] text-[var(--color-info)] text-[11px] font-medium rounded-full border border-[var(--color-info)]/25">{service.category}</span>}
+                        </div>
 
-                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-gray-400" />
-                              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                                {service.customer_name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Watch className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600 dark:text-gray-400">
-                                {service.watch_brand || service.device_brand}
-                              </span>
-                            </div>
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <User className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" />
+                            <span className="font-semibold text-[var(--color-text)] truncate">
+                              {service.customer_name}
+                            </span>
                           </div>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Watch className="w-4 h-4 text-[var(--color-text-tertiary)] flex-shrink-0" />
+                            <span className="text-[var(--color-text-secondary)] truncate">
+                              {service.watch_brand || service.device_brand}
+                            </span>
+                          </div>
+                        </div>
 
-                          <div className="flex items-start gap-2 text-sm text-gray-500 bg-gray-50 dark:bg-white/5 rounded-lg p-3 border border-gray-100 dark:border-white/10">
-                            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400" />
-                            <p className="line-clamp-2">{service.issue_description}</p>
-                          </div>
+                        <div className="flex items-start gap-2 text-sm text-[var(--color-text-secondary)] bg-[var(--color-surface)] rounded-lg px-3 py-2.5">
+                          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--color-text-tertiary)]" />
+                          <p className="line-clamp-2">{service.issue_description}</p>
                         </div>
                       </div>
 
                       <div className="flex gap-3 pt-1">
                         <button onClick={(e) => { e.stopPropagation(); viewServiceDetails(service); }}
-                          className="flex-1 px-5 py-2.5 text-sm bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
+                          className="flex-1 h-11 px-5 text-sm bg-[var(--color-elevated)] text-[var(--color-text)] border border-[var(--color-border)] font-semibold rounded-xl hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center gap-2">
                           <Eye className="w-4 h-4" /> DETAIL
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); requestTakeProject(service); }}
-                          className="flex-1 px-5 py-2.5 text-sm bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
+                          className="flex-1 h-11 px-5 text-sm bg-[var(--color-accent-teal-strong)] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
                             <CheckCircle className="w-4 h-4" /> AMBIL
                         </button>
                       </div>
@@ -1321,33 +1338,33 @@ export default function QueueList({
       {queueTab === "pending" && (
         <div>
           {teknisiPendingServices.length === 0 ? (
-            <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">
-              <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm font-medium text-gray-500">
+            <div className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] p-8 text-center">
+              <Clock className="w-12 h-12 mx-auto mb-2 text-[var(--color-text-tertiary)]" />
+              <p className="text-sm font-medium text-[var(--color-text-secondary)]">
                 Tidak ada service pending
               </p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                 Service pending menunggu persetujuan QC
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid gap-3 sm:gap-4">
               {teknisiPendingServices.map((service, index) => (
                 <motion.div
                   key={service.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4"
+                  className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-warning)]/25 p-4 sm:p-5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs font-mono rounded-md">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="px-2 py-1 bg-[var(--color-elevated)] text-[var(--color-accent-teal)] border border-[var(--color-border)] text-xs font-mono font-semibold rounded-md">
                           {service.invoice_number}
                         </span>
                         <span
-                          className={`px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1 ${(service as any)._pendingStatus === "pending_approved" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-amber-100 text-amber-700 border-amber-200"}`}
+                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-full flex items-center gap-1 border ${(service as any)._pendingStatus === "pending_approved" ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border-[var(--color-success)]/25" : "bg-[var(--color-warning-bg)] text-[var(--color-warning)] border-[var(--color-warning)]/25"}`}
                         >
                           {(service as any)._pendingStatus ===
                           "pending_approved" ? (
@@ -1362,18 +1379,18 @@ export default function QueueList({
                         </span>
                       </div>
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <span className="text-sm font-medium text-[var(--color-text)]">
                           {service.customer_name}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-[var(--color-text-secondary)]">
                           {service.watch_brand || service.device_brand}
                         </span>
                       </div>
-                      <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-2.5 border border-amber-200 dark:border-amber-800 mt-2">
-                        <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                      <div className="bg-[var(--color-warning-bg)] rounded-lg p-2.5 border border-[var(--color-warning)]/20 mt-2">
+                        <p className="text-xs font-medium text-[var(--color-warning)]">
                           Alasan Pending:
                         </p>
-                        <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
+                        <p className="text-sm text-[var(--color-text-secondary)] mt-0.5">
                           {(service as any)._pendingReason}
                         </p>
                       </div>
@@ -1384,7 +1401,7 @@ export default function QueueList({
                             e.stopPropagation();
                             resumeProject(service);
                           }}
-                          className="mt-3 px-3 py-1.5 text-xs bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-1"
+                          className="mt-3 h-9 px-3.5 text-xs bg-[var(--color-accent-teal-strong)] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5"
                         >
                           <CheckCircle className="w-3.5 h-3.5" /> LANJUTKAN
                         </button>
@@ -1407,18 +1424,18 @@ export default function QueueList({
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-white/10 p-6"
+            className="bg-[var(--color-card)] rounded-2xl shadow-2xl w-full max-w-md border border-[var(--color-border)] p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 bg-amber-600 rounded-xl flex items-center justify-center">
-                <Clock className="w-4 h-4 text-white" />
+              <div className="w-9 h-9 bg-[var(--color-warning-bg)] text-[var(--color-warning)] rounded-xl flex items-center justify-center">
+                <Clock className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                <h2 className="text-base font-bold text-[var(--color-text)]">
                   Alasan Pending
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--color-text-secondary)]">
                   {pendingTargetService?.invoice_number}
                 </p>
               </div>
@@ -1427,19 +1444,19 @@ export default function QueueList({
               value={pendingReason}
               onChange={(e) => setPendingReason(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-white/5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none mb-4"
+              className="w-full px-3 py-2 border border-[var(--color-border)] rounded-xl bg-[var(--color-surface)] text-sm text-[var(--color-text)] focus:outline-none focus:border-[var(--color-warning)] focus:ring-2 focus:ring-[var(--color-warning)]/20 transition-all resize-none mb-4"
               placeholder="Jelaskan alasan pending..."
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPendingReasonModal(false)}
-                className="flex-1 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5"
+                className="flex-1 h-11 border border-[var(--color-border)] rounded-xl text-sm font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] transition-colors"
               >
                 Batal
               </button>
               <button
                 onClick={submitPending}
-                className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-medium hover:bg-amber-700 transition-all"
+                className="flex-1 h-11 bg-[var(--color-warning)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 Kirim
               </button>
@@ -1468,28 +1485,28 @@ export default function QueueList({
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                className="bg-[var(--color-card)] rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col border border-[var(--color-border)]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                <div className="sticky top-0 bg-[var(--color-card)] z-20 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] rounded-t-2xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                      <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+                    <div className="w-9 h-9 bg-[var(--color-accent-teal-soft)] rounded-xl flex items-center justify-center">
+                      <Wrench className="w-4 h-4 text-[var(--color-accent-teal)]" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                      <h2 className="text-base font-bold text-[var(--color-text)]">
                         Update Service
                       </h2>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-[var(--color-text-secondary)]">
                         {selectedService.invoice_number}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowUpdateModal(false)}
-                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg transition-colors"
                   >
-                    <X className="w-4 h-4 text-gray-400" />
+                    <X className="w-4 h-4 text-[var(--color-text-tertiary)]" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
@@ -1501,13 +1518,13 @@ export default function QueueList({
                     onUpdate={() => fetchQueues()}
                   />
 
-                  <div className="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-white/10">
+                  <div className="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-[var(--color-border)]">
                     <button
                       onClick={() => {
                         setShowUpdateModal(false);
                         openAddJasa(selectedService);
                       }}
-                      className="flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all text-sm"
+                      className="flex items-center justify-center gap-2 h-11 bg-[var(--color-accent-teal-strong)] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity text-sm"
                     >
                       <Wrench className="w-4 h-4" /> TAMBAH JASA
                     </button>
@@ -1516,7 +1533,7 @@ export default function QueueList({
                         setShowUpdateModal(false);
                         openAddSparepart(selectedService);
                       }}
-                      className="flex items-center justify-center gap-2 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all text-sm"
+                      className="flex items-center justify-center gap-2 h-11 bg-[var(--color-elevated)] text-[var(--color-text)] border border-[var(--color-border)] font-semibold rounded-xl hover:bg-[var(--color-surface)] transition-colors text-sm"
                     >
                       <Package className="w-4 h-4" /> TAMBAH SPAREPART
                     </button>
@@ -1535,28 +1552,28 @@ export default function QueueList({
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                className="bg-[var(--color-card)] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-[var(--color-border)]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                <div className="sticky top-0 bg-[var(--color-card)] z-20 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] rounded-t-2xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                      <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+                    <div className="w-9 h-9 bg-[var(--color-accent-teal-soft)] rounded-xl flex items-center justify-center">
+                      <Wrench className="w-4 h-4 text-[var(--color-accent-teal)]" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                      <h2 className="text-base font-bold text-[var(--color-text)]">
                         Detail Update
                       </h2>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-[var(--color-text-secondary)]">
                         {selectedService.invoice_number}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowProgressModal(false)}
-                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg transition-colors"
                   >
-                    <X className="w-4 h-4 text-gray-400" />
+                    <X className="w-4 h-4 text-[var(--color-text-tertiary)]" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
@@ -1599,19 +1616,19 @@ export default function QueueList({
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                className="bg-[var(--color-card)] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-[var(--color-border)]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                <div className="sticky top-0 bg-[var(--color-card)] z-20 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] rounded-t-2xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                      <Watch className="w-4 h-4 text-white dark:text-gray-900" />
+                    <div className="w-9 h-9 bg-[var(--color-accent-teal-soft)] rounded-xl flex items-center justify-center">
+                      <Watch className="w-4 h-4 text-[var(--color-accent-teal)]" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                      <h2 className="text-base font-bold text-[var(--color-text)]">
                         Detail Service
                       </h2>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-[var(--color-text-secondary)]">
                         {selectedService.invoice_number}
                       </p>
                     </div>
@@ -1621,36 +1638,36 @@ export default function QueueList({
                       setShowServiceInfoModal(false);
                       setServiceInfoPhotos([]);
                     }}
-                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg transition-colors"
                   >
-                    <X className="w-4 h-4 text-gray-400" />
+                    <X className="w-4 h-4 text-[var(--color-text-tertiary)]" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 space-y-5">
                   {/* Photos */}
                   <div>
                     <div className="flex items-center gap-2 mb-3">
-                      <Camera className="w-4 h-4 text-gray-600" />
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      <Camera className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                      <h4 className="text-sm font-semibold text-[var(--color-text)]">
                         Dokumentasi Service
                       </h4>
                       {serviceInfoPhotos.length > 0 && (
-                        <span className="text-xs text-gray-400 bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded-full">
+                        <span className="text-xs text-[var(--color-text-tertiary)] bg-[var(--color-surface)] px-2 py-0.5 rounded-full">
                           {serviceInfoPhotos.length} foto
                         </span>
                       )}
                     </div>
                     {serviceInfoPhotosLoading ? (
-                      <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-6 text-center border border-gray-200 dark:border-white/10">
-                        <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto" />
-                        <p className="text-xs text-gray-400 mt-2">
+                      <div className="bg-[var(--color-surface)] rounded-xl p-6 text-center border border-[var(--color-border)]">
+                        <div className="w-6 h-6 border-2 border-[var(--color-border)] border-t-[var(--color-accent-teal)] rounded-full animate-spin mx-auto" />
+                        <p className="text-xs text-[var(--color-text-tertiary)] mt-2">
                           Memuat foto...
                         </p>
                       </div>
                     ) : serviceInfoPhotos.length === 0 ? (
-                      <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-6 text-center border border-dashed border-gray-200 dark:border-white/10">
-                        <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-1" />
-                        <p className="text-xs text-gray-400">
+                      <div className="bg-[var(--color-surface)] rounded-xl p-6 text-center border border-dashed border-[var(--color-border)]">
+                        <ImageIcon className="w-8 h-8 text-[var(--color-text-tertiary)] mx-auto mb-1" />
+                        <p className="text-xs text-[var(--color-text-tertiary)]">
                           Belum ada foto dokumentasi
                         </p>
                       </div>
@@ -1659,7 +1676,7 @@ export default function QueueList({
                         {serviceInfoPhotos.map((photo, i) => (
                           <div
                             key={i}
-                            className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 cursor-pointer hover:opacity-90 transition-opacity"
+                            className="aspect-square rounded-lg overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => window.open(photo, "_blank")}
                           >
                             {serviceInfoPhotoTypes[i] === "video" ? (
@@ -1678,15 +1695,15 @@ export default function QueueList({
                   </div>
 
                   {/* Info */}
-                  <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10 space-y-2">
+                  <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)] space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Invoice</span>
-                      <span className="text-xs font-mono font-medium text-gray-900 dark:text-gray-100">
+                      <span className="text-xs text-[var(--color-text-secondary)]">Invoice</span>
+                      <span className="text-xs font-mono font-medium text-[var(--color-text)]">
                         {selectedService.invoice_number}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Status</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">Status</span>
                       <span
                         className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusBadge(selectedService.status).color}`}
                       >
@@ -1694,20 +1711,20 @@ export default function QueueList({
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Customer</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <span className="text-xs text-[var(--color-text-secondary)]">Customer</span>
+                      <span className="text-sm font-medium text-[var(--color-text)]">
                         {selectedService.customer_name}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Phone</span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                      <span className="text-xs text-[var(--color-text-secondary)]">Phone</span>
+                      <span className="text-sm text-[var(--color-text)]">
                         {selectedService.customer_phone}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">Device</span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                      <span className="text-xs text-[var(--color-text-secondary)]">Device</span>
+                      <span className="text-sm text-[var(--color-text)]">
                         {selectedService.watch_brand ||
                           selectedService.device_brand}{" "}
                         {selectedService.watch_model ||
@@ -1715,10 +1732,10 @@ export default function QueueList({
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-[var(--color-text-secondary)]">
                         Tanggal Masuk
                       </span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                      <span className="text-sm text-[var(--color-text)]">
                         {new Date(
                           selectedService.created_at,
                         ).toLocaleDateString("id-ID")}
@@ -1726,11 +1743,11 @@ export default function QueueList({
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
-                    <h4 className="text-xs font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                  <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)]">
+                    <h4 className="text-xs font-semibold text-[var(--color-text)] mb-1">
                       Deskripsi Kerusakan
                     </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-[var(--color-text-secondary)]">
                       {selectedService.issue_description}
                     </p>
                   </div>
@@ -1748,23 +1765,23 @@ export default function QueueList({
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-[#1c1c1c] rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden flex flex-col border border-gray-200 dark:border-white/10"
+                className="bg-[var(--color-card)] rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] overflow-hidden flex flex-col border border-[var(--color-border)]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+                <div className="sticky top-0 bg-[var(--color-card)] z-20 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] rounded-t-2xl">
                   <div>
-                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                    <h2 className="text-base font-bold text-[var(--color-text)]">
                       Timeline Service
                     </h2>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-[var(--color-text-secondary)]">
                       {selectedService.invoice_number}
                     </p>
                   </div>
                   <button
                     onClick={() => setShowTimelineModal(false)}
-                    className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg transition-colors"
                   >
-                    <X className="w-4 h-4 text-gray-400" />
+                    <X className="w-4 h-4 text-[var(--color-text-tertiary)]" />
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">

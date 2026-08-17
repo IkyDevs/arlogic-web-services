@@ -49,6 +49,7 @@ import TeknisiStockView from "@/components/teknisi/TeknisiStockView";
 import TeknisiTransferView from "@/components/teknisi/TeknisiTransferView";
 import QCProcessView from "@/components/teknisi/QCProcessView";
 import QueueList from "@/components/teknisi/QueueList";
+import KpiCard from "@/components/teknisi/KpiCard";
 import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
 import TransactionManagement from "@/components/layanan/TransactionManagement";
@@ -64,7 +65,7 @@ const ServiceTimeline = dynamic(
   () => import("@/components/teknisi/ServiceTimeline"),
   {
     loading: () => (
-      <div className="text-center py-8 text-slate-500">Loading...</div>
+      <div className="text-center py-8 text-[var(--color-text-tertiary)]">Loading...</div>
     ),
   },
 );
@@ -72,18 +73,18 @@ const AttendanceDashboard = dynamic(
   () => import("@/components/admin/AttendanceDashboard"),
   {
     loading: () => (
-      <div className="text-center py-8 text-slate-500">Loading...</div>
+      <div className="text-center py-8 text-[var(--color-text-tertiary)]">Loading...</div>
     ),
   },
 );
 const ServiceInput = dynamic(() => import("@/components/admin/ServiceInput"), {
   loading: () => (
-    <div className="text-center py-8 text-slate-500">Loading...</div>
+    <div className="text-center py-8 text-[var(--color-text-tertiary)]">Loading...</div>
   ),
 });
 const ServiceList = dynamic(() => import("@/components/admin/ServiceList"), {
   loading: () => (
-    <div className="text-center py-8 text-slate-500">Loading...</div>
+    <div className="text-center py-8 text-[var(--color-text-tertiary)]">Loading...</div>
   ),
 });
 
@@ -439,21 +440,28 @@ export default function TeknisiDashboard() {
       : []),
   ];
 
+  const NAV_GROUPS = [
+    { title: "Workspace", ids: ["queue", "stats", "absensi"] },
+    { title: "Operasi", ids: ["stock", "customer", "kaspin", "layanan"] },
+    { title: "Quality", ids: ["qc-process", "done", "transfer", "engineer"] },
+    { title: "Personal", ids: ["service"] },
+  ];
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-slate-600 dark:text-slate-400 font-medium">
-            Loading dashboard...
-          </p>
-        </div>
+<div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-[var(--color-accent-teal)] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="mt-4 text-[var(--color-text-secondary)] font-medium">
+          Loading dashboard...
+        </p>
       </div>
+    </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] lg:flex">
+    <div className="min-h-screen bg-[var(--color-bg)] lg:flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
@@ -464,54 +472,73 @@ export default function TeknisiDashboard() {
 
       {/* Sidebar */}
       <aside
-        className={`sidebar-container fixed top-0 left-0 h-full w-64 bg-white dark:bg-[#111111] z-50 flex flex-col py-4 sm:py-6 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-screen lg:sticky lg:top-0 transition-transform duration-300 ease-in-out border-r border-gray-200 dark:border-white/5 overflow-y-auto ${
+        className={`sidebar-container fixed top-0 left-0 h-full w-[240px] bg-[var(--color-sidebar)] z-50 flex flex-col py-4 sm:py-5 shadow-2xl lg:shadow-none lg:translate-x-0 lg:static lg:z-auto lg:h-screen lg:sticky lg:top-0 transition-transform duration-300 ease-in-out border-r border-[var(--color-border)] overflow-y-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 mb-6 sm:mb-8 flex-shrink-0">
-          <div className="w-10 h-10 bg-gray-900 rounded-2xl flex items-center justify-center flex-shrink-0">
-            <Wrench className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-3 px-4 mb-4 flex-shrink-0">
+          <div className="w-10 h-10 bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)] rounded-xl flex items-center justify-center flex-shrink-0">
+            <Wrench className="w-5 h-5" />
           </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900">WatchService</h1>
-            <p className="text-[10px] text-slate-500">Teknisi Panel</p>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-[var(--color-text)] leading-tight">
+              WatchService
+            </h1>
+            <p className="text-[10px] text-[var(--color-text-tertiary)]">
+              Teknisi Panel
+            </p>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden ml-auto p-1.5 hover:bg-slate-100 rounded-lg"
+            className="lg:hidden ml-auto p-1.5 hover:bg-[var(--color-surface)] rounded-lg"
           >
-            <X className="w-4 h-4 text-slate-500" />
+            <X className="w-4 h-4 text-[var(--color-text-secondary)]" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 flex flex-col justify-center gap-0.5 px-3 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === "engineer") {
-                  router.push("/engineer");
-                  return;
-                }
-                setActiveTab(item.id);
-                setSidebarOpen(false);
-              }}
-              className={`sidebar-item w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
-                activeTab === item.id
-                  ? "bg-gray-900 text-white"
-                  : "text-slate-600 hover:text-gray-900 hover:bg-gray-100"
-              }`}
-            >
-              <item.icon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </button>
-          ))}
+        <nav className="flex-1 overflow-y-auto px-3 pb-4">
+          {NAV_GROUPS.map((group) => {
+            const items = group.ids
+              .map((id) => menuItems.find((m) => m.id === id))
+              .filter(Boolean) as typeof menuItems;
+            if (items.length === 0) return null;
+            return (
+              <div key={group.title} className="mb-1">
+                <p className="px-3 pt-4 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-tertiary)]">
+                  {group.title}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        if (item.id === "engineer") {
+                          router.push("/engineer");
+                          return;
+                        }
+                        setActiveTab(item.id);
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full h-10 px-3 text-[13px] font-medium flex items-center gap-3 rounded-lg transition-colors ${
+                        activeTab === item.id
+                          ? "bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)]"
+                          : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)]"
+                      }`}
+                    >
+                      <item.icon className="w-[18px] h-[18px] flex-shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         {/* Bottom Actions */}
-        <div className="flex flex-col gap-1 px-3 pt-3 border-t border-slate-100 flex-shrink-0">
+        <div className="flex flex-col gap-1.5 px-3 pt-4 pb-2 border-t border-[var(--color-border)] flex-shrink-0">
           {/* Attendance */}
           <button
             onClick={() =>
@@ -522,20 +549,20 @@ export default function TeknisiDashboard() {
               )
             }
             disabled={!!todayAttendance?.check_out}
-            className={`w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl transition-all ${
+            className={`w-full h-10 px-3 text-[13px] font-medium flex items-center gap-3 rounded-lg transition-colors ${
               !todayAttendance
-                ? "bg-green-50 text-green-600 hover:bg-green-100"
+                ? "bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)] hover:bg-[var(--color-accent-teal-soft)]/60"
                 : todayAttendance.check_out
-                  ? "text-slate-400 cursor-not-allowed"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "text-[var(--color-text-tertiary)] cursor-not-allowed"
+                  : "bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-elevated)]"
             }`}
           >
             {!todayAttendance ? (
-              <LogIn className="w-4 h-4 flex-shrink-0" />
+              <LogIn className="w-[18px] h-[18px] flex-shrink-0" />
             ) : todayAttendance.check_out ? (
-              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              <CheckCircle className="w-[18px] h-[18px] flex-shrink-0" />
             ) : (
-              <LogOut className="w-4 h-4 flex-shrink-0" />
+              <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
             )}
             <span className="truncate">
               {!todayAttendance
@@ -547,17 +574,17 @@ export default function TeknisiDashboard() {
           </button>
 
           {/* Theme Toggle */}
-          <div className="px-3 py-2 flex items-center gap-3 text-slate-600">
+          <div className="px-3 py-2 flex items-center gap-3 text-[var(--color-text-secondary)]">
             <ThemeToggle />
-            <span className="text-sm font-medium">Theme</span>
+            <span className="text-[13px] font-medium">Theme</span>
           </div>
 
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full text-left px-3 py-2.5 font-medium text-sm flex items-center gap-3 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+            className="w-full h-10 px-3 text-[13px] font-medium flex items-center gap-3 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-danger)] hover:bg-[var(--color-danger-bg)] transition-colors"
           >
-            <LogOut className="w-4 h-4 flex-shrink-0" />
+            <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
             <span>Keluar</span>
           </button>
         </div>
@@ -566,24 +593,27 @@ export default function TeknisiDashboard() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-white dark:bg-[#1c1c1c] p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 dark:border-white/10"
+        className="fixed top-3 left-3 sm:top-4 sm:left-4 z-30 lg:hidden bg-[var(--color-card)] p-2.5 sm:p-3 rounded-xl sm:rounded-2xl shadow-lg border border-[var(--color-border)]"
       >
-        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+        <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--color-text)]" />
       </button>
 
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 min-h-screen flex flex-col w-full max-w-full overflow-x-hidden pb-16 lg:pb-0">
         {/* Top Navbar */}
         <header className="sticky top-0 z-20 px-3 py-3 sm:px-4 sm:py-4">
-          <div className="bg-white dark:bg-[#1c1c1c] rounded-xl px-4 py-3 flex items-center justify-between border border-gray-200 gap-2 sm:gap-4">
+          <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 flex items-center justify-between gap-2 sm:gap-4">
             {/* Spacer for mobile menu button */}
             <div className="hidden lg:block w-12" />
 
-            {/* Page Title - Center on mobile */}
-            <div className="flex-1 lg:flex-none text-center lg:text-left">
-              <h1 className="text-base sm:text-lg md:text-xl font-bold text-slate-900">
-                {menuItems.find((m) => m.id === activeTab)?.label}
+            {/* Greeting - Center on mobile */}
+            <div className="flex-1 min-w-0 text-center lg:text-left px-1">
+              <h1 className="text-[15px] sm:text-lg font-bold text-[var(--color-text)] leading-tight truncate">
+                Selamat pagi, {user?.full_name || "Teknisi"} 👋
               </h1>
+              <p className="text-xs sm:text-[13px] text-[var(--color-text-secondary)] truncate hidden sm:block">
+                Berikut pekerjaan yang perlu kamu selesaikan hari ini.
+              </p>
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
@@ -592,7 +622,7 @@ export default function TeknisiDashboard() {
                               {/* Lapor */}
               <button
                 onClick={() => setShowReport(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-all text-xs font-semibold flex-shrink-0"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--color-warning-bg)] text-[var(--color-warning)] rounded-lg hover:opacity-80 transition-opacity text-xs font-semibold flex-shrink-0"
                 title="Lapor bug / request fitur"
               >
                 <FileWarning className="w-4 h-4" />
@@ -622,53 +652,32 @@ export default function TeknisiDashboard() {
               >
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
-                        Selesai Hari Ini
-                      </span>
-                      <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-                    </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      {stats.completedToday}
-                    </p>
-                  </div>
-
-                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
-                        Sedang Dikerjakan
-                      </span>
-                      <Wrench className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-                    </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      {stats.inProgress}
-                    </p>
-                  </div>
-
-                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
-                        Antrean
-                      </span>
-                      <Clock className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-                    </div>
-                    <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      {stats.pendingQueue}
-                    </p>
-                  </div>
-
-                  <div className="bg-white dark:bg-[#1c1c1c] rounded-lg sm:rounded-xl md:rounded-[24px] border border-gray-200 dark:border-white/10 p-2.5 sm:p-4 md:p-5 shadow-sm hover:shadow-md transition-all">
-                    <div className="flex items-center justify-between mb-1 sm:mb-3">
-                      <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate mr-1">
-                        Pendapatan Bulan Ini
-                      </span>
-                      <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-                    </div>
-                    <p className="text-sm sm:text-xl md:text-2xl font-bold text-gray-600 dark:text-gray-400 truncate">
-                      {formatRupiah(stats.totalEarnings)}
-                    </p>
-                  </div>
+                  <KpiCard
+                    label="Selesai Hari Ini"
+                    value={stats.completedToday}
+                    caption="Service selesai hari ini"
+                    icon={CheckCircle}
+                  />
+                  <KpiCard
+                    label="Sedang Dikerjakan"
+                    value={stats.inProgress}
+                    caption="Proyek aktif"
+                    icon={Wrench}
+                  />
+                  <KpiCard
+                    label="Antrean"
+                    value={stats.pendingQueue}
+                    caption="Menunggu diambil"
+                    icon={Clock}
+                  />
+                  <KpiCard
+                    label="Pendapatan Bulan Ini"
+                    value={formatRupiah(stats.totalEarnings)}
+                    caption="Total bulan ini"
+                    icon={DollarSign}
+                    accent
+                    valueClassName="text-lg sm:text-xl lg:text-2xl truncate"
+                  />
                 </div>
 
                 {/* Queue List Component */}
@@ -681,17 +690,22 @@ export default function TeknisiDashboard() {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-xl sm:rounded-2xl md:rounded-[24px] border border-gray-200 dark:border-white/10 shadow-sm p-3 sm:p-5"
+                  className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-4 sm:p-5"
                 >
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-gray-200 dark:border-white/10">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-900 dark:bg-white rounded-md sm:rounded-lg flex items-center justify-center">
-                      <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-white dark:text-gray-900" />
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-8 h-8 bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)] rounded-lg flex items-center justify-center">
+                      <Activity className="w-4 h-4" />
                     </div>
-                    <h3 className="font-semibold text-sm sm:text-base text-gray-900 dark:text-gray-100">
+                    <h3 className="font-semibold text-sm sm:text-base text-[var(--color-text)]">
                       Aktivitas Terbaru
                     </h3>
                   </div>
-                  <div className="space-y-2">
+                  <div className="relative">
+                    <div
+                      className="absolute left-[7px] top-2 bottom-8 w-px bg-[var(--color-border)]"
+                      aria-hidden="true"
+                    />
+                    <div className="space-y-1">
                     {recentActivities.map((activity, i) => (
                       <div
                         key={activity.id}
@@ -701,35 +715,39 @@ export default function TeknisiDashboard() {
                             setShowActivityModal(true);
                           }
                         }}
-                        className={`flex items-center gap-3 p-2 border-b border-gray-100 dark:border-white/5 last:border-0 ${
+                        className={`relative flex items-start gap-3 p-2 rounded-lg ${
                           activity.details
-                            ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors rounded-lg"
+                            ? "cursor-pointer hover:bg-[var(--color-surface)] transition-colors"
                             : ""
                         }`}
                       >
-                        <div className="w-2 h-2 bg-gray-900 dark:bg-white rounded-full flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 truncate">
+                        <span
+                          className="absolute left-[6px] top-[15px] w-[6px] h-[6px] rounded-full bg-[var(--color-accent-teal)] ring-4 ring-[var(--color-accent-teal-soft)]"
+                          aria-hidden="true"
+                        />
+                        <div className="flex-1 min-w-0 ml-8">
+                          <p className="text-xs sm:text-sm text-[var(--color-text)] truncate">
                             {activity.message}
                           </p>
-                          <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">
+                          <p className="text-[10px] sm:text-xs text-[var(--color-text-tertiary)]">
                             {activity.time}
                           </p>
                         </div>
                         {activity.details && (
-                          <div className="text-[10px] text-blue-500 flex-shrink-0 font-medium">
+                          <div className="text-[10px] text-[var(--color-accent-teal)] flex-shrink-0 font-medium">
                             Detail →
                           </div>
                         )}
                       </div>
                     ))}
                     {recentActivities.length === 0 && (
-                      <div className="text-center py-6 text-gray-400">
+                      <div className="text-center py-6 text-[var(--color-text-tertiary)]">
                         <p className="text-xs sm:text-sm">
                           Belum ada aktivitas
                         </p>
                       </div>
                     )}
+                    </div>
                   </div>
                 </motion.div>
 
@@ -742,25 +760,25 @@ export default function TeknisiDashboard() {
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+                      className="bg-[var(--color-card)] rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl border border-[var(--color-border)]"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
-                        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                      <div className="sticky top-0 bg-[var(--color-card)] z-20 flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)] rounded-t-2xl">
+                        <h2 className="text-sm font-bold text-[var(--color-text)]">
                           Detail Aktivitas
                         </h2>
                         <button
                           onClick={() => setShowActivityModal(false)}
-                          className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                          className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg transition-colors"
                         >
-                          <X className="w-4 h-4 text-gray-400" />
+                          <X className="w-4 h-4 text-[var(--color-text-secondary)]" />
                         </button>
                       </div>
                       <div className="p-5 space-y-3">
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-[var(--color-text-secondary)]">
                           {selectedActivity.time}
                         </p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
+                        <p className="text-sm font-medium text-[var(--color-text)] capitalize">
                           {selectedActivity.message}
                         </p>
 
@@ -1227,28 +1245,28 @@ export default function TeknisiDashboard() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200 dark:border-white/10"
+            className="bg-[var(--color-card)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-[var(--color-border)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+            <div className="sticky top-0 bg-[var(--color-card)] z-20 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] rounded-t-2xl">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                  <Wrench className="w-4 h-4 text-white dark:text-gray-900" />
+                <div className="w-9 h-9 bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)] rounded-xl flex items-center justify-center">
+                  <Wrench className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  <h2 className="text-base font-bold text-[var(--color-text)]">
                     Update Service
                   </h2>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-[var(--color-text-secondary)]">
                     {selectedService.invoice_number}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedService(null)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg transition-colors"
               >
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-[var(--color-text-secondary)]" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6">
@@ -1291,29 +1309,29 @@ export default function TeknisiDashboard() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-[#1c1c1c] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-white/10"
+            className="bg-[var(--color-card)] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl border border-[var(--color-border)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white dark:bg-[#1c1c1c] z-20 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 rounded-t-2xl">
+            <div className="sticky top-0 bg-[var(--color-card)] z-20 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] rounded-t-2xl">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gray-900 dark:bg-white rounded-xl flex items-center justify-center">
-                  <Watch className="w-4 h-4 text-white dark:text-gray-900" />
+                <div className="w-9 h-9 bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)] rounded-xl flex items-center justify-center">
+                  <Watch className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  <h2 className="text-base font-bold text-[var(--color-text)]">
                     New Watch Service
                   </h2>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-[var(--color-text-secondary)]">
                     Create service order for timepiece
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowServiceForm(false)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-[var(--color-surface)] rounded-lg transition-colors"
               >
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-[var(--color-text-secondary)]" />
               </button>
             </div>
             {/* Modal Content */}
@@ -1327,7 +1345,7 @@ export default function TeknisiDashboard() {
       {/* Layanan Form Modal */}
       {showLayananForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
-          <div className="bg-white rounded-xl sm:rounded-2xl md:rounded-[24px] shadow-2xl w-full max-w-sm md:max-w-lg max-h-[90vh] overflow-y-auto border border-slate-200">
+          <div className="bg-[var(--color-card)] rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl w-full max-w-sm md:max-w-lg max-h-[90vh] overflow-y-auto border border-[var(--color-border)]">
             <LayananForm
               onSuccess={handleLayananSuccess}
               onClose={() => setShowLayananForm(false)}
