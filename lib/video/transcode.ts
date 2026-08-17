@@ -1,5 +1,6 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
+import { getVideoDurationMs } from "@/lib/media-utils";
 
 export type VideoCodec = "h264" | "hevc" | "other";
 
@@ -56,16 +57,41 @@ type EncodeProfile = {
   crf: number;
 };
 
-// Mencoba 1080p dulu; jika hasil masih >48MB, ulangi di 720p.
-const PROFILES: EncodeProfile[] = [
-  { maxSide: 1920, crf: 27 },
-  { maxSide: 1280, crf: 30 },
+const FALLBACK_PROFILES: EncodeProfile[] = [
+  { maxSide: 1920, crf: 23 },
+  { maxSide: 1280, crf: 26 },
+  { maxSide: 854, crf: 26 },
 ];
+
+const AUDIO_KBPS = 96;
+const MIN_VIDEO_KBPS = 350;
+const MAX_VIDEO_KBPS = 12000;
+const MAX_SIDE_BY_KBPS: Array<[number, number]> = [
+  [4500, 1920],
+  [2500, 1280],
+  [1200, 854],
+  [0, 640],
+];
+
+function resolutionForKbps(kbps: number): number {
+  const entry = MAX_SIDE_BY_KBPS.find(([threshold]) => kbps >= threshold);
+  return entry ? entry[1] : 640;
+}
+
+function clampKbps(kbps: number): number {
+  return Math.max(MIN_VIDEO_KBPS, Math.min(MAX_VIDEO_KBPS, Math.floor(kbps)));
+}
+
+function targetKbpsForDuration(durationSec: number): number {
+  const audioBits = AUDIO_KBPS * 1000 * durationSec;
+  const videoBits = MAX_OUTPUT_BYTES * 8 - audioBits;
+  return clampKbps(videoBits / durationSec / 1000);
+}
 
 async function encodeH264(
   ffmpeg: FFmpeg,
   file: File,
-  profile: EncodeProfile,
+  profile: { maxSide: number; kbps: number },
   onProgress?: (percent: number) => void,
 ): Promise<Uint8Array> {
   const input = "input.bin";
@@ -76,8 +102,11 @@ async function encodeH264(
   ffmpeg.on("progress", onProgressCb);
   try {
     await ffmpeg.writeFile(input, new Uint8Array(await file.arrayBuffer()));
-    // Fit dalam kotak maxSide tanpa mengubah rasio (landscape/portrait dipertahankan)
     const scale = `scale=w='if(gt(a,1),min(${profile.maxSide},iw),-2)':h='if(gt(a,1),-2,min(${profile.maxSide},ih))'`;
+    const rateArgs =
+      profile.kbps > 0
+        ? ["-b:v", `${profile.kbps}k`, "-maxrate", `${Math.round(profile.kbps * 1.2)}k`, "-bufsize", `${profile.kbps * 2}k`]
+        : [];
     await ffmpeg.exec([
       "-i",
       input,
@@ -88,9 +117,8 @@ async function encodeH264(
       "-c:v",
       "libx264",
       "-preset",
-      "veryfast",
-      "-crf",
-      String(profile.crf),
+      "medium",
+      ...rateArgs,
       "-pix_fmt",
       "yuv420p",
       "-map",
@@ -150,9 +178,31 @@ export async function ensureUploadableVideo(
   }
 
   let lastFailure = "ukuran tetap melebihi 48MB";
-  for (const profile of PROFILES) {
+  const durationSec = (await getVideoDurationMs(file)) / 1000;
+
+  if (Number.isFinite(durationSec) && durationSec > 0) {
+    let kbps = targetKbpsForDuration(durationSec);
+    let maxSide = resolutionForKbps(kbps);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const out = await encodeH264(ffmpeg, file, { maxSide, kbps }, onProgress);
+        if (out.byteLength <= MAX_OUTPUT_BYTES) {
+          const name = file.name.replace(/\.[^.]+$/, ".mp4");
+          return new File([out as BlobPart], name, { type: "video/mp4" });
+        }
+        lastFailure = `ukuran tetap melebihi 48MB (${Math.round(out.byteLength / (1024 * 1024))}MB)`;
+      } catch (e) {
+        lastFailure =
+          e instanceof Error ? `gagal dikonversi (${e.message})` : "gagal dikonversi";
+      }
+      kbps = clampKbps(kbps * 0.75);
+      maxSide = resolutionForKbps(kbps);
+    }
+  }
+
+  for (const profile of FALLBACK_PROFILES) {
     try {
-      const out = await encodeH264(ffmpeg, file, profile, onProgress);
+      const out = await encodeH264(ffmpeg, file, { maxSide: profile.maxSide, kbps: 0 }, onProgress);
       if (out.byteLength <= MAX_OUTPUT_BYTES) {
         const name = file.name.replace(/\.[^.]+$/, ".mp4");
         return new File([out as BlobPart], name, { type: "video/mp4" });

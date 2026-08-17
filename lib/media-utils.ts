@@ -20,3 +20,21 @@ export function isPlayableVideo(
 export function mediaTypeFromUrl(url?: string | null): MediaType {
   return isPlayableVideo(null, url) ? 'video' : 'image'
 }
+
+export function getVideoDurationMs(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const v = document.createElement('video')
+    v.preload = 'metadata'
+    v.onloadedmetadata = () => {
+      const d = Number.isFinite(v.duration) ? v.duration * 1000 : 0
+      URL.revokeObjectURL(url)
+      resolve(d)
+    }
+    v.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(0)
+    }
+    v.src = url
+  })
+}
