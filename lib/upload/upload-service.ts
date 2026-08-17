@@ -362,6 +362,7 @@ export class UploadService {
     branchCode?: string,
     onTranscodeProgress?: (percent: number) => void,
     onUploadProgress?: (percent: number) => void,
+    skipVideoTranscode?: boolean,
   ): Promise<Array<{ url: string; chat_id: string; message_id: number; file_id?: string }>> {
     console.log('[DEBUG:UploadService] legacyUpload CALLED', {
       files_count: files.length,
@@ -387,10 +388,10 @@ export class UploadService {
     const urls = [workerUrl].filter(Boolean)
     let lastError: any = null
 
-    // Video dipastikan playable + ≤15MB (HEVC/webm→H.264, re-encode bila besar)
+    // Video dipastikan playable + ≤48MB (HEVC/webm→H.264, re-encode bila besar); skipVideoTranscode = kirim asli
     const preparedFiles: File[] = []
     for (const f of files) {
-      preparedFiles.push(await ensureUploadableVideo(f, onTranscodeProgress))
+      preparedFiles.push(skipVideoTranscode ? f : await ensureUploadableVideo(f, onTranscodeProgress))
     }
 
     for (let i = 0; i < urls.length; i++) {

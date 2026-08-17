@@ -53,6 +53,7 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   const [uploading, setUploading] = useState(false)
   const [localProgress, setLocalProgress] = useState(0)
   const [processingVideo, setProcessingVideo] = useState(false)
+  const [bypassVideoTranscode, setBypassVideoTranscode] = useState(false)
 
   useEffect(() => {
     fetchTimeline()
@@ -67,10 +68,18 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     if (data) setTimeline(data)
   }
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>, raw = false) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (isVideoFile(file)) {
+      if (raw && file.size <= 48 * 1024 * 1024) {
+        setBypassVideoTranscode(true)
+        setSelectedPhoto(file)
+        setPhotoPreview(URL.createObjectURL(file))
+        toast.success('Video siap dikirim (kualitas asli)')
+        return
+      }
+      setBypassVideoTranscode(false)
       setProcessingVideo(true)
       setLocalProgress(0)
       try {
@@ -88,6 +97,7 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
       }
       return
     }
+    setBypassVideoTranscode(false)
     setSelectedPhoto(file)
     setPhotoPreview(URL.createObjectURL(file))
   }
@@ -96,6 +106,7 @@ const removePhoto = () => {
     setSelectedPhoto(null)
     if (photoPreview) URL.revokeObjectURL(photoPreview)
     setPhotoPreview(null)
+    setBypassVideoTranscode(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (videoInputRef.current) videoInputRef.current.value = ''
     if (recordInputRef.current) recordInputRef.current.value = ''
@@ -126,6 +137,7 @@ const removePhoto = () => {
             undefined,
             undefined,
             (p) => setLocalProgress(p),
+            bypassVideoTranscode,
           )
           setLocalProgress(100)
           uploadResult = results?.[0] || null
@@ -302,7 +314,7 @@ const removePhoto = () => {
             type="file"
             accept="video/*"
             capture="environment"
-            onChange={handlePhotoSelect}
+            onChange={(e) => handlePhotoSelect(e, true)}
             className="hidden"
           />
 

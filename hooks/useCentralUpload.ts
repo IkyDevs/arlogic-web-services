@@ -58,6 +58,7 @@ export interface UseCentralUploadReturn {
     branchCode?: string,
     onTranscodeProgress?: (percent: number) => void,
     onUploadProgress?: (percent: number) => void,
+    skipVideoTranscode?: boolean,
   ) => Promise<
     Array<{
       url: string;
@@ -292,6 +293,7 @@ export function useCentralUpload(sessionKey: string): UseCentralUploadReturn {
       branchCode?: string,
       onTranscodeProgress?: (percent: number) => void,
       onUploadProgress?: (percent: number) => void,
+      skipVideoTranscode?: boolean,
     ): Promise<
       Array<{
         url: string;
@@ -310,6 +312,7 @@ export function useCentralUpload(sessionKey: string): UseCentralUploadReturn {
           branchCode,
           onTranscodeProgress,
           onUploadProgress,
+          skipVideoTranscode,
         );
         return results;
       } finally {
