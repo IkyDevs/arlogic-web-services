@@ -38,6 +38,8 @@ export default function QCRecallModal({ service, qcId, onClose, onSuccess }: QCR
           qc_recalled: true,
           qc_recalled_at: new Date().toISOString(),
           qc_recall_reason: reason.trim(),
+          picked_up_at: null,
+          done_date: null,
         })
         .eq("id", service.id)
 

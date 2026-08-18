@@ -91,6 +91,13 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [movementFilter, setMovementFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [teknisiOptions, setTeknisiOptions] = useState<{ id: string; name: string }[]>([]);
+  const [branchFilter, setBranchFilter] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [teknisiFilter, setTeknisiFilter] = useState("");
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
   const [sortField, setSortField] = useState("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -105,10 +112,15 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const fetchServices = async () => {
     setLoading(true);
     let q = supabase.from("service_orders").select("*, profiles:assigned_teknisi_id(full_name)").neq("status", "done").order(sortField, { ascending: sortDir === "asc" });
-    if (branchId) q = q.eq("branch_id", branchId);
+    if (branchFilter) q = q.eq("branch_id", branchFilter);
+    else if (branchId) q = q.eq("branch_id", branchId);
     if (statusFilter) q = q.eq("status", statusFilter);
     if (movementFilter) q = q.eq("watch_movement", movementFilter);
     if (categoryFilter) q = q.eq("category", categoryFilter);
+    if (brandFilter) q = q.eq("watch_brand", brandFilter);
+    if (teknisiFilter) q = q.eq("assigned_teknisi_id", teknisiFilter);
+    if (dateStart) q = q.gte("created_at", dateStart + "T00:00:00");
+    if (dateEnd) q = q.lte("created_at", dateEnd + "T23:59:59.999");
     if (search.trim()) {
       const s = search.trim();
       q = q.or(`customer_name.ilike.%${s}%,customer_phone.ilike.%${s}%,invoice_number.ilike.%${s}%`);
@@ -126,8 +138,23 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
     }
   };
 
-  useEffect(() => { fetchServices(); }, [movementFilter, categoryFilter, sortField, sortDir]);
-  useEffect(() => { extractCategories(); }, []);
+  const extractBrands = async () => {
+    const { data } = await supabase.from("service_orders").select("watch_brand").not("watch_brand", "is", null);
+    if (data) {
+      const bs = [...new Set(data.map((r: any) => r.watch_brand).filter(Boolean))] as string[];
+      setBrands(bs.sort());
+    }
+  };
+
+  const extractTeknisi = async () => {
+    const { data } = await supabase.from("profiles").select("id, full_name").eq("role", "teknisi").order("full_name");
+    if (data) {
+      setTeknisiOptions((data as { id: string; full_name: string }[]).map((t) => ({ id: t.id, name: t.full_name || "-" })));
+    }
+  };
+
+  useEffect(() => { fetchServices(); }, [movementFilter, categoryFilter, statusFilter, branchFilter, brandFilter, teknisiFilter, dateStart, dateEnd, sortField, sortDir]);
+  useEffect(() => { extractCategories(); extractBrands(); extractTeknisi(); }, []);
 
   // Auto-refresh ketika service baru ditambahkan (Add Service)
   useEffect(() => {
@@ -138,7 +165,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
     };
     window.addEventListener("new-service", handler);
     return () => window.removeEventListener("new-service", handler);
-  }, [movementFilter, categoryFilter, sortField, sortDir, showModal, selectedService]);
+  }, [movementFilter, categoryFilter, statusFilter, branchFilter, brandFilter, teknisiFilter, dateStart, dateEnd, sortField, sortDir, showModal, selectedService]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchServices(), 300);
@@ -201,6 +228,10 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
               placeholder="Cari nama / WA / invoice..." className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all" />
             {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-3.5 h-3.5 text-slate-400" /></button>}
           </div>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all">
+            {statusFilterOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
           <select value={movementFilter} onChange={(e) => setMovementFilter(e.target.value)}
             className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all">
             {moveOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -210,6 +241,25 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
             <option value="">Semua Kategori</option>
             {categories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+          <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all">
+            <option value="">Semua Brand</option>
+            {brands.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <select value={teknisiFilter} onChange={(e) => setTeknisiFilter(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all">
+            <option value="">Semua Teknisi</option>
+            {teknisiOptions.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all">
+            <option value="">Semua Cabang</option>
+            {branches.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all" />
+          <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)}
+            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all" />
         </div>
       </div>
 

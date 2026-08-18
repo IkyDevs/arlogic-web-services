@@ -226,7 +226,7 @@ export default function QCDashboard() {
     const { data } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
-      .eq("status", "completed")
+      .in("status", ["completed", "done"])
       .match(branchScope)
       .order("completed_at", { ascending: false })
       .limit(20);
@@ -575,7 +575,7 @@ export default function QCDashboard() {
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Service yang sudah di-Approve ({completedServices.length})</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">Approve &amp; Selesai ({completedServices.length})</h3>
               </div>
               {completedServices.length === 0 ? (
                 <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-8 text-center shadow-sm">

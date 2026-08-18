@@ -36,6 +36,7 @@ import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
 import { useBranch } from "@/lib/context/BranchContext";
 import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
+import CameraCaptureModal from "@/components/admin/CameraCaptureModal";
 import dynamic from "next/dynamic";
 
 const QRCodeGenerator = dynamic(
@@ -125,7 +126,6 @@ export default function ServiceInput({
   const upload = useCentralUpload(uploadKey);
   const { activeBranch } = useBranch();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     cs_name: "",
@@ -145,6 +145,7 @@ export default function ServiceInput({
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoLabels, setPhotoLabels] = useState<Record<string, string>>({});
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
   const [loadingPhotos, setLoadingPhotos] = useState<{ key: string; name: string }[]>([]);
@@ -293,7 +294,7 @@ export default function ServiceInput({
     return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
   };
 
-  const handleAddPhoto = async (files: FileList | null, label?: string) => {
+  const handleAddPhoto = async (files: FileList | File[] | null, label?: string) => {
     if (!files) return;
     const rawFiles = Array.from(files).filter(
       (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
@@ -1063,7 +1064,7 @@ In : ${now}`;
             {/* Upload — sekali buka kamera, foto berkali-kali */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
               <button
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={() => setShowCamera(true)}
                 disabled={upload.uploading}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
               >
@@ -1076,15 +1077,6 @@ In : ${now}`;
               >
                 <ImageIcon className="w-4 h-4" /> Upload from Gallery
               </button>
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={(e) => { handleAddPhoto(e.target.files); e.target.value = ""; }}
-                className="hidden"
-              />
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1677,6 +1669,13 @@ In : ${now}`;
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Camera Modal */}
+      <CameraCaptureModal
+        open={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={(files) => handleAddPhoto(files)}
+      />
 
       {/* Upload progress (background) */}
       {upload.uploading && (
