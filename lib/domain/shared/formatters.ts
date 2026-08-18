@@ -45,6 +45,40 @@ export function formatDateISO(date: string | Date): string {
   return new Date(date).toISOString().split("T")[0]
 }
 
+// ─── Local Date Helpers (WIB) ─────────────────────────────────────
+// `toISOString()` selalu UTC — filter "hari ini" memakai UTC salah
+// untuk zona Asia/Jakarta (00:00–06:59 WIB dihitung sebagai hari
+// kemarin). Helper ini menghasilkan tanggal/rentang dalam WIB.
+const WIB = "Asia/Jakarta"
+
+export function localDateISO(date: string | Date = new Date()): string {
+  const d = typeof date === "string" ? new Date(date) : date
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: WIB,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d)
+}
+
+export function localDayRange(date: string | Date = new Date(), tz = WIB) {
+  const d = typeof date === "string" ? new Date(date) : date
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d)
+  const y = parts.find((p) => p.type === "year")!.value
+  const m = parts.find((p) => p.type === "month")!.value
+  const day = parts.find((p) => p.type === "day")!.value
+  // Offset eksplisit +07:00 supaya timestamptz Postgres diinterpretasi benar
+  return {
+    start: `${y}-${m}-${day}T00:00:00+07:00`,
+    end: `${y}-${m}-${day}T23:59:59.999+07:00`,
+  }
+}
+
 export function formatRelativeTime(date: string | Date): string {
   const now = new Date()
   const past = new Date(date)

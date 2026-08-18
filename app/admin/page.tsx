@@ -39,9 +39,11 @@ import {
   ChevronRight,
   Receipt,
   MessageSquare,
+  Wrench,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { localDayRange } from "@/lib/domain/shared/formatters";
 import dynamic from "next/dynamic";
 import LayananForm from "@/components/layanan/LayananForm";
 import LayananList from "@/components/layanan/LayananList";
@@ -137,6 +139,14 @@ const DoneService = dynamic(() => import("@/components/admin/DoneService"), {
 });
 const TemplateManager = dynamic(
   () => import("@/components/admin/TemplateManager"),
+  {
+    loading: () => (
+      <div className="text-center py-8 text-slate-500">Loading...</div>
+    ),
+  },
+);
+const ServiceCatalogManager = dynamic(
+  () => import("@/components/admin/ServiceCatalogManager"),
   {
     loading: () => (
       <div className="text-center py-8 text-slate-500">Loading...</div>
@@ -263,29 +273,29 @@ export default function AdminDashboard() {
   });
 
   const fetchTodayStats = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const { start, end } = localDayRange();
     const [txCount, txRev, txExp] = await Promise.all([
       supabase
         .from("layanan")
         .select("*", { count: "exact", head: true }).match(branchMatch)
-        .gte("created_at", today + "T00:00:00")
-        .lte("created_at", today + "T23:59:59"),
+        .gte("created_at", start)
+        .lte("created_at", end),
       supabase
         .from("layanan")
         .select("nominal, layanan_items(nominal)")
         .match(branchMatch)
         .neq("status", "cancelled")
         .neq("jenis_layanan", "pengeluaran")
-        .gte("created_at", today + "T00:00:00")
-        .lte("created_at", today + "T23:59:59"),
+        .gte("created_at", start)
+        .lte("created_at", end),
       supabase
         .from("layanan")
         .select("nominal, layanan_items(nominal)")
         .match(branchMatch)
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran")
-        .gte("created_at", today + "T00:00:00")
-        .lte("created_at", today + "T23:59:59"),
+        .gte("created_at", start)
+        .lte("created_at", end),
     ]);
     const sumNominal = (rows: any[]) =>
       rows.reduce((s: number, item: any) => {
@@ -309,7 +319,7 @@ export default function AdminDashboard() {
   // ==================== FETCH FUNCTIONS ====================
 
   const fetchStats = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const { start, end } = localDayRange();
 
     const [
       users,
@@ -340,7 +350,8 @@ export default function AdminDashboard() {
         .from("service_orders")
         .select("*", { count: "exact", head: true }).match(branchMatch)
         .eq("status", "completed")
-        .gte("completed_at", today),
+        .gte("completed_at", start)
+        .lte("completed_at", end),
       supabase
         .from("layanan")
         .select("nominal")
@@ -361,21 +372,21 @@ export default function AdminDashboard() {
         .match(branchMatch)
         .neq("status", "cancelled")
         .neq("jenis_layanan", "pengeluaran")
-        .gte("created_at", today + "T00:00:00")
-        .lte("created_at", today + "T23:59:59"),
+        .gte("created_at", start)
+        .lte("created_at", end),
       supabase
         .from("layanan")
         .select("nominal, layanan_items(nominal)")
         .match(branchMatch)
         .neq("status", "cancelled")
         .eq("jenis_layanan", "pengeluaran")
-        .gte("created_at", today + "T00:00:00")
-        .lte("created_at", today + "T23:59:59"),
+        .gte("created_at", start)
+        .lte("created_at", end),
       supabase
         .from("layanan")
         .select("*", { count: "exact", head: true }).match(branchMatch)
-        .gte("created_at", today + "T00:00:00")
-        .lte("created_at", today + "T23:59:59"),
+        .gte("created_at", start)
+        .lte("created_at", end),
       supabase
         .from("service_orders")
         .select("*", { count: "exact", head: true }).match(branchMatch)
@@ -440,13 +451,13 @@ export default function AdminDashboard() {
   };
 
   const fetchRecentTransactions = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const { start, end } = localDayRange();
     const { data } = await supabase
       .from("layanan")
       .select("*, layanan_items(*)")
       .match(branchMatch)
-      .gte("created_at", today + "T00:00:00")
-      .lte("created_at", today + "T23:59:59")
+      .gte("created_at", start)
+      .lte("created_at", end)
       .order("created_at", { ascending: false })
       .limit(15);
 
@@ -497,13 +508,13 @@ export default function AdminDashboard() {
   // ==================== ATTENDANCE FUNCTIONS ====================
 
   const checkTodayAttendance = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const { start, end } = localDayRange();
     const { data } = await supabase
       .from("attendances")
       .select("*")
       .eq("teknisi_id", user?.id)
-      .gte("check_in", today)
-      .lte("check_in", today + " 23:59:59")
+      .gte("check_in", start)
+      .lte("check_in", end)
       .order("check_in", { ascending: false })
       .limit(1)
       .single();
@@ -793,6 +804,7 @@ export default function AdminDashboard() {
       icon: ShoppingCart,
     },
     { id: "services", label: "List Service", icon: ClipboardList },
+    { id: "service-catalog", label: "Katalog Jasa", icon: Wrench },
     { id: "sparepart", label: "Request Sparepart", icon: Package },
     { id: "attendance", label: "Absensi", icon: Clock },
     { id: "inventory", label: "Inventory", icon: Package },
@@ -971,6 +983,8 @@ export default function AdminDashboard() {
           {activeTab === "services" && (
             <ServiceList onAdd={() => setShowServiceForm(true)} />
           )}
+
+          {activeTab === "service-catalog" && <ServiceCatalogManager />}
 
           {activeTab === "sparepart" && <POSection onUpdate={fetchStats} />}
 

@@ -62,6 +62,7 @@ import CustomerAutocomplete from "@/components/admin/CustomerAutocomplete";
 import ServicePickupPicker, {
   ServicePickupResult,
 } from "@/components/layanan/ServicePickupPicker";
+import ServiceCatalogPicker from "@/components/layanan/ServiceCatalogPicker";
 import { useTransactionStore } from "@/stores/transaction-store";
 
 interface LayananFormProps {
@@ -1316,32 +1317,45 @@ export default memo(function LayananForm({
                         key={skuIdx}
                         className="flex flex-col md:flex-row items-start md:items-center gap-2"
                       >
-                        <input
-                          type="text"
-                          value={sku.sku}
-                          onChange={(e) =>
-                            updateSku(itemIdx, skuIdx, "sku", e.target.value)
-                          }
-                          placeholder="SKU / Invoice"
-                          className="w-full md:flex-1 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                        />
-                        <div className="relative w-full md:w-32">
-                          <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                          <input
-                            type="text"
-                            value={sku.nominal || ""}
-                            onChange={(e) =>
-                              updateSku(
-                                itemIdx,
-                                skuIdx,
-                                "nominal",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Nominal"
-                            className="w-full pl-7 pr-2 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                        {item.jenis_layanan === "service_langsung" ? (
+                          <ServiceCatalogPicker
+                            skuValue={sku.sku}
+                            nominalValue={sku.nominal}
+                            onChange={(skuName, nominal) => {
+                              updateSku(itemIdx, skuIdx, "sku", skuName);
+                              updateSku(itemIdx, skuIdx, "nominal", String(nominal));
+                            }}
                           />
-                        </div>
+                        ) : (
+                          <>
+                            <input
+                              type="text"
+                              value={sku.sku}
+                              onChange={(e) =>
+                                updateSku(itemIdx, skuIdx, "sku", e.target.value)
+                              }
+                              placeholder="SKU / Invoice"
+                              className="w-full md:flex-1 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                            />
+                            <div className="relative w-full md:w-32">
+                              <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                              <input
+                                type="text"
+                                value={sku.nominal || ""}
+                                onChange={(e) =>
+                                  updateSku(
+                                    itemIdx,
+                                    skuIdx,
+                                    "nominal",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Nominal"
+                                className="w-full pl-7 pr-2 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                              />
+                            </div>
+                          </>
+                        )}
                         {item.skus.length > 1 && (
                           <button
                             type="button"
