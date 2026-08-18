@@ -76,6 +76,7 @@ export default function QCDashboard() {
 
   // QC Recall
   const [completedServices, setCompletedServices] = useState<any[]>([]);
+  const [revisionServices, setRevisionServices] = useState<any[]>([]);
   const [showRecallModal, setShowRecallModal] = useState(false);
   const [recallTarget, setRecallTarget] = useState<any>(null);
 
@@ -103,6 +104,7 @@ export default function QCDashboard() {
     fetchCentralBranch();
     fetchServices();
     fetchCompletedServices();
+    fetchRevisionServices();
     fetchTeknisiList();
     checkTodayAttendance();
   }, [centralBranchId]);
@@ -186,7 +188,7 @@ export default function QCDashboard() {
     const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("service_orders")
-      .select("*, profiles:assigned_teknisi_id(full_name)")
+      .select("*, profiles:assigned_teknisi_id(full_name), branch:branch_id(name)")
       .eq("status", "qc_pending")
       .match(branchScope)
       .order("created_at", { ascending: true });
@@ -225,7 +227,7 @@ export default function QCDashboard() {
     const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("service_orders")
-      .select("*, profiles:assigned_teknisi_id(full_name)")
+      .select("*, profiles:assigned_teknisi_id(full_name), branch:branch_id(name)")
       .in("status", ["completed", "done"])
       .match(branchScope)
       .order("completed_at", { ascending: false })
@@ -245,6 +247,26 @@ export default function QCDashboard() {
     setRecallTarget(null);
     fetchCompletedServices();
     fetchServices();
+    fetchRevisionServices();
+  };
+
+  const fetchRevisionServices = async () => {
+    const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
+    const { data } = await supabase
+      .from("service_orders")
+      .select("*, profiles:assigned_teknisi_id(full_name), branch:branch_id(name)")
+      .eq("status", "revision_required")
+      .match(branchScope)
+      .order("qc_recalled_at", { ascending: false })
+      .limit(50);
+
+    if (data) {
+      const mapped = data.map((s: any) => ({
+        ...s,
+        teknisi_name: s.profiles?.full_name || "-",
+      }));
+      setRevisionServices(mapped);
+    }
   };
 
   const fetchPendingApprovals = async () => {
@@ -667,6 +689,44 @@ export default function QCDashboard() {
                   onViewDetails={viewServiceDetails}
                 />
               </div>
+
+              {/* Sedang Direvisi */}
+              {revisionServices.length > 0 && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    <h3 className="font-semibold text-slate-900">Sedang Direvisi</h3>
+                    <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      {revisionServices.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {revisionServices.map((svc) => (
+                      <div key={svc.id} className="bg-white rounded-xl border border-amber-200 shadow-sm p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {svc.invoice_number}
+                          </span>
+                          <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+                            Perlu Revisi
+                          </span>
+                        </div>
+                        <p className="font-semibold text-slate-900 text-sm mt-2">{svc.customer_name}</p>
+                        <p className="text-xs text-slate-500">{svc.watch_brand || "-"}</p>
+                        <div className="flex items-center justify-between text-xs text-slate-400 mt-2">
+                          <span>Teknisi: {svc.teknisi_name || "-"}</span>
+                          <span className="font-medium text-slate-500">{svc.branch?.name || "-"}</span>
+                        </div>
+                        {svc.qc_recall_reason && (
+                          <p className="text-[11px] text-red-600 bg-red-50 rounded-lg p-2 mt-2 border border-red-100">
+                            Alasan: {svc.qc_recall_reason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </main>

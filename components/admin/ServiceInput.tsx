@@ -415,7 +415,14 @@ export default function ServiceInput({
 
       const {
         data: { user: authUser },
-      } = await supabase.auth.getUser();
+      } = await supabase.auth.refreshSession();
+
+      if (!authUser) {
+        toast.error("Sesi berakhir — silakan login ulang.");
+        setLoading(false);
+        window.location.href = "/login";
+        return;
+      }
 
       const { data: orderData, error } = await supabase
         .from("service_orders")

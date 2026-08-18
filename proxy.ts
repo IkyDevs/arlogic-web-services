@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 hari — cegah logout tiap browser ditutup
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -17,23 +19,33 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value),
-          );
-          response = NextResponse.next({
-            request,
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const isAuthCookie = name.includes("-auth-token");
+            request.cookies.set(name, value);
+            response = NextResponse.next({
+              request,
+            });
+            response.cookies.set(
+              name,
+              value,
+              isAuthCookie ? { ...options, maxAge: AUTH_COOKIE_MAX_AGE } : options,
+            );
           });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
         },
       },
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user || null;
+  } catch (error) {
+    // Gagal sesaat (network/refresh race) → biarkan request lewat,
+    // jangan buru-buru logout. Kalau sesi benar-benar mati, halaman
+    // yang butuh auth akan gagal sendiri.
+    console.error("Auth check skipped (transient):", error);
+  }
 
   // Get user role from profile
   let userRole = null;

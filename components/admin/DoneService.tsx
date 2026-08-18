@@ -32,9 +32,12 @@ import {
   Award,
   ZoomIn,
   Download,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ServiceCostBreakdown from "@/components/ui/ServiceCostBreakdown";
+import QCRecallModal from "@/components/qc/QCRecallModal";
+import { useAuthStore } from "@/stores/authStore";
 
 function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -66,6 +69,10 @@ const statusBadge: Record<string, { label: string; color: string }> = {
 export default function DoneService() {
   const supabase = createClient();
   const { branchId } = useBranchScope();
+  const { user } = useAuthStore();
+  const isQc = user?.role === "qc" || user?.role === "supervisor";
+  const [recallTarget, setRecallTarget] = useState<any>(null);
+  const [showRecallModal, setShowRecallModal] = useState(false);
   const [tab, setTab] = useState<"pending" | "history">("pending");
   const [pendingServices, setPendingServices] = useState<any[]>([]);
   const [historyServices, setHistoryServices] = useState<any[]>([]);
@@ -664,6 +671,12 @@ export default function DoneService() {
     fetchData();
   };
 
+  const handleRecallComplete = () => {
+    setShowRecallModal(false);
+    setRecallTarget(null);
+    fetchData();
+  };
+
   const contactWA = async (svc: any) => {
     let p = svc.customer_phone.replace(/\D/g, "");
     if (p.startsWith("0")) p = "62" + p.substring(1);
@@ -856,6 +869,16 @@ export default function DoneService() {
                 <span className="hidden sm:inline">Selesai</span>
               </button>
             )}
+            {isQc && (
+              <button
+                onClick={() => { setRecallTarget(svc); setShowRecallModal(true); }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-all text-sm flex-shrink-0"
+                title="Tarik kembali ke QC"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span className="hidden sm:inline">Tarik</span>
+              </button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -940,6 +963,15 @@ export default function DoneService() {
       </div>
 
       <DetailModal />
+
+      {showRecallModal && recallTarget && user?.id && (
+        <QCRecallModal
+          service={recallTarget}
+          qcId={user.id}
+          onClose={() => { setShowRecallModal(false); setRecallTarget(null); }}
+          onSuccess={handleRecallComplete}
+        />
+      )}
     </div>
   );
 }

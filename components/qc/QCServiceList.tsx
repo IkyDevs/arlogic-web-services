@@ -88,7 +88,14 @@ export default function QCServiceList({ services, onViewDetails }: QCServiceList
               {/* Teknisi + Date */}
               <div className="flex items-center justify-between text-xs text-slate-400 mt-auto">
                 <span>Teknisi: {service.teknisi_name || '-'}</span>
-                <span>{formatDate(service.created_at)}</span>
+                <span className="flex items-center gap-1.5">
+                  {service.branch?.name && (
+                    <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200">
+                      {service.branch.name}
+                    </span>
+                  )}
+                  <span>{formatDate(service.created_at)}</span>
+                </span>
               </div>
 
               {/* Cost */}
