@@ -6,7 +6,7 @@ import { useBranchScope } from "@/lib/context/useBranchScope";
 import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn } from "lucide-react";
+import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, Zap, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn } from "lucide-react";
 import toast from "react-hot-toast";
 
 const serviceStatusLabels: Record<string, string> = {
@@ -18,7 +18,7 @@ const serviceStatusLabels: Record<string, string> = {
 
 const movementLabels: Record<string, string> = {
   automatic: "Automatic", quartz: "Quartz", digital: "Digital",
-  analog_digital: "Analog Digital", smartwatch: "Smartwatch", other: "Other",
+  analog_digital: "Analog Digital", kinetic: "Kinetic", smartwatch: "Smartwatch", other: "Other",
 };
 
 const moveOptions = [
@@ -27,12 +27,13 @@ const moveOptions = [
   { value: "quartz", label: "Quartz" },
   { value: "digital", label: "Digital" },
   { value: "analog_digital", label: "Analog Digital" },
+  { value: "kinetic", label: "Kinetic" },
   { value: "smartwatch", label: "Smartwatch" },
 ];
 
 const movementIcons: Record<string, any> = {
   automatic: Settings, quartz: Battery, digital: Settings,
-  analog_digital: Watch, smartwatch: Smartphone,
+  analog_digital: Watch, kinetic: Zap, smartwatch: Smartphone,
 };
 
 const statusOptions = [
@@ -96,6 +97,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [showModal, setShowModal] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [servicePhotos, setServicePhotos] = useState<string[]>([]);
+  const [servicePhotoLabels, setServicePhotoLabels] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const selectedBranchName = selectedService ? branches.find((branch) => branch.id === selectedService.branch_id)?.name : null;
@@ -159,10 +161,12 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
     setLoadingPhotos(true);
     const { data } = await supabase
       .from("service_documentation")
-      .select("photo_url")
+      .select("photo_url, label")
       .eq("service_order_id", svc.id)
       .order("created_at", { ascending: true });
-    setServicePhotos((data || []).map((d: any) => d.photo_url));
+    const withUrl = (data || []).filter((d: any) => !!d.photo_url);
+    setServicePhotos(withUrl.map((d: any) => d.photo_url));
+    setServicePhotoLabels(withUrl.map((d: any) => d.label || ""));
     setLoadingPhotos(false);
   };
 
@@ -289,7 +293,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
       {/* Service Detail Modal */}
       {showModal && selectedService && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => { setShowModal(false); setServicePhotos([]); }}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => { setShowModal(false); setServicePhotos([]); setServicePhotoLabels([]); }}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200"
             onClick={(e) => e.stopPropagation()}>
@@ -304,7 +308,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                   <p className="text-[11px] text-slate-500">{selectedService.invoice_number}</p>
                 </div>
               </div>
-              <button onClick={() => { setShowModal(false); setServicePhotos([]); }} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+              <button onClick={() => { setShowModal(false); setServicePhotos([]); setServicePhotoLabels([]); }} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="w-4 h-4 text-slate-400" />
               </button>
             </div>
@@ -389,9 +393,14 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                   <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">Foto</p>
                   <div className="grid grid-cols-3 gap-2">
                     {servicePhotos.filter(Boolean).map((url, i) => (
-                      <img key={i} src={url} alt={"foto-" + i}
-                        className="rounded-xl border border-slate-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => setPreviewPhoto(url)} />
+                      <div key={i} className="space-y-1">
+                        <img src={url} alt={"foto-" + i}
+                          className="rounded-xl border border-slate-200 aspect-square object-cover cursor-pointer hover:opacity-80 transition-opacity w-full"
+                          onClick={() => setPreviewPhoto(url)} />
+                        {servicePhotoLabels[i] && (
+                          <p className="text-[9px] font-medium text-slate-500 uppercase tracking-wide truncate">{servicePhotoLabels[i]}</p>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>

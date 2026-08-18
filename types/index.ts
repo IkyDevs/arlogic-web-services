@@ -69,6 +69,7 @@ export type WatchMovement =
   | "quartz"
   | "digital"
   | "smartwatch"
+  | "kinetic"
   | "other";
 export type WatchCondition = "new" | "excellent" | "good" | "fair" | "poor";
 
@@ -486,6 +487,7 @@ export const watchMovementLabels: Record<WatchMovement, string> = {
   quartz: "Quartz",
   digital: "Digital",
   smartwatch: "Smartwatch",
+  kinetic: "Kinetic",
   other: "Other",
 };
 

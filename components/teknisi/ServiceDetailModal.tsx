@@ -49,6 +49,7 @@ export default function ServiceDetailModal({
   const [loading, setLoading] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoTypes, setPhotoTypes] = useState<Array<"image" | "video">>([]);
+  const [photoLabels, setPhotoLabels] = useState<string[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showFullscreen, setShowFullscreen] = useState(false);
   const [loadingPhotos, setLoadingPhotos] = useState(true);
@@ -65,7 +66,7 @@ export default function ServiceDetailModal({
     setLoadingPhotos(true);
     const { data } = await supabase
       .from("service_documentation")
-      .select("photo_url, media_type")
+      .select("photo_url, media_type, label")
       .eq("service_order_id", service.id)
       .order("created_at", { ascending: true });
 
@@ -77,6 +78,7 @@ export default function ServiceDetailModal({
           isPlayableVideo(p.media_type, p.photo_url) ? "video" : "image",
         ),
       );
+      setPhotoLabels(withUrl.map((p) => p.label || ""));
     }
     setLoadingPhotos(false);
   };
@@ -288,7 +290,7 @@ export default function ServiceDetailModal({
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                           <span className="text-white text-[10px] font-medium bg-black/50 px-2 py-0.5 rounded-full">
-                            Foto {index + 1}
+                            {photoLabels[index] || `Foto ${index + 1}`}
                           </span>
                         </div>
                       </motion.div>

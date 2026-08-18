@@ -9,7 +9,7 @@ import { QRCodeSVG } from "qrcode.react";
 import ServiceCostBreakdown from "@/components/ui/ServiceCostBreakdown";
 import {
   CheckCircle, Clock, Wrench, UserCheck, Package, Smartphone,
-  DollarSign, AlertCircle, Phone, Watch, Settings, Battery, ChevronRight,
+  DollarSign, AlertCircle, Phone, Watch, Settings, Battery, Zap, ChevronRight,
   ChevronDown, Star, Shield, Copy, Check, Camera,
   Image, Hash, X, Send, Search, User,
 } from "lucide-react";
@@ -53,6 +53,7 @@ function getMovementIcon(m: string) {
     case "quartz": return <Battery className="w-4 h-4" />;
     case "digital": return <Settings className="w-4 h-4" />;
     case "analog_digital": return <Watch className="w-4 h-4" />;
+    case "kinetic": return <Zap className="w-4 h-4" />;
     case "smartwatch": return <Smartphone className="w-4 h-4" />;
     default: return <Watch className="w-4 h-4" />;
   }

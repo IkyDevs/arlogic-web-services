@@ -19,6 +19,7 @@ import {
   Battery,
   Cpu,
   Sparkles,
+  Zap,
   Camera,
   X,
   Image as ImageIcon,
@@ -54,7 +55,24 @@ const watchMovements = [
   { value: "quartz", label: "QUARTZ", icon: Battery },
   { value: "digital", label: "DIGITAL", icon: Settings },
   { value: "analog_digital", label: "ANALOG-DIGITAL", icon: RotateCw },
+  { value: "kinetic", label: "KINETIC", icon: Zap },
   { value: "smartwatch", label: "SMARTWATCH", icon: Smartphone },
+];
+
+const categoryOptions = [
+  { value: "ringan", label: "Ringan" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
+
+const PHOTO_LABELS = [
+  "depan",
+  "kanan",
+  "belakang",
+  "kiri",
+  "bawah",
+  "atas",
+  "surat tanda terima",
 ];
 
 const paymentLabels: Record<string, string> = {
@@ -125,6 +143,8 @@ export default function ServiceInput({
     qris_photo: null as File | null,
   });
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [photoLabels, setPhotoLabels] = useState<Record<string, string>>({});
+  const activeSlotRef = useRef<string>("");
   const [isCompressing, setIsCompressing] = useState(false);
   const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
   const [loadingPhotos, setLoadingPhotos] = useState<{ key: string; name: string }[]>([]);
@@ -142,6 +162,7 @@ export default function ServiceInput({
   const [selectedDpId, setSelectedDpId] = useState<string | null>(null);
   const [dpMode, setDpMode] = useState<"manual" | "from_transaction">("manual");
   const [dpSearch, setDpSearch] = useState("");
+  const [dpEnabled, setDpEnabled] = useState(false);
   const debouncedDpSearch = useDebounce(dpSearch, 300); // Debounced version of dpSearch
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
@@ -166,6 +187,7 @@ export default function ServiceInput({
       if (draft.data && !restoredRef.current) {
         restoredRef.current = true;
         setFormData((p) => ({ ...p, ...draft.data }));
+        if (Number(draft.data?.down_payment) > 0) setDpEnabled(true);
         if (draft.photoFiles && draft.photoFiles.length > 0) {
           setPhotoPreviews(draft.photoFiles.map((f) => URL.createObjectURL(f)));
           const result = await upload.addFiles(draft.photoFiles);
@@ -271,7 +293,7 @@ export default function ServiceInput({
     return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
   };
 
-  const handleAddPhoto = async (files: FileList | null) => {
+  const handleAddPhoto = async (files: FileList | null, label?: string) => {
     if (!files) return;
     const rawFiles = Array.from(files).filter(
       (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name),
@@ -318,6 +340,12 @@ export default function ServiceInput({
     const result = await upload.addFiles(converted);
     if (result.files.length > 0) {
       setPhotoPreviews((prev) => [...prev, ...result.files.map((f) => f.preview)]);
+      const slotLabel = label || "";
+      setPhotoLabels((prev) => {
+        const next = { ...prev };
+        result.files.forEach((f) => { next[f.preview] = slotLabel; });
+        return next;
+      });
     }
     if (result.errors.length > 0) {
       result.errors.forEach((e) => toast.error(e));
@@ -333,6 +361,11 @@ export default function ServiceInput({
       URL.revokeObjectURL(url);
     }
     setPhotoPreviews((prev) => prev.filter((_, idx) => idx !== i));
+    setPhotoLabels((prev) => {
+      const next = { ...prev };
+      delete next[url];
+      return next;
+    });
   };
 
   const nextStep = () => {
@@ -371,7 +404,7 @@ export default function ServiceInput({
       const dpValue = formData.down_payment
         ? parseInt(formData.down_payment)
         : 0;
-      const hasDp = dpValue > 0;
+      const hasDp = dpEnabled && dpValue > 0;
 
       const {
         data: { user: authUser },
@@ -469,7 +502,7 @@ estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
 In : ${now}`;
 
       // Link existing DP transaction (fast, tidak perlu upload)
-      if (selectedDpId) {
+      if (dpEnabled && selectedDpId) {
         const selectedDp = dpTransactions.find((d) => d.id === selectedDpId);
         await supabase
           .from("layanan")
@@ -487,7 +520,7 @@ In : ${now}`;
       }
 
       // BACKGROUND: upload foto + insert documentation + DP transaction (tidak blocking)
-      if (allPhotosToUpload.length > 0 || (hasDp && dpValue > 0 && !selectedDpId)) {
+      if (allPhotosToUpload.length > 0 || (dpEnabled && hasDp && dpValue > 0 && !selectedDpId)) {
         (async () => {
           try {
             // 1. Upload service photos (sudah dikompres saat addFiles ≤1MB)
@@ -495,10 +528,11 @@ In : ${now}`;
               const urls = await upload.legacyUpload(allPhotosToUpload, "service", formattedCaption, undefined, (activeBranch as any)?.code);
               if (urls.length > 0) {
                 const authUserForDoc = (await supabase.auth.getUser()).data.user;
-                const docInserts = urls.map((r) => ({
+                const docInserts = urls.map((r, idx) => ({
                   service_order_id: serviceId,
                   photo_url: r.url,
                   stage: "initial_condition",
+                  label: idx < pendingFiles.length ? (photoLabels[pendingFiles[idx].preview] || "") : "",
                   uploaded_by: authUserForDoc?.id,
                   telegram_chat_id: r.chat_id,
                   telegram_message_id: r.message_id,
@@ -701,6 +735,7 @@ In : ${now}`;
     setLastInvoice(null);
     setSelectedDpId(null);
     setDpTransactions([]);
+    setDpEnabled(false);
   };
 
   return (
@@ -961,15 +996,20 @@ In : ${now}`;
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
                   Category / Kategori
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.category}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, category: e.target.value }))
                   }
                   className="w-full px-3 py-2.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-gray-900 dark:focus:border-white focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 transition-all text-sm dark:text-gray-100"
-                  placeholder="e.g. Ganti Battery, Service Ringkas..."
-                />
+                >
+                  <option value="">Pilih kategori...</option>
+                  {categoryOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1014,78 +1054,93 @@ In : ${now}`;
               reference.
             </p>
 
-            {/* Photo Grid */}
-            {(photoPreviews.length > 0 || loadingPhotos.length > 0) && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
-                {loadingPhotos.map((lp) => (
-                  <div
-                    key={lp.key}
-                    className="relative border border-blue-200 rounded-lg overflow-hidden aspect-square bg-blue-50 flex flex-col items-center justify-center gap-2 p-2"
-                  >
-                    <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                    <p className="text-[8px] text-blue-600 text-center truncate w-full">{lp.name}</p>
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-100">
-                      <div className="h-full bg-blue-500 animate-pulse" style={{ width: "70%" }} />
+            {/* Slot Foto Berlabel */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+              {PHOTO_LABELS.map((label) => {
+                const slotPhotos = photoPreviews.filter((p) => photoLabels[p] === label);
+                const slotLoading = loadingPhotos.length > 0 && activeSlotRef.current === label;
+                return (
+                  <div key={label} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                    <div className="px-2 py-1.5 bg-slate-50 border-b border-slate-200">
+                      <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider truncate">{label}</p>
+                    </div>
+                    <div className="p-2 space-y-2">
+                      {slotLoading && (
+                        <div className="border border-blue-200 rounded-lg overflow-hidden aspect-square bg-blue-50 flex flex-col items-center justify-center gap-2 p-2">
+                          <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                          <p className="text-[8px] text-blue-600 text-center truncate w-full">Memproses...</p>
+                        </div>
+                      )}
+                      {slotPhotos.map((src) => (
+                        <div key={src} className="relative group border border-slate-200 rounded-lg overflow-hidden">
+                          <img src={src} alt={label} className="w-full h-28 object-cover" />
+                          <button
+                            onClick={() => removePhoto(photoPreviews.indexOf(src))}
+                            className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-3 h-3 text-slate-600" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => { activeSlotRef.current = label; cameraInputRef.current?.click(); }}
+                          disabled={upload.uploading}
+                          className="flex-1 px-2 py-1.5 bg-slate-900 text-white rounded-lg text-[11px] font-medium hover:bg-slate-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1"
+                        >
+                          <Camera className="w-3 h-3" /> Foto
+                        </button>
+                        <button
+                          onClick={() => { activeSlotRef.current = label; fileInputRef.current?.click(); }}
+                          disabled={upload.uploading}
+                          className="flex-1 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-900 hover:bg-slate-50 transition-all disabled:opacity-50"
+                        >
+                          <ImageIcon className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                ))}
-                {photoPreviews.map((src, i) => (
-                  <div
-                    key={i}
-                    className="relative group border border-slate-200 rounded-lg overflow-hidden"
-                  >
-                    <img
-                      src={src}
-                      alt={`Foto ${i + 1}`}
-                      className="w-full h-28 object-cover"
-                    />
-                    <button
-                      onClick={() => removePhoto(i)}
-                      className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3 text-slate-600" />
-                    </button>
-                  </div>
-                ))}
+                );
+              })}
+            </div>
+
+            {/* Foto tanpa label (draft lama / restore) */}
+            {photoPreviews.filter((p) => !photoLabels[p]).length > 0 && (
+              <div className="mb-4">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Tanpa Label</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {photoPreviews.map((src, i) => photoLabels[src] ? null : (
+                    <div key={src} className="relative group border border-slate-200 rounded-lg overflow-hidden">
+                      <img src={src} alt={`Foto ${i + 1}`} className="w-full h-28 object-cover" />
+                      <button
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3 text-slate-600" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Upload Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                disabled={upload.uploading}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
-              >
-                <Camera className="w-4 h-4" />
-                Take Photo
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={upload.uploading}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900 disabled:opacity-50"
-              >
-                <ImageIcon className="w-4 h-4" />
-                Upload from Gallery
-              </button>
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={(e) => handleAddPhoto(e.target.files)}
-                className="hidden"
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => handleAddPhoto(e.target.files)}
-                className="hidden"
-              />
-            </div>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              onChange={(e) => { handleAddPhoto(e.target.files, activeSlotRef.current || ""); e.target.value = ""; }}
+              className="hidden"
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => { handleAddPhoto(e.target.files, activeSlotRef.current || ""); e.target.value = ""; }}
+              className="hidden"
+            />
 
             <p className="text-xs text-slate-400 mt-3">
               {isCompressing ? (
@@ -1200,7 +1255,7 @@ In : ${now}`;
                 </div>
               </div>
 
-              {dpMode === "from_transaction" && (
+              {dpMode === "from_transaction" && dpEnabled && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setDpMode("manual")}>
                   <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
@@ -1276,11 +1331,26 @@ In : ${now}`;
                   </div>
                 </div>
               )}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Down Payment (DP)
-                </label>
-                <div className="flex gap-2 items-start">
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDpEnabled(!dpEnabled);
+                    setSelectedDpId(null);
+                    setDpMode("manual");
+                    setFormData((p) => ({ ...p, down_payment: "", payment_method: "cash" }));
+                  }}
+                  className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-all ${dpEnabled ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"}`}
+                >
+                  {dpEnabled ? "Aktif" : "Nonaktif"}
+                </button>
+              </div>
+              {dpEnabled && (
+              <>
+              <div className="flex gap-2 items-start">
                   {dpMode === "manual" && !selectedDpId ? (
                   <div className="relative flex-1">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -1340,7 +1410,6 @@ In : ${now}`;
                     <option value="from_transaction">Pilih dari Transaksi</option>
                   </select>
                 </div>
-              </div>
 
               {dpMode === "manual" && !selectedDpId && (
                 <>
@@ -1414,6 +1483,8 @@ In : ${now}`;
                 </div>
               )}
                 </>
+              )}
+              </>
               )}
 
               {/* Summary */}
