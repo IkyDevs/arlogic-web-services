@@ -562,11 +562,6 @@ export default memo(function LayananForm({
     e.preventDefault();
     setErrors([]);
 
-    if (hasAmbilJam && linkedServiceOrderIds.length === 0) {
-      toast.error("Wajib pilih minimal 1 service untuk Ambil Jam Service");
-      return;
-    }
-
     const validationErrors = validateTransaction({
       customer_name: customerName,
       customer_whatsapp: customerWhatsapp,
@@ -732,7 +727,10 @@ export default memo(function LayananForm({
           photo_urls: photoUrls,
           upload_session_key: uploadKey,
           branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
-          linked_service_order_ids: hasAmbilJam ? linkedServiceOrderIds : undefined,
+          linked_service_order_ids:
+            hasAmbilJam && linkedServiceOrderIds.length > 0
+              ? linkedServiceOrderIds
+              : undefined,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -770,7 +768,10 @@ export default memo(function LayananForm({
           telegram_message_id: tgMessageId,
           upload_session_key: uploadKey,
           branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
-          linked_service_order_ids: hasAmbilJam ? linkedServiceOrderIds : undefined,
+          linked_service_order_ids:
+            hasAmbilJam && linkedServiceOrderIds.length > 0
+              ? linkedServiceOrderIds
+              : undefined,
           split_payment: metodePembayaran === "split_payment",
           metode_pembayaran_1:
             metodePembayaran === "split_payment"
@@ -1300,13 +1301,18 @@ export default memo(function LayananForm({
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setPickupTargetIdx(itemIdx)}
-                          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-all"
-                        >
-                          <Search className="w-3.5 h-3.5" /> Pilih Service Selesai
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setPickupTargetIdx(itemIdx)}
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-all"
+                          >
+                            <Search className="w-3.5 h-3.5" /> Pilih Service Selesai
+                          </button>
+                          <p className="text-[10px] text-blue-500 mt-1.5 text-center">
+                            Opsional — bisa juga isi SKU &amp; nominal manual di bawah
+                          </p>
+                        </>
                       )}
                     </div>
                   )}
