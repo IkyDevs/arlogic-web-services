@@ -126,6 +126,13 @@ export default function ServiceInput({
   const upload = useCentralUpload(uploadKey);
   const { activeBranch } = useBranch();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraRef = useRef<HTMLInputElement>(null);
+
+  // iOS tidak mendukung <input capture multiple> → pakai modal getUserMedia; Android/desktop pakai kamera native.
+  const isIOS =
+    typeof navigator !== "undefined" &&
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
   const [formData, setFormData] = useState({
     cs_name: "",
@@ -1071,12 +1078,21 @@ In : ${now}`;
             {/* Upload — sekali buka kamera, foto berkali-kali */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
               <button
-                onClick={() => setShowCamera(true)}
+                onClick={() => (isIOS ? setShowCamera(true) : nativeCameraRef.current?.click())}
                 disabled={upload.uploading}
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
               >
                 <Camera className="w-4 h-4" /> Take Photo
               </button>
+              <input
+                ref={nativeCameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={(e) => { handleAddPhoto(e.target.files); e.target.value = ""; }}
+                className="hidden"
+              />
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={upload.uploading}
@@ -1121,7 +1137,8 @@ In : ${now}`;
                       <img src={src} alt={`Foto ${i + 1}`} className="w-full h-28 object-cover" />
                       <button
                         onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
-                        className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm transition-opacity"
+                        title="Hapus foto"
                       >
                         <X className="w-3 h-3 text-slate-600" />
                       </button>
@@ -1164,10 +1181,17 @@ In : ${now}`;
                           <img src={src} alt={label} className="w-full h-28 object-cover" />
                           <button
                             onClick={(e) => { e.stopPropagation(); assignLabel(src, ""); }}
-                            className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-1.5 left-1.5 bg-white p-1 rounded-full shadow-sm transition-opacity"
                             title="Lepas dari label"
                           >
                             <X className="w-3 h-3 text-slate-600" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); const idx = photoPreviews.indexOf(src); if (idx >= 0) removePhoto(idx); }}
+                            className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm transition-opacity"
+                            title="Hapus foto"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-500" />
                           </button>
                         </div>
                       ))}

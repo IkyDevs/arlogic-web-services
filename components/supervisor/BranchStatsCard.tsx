@@ -46,7 +46,7 @@ export default function BranchStatsCard({
   return (
     <button
       onClick={onClick}
-      className="text-left bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 sm:p-5 hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+      className="text-left bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
     >
       <div className="flex items-center gap-2 min-w-0 mb-1">
         <Wallet className="w-4 h-4 text-blue-500 flex-shrink-0" />
@@ -55,28 +55,28 @@ export default function BranchStatsCard({
           {branch.code}
         </span>
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">{dateLabel}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{dateLabel}</p>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2.5 text-center">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2 text-center">
           <p className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400 truncate">{formatRupiah(revenue)}</p>
           <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">Pendapatan</p>
         </div>
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2.5 text-center">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 text-center">
           <p className="text-sm sm:text-base font-bold text-blue-600 dark:text-blue-400">{count}</p>
           <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">Transaksi</p>
         </div>
-        <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2.5 text-center">
+        <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2 text-center">
           <p className="text-sm sm:text-base font-bold text-violet-600 dark:text-violet-400">{serviceCount}</p>
           <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">Service</p>
         </div>
-        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2.5 text-center">
+        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-2 text-center">
           <p className="text-sm sm:text-base font-bold text-orange-600 dark:text-orange-400">{teknisi.length}</p>
           <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5">Teknisi</p>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 mt-3">
+      <div className="flex flex-wrap gap-1 mt-2">
         {STATUS_META.map((s) => {
           const n = countStatus(status, s.match);
           return (
@@ -88,7 +88,7 @@ export default function BranchStatsCard({
       </div>
 
       {teknisi.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/5 space-y-1">
+        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-white/5 space-y-1">
           {teknisi.map((t) => (
             <div key={t.name} className="flex items-center justify-between text-xs">
               <span className="text-gray-600 dark:text-gray-300 truncate">{t.name}</span>
@@ -102,7 +102,7 @@ export default function BranchStatsCard({
 
       {expenses > 0 && (
         <p className="mt-2.5 text-[10px] text-red-500 dark:text-red-400">
-          💸 Pengeluaran: {formatRupiah(expenses)}
+          Pengeluaran: {formatRupiah(expenses)}
         </p>
       )}
     </button>

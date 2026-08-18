@@ -5,7 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
 import { useBranch } from "@/lib/context/BranchContext";
 import toast from "react-hot-toast";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
@@ -18,25 +18,67 @@ import {
   Wallet,
   X,
   Calendar,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import ReportModal from "@/components/ui/ReportModal";
 import UserAvatar from "@/components/ui/UserAvatar";
+import TransactionDetailModal from "@/components/ui/TransactionDetailModal";
 import BranchStatsCard from "@/components/supervisor/BranchStatsCard";
 import BranchComparisonTable from "@/components/supervisor/BranchComparisonTable";
 import BranchDetailModal from "@/components/supervisor/BranchDetailModal";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
+import { parseSKUs } from "@/lib/domain/transaction/service";
+import { jenisLayananLabels } from "@/lib/domain/transaction/enums";
+import type {
+  TransactionData,
+  TransactionServiceItem,
+} from "@/lib/domain/transaction/types";
 
 type Tab = "overview" | "users";
 type Period = "hari" | "minggu" | "bulan" | "tahun" | "custom";
 
-const MONTH_NAMES = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-];
-
-const isoDate = (y: number, m: number, d: number) =>
-  `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+function mapLayananRow(tx: any): TransactionData {
+  const items: TransactionServiceItem[] = [];
+  if (Array.isArray(tx.layanan_items) && tx.layanan_items.length > 0) {
+    for (const li of tx.layanan_items) {
+      items.push({
+        jenis_layanan: li.jenis_layanan as TransactionServiceItem["jenis_layanan"],
+        skus: parseSKUs(li.detail_sku, li.nominal),
+        notes: li.notes || "",
+      });
+    }
+  } else if (tx.detail_sku || tx.nominal) {
+    items.push({
+      jenis_layanan: tx.jenis_layanan as TransactionServiceItem["jenis_layanan"],
+      skus: parseSKUs(tx.detail_sku, tx.nominal),
+      notes: tx.notes || "",
+    });
+  }
+  return {
+    id: tx.id,
+    customer_name: tx.customer_name,
+    customer_whatsapp: tx.customer_whatsapp || "",
+    items,
+    handled_by: tx.handled_by,
+    handled_by_name: tx.handled_by_name || "",
+    metode_pembayaran: tx.metode_pembayaran,
+    lead_source: tx.lead_source,
+    lead_source_custom: tx.lead_source_custom || null,
+    status: tx.status as TransactionData["status"],
+    photo_urls: tx.photo_urls || (tx.photo_url ? [tx.photo_url] : []),
+    notes: tx.notes,
+    split_payment: !!tx.split_payment,
+    metode_pembayaran_1: tx.metode_pembayaran_1,
+    nominal_1: tx.nominal_1 || 0,
+    metode_pembayaran_2: tx.metode_pembayaran_2,
+    nominal_2: tx.nominal_2 || 0,
+    branch_id: tx.branch_id,
+    linked_service_order_ids: tx.linked_service_order_ids,
+    created_at: tx.created_at,
+    updated_at: tx.updated_at,
+  } as TransactionData;
+}
 
 interface BranchRevenue {
   revenue: number;
@@ -51,7 +93,6 @@ export default function SupervisorDashboard() {
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [showReport, setShowReport] = useState(false);
-  const mainContentRef = useRef<HTMLDivElement>(null);
 
   const [branchStats, setBranchStats] = useState<
     Record<string, { services: number; teknisi: number }>
@@ -93,11 +134,17 @@ export default function SupervisorDashboard() {
   const [period, setPeriod] = useState<Period | "custom">("hari");
   const [dateRangeStart, setDateRangeStart] = useState<string>("");
   const [dateRangeEnd, setDateRangeEnd] = useState<string>("");
-  const [openPicker, setOpenPicker] = useState<null | "minggu" | "bulan">(null);
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
   const [branchRevenue, setBranchRevenue] = useState<
     Record<string, BranchRevenue>
   >({});
+
+  // ── Riwayat transaksi (detail di summary) ──
+  const TX_PAGE = 50;
+  const txOffsetRef = useRef(0);
+  const [transactions, setTransactions] = useState<TransactionData[]>([]);
+  const [loadingTx, setLoadingTx] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<TransactionData | null>(null);
   const [detailBranch, setDetailBranch] = useState<{
     id: string;
     name: string;
@@ -186,16 +233,9 @@ export default function SupervisorDashboard() {
     return getDateRange(period);
   }, [dateRangeStart, dateRangeEnd, period, getDateRange]);
 
-  const selectCustom = (start: string, end: string) => {
-    setDateRangeStart(start);
-    setDateRangeEnd(end);
-    setOpenPicker(null);
-  };
-
   const clearCustom = () => {
     setDateRangeStart("");
     setDateRangeEnd("");
-    setOpenPicker(null);
   };
 
   const fetchStats = useCallback(async () => {
@@ -231,6 +271,35 @@ export default function SupervisorDashboard() {
     }
     setBranchRevenue(out);
   }, [branches, supabase, activeRange]);
+
+  const fetchTransactions = useCallback(
+    async (append = false) => {
+      if (branches.length === 0) return;
+      const { start, end } = activeRange();
+      setLoadingTx(true);
+      let q = supabase
+        .from("layanan")
+        .select("*, layanan_items(*)")
+        .gte("created_at", start)
+        .lte("created_at", end)
+        .order("created_at", { ascending: false })
+        .range(
+          append ? txOffsetRef.current : 0,
+          append ? txOffsetRef.current + TX_PAGE - 1 : TX_PAGE - 1,
+        );
+      if (selectedBranchFilter) q = q.eq("branch_id", selectedBranchFilter);
+      const { data, error } = await q;
+      if (!error && data) {
+        const mapped = data.map(mapLayananRow);
+        txOffsetRef.current = append
+          ? txOffsetRef.current + mapped.length
+          : mapped.length;
+        setTransactions((prev) => (append ? [...prev, ...mapped] : mapped));
+      }
+      setLoadingTx(false);
+    },
+    [branches, supabase, activeRange, selectedBranchFilter],
+  );
 
   const fetchOverview = useCallback(async () => {
     if (branches.length === 0) return;
@@ -334,6 +403,7 @@ export default function SupervisorDashboard() {
         { event: "*", schema: "public", table: "layanan" },
         () => {
           fetchStats();
+          fetchTransactions();
         },
       )
       .on(
@@ -349,7 +419,7 @@ export default function SupervisorDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchStats, period, getDateRange, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview]);
+  }, [supabase, fetchStats, period, getDateRange, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview, fetchTransactions]);
 
   useEffect(() => {
     const t = setTimeout(fetchOverview, 0);
@@ -359,6 +429,10 @@ export default function SupervisorDashboard() {
     const t = setTimeout(fetchStats, 0);
     return () => clearTimeout(t);
   }, [fetchStats]);
+  useEffect(() => {
+    const t = setTimeout(() => fetchTransactions(), 0);
+    return () => clearTimeout(t);
+  }, [fetchTransactions]);
   useEffect(() => {
     if (tab !== "users") return;
     const t = setTimeout(fetchUsers, 0);
@@ -476,30 +550,8 @@ export default function SupervisorDashboard() {
     }
   };
 
-  const now = new Date();
-  const weeksInMonth = (() => {
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const days = new Date(year, month + 1, 0).getDate();
-    const out: Array<{ label: string; start: string; end: string; display: string }> = [];
-    let d = 1;
-    let w = 1;
-    while (d <= days) {
-      const e = Math.min(d + 6, days);
-      out.push({
-        label: `Minggu ${w}`,
-        start: isoDate(year, month, d),
-        end: isoDate(year, month, e),
-        display: `${d} – ${e} ${MONTH_NAMES[month]}`,
-      });
-      d += 7;
-      w += 1;
-    }
-    return out;
-  })();
-
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex flex-col lg:flex-row pb-20 lg:pb-0">
+    <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#F5F5F7] dark:bg-[#0a0a0a] flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-60 bg-white dark:bg-[#1c1c1c] border-r border-gray-200 dark:border-white/10 flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-white/10">
@@ -555,11 +607,8 @@ export default function SupervisorDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main
-        className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-6"
-        ref={mainContentRef}
-      >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden p-4 md:p-6 lg:p-6 pb-20 lg:pb-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
               {tab === "overview" ? "Monitoring Semua Cabang" : "Kelola User"}
@@ -583,9 +632,9 @@ export default function SupervisorDashboard() {
         </div>
 
         {tab === "overview" && (
-          <div className="space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto xl:overflow-hidden flex flex-col gap-4">
             {/* Period Selection + Branch Filter */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap relative">
+            <div className="flex-shrink-0 flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1">
                 {(
                   [
@@ -598,67 +647,16 @@ export default function SupervisorDashboard() {
                   <button
                     key={p.id}
                     onClick={() => {
-                      if (p.id === "minggu" || p.id === "bulan") {
-                        setOpenPicker((v) => (v === p.id ? null : (p.id as "minggu" | "bulan")));
-                      } else {
-                        clearCustom();
-                        setPeriod(p.id);
-                      }
+                      clearCustom();
+                      setPeriod(p.id);
                     }}
-                    aria-pressed={period === p.id || openPicker === p.id}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id || openPicker === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
+                    aria-pressed={period === p.id}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
                   >
                     {p.label}
                   </button>
                 ))}
               </div>
-
-              {openPicker && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setOpenPicker(null)} />
-                  {openPicker === "minggu" && (
-                    <div className="absolute top-full mt-1 z-50 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg p-2 w-64">
-                      <p className="text-xs font-bold text-gray-700 dark:text-gray-200 px-2 py-1">
-                        {MONTH_NAMES[now.getMonth()]} {now.getFullYear()}
-                      </p>
-                      {weeksInMonth.map((w) => (
-                        <button
-                          key={w.label}
-                          onClick={() => selectCustom(w.start, w.end)}
-                          className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                        >
-                          <span className="font-semibold text-gray-900 dark:text-gray-100">{w.label}</span>
-                          <span className="text-gray-400"> : {w.display}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {openPicker === "bulan" && (
-                    <div className="absolute top-full mt-1 z-50 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg p-2 w-72 grid grid-cols-2 gap-1 max-h-72 overflow-y-auto">
-                      {MONTH_NAMES.map((name, i) => {
-                        const days = new Date(now.getFullYear(), i + 1, 0).getDate();
-                        return (
-                          <button
-                            key={name}
-                            onClick={() =>
-                              selectCustom(
-                                isoDate(now.getFullYear(), i, 1),
-                                isoDate(now.getFullYear(), i, days),
-                              )
-                            }
-                            className="text-left px-3 py-2 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                          >
-                            <span className="font-semibold text-gray-900 dark:text-gray-100">{name}</span>
-                            <span className="block text-[10px] text-gray-400">
-                              1 – {days} {name}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
 
               {(() => {
                 const { start, end } = activeRange();
@@ -677,7 +675,7 @@ export default function SupervisorDashboard() {
                     : `${fmt(start)} – ${fmt(end)}`;
                 return (
                   <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                    <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                    <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                     {label}
                   </span>
                 );
@@ -685,7 +683,7 @@ export default function SupervisorDashboard() {
 
               {/* Custom Range: Dari - Sampai */}
               <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
-                <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                 Dari
                 <input
                   type="date"
@@ -753,7 +751,7 @@ export default function SupervisorDashboard() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   key={`${period}-${selectedBranchFilter}`}
-                  className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-slate-200 dark:border-white/10 p-5 sm:p-6"
+                  className="flex-shrink-0 bg-white dark:bg-[#1c1c1c] rounded-2xl border border-slate-200 dark:border-white/10 p-4 sm:p-5"
                 >
                   <div className="mb-4">
                     <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-1">
@@ -803,8 +801,8 @@ export default function SupervisorDashboard() {
                       {displayedBranches.length} cabang
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
                       <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                         {formatRupiah(summary.totalRevenue)}
                       </p>
@@ -815,7 +813,7 @@ export default function SupervisorDashboard() {
                         Rata² {formatRupiah(avgRevenue)}/cabang
                       </p>
                     </div>
-                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
                       <p className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">
                         {summary.totalCount}
                       </p>
@@ -826,7 +824,7 @@ export default function SupervisorDashboard() {
                         Rata² {avgTranx}/cabang
                       </p>
                     </div>
-                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
                       <p className="text-2xl sm:text-3xl font-bold text-violet-600 dark:text-violet-400">
                         {summary.totalServices}
                       </p>
@@ -834,7 +832,7 @@ export default function SupervisorDashboard() {
                         Total Services
                       </p>
                     </div>
-                    <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-3 sm:p-4 border border-slate-100 dark:border-white/5">
+                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
                       <p className="text-2xl sm:text-3xl font-bold text-red-600 dark:text-red-400">
                         {formatRupiah(summary.totalExpenses)}
                       </p>
@@ -847,9 +845,129 @@ export default function SupervisorDashboard() {
               );
             })()}
 
+            {/* Per-cabang: transaksi + kartu cabang (scroll internal) */}
+            <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-5 gap-4">
+            {/* Riwayat Transaksi per Filter */}
+            <div className="xl:col-span-3 min-h-0 flex flex-col xl:h-full bg-white dark:bg-[#1c1c1c] rounded-2xl border border-slate-200 dark:border-white/10 p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-1">
+                    Riwayat Transaksi
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                    {transactions.length} transaksi · sesuai filter periode & cabang
+                    {selectedBranchFilter
+                      ? ` · ${branches.find((b) => b.id === selectedBranchFilter)?.name || ""}`
+                      : ""}
+                  </p>
+                </div>
+                {loadingTx && (
+                  <Loader2
+                    className="w-4 h-4 text-slate-400 animate-spin"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+                {transactions.length === 0 && !loadingTx ? (
+                  <p className="text-sm text-slate-400 py-8 text-center">
+                    Belum ada transaksi pada periode & filter ini
+                  </p>
+                ) : (
+                  transactions.map((tx) => {
+                    const jenisLabel =
+                      tx.items
+                        .map(
+                          (i) =>
+                            jenisLayananLabels[
+                              i.jenis_layanan as keyof typeof jenisLayananLabels
+                            ] || i.jenis_layanan,
+                        )
+                        .join(", ") || "-";
+                    const totalNominal = tx.items.reduce(
+                      (s, i) =>
+                        s +
+                        i.skus.reduce((a, k) => a + (k.nominal || 0), 0),
+                      0,
+                    );
+                    const t = tx.created_at
+                      ? new Date(tx.created_at)
+                      : null;
+                    const timeLabel = t
+                      ? t.toLocaleString("id-ID", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "";
+                    return (
+                      <button
+                        key={tx.id}
+                        type="button"
+                        onClick={() => setSelectedTx(tx)}
+                        className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-white/10 rounded-xl hover:border-slate-400 dark:hover:border-white/30 hover:bg-slate-50 dark:hover:bg-white/5 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                            {tx.customer_name || "-"}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {jenisLabel}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p
+                            className={`text-sm font-bold ${
+                              tx.items.some(
+                                (i) => i.jenis_layanan === "pengeluaran",
+                              )
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-emerald-600 dark:text-emerald-400"
+                            }`}
+                          >
+                            {formatRupiah(totalNominal)}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {timeLabel}
+                          </p>
+                        </div>
+                        <ChevronRight
+                          className="w-4 h-4 text-slate-300 dark:text-slate-600 flex-shrink-0"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              {transactions.length > 0 &&
+                transactions.length % TX_PAGE === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => fetchTransactions(true)}
+                    disabled={loadingTx}
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-slate-300 dark:border-white/20 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:border-slate-900 dark:hover:border-white hover:text-slate-900 dark:hover:text-white disabled:opacity-50 transition-all"
+                  >
+                    {loadingTx ? (
+                      <Loader2
+                        className="w-3.5 h-3.5 animate-spin"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ChevronRight
+                        className="w-3.5 h-3.5 rotate-90"
+                        aria-hidden="true"
+                      />
+                    )}
+                    Muat Lainnya
+                  </button>
+                )}
+            </div>
 
             {/* Unified Revenue Cards per Branch - Responsive Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="xl:col-span-2 min-h-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:h-full xl:min-h-0 xl:overflow-y-auto xl:pr-1">
               {displayedBranches.map((b) => {
                 const st = branchRevenue[b.id] || {
                   revenue: 0,
@@ -890,8 +1008,11 @@ export default function SupervisorDashboard() {
                   />
                 );
               })}
+              </div>
+            </div>
             </div>
 
+            <div className="flex-shrink-0 min-h-0">
             <BranchComparisonTable
               rows={displayedBranches.map((b) => {
                 const st = branchRevenue[b.id];
@@ -909,11 +1030,12 @@ export default function SupervisorDashboard() {
                 };
               })}
             />
+            </div>
           </div>
         )}
 
         {tab === "users" && (
-          <div className="space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
             {/* Form Tambah User */}
             <div className="bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-4 sm:p-5">
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -1155,6 +1277,14 @@ export default function SupervisorDashboard() {
           status={serviceStatus[detailBranch.id] || {}}
           teknisi={teknisiWorkload[detailBranch.id] || []}
           onClose={() => setDetailBranch(null)}
+        />
+      )}
+
+      {selectedTx && (
+        <TransactionDetailModal
+          isOpen
+          onClose={() => setSelectedTx(null)}
+          transaction={selectedTx}
         />
       )}
 

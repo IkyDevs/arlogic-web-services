@@ -23,7 +23,7 @@ export default function BranchComparisonTable({ rows }: { rows: Row[] }) {
           Komparasi Semua Cabang
         </h3>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-64">
         <table className="w-full text-xs whitespace-nowrap">
           <thead>
             <tr className="bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400">
