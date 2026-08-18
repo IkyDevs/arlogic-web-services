@@ -144,7 +144,7 @@ export default function ServiceInput({
   });
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoLabels, setPhotoLabels] = useState<Record<string, string>>({});
-  const activeSlotRef = useRef<string>("");
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [heicProgress, setHeicProgress] = useState({ done: 0, total: 0 });
   const [loadingPhotos, setLoadingPhotos] = useState<{ key: string; name: string }[]>([]);
@@ -366,6 +366,12 @@ export default function ServiceInput({
       delete next[url];
       return next;
     });
+    setSelectedPhoto((cur) => (cur === url ? null : cur));
+  };
+
+  const assignLabel = (preview: string, label: string) => {
+    setPhotoLabels((prev) => ({ ...prev, [preview]: label }));
+    setSelectedPhoto(null);
   };
 
   const nextStep = () => {
@@ -1054,93 +1060,123 @@ In : ${now}`;
               reference.
             </p>
 
-            {/* Slot Foto Berlabel */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
-              {PHOTO_LABELS.map((label) => {
-                const slotPhotos = photoPreviews.filter((p) => photoLabels[p] === label);
-                const slotLoading = loadingPhotos.length > 0 && activeSlotRef.current === label;
-                return (
-                  <div key={label} className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                    <div className="px-2 py-1.5 bg-slate-50 border-b border-slate-200">
-                      <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider truncate">{label}</p>
-                    </div>
-                    <div className="p-2 space-y-2">
-                      {slotLoading && (
-                        <div className="border border-blue-200 rounded-lg overflow-hidden aspect-square bg-blue-50 flex flex-col items-center justify-center gap-2 p-2">
-                          <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-                          <p className="text-[8px] text-blue-600 text-center truncate w-full">Memproses...</p>
-                        </div>
-                      )}
-                      {slotPhotos.map((src) => (
-                        <div key={src} className="relative group border border-slate-200 rounded-lg overflow-hidden">
-                          <img src={src} alt={label} className="w-full h-28 object-cover" />
-                          <button
-                            onClick={() => removePhoto(photoPreviews.indexOf(src))}
-                            className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-3 h-3 text-slate-600" />
-                          </button>
-                        </div>
-                      ))}
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => { activeSlotRef.current = label; cameraInputRef.current?.click(); }}
-                          disabled={upload.uploading}
-                          className="flex-1 px-2 py-1.5 bg-slate-900 text-white rounded-lg text-[11px] font-medium hover:bg-slate-700 transition-all disabled:opacity-50 flex items-center justify-center gap-1"
-                        >
-                          <Camera className="w-3 h-3" /> Foto
-                        </button>
-                        <button
-                          onClick={() => { activeSlotRef.current = label; fileInputRef.current?.click(); }}
-                          disabled={upload.uploading}
-                          className="flex-1 px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-900 hover:bg-slate-50 transition-all disabled:opacity-50"
-                        >
-                          <ImageIcon className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Upload — sekali buka kamera, foto berkali-kali */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={upload.uploading}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm font-medium disabled:opacity-50"
+              >
+                <Camera className="w-4 h-4" /> Take Photo
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={upload.uploading}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all text-sm font-medium text-slate-900 disabled:opacity-50"
+              >
+                <ImageIcon className="w-4 h-4" /> Upload from Gallery
+              </button>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={(e) => { handleAddPhoto(e.target.files); e.target.value = ""; }}
+                className="hidden"
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => { handleAddPhoto(e.target.files); e.target.value = ""; }}
+                className="hidden"
+              />
             </div>
 
-            {/* Foto tanpa label (draft lama / restore) */}
-            {photoPreviews.filter((p) => !photoLabels[p]).length > 0 && (
+            {/* Pool: foto baru — seret / tap lalu pilih label */}
+            {(photoPreviews.filter((p) => !photoLabels[p]).length > 0 || loadingPhotos.length > 0) && (
               <div className="mb-4">
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Tanpa Label</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Foto Baru ({photoPreviews.filter((p) => !photoLabels[p]).length}) — seret ke label di bawah
+                </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {loadingPhotos.map((lp) => (
+                    <div
+                      key={lp.key}
+                      className="relative border border-blue-200 rounded-lg overflow-hidden aspect-square bg-blue-50 flex flex-col items-center justify-center gap-2 p-2"
+                    >
+                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                      <p className="text-[8px] text-blue-600 text-center truncate w-full">{lp.name}</p>
+                    </div>
+                  ))}
                   {photoPreviews.map((src, i) => photoLabels[src] ? null : (
-                    <div key={src} className="relative group border border-slate-200 rounded-lg overflow-hidden">
+                    <div
+                      key={src}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("text/plain", src)}
+                      onClick={() => setSelectedPhoto(selectedPhoto === src ? null : src)}
+                      className={`relative group border rounded-lg overflow-hidden cursor-grab active:cursor-grabbing transition-all ${selectedPhoto === src ? "border-blue-500 ring-2 ring-blue-200" : "border-slate-200"}`}
+                    >
                       <img src={src} alt={`Foto ${i + 1}`} className="w-full h-28 object-cover" />
                       <button
-                        onClick={() => removePhoto(i)}
+                        onClick={(e) => { e.stopPropagation(); removePhoto(i); }}
                         className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X className="w-3 h-3 text-slate-600" />
                       </button>
+                      {selectedPhoto === src && (
+                        <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
+                          Pilih label
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              onChange={(e) => { handleAddPhoto(e.target.files, activeSlotRef.current || ""); e.target.value = ""; }}
-              className="hidden"
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => { handleAddPhoto(e.target.files, activeSlotRef.current || ""); e.target.value = ""; }}
-              className="hidden"
-            />
+            {/* Label slots — drop target */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {PHOTO_LABELS.map((label) => {
+                const slotPhotos = photoPreviews.filter((p) => photoLabels[p] === label);
+                return (
+                  <div
+                    key={label}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const src = e.dataTransfer.getData("text/plain");
+                      if (src && photoPreviews.includes(src)) assignLabel(src, label);
+                    }}
+                    onClick={() => { if (selectedPhoto) assignLabel(selectedPhoto, label); }}
+                    className={`border rounded-xl overflow-hidden bg-white transition-all ${slotPhotos.length > 0 ? "border-slate-300" : "border-dashed border-slate-300 hover:border-slate-400"}`}
+                  >
+                    <div className="px-2 py-1.5 bg-slate-50 border-b border-slate-200">
+                      <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider truncate">{label}</p>
+                    </div>
+                    <div className="p-2 space-y-2 min-h-[72px]">
+                      {slotPhotos.length === 0 && (
+                        <p className="text-[10px] text-slate-300 text-center py-3">Seret foto ke sini</p>
+                      )}
+                      {slotPhotos.map((src) => (
+                        <div key={src} className="relative group border border-slate-200 rounded-lg overflow-hidden">
+                          <img src={src} alt={label} className="w-full h-28 object-cover" />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); assignLabel(src, ""); }}
+                            className="absolute top-1.5 right-1.5 bg-white p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Lepas dari label"
+                          >
+                            <X className="w-3 h-3 text-slate-600" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
             <p className="text-xs text-slate-400 mt-3">
               {isCompressing ? (
