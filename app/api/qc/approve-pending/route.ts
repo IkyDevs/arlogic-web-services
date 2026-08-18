@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (profile?.role !== 'supervisor' && profile?.role !== 'admin') {
+    if (profile?.role !== 'qc' && profile?.role !== 'supervisor' && profile?.role !== 'admin') {
       return NextResponse.json({ error: 'Hanya QC/Admin yang bisa approve' }, { status: 403 })
     }
 
