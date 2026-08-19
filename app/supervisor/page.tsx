@@ -1,84 +1,43 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
 import { useBranch } from "@/lib/context/BranchContext";
 import toast from "react-hot-toast";
-import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
   LogOut,
-  MapPin,
   ArrowRightLeft,
   CheckCircle2,
   Loader2,
   Plus,
-  Wallet,
   X,
   Calendar,
-  ChevronRight,
+  Wallet,
+  Wrench,
+  ReceiptText,
+  TrendingDown,
   type LucideIcon,
 } from "lucide-react";
 import ReportModal from "@/components/ui/ReportModal";
 import UserAvatar from "@/components/ui/UserAvatar";
-import TransactionDetailModal from "@/components/ui/TransactionDetailModal";
-import BranchStatsCard from "@/components/supervisor/BranchStatsCard";
 import BranchComparisonTable from "@/components/supervisor/BranchComparisonTable";
 import BranchDetailModal from "@/components/supervisor/BranchDetailModal";
+import BranchPerformancePanel from "@/components/supervisor/BranchPerformancePanel";
+import RevenueChart from "@/components/supervisor/RevenueChart";
+import ServiceStatusPanel, {
+  type StatusSlice,
+} from "@/components/supervisor/ServiceStatusPanel";
+import SupervisorAlerts, {
+  type SupervisorAlert,
+} from "@/components/supervisor/SupervisorAlerts";
+import { countStatus } from "@/components/supervisor/BranchStatsCard";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
-import { parseSKUs } from "@/lib/domain/transaction/service";
-import { jenisLayananLabels } from "@/lib/domain/transaction/enums";
-import type {
-  TransactionData,
-  TransactionServiceItem,
-} from "@/lib/domain/transaction/types";
 
 type Tab = "overview" | "users";
 type Period = "hari" | "minggu" | "bulan" | "tahun" | "custom";
-
-function mapLayananRow(tx: any): TransactionData {
-  const items: TransactionServiceItem[] = [];
-  if (Array.isArray(tx.layanan_items) && tx.layanan_items.length > 0) {
-    for (const li of tx.layanan_items) {
-      items.push({
-        jenis_layanan: li.jenis_layanan as TransactionServiceItem["jenis_layanan"],
-        skus: parseSKUs(li.detail_sku, li.nominal),
-        notes: li.notes || "",
-      });
-    }
-  } else if (tx.detail_sku || tx.nominal) {
-    items.push({
-      jenis_layanan: tx.jenis_layanan as TransactionServiceItem["jenis_layanan"],
-      skus: parseSKUs(tx.detail_sku, tx.nominal),
-      notes: tx.notes || "",
-    });
-  }
-  return {
-    id: tx.id,
-    customer_name: tx.customer_name,
-    customer_whatsapp: tx.customer_whatsapp || "",
-    items,
-    handled_by: tx.handled_by,
-    handled_by_name: tx.handled_by_name || "",
-    metode_pembayaran: tx.metode_pembayaran,
-    lead_source: tx.lead_source,
-    lead_source_custom: tx.lead_source_custom || null,
-    status: tx.status as TransactionData["status"],
-    photo_urls: tx.photo_urls || (tx.photo_url ? [tx.photo_url] : []),
-    notes: tx.notes,
-    split_payment: !!tx.split_payment,
-    metode_pembayaran_1: tx.metode_pembayaran_1,
-    nominal_1: tx.nominal_1 || 0,
-    metode_pembayaran_2: tx.metode_pembayaran_2,
-    nominal_2: tx.nominal_2 || 0,
-    branch_id: tx.branch_id,
-    linked_service_order_ids: tx.linked_service_order_ids,
-    created_at: tx.created_at,
-    updated_at: tx.updated_at,
-  } as TransactionData;
-}
 
 interface BranchRevenue {
   revenue: number;
@@ -138,13 +97,14 @@ export default function SupervisorDashboard() {
   const [branchRevenue, setBranchRevenue] = useState<
     Record<string, BranchRevenue>
   >({});
+  const [prevTotals, setPrevTotals] = useState({
+    revenue: 0,
+    count: 0,
+    expenses: 0,
+    serviceCount: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  // ── Riwayat transaksi (detail di summary) ──
-  const TX_PAGE = 50;
-  const txOffsetRef = useRef(0);
-  const [transactions, setTransactions] = useState<TransactionData[]>([]);
-  const [loadingTx, setLoadingTx] = useState(false);
-  const [selectedTx, setSelectedTx] = useState<TransactionData | null>(null);
   const [detailBranch, setDetailBranch] = useState<{
     id: string;
     name: string;
@@ -239,7 +199,11 @@ export default function SupervisorDashboard() {
   };
 
   const fetchStats = useCallback(async () => {
-    if (branches.length === 0) return;
+    if (branches.length === 0) {
+      setLoadingStats(false);
+      return;
+    }
+    setLoadingStats(true);
     const { start, end } = activeRange();
     const out: Record<string, BranchRevenue> = {};
     for (const b of branches) {
@@ -270,36 +234,35 @@ export default function SupervisorDashboard() {
       };
     }
     setBranchRevenue(out);
-  }, [branches, supabase, activeRange]);
 
-  const fetchTransactions = useCallback(
-    async (append = false) => {
-      if (branches.length === 0) return;
-      const { start, end } = activeRange();
-      setLoadingTx(true);
-      let q = supabase
-        .from("layanan")
-        .select("*, layanan_items(*)")
-        .gte("created_at", start)
-        .lte("created_at", end)
-        .order("created_at", { ascending: false })
-        .range(
-          append ? txOffsetRef.current : 0,
-          append ? txOffsetRef.current + TX_PAGE - 1 : TX_PAGE - 1,
-        );
-      if (selectedBranchFilter) q = q.eq("branch_id", selectedBranchFilter);
-      const { data, error } = await q;
-      if (!error && data) {
-        const mapped = data.map(mapLayananRow);
-        txOffsetRef.current = append
-          ? txOffsetRef.current + mapped.length
-          : mapped.length;
-        setTransactions((prev) => (append ? [...prev, ...mapped] : mapped));
-      }
-      setLoadingTx(false);
-    },
-    [branches, supabase, activeRange, selectedBranchFilter],
-  );
+    // Periode sebelumnya untuk perbandingan KPI (window paralel sebelum rentang aktif)
+    const spanMs = new Date(end).getTime() - new Date(start).getTime();
+    const prevStart = new Date(new Date(start).getTime() - spanMs).toISOString();
+    const prevEnd = new Date(new Date(start).getTime() - 1).toISOString();
+    const { data: prevRows } = await supabase
+      .from("layanan")
+      .select("nominal, jenis_layanan")
+      .gte("created_at", prevStart)
+      .lte("created_at", prevEnd);
+    let prevRevenue = 0,
+      prevExpenses = 0;
+    for (const r of prevRows || []) {
+      if (r.jenis_layanan === "pengeluaran") prevExpenses += r.nominal || 0;
+      else prevRevenue += r.nominal || 0;
+    }
+    const { count: prevSvc } = await supabase
+      .from("service_orders")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", prevStart)
+      .lte("created_at", prevEnd);
+    setPrevTotals({
+      revenue: prevRevenue,
+      count: prevRows?.length || 0,
+      expenses: prevExpenses,
+      serviceCount: prevSvc || 0,
+    });
+    setLoadingStats(false);
+  }, [branches, supabase, activeRange]);
 
   const fetchOverview = useCallback(async () => {
     if (branches.length === 0) return;
@@ -403,7 +366,6 @@ export default function SupervisorDashboard() {
         { event: "*", schema: "public", table: "layanan" },
         () => {
           fetchStats();
-          fetchTransactions();
         },
       )
       .on(
@@ -419,7 +381,7 @@ export default function SupervisorDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, fetchStats, period, getDateRange, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview, fetchTransactions]);
+  }, [supabase, fetchStats, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview]);
 
   useEffect(() => {
     const t = setTimeout(fetchOverview, 0);
@@ -429,10 +391,6 @@ export default function SupervisorDashboard() {
     const t = setTimeout(fetchStats, 0);
     return () => clearTimeout(t);
   }, [fetchStats]);
-  useEffect(() => {
-    const t = setTimeout(() => fetchTransactions(), 0);
-    return () => clearTimeout(t);
-  }, [fetchTransactions]);
   useEffect(() => {
     if (tab !== "users") return;
     const t = setTimeout(fetchUsers, 0);
@@ -550,6 +508,110 @@ export default function SupervisorDashboard() {
     }
   };
 
+  // ── Derivasi dashboard (data nyata dari state fetch) ──
+  const statusTotals: Record<string, number> = {};
+  for (const b of displayedBranches) {
+    const st = serviceStatus[b.id] || {};
+    for (const [k, v] of Object.entries(st)) statusTotals[k] = (statusTotals[k] || 0) + v;
+  }
+  const statusDefs: StatusSlice[] = [
+    { key: "pending", label: "Pending", value: countStatus(statusTotals, ["pending"]), color: "#94a3b8" },
+    { key: "digarap", label: "Digarap", value: countStatus(statusTotals, ["assigned", "in_progress"]), color: "#3b82f6" },
+    { key: "nunggu", label: "Nunggu", value: countStatus(statusTotals, ["waiting_sparepart", "sparepart_ready"]), color: "#f59e0b" },
+    { key: "qc", label: "QC", value: countStatus(statusTotals, ["qc_pending", "revision_required"]), color: "#8b5cf6" },
+    { key: "selesai", label: "Selesai", value: countStatus(statusTotals, ["completed"]), color: "#10b981" },
+    { key: "batal", label: "Batal", value: countStatus(statusTotals, ["cancelled"]), color: "#ef4444" },
+  ];
+  const statusSlices = statusDefs;
+  const statusTotalService = statusDefs.reduce((s, d) => s + d.value, 0);
+
+  const displayedTotalRevenue = displayedBranches.reduce(
+    (s, b) => s + (branchRevenue[b.id]?.revenue || 0),
+    0,
+  );
+  const perfRows = displayedBranches
+    .map((b) => {
+      const st = branchRevenue[b.id] || { revenue: 0, count: 0, expenses: 0, serviceCount: 0 };
+      const s = branchStats[b.id];
+      const teks = teknisiWorkload[b.id] || [];
+      return {
+        branch: { id: b.id, name: b.name, code: b.code },
+        revenue: st.revenue,
+        count: st.count,
+        services: s?.services || 0,
+        expenses: st.expenses,
+        teknisiCount: s?.teknisi || teks.length || 0,
+        activeLoad: teks.reduce((a, t) => a + t.active, 0),
+        contribution: displayedTotalRevenue > 0 ? (st.revenue / displayedTotalRevenue) * 100 : 0,
+      };
+    })
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const chartData = displayedBranches.map((b) => ({
+    name: b.name,
+    pendapatan: branchRevenue[b.id]?.revenue || 0,
+  }));
+
+  const alerts: SupervisorAlert[] = (() => {
+    const list: SupervisorAlert[] = [];
+    if (statusTotalService > 0) {
+      const pendingShare = statusDefs[0].value / statusTotalService;
+      if (pendingShare >= 0.3) {
+        list.push({
+          severity: "warning",
+          title: `${statusDefs[0].value} service masih pending`,
+          detail: `${Math.round(pendingShare * 100)}% dari service dalam periode ini berada di status Pending.`,
+        });
+      }
+      const digarapVal = statusDefs[1].value;
+      if (digarapVal > 0 && digarapVal / statusTotalService >= 0.5) {
+        list.push({
+          severity: "info",
+          title: `Aktivitas pengerjaan tinggi (${digarapVal} digarap)`,
+          detail: "Mayoritas service sedang dalam proses pengerjaan.",
+        });
+      }
+    }
+    for (const b of displayedBranches) {
+      const teks = teknisiWorkload[b.id] || [];
+      if (teks.length === 0 && branchStats[b.id]?.services) {
+        list.push({
+          severity: "warning",
+          title: `Cabang ${b.name} belum punya teknisi`,
+          detail: "Cabang ini mencatat service tetapi tidak memiliki teknisi terdaftar.",
+        });
+      }
+    }
+    const totalExp = displayedBranches.reduce((s, b) => s + (branchRevenue[b.id]?.expenses || 0), 0);
+    if (displayedTotalRevenue > 0 && totalExp >= 0.5 * displayedTotalRevenue) {
+      list.push({
+        severity: "warning",
+        title: "Pengeluaran tinggi",
+        detail: `Pengeluaran ${formatRupiah(totalExp)} mencapai ${Math.round((totalExp / displayedTotalRevenue) * 100)}% dari pendapatan periode ini.`,
+      });
+    }
+    if (displayedBranches.length > 1) {
+      const withRev = perfRows.filter((r) => r.revenue > 0);
+      if (withRev.length > 0) {
+        const best = withRev[0];
+        list.push({
+          severity: "info",
+          title: `Performa terbaik: ${best.branch.name}`,
+          detail: `${formatRupiah(best.revenue)} pendapatan, ${best.contribution.toFixed(1)}% dari total.`,
+        });
+        if (withRev.length > 1) {
+          const worst = withRev[withRev.length - 1];
+          list.push({
+            severity: "info",
+            title: `Perlu perhatian: ${worst.branch.name}`,
+            detail: `Pendapatan terendah ${formatRupiah(worst.revenue)} di antara cabang lain.`,
+          });
+        }
+      }
+    }
+    return list.slice(0, 5);
+  })();
+
   return (
     <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#F5F5F7] dark:bg-[#0a0a0a] flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
@@ -608,34 +670,30 @@ export default function SupervisorDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden p-4 md:p-6 lg:p-6 pb-20 lg:pb-0">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 flex-shrink-0">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {tab === "overview" ? "Monitoring Semua Cabang" : "Kelola User"}
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1 lg:hidden">
-              {user?.full_name}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => setShowReport(true)}
-              aria-label="Report an issue or bug"
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
-            >
-              <Plus className="w-4 h-4" aria-hidden="true" /> Lapor
-            </button>
-            <div className="hidden sm:block">
-              <UserAvatar user={user} />
+        <div className="flex-shrink-0 flex flex-col gap-3">
+          {/* Header: greeting + actions/filters */}
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {tab === "overview"
+                  ? `${(() => {
+                      const h = new Date().getHours();
+                      if (h < 11) return "Selamat pagi";
+                      if (h < 15) return "Selamat siang";
+                      if (h < 19) return "Selamat sore";
+                      return "Selamat malam";
+                    })()}, ${user?.full_name?.split(" ")[0] || "Supervisor"} 👋`
+                  : "Kelola User"}
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                {tab === "overview"
+                  ? "Ringkasan performa seluruh cabang untuk periode aktif."
+                  : "Kelola user & rolling teknisi per cabang."}
+              </p>
             </div>
-          </div>
-        </div>
 
-        {tab === "overview" && (
-          <div className="flex-1 min-h-0 overflow-y-auto xl:overflow-hidden flex flex-col gap-4">
-            {/* Period Selection + Branch Filter */}
-            <div className="flex-shrink-0 flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200 dark:border-white/10 p-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200/70 dark:border-white/10 p-1">
                 {(
                   [
                     { id: "hari", label: "Hari Ini" },
@@ -658,31 +716,7 @@ export default function SupervisorDashboard() {
                 ))}
               </div>
 
-              {(() => {
-                const { start, end } = activeRange();
-                const fmt = (d: string) =>
-                  new Date(d).toLocaleDateString("id-ID", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  });
-                const label = dateRangeStart
-                  ? dateRangeEnd
-                    ? `${fmt(dateRangeStart)} – ${fmt(dateRangeEnd)}`
-                    : fmt(dateRangeStart)
-                  : period === "hari"
-                    ? fmt(start)
-                    : `${fmt(start)} – ${fmt(end)}`;
-                return (
-                  <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-                    {label}
-                  </span>
-                );
-              })()}
-
-              {/* Custom Range: Dari - Sampai */}
-              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
                 <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                 Dari
                 <input
@@ -693,7 +727,7 @@ export default function SupervisorDashboard() {
                   className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
                 />
               </label>
-              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
                 Sampai
                 <input
                   type="date"
@@ -705,7 +739,6 @@ export default function SupervisorDashboard() {
                 />
               </label>
 
-              {/* Reset Filter Button */}
               {dateRangeStart && (
                 <button
                   onClick={() => {
@@ -713,7 +746,7 @@ export default function SupervisorDashboard() {
                     setDateRangeEnd("");
                   }}
                   aria-label="Reset date filter"
-                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+                  className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
                 >
                   <X className="w-4 h-4" aria-hidden="true" />
                   <span>Reset</span>
@@ -724,7 +757,7 @@ export default function SupervisorDashboard() {
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
                 aria-label="Filter by branch"
-                className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+                className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
               >
                 <option value="">Semua Cabang</option>
                 {branches.map((b) => (
@@ -733,284 +766,147 @@ export default function SupervisorDashboard() {
                   </option>
                 ))}
               </select>
-            </div>
 
-            {/* All Branches Summary Card */}
+              <button
+                onClick={() => setShowReport(true)}
+                aria-label="Report an issue or bug"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+              >
+                <Plus className="w-4 h-4" aria-hidden="true" /> Lapor
+              </button>
+
+              <div className="hidden sm:block">
+                <UserAvatar user={user} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {tab === "overview" && (
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
+
+            {/* KPI Overview */}
             {(() => {
               const summary = calculateSummary();
-              const avgRevenue =
-                displayedBranches.length > 0
-                  ? Math.floor(summary.totalRevenue / displayedBranches.length)
-                  : 0;
-              const avgTranx =
-                displayedBranches.length > 0
-                  ? Math.floor(summary.totalCount / displayedBranches.length)
-                  : 0;
+              const pct = (cur: number, prev: number) =>
+                prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null;
+              const kpis = [
+                {
+                  key: "pendapatan",
+                  label: "Total Pendapatan",
+                  value: formatRupiah(summary.totalRevenue),
+                  trend: pct(summary.totalRevenue, prevTotals.revenue),
+                  Icon: Wallet,
+                  accent: true,
+                  sub: `${displayedBranches.length} cabang`,
+                },
+                {
+                  key: "transaksi",
+                  label: "Total Transaksi",
+                  value: String(summary.totalCount),
+                  trend: pct(summary.totalCount, prevTotals.count),
+                  Icon: ReceiptText,
+                  accent: false,
+                  sub: "transaksi masuk",
+                },
+                {
+                  key: "service",
+                  label: "Total Service",
+                  value: String(summary.totalServices),
+                  trend: pct(summary.totalServices, prevTotals.serviceCount),
+                  Icon: Wrench,
+                  accent: false,
+                  sub: "service order",
+                },
+                {
+                  key: "pengeluaran",
+                  label: "Total Pengeluaran",
+                  value: formatRupiah(summary.totalExpenses),
+                  trend: pct(summary.totalExpenses, prevTotals.expenses),
+                  Icon: TrendingDown,
+                  accent: false,
+                  sub: "dalam periode",
+                },
+              ];
               return (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  key={`${period}-${selectedBranchFilter}`}
-                  className="flex-shrink-0 bg-white dark:bg-[#1c1c1c] rounded-2xl border border-slate-200 dark:border-white/10 p-4 sm:p-5"
-                >
-                  <div className="mb-4">
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-1">
-                      {selectedBranchFilter
-                        ? `Summary ${branches.find((b) => b.id === selectedBranchFilter)?.name}`
-                        : "Summary Semua Cabang"}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                      {(() => {
-                        const { start, end } = getDateRange(period);
-                        const startDate = new Date(start);
-                        const endDate = new Date(end);
-                        const daysDiff = Math.ceil(
-                          (endDate.getTime() - startDate.getTime()) /
-                            (1000 * 60 * 60 * 24),
-                        );
-                        const formattedStart = startDate.toLocaleDateString(
-                          "id-ID",
-                          {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          },
-                        );
-                        const formattedEnd = endDate.toLocaleDateString(
-                          "id-ID",
-                          {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          },
-                        );
-
-                        if (period === "hari") {
-                          return "Hari Ini";
-                        } else if (period === "minggu") {
-                          return `${formattedStart} - ${formattedEnd} (${daysDiff} hari)`;
-                        } else if (period === "bulan") {
-                          return `${formattedStart} - ${formattedEnd} (${daysDiff} hari)`;
-                        } else {
-                          return `${formattedStart} - ${formattedEnd} (${daysDiff} hari)`;
-                        }
-                      })()}
-                      {" · "}
-                      {displayedBranches.length} cabang
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
-                      <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                        {formatRupiah(summary.totalRevenue)}
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
-                        Total Pendapatan
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">
-                        Rata² {formatRupiah(avgRevenue)}/cabang
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
-                      <p className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400">
-                        {summary.totalCount}
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
-                        Total Transaksi
-                      </p>
-                      <p className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-500 mt-0.5">
-                        Rata² {avgTranx}/cabang
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
-                      <p className="text-2xl sm:text-3xl font-bold text-violet-600 dark:text-violet-400">
-                        {summary.totalServices}
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
-                        Total Services
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 sm:p-4">
-                      <p className="text-2xl sm:text-3xl font-bold text-red-600 dark:text-red-400">
-                        {formatRupiah(summary.totalExpenses)}
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-slate-600 dark:text-slate-400 mt-1">
-                        Total Pengeluaran
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
+                <div className="flex-shrink-0 grid grid-cols-2 xl:grid-cols-4 gap-3">
+                  {loadingStats
+                    ? Array.from({ length: 4 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-28 animate-pulse bg-gray-100 dark:bg-white/5 rounded-2xl"
+                        />
+                      ))
+                    : kpis.map((k) => (
+                        <div
+                          key={k.key}
+                          className={`rounded-2xl border p-4 bg-white dark:bg-[#1c1c1c] ${
+                            k.accent
+                              ? "border-blue-200/70 dark:border-blue-800/40 bg-blue-50/40 dark:bg-blue-900/10"
+                              : "border-gray-200/70 dark:border-white/10"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                k.accent
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300"
+                              }`}
+                            >
+                              <k.Icon className="w-4 h-4" aria-hidden="true" />
+                            </span>
+                            {k.trend !== null && (
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                  k.trend >= 0
+                                    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                    : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                                }`}
+                              >
+                                {k.trend >= 0 ? "↑" : "↓"} {Math.abs(k.trend)}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                            {k.value}
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {k.label}
+                          </p>
+                          <p className="text-[9px] text-gray-400 mt-0.5">{k.sub}</p>
+                        </div>
+                      ))}
+                </div>
               );
             })()}
 
-            {/* Per-cabang: transaksi + kartu cabang (scroll internal) */}
-            <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-5 gap-4">
-            {/* Riwayat Transaksi per Filter */}
-            <div className="xl:col-span-3 min-h-0 flex flex-col xl:h-full bg-white dark:bg-[#1c1c1c] rounded-2xl border border-slate-200 dark:border-white/10 p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-1">
-                    Riwayat Transaksi
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                    {transactions.length} transaksi · sesuai filter periode & cabang
-                    {selectedBranchFilter
-                      ? ` · ${branches.find((b) => b.id === selectedBranchFilter)?.name || ""}`
-                      : ""}
-                  </p>
-                </div>
-                {loadingTx && (
-                  <Loader2
-                    className="w-4 h-4 text-slate-400 animate-spin"
-                    aria-hidden="true"
-                  />
-                )}
+            {/* Supervisor Insight */}
+            {alerts.length > 0 && (
+              <div className="flex-shrink-0">
+                <SupervisorAlerts alerts={alerts} />
               </div>
-              <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-                {transactions.length === 0 && !loadingTx ? (
-                  <p className="text-sm text-slate-400 py-8 text-center">
-                    Belum ada transaksi pada periode & filter ini
-                  </p>
-                ) : (
-                  transactions.map((tx) => {
-                    const jenisLabel =
-                      tx.items
-                        .map(
-                          (i) =>
-                            jenisLayananLabels[
-                              i.jenis_layanan as keyof typeof jenisLayananLabels
-                            ] || i.jenis_layanan,
-                        )
-                        .join(", ") || "-";
-                    const totalNominal = tx.items.reduce(
-                      (s, i) =>
-                        s +
-                        i.skus.reduce((a, k) => a + (k.nominal || 0), 0),
-                      0,
-                    );
-                    const t = tx.created_at
-                      ? new Date(tx.created_at)
-                      : null;
-                    const timeLabel = t
-                      ? t.toLocaleString("id-ID", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "";
-                    return (
-                      <button
-                        key={tx.id}
-                        type="button"
-                        onClick={() => setSelectedTx(tx)}
-                        className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-white/10 rounded-xl hover:border-slate-400 dark:hover:border-white/30 hover:bg-slate-50 dark:hover:bg-white/5 transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                            {tx.customer_name || "-"}
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                            {jenisLabel}
-                          </p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p
-                            className={`text-sm font-bold ${
-                              tx.items.some(
-                                (i) => i.jenis_layanan === "pengeluaran",
-                              )
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-emerald-600 dark:text-emerald-400"
-                            }`}
-                          >
-                            {formatRupiah(totalNominal)}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {timeLabel}
-                          </p>
-                        </div>
-                        <ChevronRight
-                          className="w-4 h-4 text-slate-300 dark:text-slate-600 flex-shrink-0"
-                          aria-hidden="true"
-                        />
-                      </button>
-                    );
-                  })
-                )}
+            )}
+
+            {/* Performance & Insight */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+              <div className="xl:col-span-2">
+                <BranchPerformancePanel
+                  rows={perfRows}
+                  loading={loadingStats}
+                  onSelect={(branch) => setDetailBranch(branch)}
+                />
               </div>
-              {transactions.length > 0 &&
-                transactions.length % TX_PAGE === 0 && (
-                  <button
-                    type="button"
-                    onClick={() => fetchTransactions(true)}
-                    disabled={loadingTx}
-                    className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-slate-300 dark:border-white/20 rounded-xl text-xs font-semibold text-slate-500 dark:text-slate-400 hover:border-slate-900 dark:hover:border-white hover:text-slate-900 dark:hover:text-white disabled:opacity-50 transition-all"
-                  >
-                    {loadingTx ? (
-                      <Loader2
-                        className="w-3.5 h-3.5 animate-spin"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <ChevronRight
-                        className="w-3.5 h-3.5 rotate-90"
-                        aria-hidden="true"
-                      />
-                    )}
-                    Muat Lainnya
-                  </button>
-                )}
+              <div className="order-first xl:order-none w-full">
+                <ServiceStatusPanel
+                  slices={statusSlices}
+                  total={statusTotalService}
+                  loading={loadingStats}
+                />
+              </div>
             </div>
 
-            {/* Unified Revenue Cards per Branch - Responsive Grid */}
-            <div className="xl:col-span-2 min-h-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:h-full xl:min-h-0 xl:overflow-y-auto xl:pr-1">
-              {displayedBranches.map((b) => {
-                const st = branchRevenue[b.id] || {
-                  revenue: 0,
-                  count: 0,
-                  expenses: 0,
-                  serviceCount: 0,
-                };
-                const { start } = getDateRange(period);
-                const startDate = new Date(start);
-                const dateLabel =
-                  period === "hari"
-                    ? startDate.toLocaleDateString("id-ID", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
-                    : startDate.toLocaleDateString("id-ID", {
-                        weekday: "short",
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      });
-                return (
-                  <BranchStatsCard
-                    key={b.id}
-                    branch={b}
-                    revenue={st.revenue}
-                    count={st.count}
-                    expenses={st.expenses}
-                    serviceCount={st.serviceCount}
-                    status={serviceStatus[b.id] || {}}
-                    teknisi={teknisiWorkload[b.id] || []}
-                    dateLabel={dateLabel}
-                    onClick={() =>
-                      setDetailBranch({ id: b.id, name: b.name, code: b.code })
-                    }
-                  />
-                );
-              })}
-              </div>
-            </div>
-            </div>
+            <RevenueChart data={chartData} loading={loadingStats} />
 
             <div className="flex-shrink-0 min-h-0">
             <BranchComparisonTable
@@ -1027,6 +923,7 @@ export default function SupervisorDashboard() {
                   status,
                   teknisiCount: s?.teknisi || teks.length || 0,
                   activeLoad: teks.reduce((a, t) => a + t.active, 0),
+                  expenses: st?.expenses || 0,
                 };
               })}
             />
@@ -1269,6 +1166,7 @@ export default function SupervisorDashboard() {
       {detailBranch && (
         <BranchDetailModal
           branch={detailBranch}
+          range={activeRange()}
           revenue={
             branchRevenue[detailBranch.id]?.revenue || 0
           }
@@ -1277,14 +1175,6 @@ export default function SupervisorDashboard() {
           status={serviceStatus[detailBranch.id] || {}}
           teknisi={teknisiWorkload[detailBranch.id] || []}
           onClose={() => setDetailBranch(null)}
-        />
-      )}
-
-      {selectedTx && (
-        <TransactionDetailModal
-          isOpen
-          onClose={() => setSelectedTx(null)}
-          transaction={selectedTx}
         />
       )}
 

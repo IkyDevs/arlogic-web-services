@@ -45,7 +45,8 @@ export const useTransactionStore = create<TransactionStore>()(
     lastFetched: null,
 
     fetch: async (dateFilter?: string, branchId?: string | null, monthFilter?: string, yearFilter?: string, customRange?: { start: string; end: string }) => {
-      set({ loading: true, error: null })
+      const hasData = get().transactions.length > 0
+      if (!hasData) set({ loading: true, error: null })
       try {
         const transactions = await txService.fetchAllTransactions(dateFilter, branchId, monthFilter, yearFilter, customRange)
         const analytics = txService.computeAnalytics(transactions)

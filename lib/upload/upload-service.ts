@@ -375,64 +375,66 @@ export class UploadService {
     const proxyUrl = process.env.NEXT_PUBLIC_PHOTO_PROXY_URL || ''
     const workerUrl = proxyUrl ? `${proxyUrl}/upload` : ''
 
-    // Resolve chat_id from server (per-branch jika branchCode ada)
-    let chatId = ''
+    // Satu AbortController untuk SEMUA fase (chat-id + transcode + upload) supaya
+    // legacyUpload dijamin settle ≤ timeout — tidak bisa nyangkut "Processing" selamanya.
+    const controller = new AbortController()
+    const hardTimer = setTimeout(() => controller.abort(), timeout || 60000)
+
     try {
-      const branchQuery = branchCode ? `&branch=${encodeURIComponent(branchCode)}` : ''
-      const chatRes = await fetch(`/api/telegram/chat-id?type=${encodeURIComponent(type)}${branchQuery}`)
-      const chatData = await chatRes.json()
-      chatId = chatData.chat_id || ''
-    } catch {}
-
-    // SELALU ke Worker (Cloudflare) — gambar TIDAK lewat Vercel
-    const urls = [workerUrl].filter(Boolean)
-    let lastError: any = null
-
-    // Video dipastikan playable + ≤48MB (HEVC/webm→H.264, re-encode bila besar); skipVideoTranscode = kirim asli
-    const preparedFiles: File[] = []
-    for (const f of files) {
-      preparedFiles.push(skipVideoTranscode ? f : await ensureUploadableVideo(f, onTranscodeProgress))
-    }
-
-    for (let i = 0; i < urls.length; i++) {
-      const uploadUrl = urls[i]
-      if (!uploadUrl) continue
-      console.log('[DEBUG:UploadService] upload target:', uploadUrl, 'chatId:', chatId)
-
-      // Buat FormData FRESH setiap attempt (stream FormData tidak bisa dipakai 2x)
-      const fd = new FormData()
-      fd.append('type', type)
-      if (chatId) fd.append('chat_id', chatId)
-      if (branchCode) fd.append('branch', branchCode)
-      if (caption) fd.append('caption', caption)
-      for (const f of preparedFiles) fd.append('files', f, f.name)
-
-      // Revert ke 09795bd: fetch + AbortController (XHR xhr.timeout rawan timeout
-      // palsu di Safari saat tab di background → "Foto gagal diupload di background")
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), timeout || 120000)
-
+      // Resolve chat_id dari server (per-branch jika branchCode ada)
+      let chatId = ''
       try {
-        const res = await fetch(uploadUrl, { method: 'POST', body: fd, signal: controller.signal })
-        clearTimeout(timer)
-        const text = await res.text()
-        let data: any
-        try { data = JSON.parse(text) } catch { throw new Error(`Server error (HTTP ${res.status})`) }
-        if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
-        if (!data.urls?.length) throw new Error('Foto gagal dikirim')
+        const branchQuery = branchCode ? `&branch=${encodeURIComponent(branchCode)}` : ''
+        const chatRes = await fetch(`/api/telegram/chat-id?type=${encodeURIComponent(type)}${branchQuery}`, { signal: controller.signal })
+        const chatData = await chatRes.json()
+        chatId = chatData.chat_id || ''
+      } catch {}
 
-        return data.urls.map((url: string, i: number) => ({
-          url, chat_id: data.messages?.[i]?.chat_id || '', message_id: data.messages?.[i]?.message_id || 0, file_id: data.file_ids?.[i] || '',
-        }))
-      } catch (e: any) {
-        clearTimeout(timer)
-        lastError = e
-        console.warn('[DEBUG:UploadService] upload failed, trying next endpoint:', uploadUrl, e.message)
+      // SELALU ke Worker (Cloudflare) — gambar TIDAK lewat Vercel
+      const urls = [workerUrl].filter(Boolean)
+      let lastError: any = null
+
+      // Video dipastikan playable + ≤48MB (HEVC/webm→H.264, re-encode bila besar); skipVideoTranscode = kirim asli
+      const preparedFiles: File[] = []
+      for (const f of files) {
+        preparedFiles.push(skipVideoTranscode ? f : await ensureUploadableVideo(f, onTranscodeProgress))
       }
-    }
 
-    if (lastError?.name === 'AbortError') throw new Error('Koneksi tidak stabil. Coba lagi.')
-    throw lastError || new Error('Upload gagal')
+      for (let i = 0; i < urls.length; i++) {
+        const uploadUrl = urls[i]
+        if (!uploadUrl) continue
+        console.log('[DEBUG:UploadService] upload target:', uploadUrl, 'chatId:', chatId)
+
+        // Buat FormData FRESH setiap attempt (stream FormData tidak bisa dipakai 2x)
+        const fd = new FormData()
+        fd.append('type', type)
+        if (chatId) fd.append('chat_id', chatId)
+        if (branchCode) fd.append('branch', branchCode)
+        if (caption) fd.append('caption', caption)
+        for (const f of preparedFiles) fd.append('files', f, f.name)
+
+        try {
+          const res = await fetch(uploadUrl, { method: 'POST', body: fd, signal: controller.signal })
+          const text = await res.text()
+          let data: any
+          try { data = JSON.parse(text) } catch { throw new Error(`Server error (HTTP ${res.status})`) }
+          if (!res.ok) throw new Error(data.details || data.error || `Upload gagal (${res.status})`)
+          if (!data.urls?.length) throw new Error('Foto gagal dikirim')
+
+          return data.urls.map((url: string, i: number) => ({
+            url, chat_id: data.messages?.[i]?.chat_id || '', message_id: data.messages?.[i]?.message_id || 0, file_id: data.file_ids?.[i] || '',
+          }))
+        } catch (e: any) {
+          lastError = e
+          console.warn('[DEBUG:UploadService] upload failed, trying next endpoint:', uploadUrl, e.message)
+        }
+      }
+
+      if (lastError?.name === 'AbortError') throw new Error('Koneksi tidak stabil. Coba lagi.')
+      throw lastError || new Error('Upload gagal')
+    } finally {
+      clearTimeout(hardTimer)
+    }
   }
 }
 

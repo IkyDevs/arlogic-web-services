@@ -443,7 +443,7 @@ export default memo(function LayananForm({
         notes,
       };
       saveDraft("layanan", user.id, d, draftFiles).catch(() => {});
-    }, 2000);
+    }, 500);
     return () => {
       if (photoTimer.current) clearTimeout(photoTimer.current);
     };

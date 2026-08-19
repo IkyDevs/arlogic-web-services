@@ -659,8 +659,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchAllData = async () => {
-    setLoading(true);
+  const fetchAllData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       await Promise.all([
         fetchStats(),
@@ -682,7 +682,7 @@ export default function AdminDashboard() {
   const handleLayananSuccess = () => {
     setShowLayananForm(false);
     setRefreshLayanan((prev) => prev + 1);
-    fetchAllData();
+    fetchAllData(true);
     toast.success("Layanan berhasil ditambahkan!");
   };
 
@@ -731,7 +731,7 @@ export default function AdminDashboard() {
   fetchAllDataRef.current = fetchAllData;
 
   useEffect(() => {
-    const refresh = () => fetchAllDataRef.current();
+    const refresh = () => fetchAllDataRef.current(true);
     const channel = supabase
       .channel("admin-dashboard-realtime")
       .on(
@@ -782,11 +782,7 @@ export default function AdminDashboard() {
         setTimeout(() => setShowLayananForm(true), 300);
       } else if (hasDraft("pengeluaran", user.id)) {
         setActiveTab("management-transaction");
-        // TransactionManagement handles showExpenseForm internally
-        toast(
-          "Ada draft pengeluaran yang tersimpan. Buka halaman transaksi untuk melanjutkan.",
-          { icon: "📝", duration: 4000 },
-        );
+        setTimeout(() => window.dispatchEvent(new CustomEvent("open-expense-form")), 300);
       } else if (hasDraft("service", user.id)) {
         setActiveTab("services");
         setTimeout(() => setShowServiceForm(true), 300);
@@ -917,7 +913,7 @@ export default function AdminDashboard() {
 
               {/* Refresh */}
               <button
-                onClick={fetchAllData}
+                onClick={() => fetchAllData()}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-all flex-shrink-0"
               >
                 <RefreshCw className="w-5 h-5 text-slate-400" />

@@ -200,6 +200,13 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
     return () => window.removeEventListener("layanan-retry-upload", handler);
   }, []);
 
+  // Auto-open popup pengeluaran bila ada draft tersimpan
+  useEffect(() => {
+    const handler = () => setShowExpenseForm(true);
+    window.addEventListener("open-expense-form", handler);
+    return () => window.removeEventListener("open-expense-form", handler);
+  }, []);
+
   const filteredTransactions = useMemo(() => transactions, [transactions]);
   const filteredAnalytics = useMemo(() => computeAnalytics(filteredTransactions), [filteredTransactions]);
 

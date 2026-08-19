@@ -151,7 +151,7 @@ export default memo(function PengeluaranForm({
     if (photoTimer.current) clearTimeout(photoTimer.current);
     photoTimer.current = setTimeout(() => {
       saveDraft("pengeluaran", user.id, formData, draftFiles).catch(() => {});
-    }, 2000);
+    }, 500);
     return () => {
       if (photoTimer.current) clearTimeout(photoTimer.current);
     };
