@@ -330,7 +330,7 @@ export default function TeknisiDashboard() {
         setTimeout(() => setShowLayananForm(true), 300);
       } else if (hasDraft("pengeluaran", user.id)) {
         setActiveTab("layanan");
-        setTimeout(() => window.dispatchEvent(new CustomEvent("open-expense-form")), 300);
+        setTimeout(() => window.dispatchEvent(new CustomEvent("open-expense-form")), 600);
       } else if (hasDraft("service", user.id)) {
         setActiveTab("service");
         setTimeout(() => setShowServiceForm(true), 300);

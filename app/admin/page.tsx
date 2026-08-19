@@ -782,7 +782,7 @@ export default function AdminDashboard() {
         setTimeout(() => setShowLayananForm(true), 300);
       } else if (hasDraft("pengeluaran", user.id)) {
         setActiveTab("management-transaction");
-        setTimeout(() => window.dispatchEvent(new CustomEvent("open-expense-form")), 300);
+        setTimeout(() => window.dispatchEvent(new CustomEvent("open-expense-form")), 600);
       } else if (hasDraft("service", user.id)) {
         setActiveTab("services");
         setTimeout(() => setShowServiceForm(true), 300);
