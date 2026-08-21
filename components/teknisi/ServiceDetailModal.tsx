@@ -86,22 +86,39 @@ export default function ServiceDetailModal({
   const handleTake = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      const activeUser = (await supabase.auth.getUser()).data.user;
+      const activeTeknisiId = activeUser?.id || user?.id;
+
+      if (!activeTeknisiId) {
+        toast.error("Tidak dapat memverifikasi teknisi. Silakan login ulang.");
+        return;
+      }
+
+      const { data: updatedRows, error } = await supabase
         .from("service_orders")
         .update({
-          assigned_teknisi_id: user?.id,
+          assigned_teknisi_id: activeTeknisiId,
           status: "assigned",
           start_date: new Date().toISOString(),
         })
-        .eq("id", service.id);
+        .eq("id", service.id)
+        .is("assigned_teknisi_id", null)
+        .select();
 
       if (error) throw error;
 
+      if (!updatedRows || updatedRows.length === 0) {
+        toast.error("Service ini sudah diambil oleh teknisi lain!");
+        onSkip();
+        onClose();
+        return;
+      }
+
       await supabase.from("service_timeline").insert({
         service_order_id: service.id,
-        teknisi_id: user?.id,
+        teknisi_id: activeTeknisiId,
         status: "assigned",
-        message: `Service diambil oleh teknisi ${user?.full_name}`,
+        message: `Service diambil oleh teknisi ${user?.full_name || activeUser?.email}`,
         details: { action: "take_project" },
       });
 

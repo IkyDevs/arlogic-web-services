@@ -115,10 +115,12 @@ export default function ServiceInput({
   variant = "page",
   onClose,
   onSuccess,
+  editData,
 }: {
   variant?: "page" | "modal";
   onClose?: () => void;
   onSuccess?: () => void;
+  editData?: any;
 }) {
   const supabase = createClient();
   const { user } = useAuthStore();
@@ -175,7 +177,7 @@ export default function ServiceInput({
   const restoredRef = useRef(false);
   const clearingDraft = useRef(false);
 
-  // ── Reset state on mount ─────────────────────────────────────────────────
+  // ── Reset state on mount or populate edit data ────────────────────────────
   useEffect(() => {
     setSuccess(false);
     setStep(1);
@@ -184,7 +186,27 @@ export default function ServiceInput({
     setSelectedDpId(null);
     setDpTransactions([]);
     setDpMode("manual");
-  }, []);
+
+    if (editData) {
+      setFormData({
+        cs_name: editData.customer_name || "",
+        cs_phone: editData.customer_phone || "",
+        category: editData.category || "",
+        serial_number: editData.serial_number || "",
+        watch_brand: editData.watch_brand || editData.device_brand || "",
+        watch_model: editData.watch_model || editData.device_model || "",
+        watch_movement: editData.watch_movement || "",
+        problem: editData.issue_description || "",
+        request: editData.request || "",
+        notes: editData.notes || "",
+        down_payment: editData.down_payment ? String(editData.down_payment) : "",
+        payment_method: editData.payment_method || "cash",
+        qris_photo: null,
+      });
+      if (editData.estimated_cost) setEstimatedCost(String(editData.estimated_cost));
+      if (editData.down_payment && Number(editData.down_payment) > 0) setDpEnabled(true);
+    }
+  }, [editData]);
 
   // ── Draft restore ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -431,6 +453,46 @@ export default function ServiceInput({
         return;
       }
 
+      const { data: creatorProfile } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", authUser.id)
+        .single();
+
+      if (editData?.id) {
+        const { error: updateErr } = await supabase
+          .from("service_orders")
+          .update({
+            customer_name: formData.cs_name,
+            customer_phone: formData.cs_phone,
+            serial_number: formData.serial_number || null,
+            device_brand: formData.watch_brand,
+            device_model: formData.watch_model || null,
+            watch_brand: formData.watch_brand,
+            watch_model: formData.watch_model || null,
+            watch_movement: formData.watch_movement,
+            category: formData.category || null,
+            down_payment: dpValue,
+            payment_method: formData.payment_method || "cash",
+            issue_description: formData.problem,
+            request: formData.request || null,
+            notes: formData.notes || null,
+            estimated_cost: estimatedCost ? parseInt(estimatedCost) : null,
+          })
+          .eq("id", editData.id);
+
+        if (updateErr) throw updateErr;
+
+        toast.success("Service order berhasil diperbarui!");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("new-service"));
+        }
+        setLoading(false);
+        if (onSuccess) onSuccess();
+        if (onClose) onClose();
+        return;
+      }
+
       const { data: orderData, error } = await supabase
         .from("service_orders")
         .insert([
@@ -456,6 +518,9 @@ export default function ServiceInput({
             estimated_cost: estimatedCost ? parseInt(estimatedCost) : null,
             status: "pending",
             branch_id: (activeBranch as any)?.id || null,
+            created_by: authUser.id,
+            created_by_name: creatorProfile?.full_name || authUser.email || "System",
+            created_by_role: creatorProfile?.role || (user as any)?.role || "admin",
           },
         ])
         .select("id")

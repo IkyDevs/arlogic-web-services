@@ -6,8 +6,10 @@ import { useBranchScope } from "@/lib/context/useBranchScope";
 import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, Zap, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn } from "lucide-react";
+import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, Zap, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn, Edit, UserCheck, ShieldAlert } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuthStore } from "@/stores/authStore";
+import ServiceInput from "@/components/admin/ServiceInput";
 
 const serviceStatusLabels: Record<string, string> = {
   pending: "Menunggu", assigned: "Ditugaskan", in_progress: "Dalam Pengerjaan",
@@ -82,6 +84,7 @@ const statusFilterOptions = [
 
 export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const supabase = createClient();
+  const { user } = useAuthStore();
   const { branchId } = useBranchScope();
   const { branches } = useBranch();
   const [services, setServices] = useState<any[]>([]);
@@ -102,12 +105,30 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedService, setSelectedService] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editingService, setEditingService] = useState<any>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const [copiedToken, setCopiedToken] = useState(false);
   const [servicePhotos, setServicePhotos] = useState<string[]>([]);
   const [servicePhotoLabels, setServicePhotoLabels] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const selectedBranchName = selectedService ? branches.find((branch) => branch.id === selectedService.branch_id)?.name : null;
+
+  useEffect(() => {
+    if (user?.id) {
+      supabase.from("profiles").select("role, full_name").eq("id", user.id).single().then(({ data }) => {
+        if (data) setCurrentUserProfile(data);
+      });
+    }
+  }, [user?.id]);
+
+  const canEditService = (svc: any) => {
+    if (!user) return false;
+    if (svc.created_by && svc.created_by === user.id) return true;
+    if (svc.created_by_role && currentUserProfile?.role && svc.created_by_role === currentUserProfile.role) return true;
+    if (!svc.created_by && !svc.created_by_role) return true;
+    return false;
+  };
 
   const fetchServices = async () => {
     setLoading(true);
@@ -279,22 +300,25 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Tipe</th>
                 <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Kategori</th>
                 <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Dibuat Oleh</th>
                 <th className="px-4 py-3 text-left cursor-pointer hover:text-slate-900 select-none" onClick={() => toggleSort("created_at")}>
                   <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Tanggal <SortIcon field="created_at" /></div>
                 </th>
+                <th className="px-4 py-3 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-12 text-slate-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="text-center py-12 text-slate-400">Memuat data...</td></tr>
               ) : services.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12">
+                <tr><td colSpan={9} className="text-center py-12">
                   <div className="text-slate-300"><Watch className="w-10 h-10 mx-auto mb-2 opacity-40" /></div>
                   <p className="text-slate-400">Belum ada service order</p>
                   <button onClick={onAdd} className="mt-3 text-sm text-blue-600 hover:underline font-medium">Tambah service baru</button>
                 </td></tr>
               ) : services.map((svc, i) => {
                 const MoveIcon = movementIcons[svc.watch_movement] || Watch;
+                const allowed = canEditService(svc);
                 return (
                   <motion.tr key={svc.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
                     className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openDetail(svc)}>
@@ -323,7 +347,37 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full border ${getStatusColor(svc.status)}`}>{serviceStatusLabels[svc.status] || svc.status}</span>
                     </td>
+                    <td className="px-4 py-3 text-xs text-slate-700">
+                      {svc.created_by_name || svc.created_by_role ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-900">{svc.created_by_name || "User"}</span>
+                          <span className="text-[10px] text-indigo-600 font-semibold uppercase">{svc.created_by_role || "Role N/A"}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{fmtDate(svc.created_at)}</td>
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          if (allowed) {
+                            setEditingService(svc);
+                          } else {
+                            toast.error(`Hanya ${svc.created_by_role ? `role ${svc.created_by_role.toUpperCase()}` : "pembuat service"} yang berhak mengedit service ini!`);
+                          }
+                        }}
+                        title={allowed ? "Edit Service Order" : `Hanya ${svc.created_by_role || 'pembuat'} yang berhak edit`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
+                          allowed
+                            ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
+                        }`}
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        Edit
+                      </button>
+                    </td>
                   </motion.tr>
                 );
               })}
@@ -485,6 +539,15 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                   <p className="text-[10px] text-slate-500">Down Payment</p>
                   <p className="text-sm font-bold text-emerald-600">{selectedService.down_payment ? fmtRupiah(selectedService.down_payment) : "-"}</p>
                 </div>
+                <div className="col-span-2 p-3 bg-indigo-50 rounded-xl border border-indigo-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-indigo-500 font-semibold uppercase tracking-wider">Dibuat Oleh</p>
+                    <p className="text-sm font-bold text-indigo-950">
+                      {selectedService.created_by_name ? `${selectedService.created_by_name} (${(selectedService.created_by_role || 'role N/A').toUpperCase()})` : (selectedService.created_by_role ? `Role: ${selectedService.created_by_role.toUpperCase()}` : "-")}
+                    </p>
+                  </div>
+                  <UserCheck className="w-5 h-5 text-indigo-500" />
+                </div>
                 <div className="col-span-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <p className="text-[10px] text-slate-500">Dibuat pada</p>
                   <p className="text-sm text-slate-700">{new Date(selectedService.created_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
@@ -493,6 +556,19 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Edit Service Modal */}
+      {editingService && (
+        <ServiceInput
+          variant="modal"
+          editData={editingService}
+          onClose={() => setEditingService(null)}
+          onSuccess={() => {
+            setEditingService(null);
+            fetchServices();
+          }}
+        />
       )}
 
       {/* Photo Preview Modal */}

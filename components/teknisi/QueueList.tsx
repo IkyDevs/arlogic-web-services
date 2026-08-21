@@ -268,21 +268,35 @@ export default function QueueList({
   const confirmTakeProject = async () => {
     if (!pendingTakeService) return;
     
-    const { error } = await supabase
+    const activeUser = (await supabase.auth.getUser()).data.user;
+    const activeTeknisiId = activeUser?.id || teknisiId;
+
+    if (!activeTeknisiId) {
+      toast.error("Gagal memverifikasi identitas teknisi. Silakan refresh.");
+      return;
+    }
+
+    const { data: updatedRows, error } = await supabase
       .from("service_orders")
       .update({
-        assigned_teknisi_id: teknisiId,
+        assigned_teknisi_id: activeTeknisiId,
         status: "assigned",
         start_date: new Date().toISOString(),
       })
-      .eq("id", pendingTakeService.id);
+      .eq("id", pendingTakeService.id)
+      .is("assigned_teknisi_id", null)
+      .select();
 
     if (error) {
-      toast.error("Gagal mengambil proyek");
+      toast.error("Gagal mengambil proyek: " + error.message);
+    } else if (!updatedRows || updatedRows.length === 0) {
+      toast.error("Proyek ini baru saja diambil oleh teknisi lain!");
+      fetchQueues();
+      setShowDetailModal(false);
     } else {
       await supabase.from("service_timeline").insert({
         service_order_id: pendingTakeService.id,
-        teknisi_id: teknisiId,
+        teknisi_id: activeTeknisiId,
         status: "assigned",
         message: `Service diambil oleh teknisi`,
         details: { action: "take_project" },
@@ -312,18 +326,32 @@ export default function QueueList({
       return;
     }
 
-    const { error: updateErr } = await supabase
+    const activeUser = (await supabase.auth.getUser()).data.user;
+    const activeTeknisiId = activeUser?.id || teknisiId;
+
+    const { data: updatedRows, error: updateErr } = await supabase
       .from("service_orders")
-      .update({ assigned_teknisi_id: teknisiId, status: "assigned" })
-      .eq("id", pendingTargetService.id);
+      .update({ assigned_teknisi_id: activeTeknisiId, status: "assigned" })
+      .eq("id", pendingTargetService.id)
+      .is("assigned_teknisi_id", null)
+      .select();
+
     if (updateErr) {
       toast.error("Gagal update: " + updateErr.message);
       return;
     }
 
+    if (!updatedRows || updatedRows.length === 0) {
+      toast.error("Proyek ini baru saja diambil oleh teknisi lain!");
+      fetchQueues();
+      setShowPendingReasonModal(false);
+      setPendingTargetService(null);
+      return;
+    }
+
     const { error: tlErr } = await supabase.from("service_timeline").insert({
       service_order_id: pendingTargetService.id,
-      teknisi_id: teknisiId,
+      teknisi_id: activeTeknisiId,
       status: "pending_teknisi",
       message: `Ditunda oleh teknisi: ${pendingReason.trim()}`,
       details: { action: "take_pending", reason: pendingReason.trim() },

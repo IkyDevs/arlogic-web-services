@@ -286,7 +286,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-2 overflow-hidden min-h-0">
+    <div className="flex-1 flex flex-col gap-2 overflow-y-auto sm:overflow-hidden min-h-0">
       {/* Desktop Header */}
       <div className="hidden sm:flex items-start justify-between gap-4 flex-shrink-0">
         <div className="min-w-0">

@@ -113,8 +113,11 @@ export interface ServiceOrder {
   po_requested_at?: string;
   po_admin_response?: string;
 
-  // Assignment
+  // Assignment & Creator
   assigned_teknisi_id?: string;
+  created_by?: string;
+  created_by_name?: string;
+  created_by_role?: string;
 
   // Timeline
   created_at: string;

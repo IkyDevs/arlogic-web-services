@@ -56,6 +56,9 @@ export interface ServiceOrder {
   payment_method: string
   status: ServiceStatus
   assigned_teknisi_id?: string
+  created_by?: string
+  created_by_name?: string
+  created_by_role?: string
   po_status?: string
   po_sparepart?: string
   po_requested_at?: string
