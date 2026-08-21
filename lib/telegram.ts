@@ -25,11 +25,25 @@ export type TelegramChannelType = keyof typeof CHANNELS;
  * 2. Channel global: TELEGRAM_CHANNEL_{TIPE}
  * 3. undefined (caller fallback ke default)
  */
-export function getChannel(type: TelegramChannelType, branchCode?: string): string | undefined {
+export function getChannel(
+  type: TelegramChannelType,
+  branchCode?: string,
+  branchName?: string
+): string | undefined {
   if (branchCode) {
-    const branchKey = `TELEGRAM_CHANNEL_${type.toUpperCase()}_${branchCode.toUpperCase()}`;
+    const branchKey = `TELEGRAM_CHANNEL_${type.toUpperCase()}_${branchCode.toUpperCase().replace(/\s+/g, "_")}`;
     const branchVal = process.env[branchKey];
     if (branchVal) return branchVal;
+  }
+  if (branchName) {
+    const cleanName = branchName
+      .toUpperCase()
+      .replace(/ARLOGIC\s*/i, "")
+      .trim()
+      .replace(/\s+/g, "_");
+    const nameKey = `TELEGRAM_CHANNEL_${type.toUpperCase()}_${cleanName}`;
+    const nameVal = process.env[nameKey];
+    if (nameVal) return nameVal;
   }
   return CHANNELS[type];
 }
