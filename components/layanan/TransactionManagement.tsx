@@ -286,7 +286,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-2 overflow-y-auto sm:overflow-hidden min-h-0">
+    <div className="w-full flex flex-col gap-3">
       {/* Desktop Header */}
       <div className="hidden sm:flex items-start justify-between gap-4 flex-shrink-0">
         <div className="min-w-0">
@@ -452,16 +452,16 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
       </div>
 
       {/* Transaction List */}
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 flex-shrink-0">
+      <div className="w-full">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-slate-500" />
               <h3 className="text-xs font-bold text-slate-900">Daftar Transaksi</h3>
             </div>
             <span className="text-[10px] font-medium text-slate-400">{filteredAnalytics.total} total</span>
           </div>
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="w-full">
             {loading ? (
               <LoadingSpinner />
             ) : (

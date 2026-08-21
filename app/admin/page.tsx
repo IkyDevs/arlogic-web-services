@@ -971,9 +971,7 @@ export default function AdminDashboard() {
               {activeTab === "customer" && <CustomerList />}
 
               {activeTab === "management-transaction" && (
-                <div className="flex-1 flex flex-col overflow-y-auto sm:overflow-hidden min-h-0">
-                  <TransactionManagement isDark={isDark} />
-                </div>
+                <TransactionManagement isDark={isDark} />
               )}
 
           {activeTab === "services" && (
