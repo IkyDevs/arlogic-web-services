@@ -535,7 +535,7 @@ export default function ServiceInput({
             .eq("service_order_id", editData.id);
         }
 
-        // 3. Build standard caption with "Dibuat oleh : {nama (role)}"
+        // 3. Build standard structured caption with "Dibuat oleh : {nama (role)}"
         const editCreatedByDisplay = editData.created_by_name
           ? `${editData.created_by_name} (${(editData.created_by_role || "").toUpperCase()})`
           : createdByDisplay;
@@ -548,28 +548,42 @@ export default function ServiceInput({
           minute: "2-digit",
         });
 
-        let formattedCaption = `Kategori : ${formData.category || "—"}
-CS :  ${formData.cs_name}
-WA : ${formData.cs_phone}
-Seri : ${formData.serial_number || "—"}
-Brand : ${formData.watch_brand || "—"}
-Model : ${formData.watch_model || "—"}
-Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : "—"}
-Kendala : ${formData.problem}
-Request : ${formData.request || "—"}
-Keterangan : ${formData.notes || "—"}
-Dibuat oleh : ${editCreatedByDisplay}`;
+        const categoryLabel = categoryOptions.find((c) => c.value === formData.category)?.label || formData.category || "—";
+        const payMethod = formData.payment_method ? (paymentLabels[formData.payment_method] || formData.payment_method) : "";
+        const costNum = estimatedCost ? parseInt(estimatedCost) : 0;
 
-        if (dpValue > 0) {
-          formattedCaption += `\ndp : Rp ${dpValue.toLocaleString("id-ID")}`;
-          if (estimatedCost) {
-            formattedCaption += `\nestimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
+        let formattedCaption = `📋 UPDATE SERVICE ORDER
+
+🧾 Invoice : #${editData.invoice_number}
+🏷️ Kategori : ${categoryLabel}
+
+👤 DATA PELANGGAN
+• Nama : ${formData.cs_name}
+• Whatsapp : ${formData.cs_phone}
+
+⌚ DETAIL JAM TANGAN
+• Brand : ${formData.watch_brand || "—"}
+• Model : ${formData.watch_model || "—"}
+• Seri : ${formData.serial_number || "—"}
+• Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : "—"}
+
+🛠️ DETAIL PERBAIKAN
+• Kendala : ${formData.problem}
+• Request : ${formData.request || "—"}
+• Keterangan : ${formData.notes || "—"}`;
+
+        if (dpValue > 0 || costNum > 0) {
+          formattedCaption += `\n\n💰 BIAYA & PEMBAYARAN`;
+          if (dpValue > 0) {
+            formattedCaption += `\n• Down Payment : Rp ${dpValue.toLocaleString("id-ID")}${payMethod ? ` (${payMethod})` : ""}`;
           }
-          formattedCaption += `\nPembayaran : ${paymentLabels[formData.payment_method] || formData.payment_method}`;
-        } else if (estimatedCost) {
-          formattedCaption += `\nestimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
+          if (costNum > 0) {
+            formattedCaption += `\n• Estimasi Biaya : Rp ${costNum.toLocaleString("id-ID")}`;
+          }
         }
-        formattedCaption += `\nIn : ${nowStr}`;
+
+        formattedCaption += `\n\n👤 Dibuat oleh : ${editCreatedByDisplay}
+📅 Waktu Masuk : ${nowStr}`;
 
         // 4. Gather all current photos (convert kept photo URLs + new pendingFiles into File[])
         const filesToUpload: File[] = [];
@@ -705,34 +719,42 @@ Dibuat oleh : ${editCreatedByDisplay}`;
         minute: "2-digit",
       });
 
-      let formattedCaption = `Kategori : ${formData.category || "—"}
-CS :  ${formData.cs_name}
-WA : ${formData.cs_phone}
-Seri : ${formData.serial_number || "—"}
-Brand : ${formData.watch_brand || "—"}
-Model : ${formData.watch_model || "—"}
-Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : "—"}
-Kendala : ${formData.problem}
-Request : ${formData.request || "—"}
-Keterangan : ${formData.notes || "—"}
-Dibuat oleh : ${createdByDisplay}`;
+      const categoryLabel = categoryOptions.find((c) => c.value === formData.category)?.label || formData.category || "—";
+      const payMethod = formData.payment_method ? (paymentLabels[formData.payment_method] || formData.payment_method) : "";
+      const costNum = estimatedCost ? parseInt(estimatedCost) : 0;
 
-      if (hasDp) {
-        formattedCaption += `
-dp : Rp ${dpValue.toLocaleString("id-ID")}`;
-        if (estimatedCost) {
-          formattedCaption += `
-estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
+      let formattedCaption = `📋 SERVICE ORDER
+
+🧾 Invoice : #${invoiceNumber}
+🏷️ Kategori : ${categoryLabel}
+
+👤 DATA PELANGGAN
+• Nama : ${formData.cs_name}
+• Whatsapp : ${formData.cs_phone}
+
+⌚ DETAIL JAM TANGAN
+• Brand : ${formData.watch_brand || "—"}
+• Model : ${formData.watch_model || "—"}
+• Seri : ${formData.serial_number || "—"}
+• Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : "—"}
+
+🛠️ DETAIL PERBAIKAN
+• Kendala : ${formData.problem}
+• Request : ${formData.request || "—"}
+• Keterangan : ${formData.notes || "—"}`;
+
+      if (dpValue > 0 || costNum > 0) {
+        formattedCaption += `\n\n💰 BIAYA & PEMBAYARAN`;
+        if (dpValue > 0) {
+          formattedCaption += `\n• Down Payment : Rp ${dpValue.toLocaleString("id-ID")}${payMethod ? ` (${payMethod})` : ""}`;
         }
-        formattedCaption += `
-Pembayaran : ${paymentLabels[formData.payment_method] || formData.payment_method}`;
-      } else if (estimatedCost) {
-        formattedCaption += `
-estimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
+        if (costNum > 0) {
+          formattedCaption += `\n• Estimasi Biaya : Rp ${costNum.toLocaleString("id-ID")}`;
+        }
       }
 
-      formattedCaption += `
-In : ${now}`;
+      formattedCaption += `\n\n👤 Dibuat oleh : ${createdByDisplay}
+📅 Waktu Masuk : ${now}`;
 
       // Link existing DP transaction (fast, tidak perlu upload)
       if (dpEnabled && selectedDpId) {
