@@ -560,15 +560,19 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
 
       {/* Edit Service Modal */}
       {editingService && (
-        <ServiceInput
-          variant="modal"
-          editData={editingService}
-          onClose={() => setEditingService(null)}
-          onSuccess={() => {
-            setEditingService(null);
-            fetchServices();
-          }}
-        />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[80] p-3 sm:p-4 overflow-y-auto" onClick={() => setEditingService(null)}>
+          <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/10" onClick={(e) => e.stopPropagation()}>
+            <ServiceInput
+              variant="modal"
+              editData={editingService}
+              onClose={() => setEditingService(null)}
+              onSuccess={() => {
+                setEditingService(null);
+                fetchServices();
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {/* Photo Preview Modal */}

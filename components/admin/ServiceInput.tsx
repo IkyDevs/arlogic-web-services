@@ -205,6 +205,26 @@ export default function ServiceInput({
       });
       if (editData.estimated_cost) setEstimatedCost(String(editData.estimated_cost));
       if (editData.down_payment && Number(editData.down_payment) > 0) setDpEnabled(true);
+
+      if (editData.id) {
+        supabase
+          .from("service_documentation")
+          .select("photo_url, label")
+          .eq("service_order_id", editData.id)
+          .then(({ data: docPhotos }) => {
+            if (docPhotos && docPhotos.length > 0) {
+              const urls = docPhotos.map((d) => d.photo_url).filter(Boolean);
+              setPhotoPreviews(urls);
+              const labelsMap: Record<string, string> = {};
+              docPhotos.forEach((d) => {
+                if (d.photo_url && d.label) {
+                  labelsMap[d.photo_url] = d.label;
+                }
+              });
+              setPhotoLabels(labelsMap);
+            }
+          });
+      }
     }
   }, [editData]);
 
