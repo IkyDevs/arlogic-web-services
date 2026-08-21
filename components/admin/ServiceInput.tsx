@@ -213,7 +213,7 @@ export default function ServiceInput({
           .eq("service_order_id", editData.id)
           .then(({ data: docPhotos }) => {
             if (docPhotos && docPhotos.length > 0) {
-              const urls = docPhotos.map((d) => d.photo_url).filter(Boolean);
+              const urls = Array.from(new Set(docPhotos.map((d) => d.photo_url).filter(Boolean)));
               setPhotoPreviews(urls);
               const labelsMap: Record<string, string> = {};
               docPhotos.forEach((d) => {
@@ -1340,7 +1340,7 @@ In : ${now}`;
                   ))}
                   {photoPreviews.map((src, i) => photoLabels[src] ? null : (
                     <div
-                      key={src}
+                      key={`${src}-${i}`}
                       draggable
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", src)}
                       onClick={() => setSelectedPhoto(selectedPhoto === src ? null : src)}
@@ -1388,8 +1388,8 @@ In : ${now}`;
                       {slotPhotos.length === 0 && (
                         <p className="text-[10px] text-slate-300 text-center py-3">Seret foto ke sini</p>
                       )}
-                      {slotPhotos.map((src) => (
-                        <div key={src} className="relative group border border-slate-200 rounded-lg overflow-hidden">
+                      {slotPhotos.map((src, idx) => (
+                        <div key={`${src}-${idx}`} className="relative group border border-slate-200 rounded-lg overflow-hidden">
                           <img src={src} alt={label} className="w-full h-28 object-cover" />
                           <button
                             onClick={(e) => { e.stopPropagation(); assignLabel(src, ""); }}
