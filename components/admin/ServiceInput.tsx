@@ -479,7 +479,14 @@ export default function ServiceInput({
         .eq("id", authUser.id)
         .single();
 
+      const createdByDisplay = creatorProfile?.full_name
+        ? `${creatorProfile.full_name} (${(creatorProfile.role || "").toUpperCase()})`
+        : creatorProfile?.role
+        ? `Role: ${creatorProfile.role.toUpperCase()}`
+        : "—";
+
       if (editData?.id) {
+        // 1. Update text data in service_orders
         const { error: updateErr } = await supabase
           .from("service_orders")
           .update({
@@ -502,6 +509,125 @@ export default function ServiceInput({
           .eq("id", editData.id);
 
         if (updateErr) throw updateErr;
+
+        // 2. Fetch existing documentation & delete old Telegram messages
+        const { data: oldDocs } = await supabase
+          .from("service_documentation")
+          .select("*")
+          .eq("service_order_id", editData.id);
+
+        if (oldDocs && oldDocs.length > 0) {
+          for (const doc of oldDocs) {
+            if (doc.telegram_chat_id && doc.telegram_message_id) {
+              await fetch("/api/telegram/delete-message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: doc.telegram_chat_id,
+                  message_id: doc.telegram_message_id,
+                }),
+              }).catch(() => {});
+            }
+          }
+          await supabase
+            .from("service_documentation")
+            .delete()
+            .eq("service_order_id", editData.id);
+        }
+
+        // 3. Build standard caption with "Dibuat oleh : {nama (role)}"
+        const editCreatedByDisplay = editData.created_by_name
+          ? `${editData.created_by_name} (${(editData.created_by_role || "").toUpperCase()})`
+          : createdByDisplay;
+
+        const nowStr = new Date().toLocaleString("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        let formattedCaption = `Kategori : ${formData.category || "—"}
+CS :  ${formData.cs_name}
+WA : ${formData.cs_phone}
+Seri : ${formData.serial_number || "—"}
+Brand : ${formData.watch_brand || "—"}
+Model : ${formData.watch_model || "—"}
+Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : "—"}
+Kendala : ${formData.problem}
+Request : ${formData.request || "—"}
+Keterangan : ${formData.notes || "—"}
+Dibuat oleh : ${editCreatedByDisplay}`;
+
+        if (dpValue > 0) {
+          formattedCaption += `\ndp : Rp ${dpValue.toLocaleString("id-ID")}`;
+          if (estimatedCost) {
+            formattedCaption += `\nestimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
+          }
+          formattedCaption += `\nPembayaran : ${paymentLabels[formData.payment_method] || formData.payment_method}`;
+        } else if (estimatedCost) {
+          formattedCaption += `\nestimasi : Rp ${parseInt(estimatedCost).toLocaleString("id-ID")}`;
+        }
+        formattedCaption += `\nIn : ${nowStr}`;
+
+        // 4. Gather all current photos (convert kept photo URLs + new pendingFiles into File[])
+        const filesToUpload: File[] = [];
+        const fileLabels: string[] = [];
+
+        for (const urlOrPreview of photoPreviews) {
+          const pending = upload.pendingFiles.find((p) => p.preview === urlOrPreview);
+          if (pending && pending.file) {
+            filesToUpload.push(pending.file);
+            fileLabels.push(photoLabels[urlOrPreview] || "");
+          } else if (urlOrPreview.startsWith("http")) {
+            try {
+              const res = await fetch(urlOrPreview);
+              const blob = await res.blob();
+              const file = new File([blob], "service_photo.jpg", { type: blob.type || "image/jpeg" });
+              filesToUpload.push(file);
+              fileLabels.push(photoLabels[urlOrPreview] || "");
+            } catch (e) {
+              console.warn("Failed to convert existing photo URL to File", e);
+            }
+          }
+        }
+
+        // 5. Upload to Telegram & Insert new documentation records
+        if (filesToUpload.length > 0) {
+          const urls = await upload.legacyUpload(
+            filesToUpload,
+            "service",
+            formattedCaption,
+            undefined,
+            (activeBranch as any)?.code
+          );
+
+          if (urls.length > 0) {
+            const docInserts = urls.map((r, idx) => ({
+              service_order_id: editData.id,
+              photo_url: r.url,
+              stage: "initial_condition",
+              label: fileLabels[idx] || "",
+              uploaded_by: authUser?.id,
+              telegram_chat_id: r.chat_id,
+              telegram_message_id: r.message_id,
+            }));
+            await supabase.from("service_documentation").insert(docInserts);
+          }
+        }
+
+        // 6. Update linked DP transaction in layanan table if DP exists/changed
+        if (dpValue > 0 || (editData.down_payment && editData.down_payment !== dpValue)) {
+          await supabase
+            .from("layanan")
+            .update({
+              nominal: dpValue,
+              customer_name: formData.cs_name,
+              customer_whatsapp: formData.cs_phone,
+            })
+            .eq("linked_service_order_id", editData.id);
+        }
 
         toast.success("Service order berhasil diperbarui!");
         if (typeof window !== "undefined") {
@@ -588,7 +714,8 @@ Model : ${formData.watch_model || "—"}
 Tipe : ${formData.watch_movement ? formData.watch_movement.toUpperCase() : "—"}
 Kendala : ${formData.problem}
 Request : ${formData.request || "—"}
-Keterangan : ${formData.notes || "—"}`;
+Keterangan : ${formData.notes || "—"}
+Dibuat oleh : ${createdByDisplay}`;
 
       if (hasDp) {
         formattedCaption += `
