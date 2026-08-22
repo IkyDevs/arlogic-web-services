@@ -81,11 +81,11 @@ export default function AdminSidebar({
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center gap-3 px-4 mb-6 sm:mb-8 flex-shrink-0">
+        <div className="flex flex-col items-center gap-3 px-4 mb-6 sm:mb-8 flex-shrink-0">
           <img
             src="/logo.png"
             alt="Arlogic"
-            className="h-12 w-auto brightness-0 dark:invert"
+            className="h-10 w-3xl brightness-0 dark:invert object-cover"
           />
           <div>
             <h1 className="text-base font-bold text-slate-900">WatchService</h1>

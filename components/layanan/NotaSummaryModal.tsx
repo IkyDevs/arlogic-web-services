@@ -645,11 +645,11 @@ export default function NotaSummaryModal({
                     <img
                       src="/logo.png"
                       alt="Arlogic Logo"
-                      className="h-8 w-auto brightness-0 object-contain"
+                      className="h-10 w-3xl brightness-0  object-cover"
                     />
                   </div>
                   <p className="font-bold text-sm tracking-wide uppercase">
-                    {storeName}
+                    ARLOGIC {storeName}
                   </p>
                   <p className="text-[10px] text-slate-600">{storeAddress}</p>
                   <p className="text-[10px] text-slate-600">{storeWebsite}</p>
