@@ -255,19 +255,14 @@ export default function QueueList({
   const [pendingTakeService, setPendingTakeService] = useState<ExtendedServiceOrder | null>(null);
 
   const requestTakeProject = async (service: ExtendedServiceOrder) => {
-    const activeCount = myServices.length;
-    if (activeCount >= 2) {
-      toast.error("Maksimal 2 proyek aktif. Selesaikan proyek lain dulu.");
-      return;
-    }
-    // Show confirmation popup
+    // Show confirmation popup - teknisi bebas ambil service tanpa limit
     setPendingTakeService(service);
     setShowTakeConfirm(true);
   };
 
   const confirmTakeProject = async () => {
     if (!pendingTakeService) return;
-    
+
     const activeUser = (await supabase.auth.getUser()).data.user;
     const activeTeknisiId = activeUser?.id || teknisiId;
 
