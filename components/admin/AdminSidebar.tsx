@@ -85,7 +85,7 @@ export default function AdminSidebar({
           <img
             src="/logo.png"
             alt="Arlogic"
-            className="h-12 w-auto filter invert dark:invert-0 brightness-0 dark:brightness-100"
+            className="h-12 w-auto brightness-0 dark:invert"
           />
           <div>
             <h1 className="text-base font-bold text-slate-900">WatchService</h1>

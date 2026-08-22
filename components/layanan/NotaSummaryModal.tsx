@@ -641,7 +641,7 @@ export default function NotaSummaryModal({
                     <img
                       src="/logo.png"
                       alt="Arlogic Logo"
-                      className="h-8 w-auto filter invert object-contain"
+                      className="h-8 w-auto brightness-0 object-contain"
                     />
                   </div>
                   <p className="font-bold text-sm tracking-wide uppercase">

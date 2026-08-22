@@ -80,7 +80,7 @@ export default function LoginPage() {
             <div className="flex items-center">
               <img
                 src="/logo.png"
-                className="h-14 w-auto filter invert dark:invert-0 brightness-0 dark:brightness-100 object-contain"
+                className="h-14 w-auto brightness-0 dark:invert object-contain"
               />
             </div>
 
@@ -133,7 +133,7 @@ export default function LoginPage() {
                 <img
                   src="/logo.png"
                   alt="Arlogic"
-                  className="h-10 w-auto filter invert dark:invert-0 brightness-0 dark:brightness-100 object-contain"
+                  className="h-10 w-auto brightness-0 dark:invert object-contain"
                 />
               </div>
 
