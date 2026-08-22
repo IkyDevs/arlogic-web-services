@@ -78,17 +78,21 @@ const ALLOWED_TYPES = [
 
 const DARK_BADGE: Record<string, string> = {
   assigned: "dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/25",
-  in_progress: "dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25",
+  in_progress:
+    "dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25",
   req_sparepart_admin:
     "dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/25",
-  po_pending: "dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/25",
+  po_pending:
+    "dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/25",
   sparepart_ready:
     "dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25",
-  qc_pending: "dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/25",
+  qc_pending:
+    "dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/25",
   revision_required:
     "dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/25",
   pending: "dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-500/30",
-  completed: "dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25",
+  completed:
+    "dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25",
 };
 
 export default function QueueList({
@@ -145,7 +149,9 @@ export default function QueueList({
   const supabase = createClient();
   const { branchId } = useBranchScope();
   const { user } = useAuthStore();
-  const [sessionKey] = useState(() => `qc_queue_${user?.id || 'anon'}_${Date.now()}`);
+  const [sessionKey] = useState(
+    () => `qc_queue_${user?.id || "anon"}_${Date.now()}`,
+  );
   const upload = useCentralUpload(sessionKey);
   const [localProgress, setLocalProgress] = useState(0);
 
@@ -252,7 +258,8 @@ export default function QueueList({
   };
 
   const [showTakeConfirm, setShowTakeConfirm] = useState(false);
-  const [pendingTakeService, setPendingTakeService] = useState<ExtendedServiceOrder | null>(null);
+  const [pendingTakeService, setPendingTakeService] =
+    useState<ExtendedServiceOrder | null>(null);
 
   const requestTakeProject = async (service: ExtendedServiceOrder) => {
     // Show confirmation popup - teknisi bebas ambil service tanpa limit
@@ -307,6 +314,35 @@ export default function QueueList({
   const cancelTakeProject = () => {
     setShowTakeConfirm(false);
     setPendingTakeService(null);
+  };
+
+  const returnServiceToQueue = async (service: ExtendedServiceOrder) => {
+    if (!confirm(`Kembalikan "${service.customer_name}" ke list service?`))
+      return;
+    try {
+      const { error } = await supabase
+        .from("service_orders")
+        .update({
+          assigned_teknisi_id: null,
+          status: "pending",
+        })
+        .eq("id", service.id);
+
+      if (error) throw error;
+
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id,
+        teknisi_id: teknisiId,
+        status: "returned_to_queue",
+        message: "Service dikembalikan ke antrian oleh teknisi",
+        details: { action: "return_to_queue" },
+      });
+
+      toast.success("Service berhasil dikembalikan ke list!");
+      fetchQueues();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   const takeWithPending = async (service: ExtendedServiceOrder) => {
@@ -381,7 +417,12 @@ export default function QueueList({
 
   // ── Tarik kembali service dari QC ke proyek teknisi ──
   const pullFromQC = async (service: ExtendedServiceOrder) => {
-    if (!confirm(`Tarik service "${service.customer_name}" kembali dari QC ke proyek Anda?`)) return;
+    if (
+      !confirm(
+        `Tarik service "${service.customer_name}" kembali dari QC ke proyek Anda?`,
+      )
+    )
+      return;
     try {
       // Kembalikan status ke in_progress (items/sparepart tetap tersimpan)
       const { error: updateErr } = await supabase
@@ -413,7 +454,7 @@ export default function QueueList({
             type: "warning",
             link: "/qc",
             is_read: false,
-          }))
+          })),
         );
       }
 
@@ -797,14 +838,14 @@ export default function QueueList({
       setLocalProgress(10);
       const timer = setInterval(() => {
         setLocalProgress((prev) => {
-          if (prev >= 90) return prev
-          return prev + 15
+          if (prev >= 90) return prev;
+          return prev + 15;
         });
       }, 500);
 
       const results = await upload.legacyUpload(
         qcPhotos,
-        'qc_update',
+        "qc_update",
         caption,
         undefined,
         (selectedService as any)?.branch_code || undefined,
@@ -822,9 +863,7 @@ export default function QueueList({
             photo_url: r.url,
             stage: "qc",
             uploaded_by: user.id,
-            media_type: qcPhotos[i]
-              ? mediaTypeFromFile(qcPhotos[i])
-              : "image",
+            media_type: qcPhotos[i] ? mediaTypeFromFile(qcPhotos[i]) : "image",
             ...buildTelegramMetadata(results),
           });
         }
@@ -1196,7 +1235,9 @@ export default function QueueList({
                       {service.last_update && (
                         <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
                           <Clock className="w-3 h-3" />
-                          <span className="truncate">Terakhir: {lastUpdateMessage}</span>
+                          <span className="truncate">
+                            Terakhir: {lastUpdateMessage}
+                          </span>
                         </div>
                       )}
 
@@ -1232,6 +1273,15 @@ export default function QueueList({
                               className="h-9 px-3.5 text-xs bg-[var(--color-warning-bg)] text-[var(--color-warning)] font-semibold rounded-lg hover:opacity-80 transition-opacity flex items-center gap-1.5"
                             >
                               <Clock className="w-3.5 h-3.5" /> PENDING
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                returnServiceToQueue(service);
+                              }}
+                              className="h-9 px-3.5 text-xs bg-[var(--color-danger-bg)] text-[var(--color-danger)] font-semibold rounded-lg hover:opacity-80 transition-opacity flex items-center gap-1.5"
+                            >
+                              <Undo2 className="w-3.5 h-3.5" /> KEMBALIKAN
                             </button>
                           </>
                         )}
@@ -1315,7 +1365,11 @@ export default function QueueList({
                           <span className="px-2.5 py-1 bg-[var(--color-success-bg)] text-[var(--color-success)] text-[11px] font-semibold rounded-full border border-[var(--color-success)]/25">
                             BARU
                           </span>
-                          {service.category && <span className="px-2.5 py-1 bg-[var(--color-info-bg)] text-[var(--color-info)] text-[11px] font-medium rounded-full border border-[var(--color-info)]/25">{service.category}</span>}
+                          {service.category && (
+                            <span className="px-2.5 py-1 bg-[var(--color-info-bg)] text-[var(--color-info)] text-[11px] font-medium rounded-full border border-[var(--color-info)]/25">
+                              {service.category}
+                            </span>
+                          )}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
@@ -1335,18 +1389,30 @@ export default function QueueList({
 
                         <div className="flex items-start gap-2 text-sm text-[var(--color-text-secondary)] bg-[var(--color-surface)] rounded-lg px-3 py-2.5">
                           <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--color-text-tertiary)]" />
-                          <p className="line-clamp-2">{service.issue_description}</p>
+                          <p className="line-clamp-2">
+                            {service.issue_description}
+                          </p>
                         </div>
                       </div>
 
                       <div className="flex gap-3 pt-1">
-                        <button onClick={(e) => { e.stopPropagation(); viewServiceDetails(service); }}
-                          className="flex-1 h-11 px-5 text-sm bg-[var(--color-elevated)] text-[var(--color-text)] border border-[var(--color-border)] font-semibold rounded-xl hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            viewServiceDetails(service);
+                          }}
+                          className="flex-1 h-11 px-5 text-sm bg-[var(--color-elevated)] text-[var(--color-text)] border border-[var(--color-border)] font-semibold rounded-xl hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center gap-2"
+                        >
                           <Eye className="w-4 h-4" /> DETAIL
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); requestTakeProject(service); }}
-                          className="flex-1 h-11 px-5 text-sm bg-[var(--color-accent-teal-strong)] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
-                            <CheckCircle className="w-4 h-4" /> AMBIL
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            requestTakeProject(service);
+                          }}
+                          className="flex-1 h-11 px-5 text-sm bg-[var(--color-accent-teal-strong)] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle className="w-4 h-4" /> AMBIL
                         </button>
                       </div>
                     </div>
@@ -1703,7 +1769,10 @@ export default function QueueList({
                             onClick={() => window.open(photo, "_blank")}
                           >
                             {serviceInfoPhotoTypes[i] === "video" ? (
-                              <video src={photo} className="w-full h-full object-cover" />
+                              <video
+                                src={photo}
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
                               <img
                                 src={photo}
@@ -1720,13 +1789,17 @@ export default function QueueList({
                   {/* Info */}
                   <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)] space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-xs text-[var(--color-text-secondary)]">Invoice</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">
+                        Invoice
+                      </span>
                       <span className="text-xs font-mono font-medium text-[var(--color-text)]">
                         {selectedService.invoice_number}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-[var(--color-text-secondary)]">Status</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">
+                        Status
+                      </span>
                       <span
                         className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getStatusBadge(selectedService.status).color}`}
                       >
@@ -1734,19 +1807,25 @@ export default function QueueList({
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-[var(--color-text-secondary)]">Customer</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">
+                        Customer
+                      </span>
                       <span className="text-sm font-medium text-[var(--color-text)]">
                         {selectedService.customer_name}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-[var(--color-text-secondary)]">Phone</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">
+                        Phone
+                      </span>
                       <span className="text-sm text-[var(--color-text)]">
                         {selectedService.customer_phone}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs text-[var(--color-text-secondary)]">Device</span>
+                      <span className="text-xs text-[var(--color-text-secondary)]">
+                        Device
+                      </span>
                       <span className="text-sm text-[var(--color-text)]">
                         {selectedService.watch_brand ||
                           selectedService.device_brand}{" "}

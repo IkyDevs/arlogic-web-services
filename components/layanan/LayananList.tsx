@@ -16,6 +16,7 @@ import {
   X,
   Plus,
   Camera,
+  Receipt,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTransactionStore } from "@/stores/transaction-store";
@@ -33,6 +34,7 @@ import {
   metodePembayaranLabels,
   leadSourceLabels,
 } from "@/types";
+import NotaSummaryModal from "./NotaSummaryModal";
 
 interface LayananListProps {
   isAdmin?: boolean;
@@ -404,6 +406,9 @@ export default function LayananList({
   const [detailTx, setDetailTx] = useState<TransactionData | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [photoGallery, setPhotoGallery] = useState<string[] | null>(null);
+  const [showNotaModal, setShowNotaModal] = useState(false);
+  const [selectedTxForNota, setSelectedTxForNota] =
+    useState<TransactionData | null>(null);
 
   useEffect(() => {
     if (statusFilter !== undefined) {
@@ -436,32 +441,32 @@ export default function LayananList({
     }
     if (filterMetode) {
       data = data.filter((t) => {
-        if (!t.split_payment && t.metode_pembayaran === filterMetode) return true;
+        if (!t.split_payment && t.metode_pembayaran === filterMetode)
+          return true;
         if (t.split_payment) {
-          return t.metode_pembayaran_1 === filterMetode || t.metode_pembayaran_2 === filterMetode;
+          return (
+            t.metode_pembayaran_1 === filterMetode ||
+            t.metode_pembayaran_2 === filterMetode
+          );
         }
         return false;
       });
     }
     return data;
-  }, [
-    transactions,
-    searchQuery,
-    filterJenis,
-    filterStatus,
-    filterMetode,
-  ]);
+  }, [transactions, searchQuery, filterJenis, filterStatus, filterMetode]);
 
   const handleDelete = async (item: TransactionData) => {
     const total = calculateTransactionTotal(item.items || []);
-    console.log('[DEBUG:LayananList] handleDelete START', {
+    console.log("[DEBUG:LayananList] handleDelete START", {
       item_id: item.id,
       customer_name: item.customer_name,
       telegram_chat_id: (item as any).telegram_chat_id,
       telegram_message_id: (item as any).telegram_message_id,
       upload_status: (item as any).upload_status,
       photo_urls: (item as any).photo_urls,
-      will_delete_telegram: !!((item as any).telegram_chat_id && (item as any).telegram_message_id),
+      will_delete_telegram: !!(
+        (item as any).telegram_chat_id && (item as any).telegram_message_id
+      ),
     });
     if (
       !confirm(
@@ -472,7 +477,7 @@ export default function LayananList({
 
     if ((item as any).telegram_chat_id && (item as any).telegram_message_id) {
       try {
-        console.log('[DEBUG:LayananList] Calling delete-message API', {
+        console.log("[DEBUG:LayananList] Calling delete-message API", {
           chat_id: (item as any).telegram_chat_id,
           message_id: (item as any).telegram_message_id,
         });
@@ -485,23 +490,26 @@ export default function LayananList({
           }),
         });
         const deleteData = await deleteRes.text();
-        console.log('[DEBUG:LayananList] delete-message response', {
+        console.log("[DEBUG:LayananList] delete-message response", {
           status: deleteRes.status,
           body: deleteData,
         });
       } catch (e) {
-        console.error('[DEBUG:LayananList] delete-message FAILED', {
+        console.error("[DEBUG:LayananList] delete-message FAILED", {
           error: e instanceof Error ? e.message : String(e),
         });
       }
     } else {
-      console.log('[DEBUG:LayananList] SKIP delete-message - missing chat_id or message_id', {
-        chat_id: (item as any).telegram_chat_id,
-        message_id: (item as any).telegram_message_id,
-      });
+      console.log(
+        "[DEBUG:LayananList] SKIP delete-message - missing chat_id or message_id",
+        {
+          chat_id: (item as any).telegram_chat_id,
+          message_id: (item as any).telegram_message_id,
+        },
+      );
     }
     try {
-      console.log('[DEBUG:LayananList] Calling store.remove', { id: item.id });
+      console.log("[DEBUG:LayananList] Calling store.remove", { id: item.id });
       await remove(item.id!);
       toast.success("Transaksi berhasil dihapus");
     } catch (err: any) {
@@ -876,7 +884,7 @@ export default function LayananList({
                         ) : (
                           <span className="text-[10px] text-slate-300">-</span>
                         )}
-                        {tx.upload_status === 'FAILED' && (
+                        {tx.upload_status === "FAILED" && (
                           <button
                             onClick={() => onEdit?.(tx)}
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
@@ -886,18 +894,20 @@ export default function LayananList({
                             Failed
                           </button>
                         )}
-                        {(tx.upload_status === 'UPLOADING' || tx.upload_status === 'PENDING') && (
+                        {(tx.upload_status === "UPLOADING" ||
+                          tx.upload_status === "PENDING") && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-50 text-amber-600">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                             Processing
                           </span>
                         )}
-                        {tx.upload_status === 'SUCCESS' && photos.length === 0 && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-50 text-emerald-600">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Complete
-                          </span>
-                        )}
+                        {tx.upload_status === "SUCCESS" &&
+                          photos.length === 0 && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-50 text-emerald-600">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Complete
+                            </span>
+                          )}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-center">
@@ -916,6 +926,16 @@ export default function LayananList({
                             title="Detail"
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedTxForNota(tx);
+                              setShowNotaModal(true);
+                            }}
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                            title="Nota / Receipt"
+                          >
+                            <Receipt className="w-4 h-4" />
                           </button>
                           {tx.status === "active" && (
                             <>
@@ -939,7 +959,7 @@ export default function LayananList({
                               </button>
                             </>
                           )}
-                          {tx.upload_status === 'FAILED' && (
+                          {tx.upload_status === "FAILED" && (
                             <button
                               onClick={() => onEdit?.(tx)}
                               className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg"
@@ -983,6 +1003,15 @@ export default function LayananList({
         <TransactionDetailModal
           transaction={detailTx}
           onClose={() => setDetailTx(null)}
+        />
+      )}
+      {showNotaModal && selectedTxForNota && (
+        <NotaSummaryModal
+          transaction={selectedTxForNota}
+          onClose={() => {
+            setShowNotaModal(false);
+            setSelectedTxForNota(null);
+          }}
         />
       )}
       {photoGallery && (

@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Printer, X, Plus, Trash2, Edit2, CheckCircle2, RotateCcw, Send, Loader2 } from "lucide-react";
+import {
+  Printer,
+  X,
+  Plus,
+  Trash2,
+  Edit2,
+  CheckCircle2,
+  RotateCcw,
+  Send,
+  Loader2,
+} from "lucide-react";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
 import { useBranch } from "@/lib/context/BranchContext";
 import { toPng } from "html-to-image";
@@ -34,10 +44,10 @@ export default function NotaSummaryModal({
 
   // ── Default State ──────────────────────────────────────────────────────────
   const [storeName, setStoreName] = useState(
-    txBranch?.name || "Arlogic Jember"
+    txBranch?.name || "Arlogic Jember",
   );
   const [storeAddress, setStoreAddress] = useState(
-    txBranch?.address || "Jl. S.Parman 16 Sumbersari Jember"
+    txBranch?.address || "Jl. S.Parman 16 Sumbersari Jember",
   );
   const [storeWebsite, setStoreWebsite] = useState("www.arlogic.id");
   const [storeNpwp, setStoreNpwp] = useState("10419402026073116 5814");
@@ -48,28 +58,36 @@ export default function NotaSummaryModal({
 
   const [receiptNo, setReceiptNo] = useState(
     transaction?.invoice_number ||
-      (transaction?.id ? transaction.id.slice(0, 12) : `TX-${Date.now().toString().slice(-6)}`)
+      (transaction?.id
+        ? transaction.id.slice(0, 12)
+        : `TX-${Date.now().toString().slice(-6)}`),
   );
   const [dateStr, setDateStr] = useState(
-    `${createdDate.getDate()}/${createdDate.getMonth() + 1}/${createdDate.getFullYear()}`
+    `${createdDate.getDate()}/${createdDate.getMonth() + 1}/${createdDate.getFullYear()}`,
   );
   const [timeStr, setTimeStr] = useState(
-    createdDate.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }).replace(/:/g, ".")
+    createdDate
+      .toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+      .replace(/:/g, "."),
   );
   const [kasirName, setKasirName] = useState(
-    transaction?.handled_by_name || "Admin"
+    transaction?.handled_by_name || "Admin",
   );
   const [custName, setCustName] = useState(
-    transaction?.customer_name || "Pelanggan"
+    transaction?.customer_name || "Pelanggan",
   );
 
   // ── Items Initialization ────────────────────────────────────────────────
   const initialItems: NotaItem[] = (() => {
-    if (transaction?.items && Array.isArray(transaction.items) && transaction.items.length > 0) {
+    if (
+      transaction?.items &&
+      Array.isArray(transaction.items) &&
+      transaction.items.length > 0
+    ) {
       const list: NotaItem[] = [];
       transaction.items.forEach((it: any, idx: number) => {
         const sName = (it.jenis_layanan || "Layanan").toUpperCase();
@@ -99,8 +117,14 @@ export default function NotaSummaryModal({
     return [
       {
         id: `1-${Date.now()}`,
-        serviceName: (transaction?.jenis_layanan || transaction?.category || "PERBAIKAN JAM").toUpperCase(),
-        sku: transaction?.watch_brand ? `${transaction.watch_brand}-${transaction.watch_model || "ITEM"}` : "AC2825BH",
+        serviceName: (
+          transaction?.jenis_layanan ||
+          transaction?.category ||
+          "PERBAIKAN JAM"
+        ).toUpperCase(),
+        sku: transaction?.watch_brand
+          ? `${transaction.watch_brand}-${transaction.watch_model || "ITEM"}`
+          : "AC2825BH",
         qty: 1,
         nominal: transaction?.total || transaction?.estimated_cost || 0,
       },
@@ -110,15 +134,20 @@ export default function NotaSummaryModal({
   const [items, setItems] = useState<NotaItem[]>(initialItems);
 
   // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.qty * item.nominal, 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.qty * item.nominal,
+    0,
+  );
   const total = subtotal;
 
   const [paymentMethod, setPaymentMethod] = useState(
     transaction?.split_payment
       ? "Split Payment"
       : transaction?.metode_pembayaran
-      ? (transaction.metode_pembayaran === "cash" ? "Cash" : transaction.metode_pembayaran.toUpperCase())
-      : "Cash"
+        ? transaction.metode_pembayaran === "cash"
+          ? "Cash"
+          : transaction.metode_pembayaran.toUpperCase()
+        : "Cash",
   );
 
   const [points, setPoints] = useState(Math.floor(total / 10000) || 25);
@@ -146,7 +175,7 @@ export default function NotaSummaryModal({
   // Update Item
   const handleUpdateItem = (id: string, field: keyof NotaItem, value: any) => {
     setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, [field]: value } : it))
+      prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)),
     );
   };
 
@@ -214,48 +243,75 @@ export default function NotaSummaryModal({
   const handleSendTelegram = async () => {
     if (!printRef.current) return;
     setSendingTelegram(true);
-    const toastId = toast.loading("Memproses Nota PNG & mengunggah ke Telegram...");
+    const toastId = toast.loading(
+      "Memproses Nota PNG & mengunggah ke Telegram...",
+    );
 
     try {
-      const dataUrl = await toPng(printRef.current, { cacheBust: true, pixelRatio: 2 });
+      console.log("[DEBUG] Starting convertToImage...");
+      const dataUrl = await toPng(printRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+      });
+      console.log("[DEBUG] PNG dataUrl generated, length:", dataUrl.length);
+
+      // Convert dataURL to blob
       const res = await fetch(dataUrl);
       const blob = await res.blob();
+      console.log("[DEBUG] Blob created, size:", blob.size, "type:", blob.type);
 
       const formData = new FormData();
       formData.append("file", blob, `nota-${receiptNo}.png`);
       formData.append(
         "caption",
-        `📋 <b>NOTA TRANSAKSI #${receiptNo}</b>\n\n🏪 <b>Cabang:</b> ${storeName}\n👤 <b>Customer:</b> ${custName}\n👤 <b>Kasir:</b> ${kasirName}\n💰 <b>Total:</b> Rp${total.toLocaleString("id-ID")}\n💳 <b>Bayar:</b> ${paymentMethod}\n⭐️ <b>Poin:</b> +${points}\n📅 <b>Tanggal:</b> ${dateStr} ${timeStr}\n\n<i>Dibuat otomatis via Arlogic System</i>`
+        `📋 <b>NOTA TRANSAKSI #${receiptNo}</b>\n\n🏪 <b>Cabang:</b> ${storeName}\n👤 <b>Customer:</b> ${custName}\n👤 <b>Kasir:</b> ${kasirName}\n💰 <b>Total:</b> Rp${total.toLocaleString("id-ID")}\n💳 <b>Bayar:</b> ${paymentMethod}\n⭐️ <b>Poin:</b> +${points}\n📅 <b>Tanggal:</b> ${dateStr} ${timeStr}\n\n<i>Dibuat otomatis via Arlogic System</i>`,
       );
       formData.append("branch_code", txBranch?.code || "");
       formData.append("branch_name", storeName);
 
+      console.log(
+        "[DEBUG] FormData prepared, sending to /api/telegram/send-nota...",
+      );
       const apiRes = await fetch("/api/telegram/send-nota", {
         method: "POST",
         body: formData,
       });
 
+      console.log("[DEBUG] API response status:", apiRes.status);
       const data = await apiRes.json();
+      console.log("[DEBUG] API response data:", data);
+
       if (!apiRes.ok || !data.success) {
-        throw new Error(data.error || "Gagal mengunggah nota ke Telegram");
+        throw new Error(
+          data.error ||
+            data.tg_response?.description ||
+            "Gagal mengunggah nota ke Telegram",
+        );
       }
 
-      toast.success("Nota PNG berhasil dikirim ke Telegram Channel!", { id: toastId });
+      toast.success("Nota PNG berhasil dikirim ke Telegram Channel!", {
+        id: toastId,
+      });
     } catch (err: any) {
-      console.error("Gagal kirim nota PNG ke Telegram:", err);
-      toast.error(err.message || "Gagal mengirim nota ke Telegram", { id: toastId });
+      console.error("[ERROR] Gagal kirim nota PNG ke Telegram:", err);
+      toast.error(`❌ ${err.message || "Gagal mengirim nota ke Telegram"}`, {
+        id: toastId,
+      });
     } finally {
       setSendingTelegram(false);
     }
   };
 
   // Group items by serviceName for thermal display
-  const groupedItems = items.reduce((acc, item) => {
-    const key = item.serviceName || "LAYANAN";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {} as Record<string, NotaItem[]>);
+  const groupedItems = items.reduce(
+    (acc, item) => {
+      const key = item.serviceName || "LAYANAN";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    },
+    {} as Record<string, NotaItem[]>,
+  );
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[90] p-2 sm:p-4 overflow-y-auto">
@@ -296,7 +352,9 @@ export default function NotaSummaryModal({
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-12 gap-6">
           {/* Left Column: Editor Form */}
-          <div className={`sm:col-span-7 space-y-5 ${activeTab === "editor" ? "block" : "hidden sm:block"}`}>
+          <div
+            className={`sm:col-span-7 space-y-5 ${activeTab === "editor" ? "block" : "hidden sm:block"}`}
+          >
             {/* Store Information Header */}
             <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -304,7 +362,9 @@ export default function NotaSummaryModal({
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Nama Cabang</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Nama Cabang
+                  </label>
                   <input
                     type="text"
                     value={storeName}
@@ -313,7 +373,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Website</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Website
+                  </label>
                   <input
                     type="text"
                     value={storeWebsite}
@@ -322,7 +384,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Alamat Cabang</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Alamat Cabang
+                  </label>
                   <input
                     type="text"
                     value={storeAddress}
@@ -331,7 +395,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">NPWP</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    NPWP
+                  </label>
                   <input
                     type="text"
                     value={storeNpwp}
@@ -349,7 +415,9 @@ export default function NotaSummaryModal({
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">No. Nota</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    No. Nota
+                  </label>
                   <input
                     type="text"
                     value={receiptNo}
@@ -358,7 +426,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Tanggal</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Tanggal
+                  </label>
                   <input
                     type="text"
                     value={dateStr}
@@ -367,7 +437,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Jam</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Jam
+                  </label>
                   <input
                     type="text"
                     value={timeStr}
@@ -376,7 +448,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Nama Kasir</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Nama Kasir
+                  </label>
                   <input
                     type="text"
                     value={kasirName}
@@ -385,7 +459,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Nama Customer</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Nama Customer
+                  </label>
                   <input
                     type="text"
                     value={custName}
@@ -426,7 +502,11 @@ export default function NotaSummaryModal({
                           type="text"
                           value={it.serviceName}
                           onChange={(e) =>
-                            handleUpdateItem(it.id, "serviceName", e.target.value.toUpperCase())
+                            handleUpdateItem(
+                              it.id,
+                              "serviceName",
+                              e.target.value.toUpperCase(),
+                            )
                           }
                           className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded focus:outline-none uppercase font-bold"
                           placeholder="PASANG JARUM / GANTI BATERAI"
@@ -440,7 +520,11 @@ export default function NotaSummaryModal({
                           type="text"
                           value={it.sku}
                           onChange={(e) =>
-                            handleUpdateItem(it.id, "sku", e.target.value.toUpperCase())
+                            handleUpdateItem(
+                              it.id,
+                              "sku",
+                              e.target.value.toUpperCase(),
+                            )
                           }
                           className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded focus:outline-none uppercase font-mono"
                           placeholder="AC2825BH"
@@ -457,7 +541,11 @@ export default function NotaSummaryModal({
                           min={1}
                           value={it.qty}
                           onChange={(e) =>
-                            handleUpdateItem(it.id, "qty", parseInt(e.target.value) || 1)
+                            handleUpdateItem(
+                              it.id,
+                              "qty",
+                              parseInt(e.target.value) || 1,
+                            )
                           }
                           className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded focus:outline-none font-bold"
                         />
@@ -471,7 +559,11 @@ export default function NotaSummaryModal({
                           min={0}
                           value={it.nominal}
                           onChange={(e) =>
-                            handleUpdateItem(it.id, "nominal", parseInt(e.target.value) || 0)
+                            handleUpdateItem(
+                              it.id,
+                              "nominal",
+                              parseInt(e.target.value) || 0,
+                            )
                           }
                           className="w-full px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded focus:outline-none font-bold text-emerald-600 dark:text-emerald-400"
                         />
@@ -497,7 +589,9 @@ export default function NotaSummaryModal({
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Metode Pembayaran</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Metode Pembayaran
+                  </label>
                   <input
                     type="text"
                     value={paymentMethod}
@@ -507,7 +601,9 @@ export default function NotaSummaryModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Poin Bertambah</label>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                    Poin Bertambah
+                  </label>
                   <input
                     type="number"
                     value={points}
@@ -520,12 +616,16 @@ export default function NotaSummaryModal({
           </div>
 
           {/* Right Column: Live Thermal Receipt Preview */}
-          <div className={`sm:col-span-5 flex flex-col ${activeTab === "preview" ? "block" : "hidden sm:flex"}`}>
+          <div
+            className={`sm:col-span-5 flex flex-col ${activeTab === "preview" ? "block" : "hidden sm:flex"}`}
+          >
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 🖨️ Live Thermal Preview
               </p>
-              <span className="text-[10px] font-medium text-slate-400">80mm Receipt Format</span>
+              <span className="text-[10px] font-medium text-slate-400">
+                80mm Receipt Format
+              </span>
             </div>
 
             {/* Thermal Receipt Paper Card */}
@@ -538,9 +638,15 @@ export default function NotaSummaryModal({
                 {/* Logo & Header */}
                 <div className="text-center space-y-1 mb-2">
                   <div className="flex justify-center mb-1">
-                    <img src="/logo.png" alt="Arlogic Logo" className="h-8 w-auto filter invert object-contain" />
+                    <img
+                      src="/logo.png"
+                      alt="Arlogic Logo"
+                      className="h-8 w-auto filter invert object-contain"
+                    />
                   </div>
-                  <p className="font-bold text-sm tracking-wide uppercase">{storeName}</p>
+                  <p className="font-bold text-sm tracking-wide uppercase">
+                    {storeName}
+                  </p>
                   <p className="text-[10px] text-slate-600">{storeAddress}</p>
                   <p className="text-[10px] text-slate-600">{storeWebsite}</p>
                   <p className="text-[9px] text-slate-500">NPWP: {storeNpwp}</p>
@@ -567,19 +673,26 @@ export default function NotaSummaryModal({
 
                 {/* Items Grouped */}
                 <div className="space-y-3 my-2">
-                  {Object.entries(groupedItems).map(([sName, sItems]: [string, NotaItem[]]) => (
-                    <div key={sName} className="space-y-1">
-                      <p className="font-bold uppercase text-[11px]">{sName}</p>
-                      {sItems.map((it) => (
-                        <div key={it.id} className="flex justify-between text-[10px]">
-                          <span>
-                            {it.qty} x {it.sku}
-                          </span>
-                          <span>Rp{it.nominal.toLocaleString("id-ID")}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                  {Object.entries(groupedItems).map(
+                    ([sName, sItems]: [string, NotaItem[]]) => (
+                      <div key={sName} className="space-y-1">
+                        <p className="font-bold uppercase text-[11px]">
+                          {sName}
+                        </p>
+                        {sItems.map((it) => (
+                          <div
+                            key={it.id}
+                            className="flex justify-between text-[10px]"
+                          >
+                            <span>
+                              {it.qty} x {it.sku}
+                            </span>
+                            <span>Rp{it.nominal.toLocaleString("id-ID")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ),
+                  )}
                 </div>
 
                 <div className="border-t border-dashed border-black my-2" />
