@@ -637,7 +637,13 @@ export default function NotaSummaryModal({
               >
                 {/* Logo & Header */}
                 <div className="text-center space-y-1 mb-2">
-                  <div className="text-center text-sm font-bold">⌚</div>
+                  <div className="flex justify-center mb-1">
+                    <img
+                      src="/logo.png"
+                      alt="Arlogic Logo"
+                      className="h-8 w-auto filter invert object-contain"
+                    />
+                  </div>
                   <p className="font-bold text-sm tracking-wide uppercase">
                     {storeName}
                   </p>

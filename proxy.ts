@@ -28,7 +28,9 @@ export async function proxy(request: NextRequest) {
             response.cookies.set(
               name,
               value,
-              isAuthCookie ? { ...options, maxAge: AUTH_COOKIE_MAX_AGE } : options,
+              isAuthCookie
+                ? { ...options, maxAge: AUTH_COOKIE_MAX_AGE }
+                : options,
             );
           });
         },
@@ -130,5 +132,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|uploads).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|logo.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+  ],
 };

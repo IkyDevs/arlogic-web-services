@@ -37,16 +37,26 @@ export default function LoginPage() {
       const profile = await ensureProfile(supabase, data.user);
       setUser(profile);
       toast.success(`Welcome back, ${profile.full_name}!`);
-      const validRoles = ['admin', 'teknisi', 'supervisor', 'owner', 'qc', 'engineer'];
+      const validRoles = [
+        "admin",
+        "teknisi",
+        "supervisor",
+        "owner",
+        "qc",
+        "engineer",
+      ];
       const roleRoutes: Record<string, string> = {
-        admin: '/admin',
-        teknisi: '/teknisi',
-        supervisor: '/qc',
-        qc: '/qc',
-        engineer: '/engineer',
-        owner: '/owner',
+        admin: "/admin",
+        teknisi: "/teknisi",
+        supervisor: "/qc",
+        qc: "/qc",
+        engineer: "/engineer",
+        owner: "/owner",
       };
-      const targetRole = profile.role && validRoles.includes(profile.role) ? (roleRoutes[profile.role] || '/login') : '/login';
+      const targetRole =
+        profile.role && validRoles.includes(profile.role)
+          ? roleRoutes[profile.role] || "/login"
+          : "/login";
       router.push(targetRole);
     } catch (error: any) {
       toast.error(error.message);
@@ -67,13 +77,11 @@ export default function LoginPage() {
             className="hidden lg:flex flex-col gap-10"
           >
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
-                <Watch className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-                WatchService
-              </span>
+            <div className="flex items-center">
+              <img
+                src="/logo.png"
+                className="h-10 sm:h-12 w-auto filter invert dark:invert-0 object-contain"
+              />
             </div>
 
             {/* Hero */}
@@ -121,13 +129,12 @@ export default function LoginPage() {
           >
             <div className="bg-white dark:bg-[#1c1c1c] rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm p-8">
               {/* Mobile logo */}
-              <div className="flex items-center gap-2 mb-8 lg:hidden">
-                <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center">
-                  <Watch className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-base font-bold text-gray-900 dark:text-gray-100">
-                  WatchService
-                </span>
+              <div className="flex items-center mb-8 lg:hidden">
+                <img
+                  src="/logo.png"
+                  alt="Arlogic"
+                  className="h-8 w-auto filter invert dark:invert-0 object-contain"
+                />
               </div>
 
               {/* Heading */}

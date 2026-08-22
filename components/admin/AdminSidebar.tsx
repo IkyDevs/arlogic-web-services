@@ -60,7 +60,11 @@ export default function AdminSidebar({
   isCentral = false,
 }: AdminSidebarProps) {
   const items = isCentral
-    ? [...menuItems.slice(0, 7), { id: "gudang", label: "Gudang", icon: Warehouse }, ...menuItems.slice(7)]
+    ? [
+        ...menuItems.slice(0, 7),
+        { id: "gudang", label: "Gudang", icon: Warehouse },
+        ...menuItems.slice(7),
+      ]
     : menuItems;
 
   return (
@@ -78,9 +82,11 @@ export default function AdminSidebar({
         }`}
       >
         <div className="flex items-center gap-3 px-4 mb-6 sm:mb-8 flex-shrink-0">
-          <div className="w-10 h-10 bg-gray-900 rounded-2xl flex items-center justify-center flex-shrink-0">
-            <Watch className="w-5 h-5 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Arlogic"
+            className="h-10 w-auto filter invert dark:invert-0"
+          />
           <div>
             <h1 className="text-base font-bold text-slate-900">WatchService</h1>
             <p className="text-[10px] text-slate-500">Admin Panel</p>
