@@ -649,7 +649,7 @@ export default function NotaSummaryModal({
                     />
                   </div>
                   <p className="font-bold text-sm tracking-wide uppercase">
-                    ARLOGIC {storeName}
+                    {storeName}
                   </p>
                   <p className="text-[10px] text-slate-600">{storeAddress}</p>
                   <p className="text-[10px] text-slate-600">{storeWebsite}</p>
