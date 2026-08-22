@@ -629,11 +629,15 @@ export default function NotaSummaryModal({
             </div>
 
             {/* Thermal Receipt Paper Card */}
-            <div className="flex-1 bg-amber-50/40 dark:bg-slate-950 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex justify-center items-start shadow-inner overflow-y-auto">
+            <div className="flex-1 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex justify-center items-start shadow-inner overflow-y-auto">
               <div
                 ref={printRef}
-                className="w-full max-w-[280px] bg-white text-black p-4 font-mono text-[11px] leading-tight shadow-md border border-slate-200 select-none"
-                style={{ fontFamily: "'Courier New', Courier, monospace" }}
+                className="w-full max-w-[280px] p-4  text-[11px] leading-tight shadow-md border border-slate-200 select-none"
+                style={{
+                  fontFamily: "'Courier New', Courier, monospace",
+                  backgroundColor: "#ffffff",
+                  color: "#000000",
+                }}
               >
                 {/* Logo & Header */}
                 <div className="text-center space-y-1 mb-2">
