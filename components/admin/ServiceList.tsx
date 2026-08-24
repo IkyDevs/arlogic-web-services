@@ -7,7 +7,7 @@ import { useBranchScope } from "@/lib/context/useBranchScope";
 import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, Zap, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn, Edit, UserCheck, ShieldAlert } from "lucide-react";
+import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, Zap, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn, Edit, UserCheck, ShieldAlert, Trash2, AlertTriangle, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/stores/authStore";
 import ServiceInput from "@/components/admin/ServiceInput";
@@ -113,6 +113,31 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
   const [servicePhotoLabels, setServicePhotoLabels] = useState<string[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+  const [deletingService, setDeletingService] = useState<any>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteService() {
+    if (!deletingService) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/admin/delete-service", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service_order_id: deletingService.id }),
+      });
+      const data = await res.json().catch(() => ({}) as any);
+      if (!res.ok) throw new Error(data.error || "Gagal menghapus service");
+      toast.success(`Service ${data.deleted?.invoice_number || deletingService.invoice_number} dihapus permanen`);
+      setDeletingService(null);
+      setDeleteConfirmText("");
+      fetchServices();
+    } catch (e: any) {
+      toast.error(e.message || "Gagal menghapus service");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const magicTrackingUrl = () => {
     if (!selectedService) return "";
@@ -382,6 +407,28 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                         <Edit className="w-3.5 h-3.5" />
                         Edit
                       </button>
+                      {(currentUserProfile?.role === "admin" || currentUserProfile?.role === "engineer") ? (
+                        <button
+                          onClick={() => {
+                            setDeletingService(svc);
+                            setDeleteConfirmText("");
+                          }}
+                          title="Hapus Service Permanen"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Hapus
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          title="Hanya role ADMIN atau ENGINEER yang berhak menghapus service"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Hapus
+                        </button>
+                      )}
                     </td>
                   </motion.tr>
                 );
@@ -559,6 +606,78 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
               </div>
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Delete Service Confirmation Modal */}
+      {deletingService && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[90] p-4" onClick={() => setDeletingService(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full shadow-2xl border border-red-200 dark:border-red-900/50" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-200 dark:border-white/10 flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Hapus Service Permanen</h3>
+                <p className="text-[11px] text-slate-500">Tindakan ini tidak bisa dibatalkan</p>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                <p className="text-sm font-bold text-slate-900">{deletingService.customer_name}</p>
+                <p className="text-xs font-mono text-slate-500 mt-0.5">{deletingService.invoice_number}</p>
+                <span className={`inline-flex mt-2 px-2 py-0.5 text-[10px] font-bold rounded-full border ${serviceStatusLabels[deletingService.status] ? "" : ""} ${deletingService.status === "cancelled" ? "bg-red-100 text-red-700 border-red-200" : "bg-blue-100 text-blue-700 border-blue-200"}`}>
+                  {serviceStatusLabels[deletingService.status] || deletingService.status}
+                </span>
+              </div>
+
+              <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
+                <li>Timeline, foto dokumentasi, rincian item, garansi &amp; feedback <b>dihapus permanen</b></li>
+                <li>Transaksi DP yang ter-link otomatis <b>lepas</b> dan bisa dipilih kembali di Add Service</li>
+                <li>Data tidak dapat dikembalikan</li>
+              </ul>
+
+              <div>
+                <label className="text-xs font-medium text-slate-600 block mb-1.5">
+                  Ketik <span className="font-mono font-bold text-red-600">{deletingService.invoice_number}</span> untuk konfirmasi:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={deletingService.invoice_number}
+                  autoFocus
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && deleteConfirmText.trim().toUpperCase() === String(deletingService.invoice_number).toUpperCase()) {
+                      handleDeleteService();
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setDeletingService(null); setDeleteConfirmText(""); }}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteService}
+                  disabled={deleting || deleteConfirmText.trim().toUpperCase() !== String(deletingService.invoice_number).toUpperCase()}
+                  className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 inline-flex items-center gap-2"
+                >
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  Hapus Permanen
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
