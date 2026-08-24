@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPlayableVideo } from "@/lib/media-utils";
 import SmartMedia from "@/components/ui/SmartMedia";
@@ -59,7 +60,7 @@ function getMovementIcon(m: string) {
   }
 }
 
-export function TrackingContent({ slug, branchName }: { slug?: string[]; branchName?: string }) {
+export function TrackingContent({ slug, branchName, presetService }: { slug?: string[]; branchName?: string; presetService?: any }) {
   const [token, setToken] = useState("");
   const [service, setService] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -79,6 +80,7 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
   const [branchContact, setBranchContact] = useState<{ name: string; phone: string } | null>(null);
   const [trackingRequestName, setTrackingRequestName] = useState("");
   const [trackingRequestInvoice, setTrackingRequestInvoice] = useState("");
+  const router = useRouter();
 
   // Feedback state
   const finalItems = useMemo(() => items, [items]);
@@ -104,9 +106,6 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
   const branchDatabaseId = branchIdFromPath && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(branchIdFromPath)
     ? branchIdFromPath
     : null;
-
-  const trackingPath = (branchSlug: string | null | undefined) =>
-    branchSlug ? `/tracking/${branchSlug}` : "/tracking";
 
   const currentStep = useMemo(() => {
     if (!service) return 0;
@@ -172,6 +171,56 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
     }
   }, []);
 
+  const hydrateService = async (data: any, logToken: string) => {
+    void loadBranchContact({ branchId: data.branch_id });
+
+    if (data.status === 'pending' || data.status === 'assigned' || data.status === 'in_progress') {
+      const { data: queue } = await supabase
+        .from("service_orders")
+        .select("id, status, created_at, assigned_teknisi_id")
+        .eq("branch_id", data.branch_id)
+        .in("status", ["pending", "assigned", "in_progress"])
+        .order("created_at", { ascending: true });
+
+      if (queue) {
+        const pos = queue.findIndex(s => s.id === data.id);
+        const currentWork = queue.find(s => s.status === 'in_progress') || queue.find(s => s.status === 'assigned');
+        const currentWorkPos = currentWork ? queue.findIndex(s => s.id === currentWork.id) + 1 : null;
+        let currentWorkName = null;
+        if (currentWork?.assigned_teknisi_id) {
+          const { data: p } = await supabase.from("profiles").select("full_name").eq("id", currentWork.assigned_teknisi_id).single();
+          currentWorkName = p?.full_name || null;
+        }
+        setQueuePosition({ position: pos + 1, total: queue.length, currentWork: currentWorkName, currentWorkPos });
+      }
+    }
+
+    if (data.assigned_teknisi_id) {
+      const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", data.assigned_teknisi_id).single();
+      setTeknisiName(profile?.full_name || "");
+    }
+
+    const [itemsRes, timelineRes, docsRes, qcDocsRes, feedbackRes] = await Promise.all([
+      data.status === "completed"
+        ? supabase.from("service_items").select("*").eq("service_order_id", data.id).eq("is_final", true)
+        : Promise.resolve({ data: [] }),
+      supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
+      supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
+      supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "qc"),
+      supabase.from("feedbacks").select("id").eq("service_order_id", data.id).maybeSingle(),
+     ]);
+     if (itemsRes.data) setItems(itemsRes.data);
+     if (timelineRes.data) setTimeline(timelineRes.data);
+     if (docsRes.data) setInitialPhotos(docsRes.data);
+     if (qcDocsRes.data) setQCPhotos(qcDocsRes.data);
+     if (feedbackRes.data) setFeedbackAlready(true);
+
+    await supabase.from("tracking_logs").insert({
+      service_order_id: data.id,
+      token: logToken,
+    });
+  };
+
   const trackServiceFromUrl = async (t: string) => {
     setLoading(true); setError("");
     try {
@@ -181,59 +230,17 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
       if (fetchError || !data) { setError("Token tidak valid."); setLoading(false); return; }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
       setService(data);
-      void loadBranchContact({ branchId: data.branch_id });
-
-      // Fetch queue position
-      if (data.status === 'pending' || data.status === 'assigned' || data.status === 'in_progress') {
-        const { data: queue } = await supabase
-          .from("service_orders")
-          .select("id, status, created_at, assigned_teknisi_id")
-          .eq("branch_id", data.branch_id)
-          .in("status", ["pending", "assigned", "in_progress"])
-          .order("created_at", { ascending: true });
-
-        if (queue) {
-          const pos = queue.findIndex(s => s.id === data.id);
-          const currentWork = queue.find(s => s.status === 'in_progress') || queue.find(s => s.status === 'assigned');
-          const currentWorkPos = currentWork ? queue.findIndex(s => s.id === currentWork.id) + 1 : null;
-          let currentWorkName = null;
-          if (currentWork?.assigned_teknisi_id) {
-            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", currentWork.assigned_teknisi_id).single();
-            currentWorkName = p?.full_name || null;
-          }
-          setQueuePosition({ position: pos + 1, total: queue.length, currentWork: currentWorkName, currentWorkPos });
-        }
-      }
-
-      // Fetch teknisi name if assigned
-      if (data.assigned_teknisi_id) {
-        const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", data.assigned_teknisi_id).single();
-        setTeknisiName(profile?.full_name || "");
-      }
-
-      const [itemsRes, timelineRes, docsRes, qcDocsRes, feedbackRes] = await Promise.all([
-        data.status === "completed"
-          ? supabase.from("service_items").select("*").eq("service_order_id", data.id).eq("is_final", true)
-          : Promise.resolve({ data: [] }),
-        supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
-        supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
-        supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "qc"),
-        supabase.from("feedbacks").select("id").eq("service_order_id", data.id).maybeSingle(),
-       ]);
-       if (itemsRes.data) setItems(itemsRes.data);
-       if (timelineRes.data) setTimeline(timelineRes.data);
-       if (docsRes.data) setInitialPhotos(docsRes.data);
-       if (qcDocsRes.data) setQCPhotos(qcDocsRes.data);
-       if (feedbackRes.data) setFeedbackAlready(true);
-
-        // Log visit to tracking_logs
-       await supabase.from("tracking_logs").insert({
-        service_order_id: data.id,
-        token: t,
-      });
+      await hydrateService(data, t);
     } catch (e) { setError("Gagal mengambil informasi service"); }
     setLoading(false);
   };
+
+  // Mode magic link: service sudah divalidasi oleh halaman /track/{invoice}/{code}
+  useEffect(() => {
+    if (!presetService) return;
+    setLoading(true);
+    void hydrateService(presetService, presetService.token || "");
+  }, []);
 
   const trackService = async () => {
     if (!token.trim()) { setError("Masukkan token tracking"); return; }
@@ -245,58 +252,16 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
       const { data, error: fetchError } = await serviceQuery.single();
       if (fetchError || !data) { setError("Token tidak valid. Silakan cek kembali."); setLoading(false); return; }
       if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) { setError("Token sudah kadaluarsa."); setLoading(false); return; }
+
+      // Token valid → arahkan ke URL permanen service ini
+      if (data.access_code && data.invoice_number) {
+        router.replace(`/track/${encodeURIComponent(data.invoice_number)}/${data.access_code}`);
+        setLoading(false);
+        return;
+      }
+
       setService(data);
-      void loadBranchContact({ branchId: data.branch_id });
-
-      // Fetch queue
-      if (data.status === 'pending' || data.status === 'assigned' || data.status === 'in_progress') {
-        const { data: queue } = await supabase
-          .from("service_orders").select("id, status, created_at, assigned_teknisi_id")
-          .eq("branch_id", data.branch_id)
-          .in("status", ["pending", "assigned", "in_progress"])
-          .order("created_at", { ascending: true });
-        if (queue) {
-          const pos = queue.findIndex(s => s.id === data.id);
-          const currentWork = queue.find(s => s.status === 'in_progress') || queue.find(s => s.status === 'assigned');
-          const currentWorkPos = currentWork ? queue.findIndex(s => s.id === currentWork.id) + 1 : null;
-          let currentWorkName = null;
-          if (currentWork?.assigned_teknisi_id) {
-            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", currentWork.assigned_teknisi_id).single();
-            currentWorkName = p?.full_name || null;
-          }
-          setQueuePosition({ position: pos + 1, total: queue.length, currentWork: currentWorkName, currentWorkPos });
-        }
-      }
-
-      // Fetch teknisi name if assigned
-      if (data.assigned_teknisi_id) {
-        const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", data.assigned_teknisi_id).single();
-        setTeknisiName(profile?.full_name || "");
-      }
-
-      const [itemsRes, timelineRes, docsRes, qcDocsRes, feedbackRes] = await Promise.all([
-        data.status === "completed"
-          ? supabase.from("service_items").select("*").eq("service_order_id", data.id).eq("is_final", true)
-          : Promise.resolve({ data: [] }),
-        supabase.from("service_timeline").select("*").eq("service_order_id", data.id).order("created_at", { ascending: true }),
-        supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "initial_condition"),
-        supabase.from("service_documentation").select("*").eq("service_order_id", data.id).eq("stage", "qc"),
-        supabase.from("feedbacks").select("id").eq("service_order_id", data.id).maybeSingle(),
-      ]);
-      if (itemsRes.data) setItems(itemsRes.data);
-      if (timelineRes.data) setTimeline(timelineRes.data);
-      if (docsRes.data) setInitialPhotos(docsRes.data);
-      if (qcDocsRes.data) setQCPhotos(qcDocsRes.data);
-      if (feedbackRes.data) setFeedbackAlready(true);
-
-      // Log visit
-      await supabase.from("tracking_logs").insert({
-        service_order_id: data.id,
-        token: normalizedToken,
-      });
-
-      // Update URL to include token (without full page reload)
-      window.history.replaceState(null, "", trackingPath(branchIdFromPath));
+      await hydrateService(data, normalizedToken);
     } catch (e) { setError("Gagal mengambil informasi service"); }
     setLoading(false);
   };
@@ -347,6 +312,14 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
     }
     setFeedbackLoading(false);
   };
+
+  if (!service && presetService) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!service) {
     return (
@@ -943,7 +916,20 @@ export function TrackingContent({ slug, branchName }: { slug?: string[]; branchN
   );
 }
 
+function TrackingRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/tracking");
+  }, [router]);
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 export default function TrackingPage({ params }: { params: Promise<{ slug?: string[] }> }) {
   const { slug } = use(params);
-  return <TrackingContent slug={slug} />;
+  if (slug && slug.length > 0) return <TrackingRedirect />;
+  return <TrackingContent />;
 }

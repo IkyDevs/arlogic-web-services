@@ -8,11 +8,12 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
+import { buildServiceTrackingUrl } from '@/lib/appUrl';
 
 interface QRCodeGeneratorProps {
   invoiceNumber: string;
   token: string;
-  branchName?: string | null;
+  accessCode?: string | null;
   customerName: string;
   customerPhone?: string;
   onClose?: () => void;
@@ -21,7 +22,7 @@ interface QRCodeGeneratorProps {
 export default function QRCodeGenerator({
   invoiceNumber,
   token,
-  branchName,
+  accessCode,
   customerName,
   customerPhone,
   onClose
@@ -30,12 +31,11 @@ export default function QRCodeGenerator({
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [whatsappLoading, setWhatsappLoading] = useState(false);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const trackingUrl = `${appUrl}/tracking/${branchName ? encodeURIComponent(branchName) : ""}`;
+  const trackingUrl = buildServiceTrackingUrl(invoiceNumber, accessCode);
 
   useEffect(() => {
     generateQR();
-  }, [invoiceNumber, token, branchName]);
+  }, [invoiceNumber, token, accessCode]);
 
   const generateQR = async () => {
     try {

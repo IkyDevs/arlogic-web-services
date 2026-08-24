@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getAppUrl } from "@/lib/appUrl";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/authStore";
@@ -163,8 +164,8 @@ export default function ServiceInput({
   const [lastInvoice, setLastInvoice] = useState<{
     invoice: string;
     token: string;
+    accessCode: string;
     serviceId: string;
-    branchName: string | null;
   } | null>(null);
   const [step, setStep] = useState(1);
   const [estimatedCost, setEstimatedCost] = useState("");
@@ -343,6 +344,29 @@ export default function ServiceInput({
     return `${token}${Date.now().toString(36).toUpperCase().slice(-4)}`;
   };
 
+  const generateAccessCode = async () => {
+    // Kode acak per-service untuk magic link tracking (/track/{invoice}/{code})
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      code = "";
+      for (let i = 0; i < 10; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      const { data: existing } = await supabase
+        .from("service_orders")
+        .select("id")
+        .eq("access_code", code)
+        .maybeSingle();
+
+      if (!existing) return code;
+    }
+
+    return `${code}${Date.now().toString(36).toUpperCase().slice(-4)}`;
+  };
+
   const handleAddPhoto = async (files: FileList | File[] | null, label?: string) => {
     if (!files) return;
     const rawFiles = Array.from(files).filter(
@@ -454,6 +478,7 @@ export default function ServiceInput({
     try {
       const invoiceNumber = generateInvoiceNumber();
       const token = await generateToken();
+      const accessCode = await generateAccessCode();
       const tokenExpiresAt = new Date();
       tokenExpiresAt.setDate(tokenExpiresAt.getDate() + 30);
 
@@ -659,6 +684,7 @@ export default function ServiceInput({
           {
             invoice_number: invoiceNumber,
             token,
+            access_code: accessCode,
             token_expires_at: tokenExpiresAt.toISOString(),
             customer_name: formData.cs_name,
             customer_phone: formData.cs_phone,
@@ -899,7 +925,7 @@ export default function ServiceInput({
       if (user?.id) { clearingDraft.current = true; clearDraft("service", user.id); }
       upload.clear();
       restoredRef.current = false;
-      setLastInvoice({ invoice: invoiceNumber, token, serviceId, branchName: activeBranch?.name || null });
+      setLastInvoice({ invoice: invoiceNumber, token, accessCode, serviceId });
       setSuccess(true);
       setStep(5);
       toast.success("Watch service order created!");
@@ -1900,7 +1926,7 @@ export default function ServiceInput({
               <QRCodeGenerator
                 invoiceNumber={lastInvoice.invoice}
                 token={lastInvoice.token}
-                branchName={lastInvoice.branchName}
+                accessCode={lastInvoice.accessCode}
                 customerName={formData.cs_name}
                 customerPhone={formData.cs_phone}
               />
@@ -1924,7 +1950,7 @@ export default function ServiceInput({
               </button>
               <button
                 onClick={() => {
-                  window.open(`/tracking/${lastInvoice.branchName ? encodeURIComponent(lastInvoice.branchName) : ""}`, "_blank");
+                  window.open(`${getAppUrl()}/track/${encodeURIComponent(lastInvoice.invoice)}/${lastInvoice.accessCode}`, "_blank");
                 }}
                 className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all text-sm font-medium"
               >

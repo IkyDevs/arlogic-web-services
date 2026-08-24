@@ -70,7 +70,7 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Public routes
-  const publicRoutes = ["/login", "/tracking", "/feedback"];
+  const publicRoutes = ["/login", "/tracking", "/feedback", "/track"];
   const isPublicRoute = publicRoutes.some((route) => path.startsWith(route));
 
   // Redirect to login if not authenticated

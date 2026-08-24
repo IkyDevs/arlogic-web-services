@@ -1017,7 +1017,7 @@ export default function AdminDashboard() {
           <QRCodeGenerator
             invoiceNumber={selectedService.invoice_number}
             token={selectedService.token}
-            branchName={activeBranch?.name}
+            accessCode={selectedService.access_code}
             customerName={selectedService.customer_name}
             customerPhone={selectedService.customer_phone}
             onClose={() => {
