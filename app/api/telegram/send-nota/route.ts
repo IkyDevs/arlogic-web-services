@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getChannel } from "@/lib/telegram";
+import { getBotToken, getChannel } from "@/lib/telegram";
 
 export async function POST(req: Request) {
   try {
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = await getBotToken();
     if (!botToken) {
       console.error("[send-nota] ERROR: TELEGRAM_BOT_TOKEN not configured");
       return NextResponse.json(
@@ -39,8 +39,8 @@ export async function POST(req: Request) {
     // Resolve channel dynamically per branch - use "layanan" type for transaction channel
     // This will look for TELEGRAM_CHANNEL_LAYANAN_{branchCode} or fall back to TELEGRAM_CHANNEL_LAYANAN
     const channelId =
-      getChannel("layanan", branchCode, branchName) ||
-      process.env.TELEGRAM_CHANNEL_LAYANAN;
+      (await getChannel("layanan", branchCode, branchName)) ||
+      (await getChannel("layanan"));
 
     console.log("[send-nota] Resolved channelId:", channelId, {
       branchCode,

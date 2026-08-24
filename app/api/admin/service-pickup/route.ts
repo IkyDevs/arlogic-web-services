@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { NextResponse } from "next/server";
-import { sendTelegramMessage } from "@/lib/telegram";
+import { sendTelegramMessage, getChannel } from "@/lib/telegram";
 import { validateOrigin } from "@/lib/csrf";
 import { rateLimitIP } from "@/lib/rate-limit";
 import { servicePickupSchema } from "@/lib/validation/schemas";
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     try {
       await sendTelegramMessage({
-        chatId: process.env.TELEGRAM_CHAT_ID || "",
+        chatId: (await getChannel("expense")) || "",
         text: `✅ SERVICE SUDAH DIAMBIL\n\n📦 Order: ${serviceOrder.invoice_number}\n👤 Customer: ${serviceOrder.customer_name}\n📱 Phone: ${serviceOrder.customer_phone}\n⏰ Selesai: ${new Date(serviceOrder.completed_at).toLocaleDateString("id-ID")}\n⏰ Diambil: ${new Date().toLocaleDateString("id-ID")} ${new Date().toLocaleTimeString("id-ID")}\n👤 Admin: ${profile?.full_name || "Admin"}\n\n#servicedone #pickup`,
         parseMode: "HTML",
       });

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { telegramMessageSchema } from '@/lib/validation/schemas'
-import { getChannel, type TelegramChannelType } from '@/lib/telegram'
+import { getBotToken, getChannel, type TelegramChannelType } from '@/lib/telegram'
 import { createClient } from '@/lib/supabase/server'
-
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 
 // Map type pesan teks → tipe channel telegram
 const TYPE_MAP: Record<string, TelegramChannelType> = {
@@ -34,6 +32,7 @@ async function sendMessage(
   channelId: string,
   message: string,
 ): Promise<{ success: boolean; chat_id?: string; message_id?: number }> {
+  const TELEGRAM_BOT_TOKEN = await getBotToken()
   if (!TELEGRAM_BOT_TOKEN) {
     console.error('TELEGRAM_BOT_TOKEN not configured')
     return { success: false }
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
     const telegramType = TYPE_MAP[parsed.type || 'transaction'] || 'layanan'
     // Branch eksplisit dari body, atau resolve otomatis dari user login
     const branchCode = body.branch || (await resolveBranchFromRequest()) || undefined
-    const channelId = getChannel(telegramType, branchCode)
+    const channelId = await getChannel(telegramType, branchCode)
 
     if (!channelId) {
       return NextResponse.json(

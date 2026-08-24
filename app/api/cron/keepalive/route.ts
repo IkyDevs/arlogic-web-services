@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { getBotToken, getChannel } from '@/lib/telegram'
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
-const TELEGRAM_CHANNEL = process.env.TELEGRAM_CHANNEL_SERVICE || '@arlogic_storage'
 const BATCH_SIZE = 20
 
 async function getFile(fileId: string): Promise<boolean> {
+  const TELEGRAM_BOT_TOKEN = await getBotToken()
   if (!TELEGRAM_BOT_TOKEN) return false
   try {
     const res = await fetch(
@@ -20,7 +20,9 @@ async function getFile(fileId: string): Promise<boolean> {
 }
 
 async function reuploadPhoto(photoData: string, filename: string, caption: string): Promise<string | null> {
+  const TELEGRAM_BOT_TOKEN = await getBotToken()
   if (!TELEGRAM_BOT_TOKEN) return null
+  const TELEGRAM_CHANNEL = (await getChannel('service')) || '@arlogic_storage'
   try {
     const buffer = Buffer.from(photoData, 'base64')
     const blob = new Blob([buffer], { type: 'image/jpeg' })
@@ -54,7 +56,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!TELEGRAM_BOT_TOKEN) {
+    if (!(await getBotToken())) {
       return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN not configured' }, { status: 500 })
     }
 

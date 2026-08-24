@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { telegramDeleteMessageSchema } from '@/lib/validation/schemas'
-
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+import { getBotToken } from '@/lib/telegram'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const parsed = telegramDeleteMessageSchema.parse(body)
 
+    const TELEGRAM_BOT_TOKEN = await getBotToken()
     if (!TELEGRAM_BOT_TOKEN) {
       return NextResponse.json({ error: 'TELEGRAM_BOT_TOKEN not configured' }, { status: 500 })
     }

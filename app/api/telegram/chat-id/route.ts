@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { CHANNELS, getChannel } from '@/lib/telegram'
+import { getChannel, type TelegramChannelType } from '@/lib/telegram'
 import { createClient } from '@/lib/supabase/server'
 
 async function resolveBranchFromRequest(): Promise<string | null> {
@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get('type') || 'layanan'
   // Branch eksplisit, atau resolve otomatis dari user login
   const branch = request.nextUrl.searchParams.get('branch') || (await resolveBranchFromRequest()) || undefined
-  const chatId = getChannel(type as keyof typeof CHANNELS, branch) || CHANNELS.layanan || ''
+  const chatId =
+    (await getChannel(type as TelegramChannelType, branch)) ||
+    (await getChannel('layanan')) ||
+    ''
   return NextResponse.json({ chat_id: chatId, type, branch })
 }

@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
 import { useBranch } from "@/lib/context/BranchContext";
 import UserAvatar from "@/components/ui/UserAvatar";
+import TelegramSettings from "@/components/engineer/TelegramSettings";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
 import {
@@ -13,7 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-type Tab = "overview" | "announcements" | "reports" | "logs";
+type Tab = "overview" | "announcements" | "reports" | "logs" | "telegram";
 
 export default function EngineerDashboard() {
   const { user, logout } = useAuthStore();
@@ -111,6 +112,7 @@ export default function EngineerDashboard() {
             { id: "announcements", label: "Pengumuman", icon: Megaphone },
             { id: "reports", label: "Laporan Bug", icon: FileWarning },
             { id: "logs", label: "Log Perubahan", icon: ScrollText },
+            { id: "telegram", label: "Telegram", icon: Send },
           ] as Array<{ id: Tab; label: string; icon: LucideIcon }>).map((item) => (
             <button
               key={item.id}
@@ -147,7 +149,7 @@ export default function EngineerDashboard() {
         {/* Top bar */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {tab === "overview" ? "Overview Semua Cabang" : tab === "announcements" ? "Pengumuman" : tab === "reports" ? "Laporan Bug & Request" : "Log Perubahan"}
+            {tab === "overview" ? "Overview Semua Cabang" : tab === "announcements" ? "Pengumuman" : tab === "reports" ? "Laporan Bug & Request" : tab === "telegram" ? "Konfigurasi Telegram" : "Log Perubahan"}
           </h2>
           <UserAvatar user={user} />
         </div>
@@ -270,6 +272,9 @@ export default function EngineerDashboard() {
             {reports.length === 0 && <p className="text-gray-400 text-sm">Belum ada laporan.</p>}
           </div>
         )}
+
+        {/* Telegram */}
+        {tab === "telegram" && <TelegramSettings />}
 
         {/* Logs */}
         {tab === "logs" && (

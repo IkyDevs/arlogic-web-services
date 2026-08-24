@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
+import { getBotToken } from '@/lib/telegram'
 
 export async function GET(
   request: NextRequest,
@@ -10,6 +9,7 @@ export async function GET(
   try {
     const { id } = await params
     const { searchParams } = new URL(request.url)
+    const TELEGRAM_BOT_TOKEN = await getBotToken()
 
     const sb = getSupabaseAdmin()
     const { data: photo, error } = await (sb

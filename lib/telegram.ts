@@ -1,7 +1,26 @@
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
 const TG_API = "https://api.telegram.org/bot";
 
-const CHANNELS = {
+export const TELEGRAM_CHANNEL_TYPES = [
+  "attendance",
+  "service",
+  "layanan",
+  "inventory",
+  "stock_transfer",
+  "closing",
+  "customer",
+  "kaspin",
+  "buku_kas",
+  "teknisi_update",
+  "qc_update",
+  "expense",
+] as const;
+
+export type TelegramChannelType = (typeof TELEGRAM_CHANNEL_TYPES)[number];
+
+// Fallback env (legacy) — dipakai bila nilai belum diisi via UI Engineer Dashboard
+export const CHANNELS: Record<TelegramChannelType, string | undefined> = {
   attendance: process.env.TELEGRAM_CHANNEL_ATTENDANCE,
   service: process.env.TELEGRAM_CHANNEL_SERVICE,
   layanan: process.env.TELEGRAM_CHANNEL_LAYANAN,
@@ -13,39 +32,145 @@ const CHANNELS = {
   buku_kas: process.env.TELEGRAM_CHANNEL_BUKU_KAS,
   teknisi_update: process.env.TELEGRAM_CHANNEL_TEKNISI_UPDATE,
   qc_update: process.env.TELEGRAM_CHANNEL_QC_UPDATE,
-} as const;
+  expense: process.env.TELEGRAM_CHAT_ID,
+};
 
-export { CHANNELS };
+interface CachedTelegramConfig {
+  botToken?: string;
+  globalChannels: Partial<Record<TelegramChannelType, string>>;
+  branchChannels: Map<string, Partial<Record<TelegramChannelType, string>>>;
+  branches: Array<{ id: string; code: string | null; name: string }>;
+}
 
-export type TelegramChannelType = keyof typeof CHANNELS;
+let telegramConfigCache: { data: CachedTelegramConfig; expiresAt: number } | null = null;
+const TELEGRAM_CONFIG_TTL_MS = 60_000;
+
+export function invalidateTelegramConfig() {
+  telegramConfigCache = null;
+}
+
+async function loadTelegramConfig(): Promise<CachedTelegramConfig> {
+  if (telegramConfigCache && Date.now() < telegramConfigCache.expiresAt) {
+    return telegramConfigCache.data;
+  }
+
+  try {
+    const admin = getSupabaseAdmin();
+    const [cfgRes, chanRes, branchRes] = await Promise.all([
+      (admin.from("telegram_config") as any).select("bot_token").limit(1).maybeSingle(),
+      (admin.from("telegram_channels") as any).select("channel_type, branch_id, chat_id").eq("enabled", true),
+      admin.from("branches").select("id, code, name"),
+    ]);
+
+    const data: CachedTelegramConfig = {
+      botToken: cfgRes.data?.bot_token || undefined,
+      globalChannels: {},
+      branchChannels: new Map(),
+      branches: branchRes.data || [],
+    };
+
+    for (const row of chanRes.data || []) {
+      if (!row.chat_id) continue;
+      const type = row.channel_type as TelegramChannelType;
+      if (!row.branch_id) {
+        data.globalChannels[type] = row.chat_id;
+      } else {
+        const perBranch = data.branchChannels.get(row.branch_id) || {};
+        perBranch[type] = row.chat_id;
+        data.branchChannels.set(row.branch_id, perBranch);
+      }
+    }
+
+    if (!data.botToken && process.env.TELEGRAM_BOT_TOKEN) {
+      data.botToken = process.env.TELEGRAM_BOT_TOKEN;
+    }
+
+    telegramConfigCache = { data, expiresAt: Date.now() + TELEGRAM_CONFIG_TTL_MS };
+    return data;
+  } catch (error) {
+    console.error("Failed to load telegram config from DB, using env fallback:", error);
+    // Jangan cache kegagalan terlalu lama agar retry cepat
+    const fallback: CachedTelegramConfig = {
+      botToken: process.env.TELEGRAM_BOT_TOKEN || undefined,
+      globalChannels: { ...CHANNELS },
+      branchChannels: new Map(),
+      branches: [],
+    };
+    telegramConfigCache = { data: fallback, expiresAt: Date.now() + 10_000 };
+    return fallback;
+  }
+}
+
+export async function getBotToken(): Promise<string | undefined> {
+  const cfg = await loadTelegramConfig();
+  return cfg.botToken ?? process.env.TELEGRAM_BOT_TOKEN ?? undefined;
+}
+
+function normalizeBranchKey(value: string): string {
+  return value.toUpperCase().replace(/ARLOGIC\s*/i, "").trim().replace(/\s+/g, "_");
+}
 
 /**
- * Resolve channel telegram dengan prioritas:
- * 1. Channel per cabang: TELEGRAM_CHANNEL_{TIPE}_{KODE_CABANG}
- * 2. Channel global: TELEGRAM_CHANNEL_{TIPE}
- * 3. undefined (caller fallback ke default)
+ * Nilai efektif dari env legacy untuk tiap tipe × scope (global & per-cabang).
+ * Dipakai UI sebagai placeholder agar konfigurasi yang sedang berjalan terlihat.
  */
-export function getChannel(
+export function getEnvChannelDefaults(
+  branches: Array<{ id: string; code: string | null; name: string }>,
+): Record<string, Partial<Record<TelegramChannelType, string>>> {
+  const result: Record<string, Partial<Record<TelegramChannelType, string>>> = {
+    global: { ...CHANNELS },
+  };
+
+  for (const b of branches) {
+    const perBranch: Partial<Record<TelegramChannelType, string>> = {};
+    for (const type of TELEGRAM_CHANNEL_TYPES) {
+      const byCode = b.code
+        ? process.env[`TELEGRAM_CHANNEL_${type.toUpperCase()}_${normalizeBranchKey(b.code)}`]
+        : undefined;
+      const byName = process.env[`TELEGRAM_CHANNEL_${type.toUpperCase()}_${normalizeBranchKey(b.name)}`];
+      const value = byCode || byName;
+      if (value) perBranch[type] = value;
+    }
+    result[b.id] = perBranch;
+  }
+
+  return result;
+}
+
+/**
+ * Resolve channel dengan prioritas:
+ * 1. DB per-cabang (match by branch_id / kode / nama)
+ * 2. DB global
+ * 3. Env legacy dinamis: TELEGRAM_CHANNEL_{TIPE}_{CABANG}
+ * 4. Env legacy global: TELEGRAM_CHANNEL_{TIPE}
+ */
+export async function getChannel(
   type: TelegramChannelType,
   branchCode?: string,
   branchName?: string
-): string | undefined {
-  if (branchCode) {
-    const branchKey = `TELEGRAM_CHANNEL_${type.toUpperCase()}_${branchCode.toUpperCase().replace(/\s+/g, "_")}`;
-    const branchVal = process.env[branchKey];
-    if (branchVal) return branchVal;
+): Promise<string | undefined> {
+  const cfg = await loadTelegramConfig();
+  const rawKey = branchCode || branchName;
+
+  if (rawKey) {
+    const normalized = normalizeBranchKey(rawKey);
+    const branch = cfg.branches.find(
+      (b) =>
+        normalizeBranchKey(b.code || "") === normalized ||
+        normalizeBranchKey(b.name) === normalized ||
+        b.id === rawKey,
+    );
+    if (branch) {
+      const hit = cfg.branchChannels.get(branch.id)?.[type];
+      if (hit) return hit;
+    }
+
+    // Legacy env dinamis per-cabang
+    const envDynamic = process.env[`TELEGRAM_CHANNEL_${type.toUpperCase()}_${normalized}`];
+    if (envDynamic) return envDynamic;
   }
-  if (branchName) {
-    const cleanName = branchName
-      .toUpperCase()
-      .replace(/ARLOGIC\s*/i, "")
-      .trim()
-      .replace(/\s+/g, "_");
-    const nameKey = `TELEGRAM_CHANNEL_${type.toUpperCase()}_${cleanName}`;
-    const nameVal = process.env[nameKey];
-    if (nameVal) return nameVal;
-  }
-  return CHANNELS[type];
+
+  return cfg.globalChannels[type] ?? CHANNELS[type];
 }
 
 export interface TelegramMessageResult {
@@ -77,8 +202,6 @@ async function fetchTelegramWithRetry(
   retries = 3,
   baseDelay = 2000,
 ): Promise<any> {
-  if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
-
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -125,7 +248,9 @@ async function fetchTelegramWithRetry(
 }
 
 async function tgPost(method: string, body: any, isFormData = false): Promise<any> {
-  const url = `${TG_API}${TELEGRAM_BOT_TOKEN}/${method}`;
+  const botToken = await getBotToken();
+  if (!botToken) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  const url = `${TG_API}${botToken}/${method}`;
   const options: RequestInit = isFormData
     ? { method: "POST", body }
     : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
@@ -136,7 +261,8 @@ async function getFileUrl(fileId: string): Promise<string | null> {
   try {
     const result = await tgPost("getFile", { file_id: fileId });
     if (!result?.file_path) return null;
-    return `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${result.file_path}`;
+    const botToken = await getBotToken();
+    return `https://api.telegram.org/file/bot${botToken}/${result.file_path}`;
   } catch {
     return null;
   }
@@ -198,8 +324,9 @@ export async function uploadMultipleToTelegram(
   channelType: TelegramChannelType = "service",
   branchCode?: string,
 ): Promise<TelegramMessageResult[]> {
-  const channelId = getChannel(channelType, branchCode);
-  if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  const channelId = await getChannel(channelType, branchCode);
+  const botToken = await getBotToken();
+  if (!botToken) throw new Error("TELEGRAM_BOT_TOKEN not configured");
   if (!channelId) throw new Error(`Channel ID for ${channelType} not configured`);
   if (!files?.length) return [];
 
@@ -263,8 +390,9 @@ export async function uploadToTelegram(
   caption: string,
   channelType: TelegramChannelType = "service",
 ): Promise<string> {
-  const channelId = CHANNELS[channelType];
-  if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  const channelId = await getChannel(channelType);
+  const botToken = await getBotToken();
+  if (!botToken) throw new Error("TELEGRAM_BOT_TOKEN not configured");
   if (!channelId) throw new Error(`Channel ID for ${channelType} not configured`);
 
   const formData = new FormData();
@@ -293,8 +421,9 @@ export interface ExpenseNotificationData {
 export async function sendExpenseTelegramNotification(
   data: ExpenseNotificationData,
 ): Promise<{ messageId: number; chatId: string }> {
-  const chatId = process.env.TELEGRAM_CHANNEL_BUKU_KAS || CHANNELS.buku_kas || CHANNELS.layanan;
-  if (!TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN not configured");
+  const chatId = (await getChannel("buku_kas")) || (await getChannel("layanan"));
+  const botToken = await getBotToken();
+  if (!botToken) throw new Error("TELEGRAM_BOT_TOKEN not configured");
   if (!chatId) throw new Error("Telegram chat ID for Buku Kas not configured");
 
   const formattedDate = new Date(data.createdAt).toLocaleDateString("id-ID", {

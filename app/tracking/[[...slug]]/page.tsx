@@ -238,6 +238,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
   // Mode magic link: service sudah divalidasi oleh halaman /track/{invoice}/{code}
   useEffect(() => {
     if (!presetService) return;
+    setService(presetService);
     setLoading(true);
     void hydrateService(presetService, presetService.token || "");
   }, []);

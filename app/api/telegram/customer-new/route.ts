@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { customerNewSchema } from "@/lib/validation/schemas";
-
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
-const CHANNEL_CUSTOMER = process.env.TELEGRAM_CHANNEL_CUSTOMER!;
+import { getBotToken, getChannel } from "@/lib/telegram";
 
 function formatName(name: string, phone: string): string {
   const clean = phone.replace(/\D/g, "");
@@ -45,6 +43,11 @@ export async function POST(request: NextRequest) {
       name: formattedName,
       phone: cleanPhone,
     });
+
+    const [TELEGRAM_BOT_TOKEN, CHANNEL_CUSTOMER] = await Promise.all([
+      getBotToken(),
+      getChannel("customer"),
+    ]);
 
     if (TELEGRAM_BOT_TOKEN && CHANNEL_CUSTOMER) {
       const msg = `CUSTOMER BARU \nnama cs: ${formattedName}\nno. wa: ${cleanPhone}`;

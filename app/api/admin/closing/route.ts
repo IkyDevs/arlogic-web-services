@@ -3,9 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { validateOrigin } from "@/lib/csrf";
 import { rateLimitIP } from "@/lib/rate-limit";
 import { closingSchema } from "@/lib/validation/schemas";
-
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHANNEL_CLOSING = process.env.TELEGRAM_CHANNEL_CLOSING;
+import { getBotToken, getChannel } from "@/lib/telegram";
 
 export const CREATE_TABLE_SQL = `CREATE TABLE IF NOT EXISTS closings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -65,6 +63,7 @@ owner : ${ownerStatus}`;
 }
 
 async function sendTelegramMessage(text: string): Promise<{ chat_id: string; message_id: number } | null> {
+  const [TELEGRAM_BOT_TOKEN, CHANNEL_CLOSING] = await Promise.all([getBotToken(), getChannel("closing")]);
   if (!TELEGRAM_BOT_TOKEN || !CHANNEL_CLOSING) return null;
   try {
     const res = await fetch(
@@ -78,6 +77,7 @@ async function sendTelegramMessage(text: string): Promise<{ chat_id: string; mes
 }
 
 async function editTelegramMessage(chatId: string, messageId: number, text: string): Promise<boolean> {
+  const TELEGRAM_BOT_TOKEN = await getBotToken();
   if (!TELEGRAM_BOT_TOKEN) return false;
   try {
     const res = await fetch(

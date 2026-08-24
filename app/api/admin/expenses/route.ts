@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { NextResponse } from "next/server";
-import { sendExpenseTelegramNotification } from "@/lib/telegram";
+import { sendExpenseTelegramNotification, getChannel } from "@/lib/telegram";
 import { validateOrigin } from "@/lib/csrf";
 import { rateLimitIP } from "@/lib/rate-limit";
 import { expenseSchema } from "@/lib/validation/schemas";
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       });
       telegramMessageId = telegramResult.messageId || 0;
       await supabase.from("expenses").update({
-        telegram_chat_id: process.env.TELEGRAM_CHAT_ID || "",
+        telegram_chat_id: (await getChannel("expense")) || "",
         telegram_message_id: telegramMessageId,
         updated_at: new Date().toISOString(),
       }).eq("id", expense.id);
