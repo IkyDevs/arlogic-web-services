@@ -259,15 +259,21 @@ export default function ServiceInput({
   const fetchDpTransactions = useCallback(async (searchTerm: string) => {
     if (dpMode !== "from_transaction") return;
 
+    // DP Service bisa menjadi ITEM di transaksi campuran (contoh:
+    // service_langsung + dp_service), sehingga kolom jenis_layanan pada
+    // header layanan tidak mewakilinya. Baca dari layanan_items.
     let query = supabase
-      .from("layanan")
-      .select("id, nominal, metode_pembayaran, detail_sku, notes, photo_url, created_at, customer_name, customer_whatsapp")
+      .from("layanan_items")
+      .select(`
+        id, nominal, detail_sku, notes, created_at,
+        layanan!inner(id, customer_name, customer_whatsapp, metode_pembayaran, photo_url, linked_service_order_id)
+      `)
       .eq("jenis_layanan", "dp_service")
-      .is("linked_service_order_id", null);
+      .is("layanan.linked_service_order_id", null);
 
     if (searchTerm) {
       // Search by name OR phone when dpSearch is active
-      query = query.or(`customer_name.ilike.%${searchTerm}%,customer_whatsapp.ilike.%${searchTerm}%`);
+      query = query.or(`layanan.customer_name.ilike.%${searchTerm}%,layanan.customer_whatsapp.ilike.%${searchTerm}%`);
       query = query.limit(50); // Increase limit when searching
     } else {
       query = query.limit(20); // Default limit
@@ -278,13 +284,50 @@ export default function ServiceInput({
       toast.error("Gagal memuat DP: " + error.message);
       return;
     }
-    setDpTransactions(data || []);
+
+    // Bentuk flat identik dengan konsumen lama — id = id transaksi induk,
+    // agar flow pemilihan & penandaan linked_service_order_id tidak berubah.
+    setDpTransactions(
+      ((data || []) as any[]).map((row) => ({
+        id: row.layanan.id,
+        nominal: row.nominal,
+        metode_pembayaran: row.layanan.metode_pembayaran,
+        detail_sku: row.detail_sku,
+        notes: row.notes,
+        photo_url: row.layanan.photo_url,
+        created_at: row.created_at,
+        customer_name: row.layanan.customer_name,
+        customer_whatsapp: row.layanan.customer_whatsapp,
+      })),
+    );
   }, [dpMode]);
 
   useEffect(() => {
     if (dpMode !== "from_transaction") return;
     fetchDpTransactions(debouncedDpSearch);
   }, [debouncedDpSearch, dpMode, fetchDpTransactions]);
+
+  // Refetch setiap kali modal picker DIBUKA — daftar DP harus segar karena
+  // transaksi baru bisa saja dibuat di tab lain setelah fetch terakhir.
+  const dpPickerOpen = dpMode === "from_transaction" && dpEnabled;
+  const prevDpPickerOpen = useRef(false);
+  const [dpRefreshing, setDpRefreshing] = useState(false);
+  useEffect(() => {
+    if (dpPickerOpen && !prevDpPickerOpen.current) {
+      void fetchDpTransactions(debouncedDpSearch);
+    }
+    prevDpPickerOpen.current = dpPickerOpen;
+  }, [dpPickerOpen, debouncedDpSearch, fetchDpTransactions]);
+
+  async function refreshDpList() {
+    if (dpRefreshing) return;
+    setDpRefreshing(true);
+    try {
+      await fetchDpTransactions(debouncedDpSearch);
+    } finally {
+      setDpRefreshing(false);
+    }
+  }
 
   // ── Auto-save text segera (sync) ─────────────────────────────────────────
   useEffect(() => {
@@ -1579,9 +1622,19 @@ export default function ServiceInput({
                   <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
                       <h3 className="text-sm font-bold text-slate-900">Pilih DP dari Transaksi</h3>
-                      <button type="button" onClick={() => setDpMode("manual")} className="p-1 hover:bg-slate-100 rounded-lg">
-                        <X className="w-4 h-4 text-slate-400" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={refreshDpList}
+                          title="Muat ulang daftar transaksi DP"
+                          className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+                        >
+                          <RotateCw className={`w-4 h-4 ${dpRefreshing ? "animate-spin" : ""}`} />
+                        </button>
+                        <button type="button" onClick={() => setDpMode("manual")} className="p-1 hover:bg-slate-100 rounded-lg">
+                          <X className="w-4 h-4 text-slate-400" />
+                        </button>
+                      </div>
                     </div>
                     <div className="p-3 border-b border-slate-200">
                       <input
