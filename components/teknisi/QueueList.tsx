@@ -8,7 +8,9 @@ import { ServiceOrder } from "@/types";
 import toast from "react-hot-toast";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { buildTelegramMetadata } from "@/lib/telegram-metadata";
-import { mediaTypeFromFile } from "@/lib/media-utils";
+import { mediaTypeFromFile, isPlayableVideo } from "@/lib/media-utils";
+import SmartMedia from "@/components/ui/SmartMedia";
+import VideoThumb from "@/components/ui/VideoThumb";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
@@ -52,6 +54,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 interface QueueListProps {
   teknisiId: string;
   onTakeProject: (project: ServiceOrder) => void;
+  forcedTab?: "available" | "my" | "pending";
 }
 
 interface ExtendedServiceOrder extends ServiceOrder {
@@ -78,6 +81,9 @@ const ALLOWED_TYPES = [
   "image/avif",
 ];
 
+const INITIAL_CONDITION_STAGE = "initial_condition";
+const FRONT_PHOTO_LABEL = "depan";
+
 const DARK_BADGE: Record<string, string> = {
   assigned: "dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/25",
   in_progress:
@@ -100,6 +106,7 @@ const DARK_BADGE: Record<string, string> = {
 export default function QueueList({
   teknisiId,
   onTakeProject,
+  forcedTab,
 }: QueueListProps) {
   const [pendingServices, setPendingServices] = useState<
     ExtendedServiceOrder[]
@@ -111,7 +118,7 @@ export default function QueueList({
   const [selectedService, setSelectedService] =
     useState<ExtendedServiceOrder | null>(null);
   const [queueTab, setQueueTab] = useState<"available" | "my" | "pending">(
-    "available",
+    forcedTab ?? "available",
   );
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showTimelineModal, setShowTimelineModal] = useState(false);
@@ -206,7 +213,6 @@ export default function QueueList({
           "po_pending",
           "sparepart_ready",
           "revision_required",
-          "qc_pending",
         ])
         .order("created_at", { ascending: false }),
     ]);
@@ -251,6 +257,34 @@ export default function QueueList({
         pendingTek.push(s as ExtendedServiceOrder);
       } else {
         active.push(s as ExtendedServiceOrder);
+      }
+    }
+
+    if (pendingRes.data && pendingRes.data.length > 0) {
+      const pendingIds = pendingRes.data.map((s) => s.id);
+      const { data: frontPhotos } = await supabase
+        .from("service_documentation")
+        .select("service_order_id, photo_url, media_type")
+        .in("service_order_id", pendingIds)
+        .eq("stage", INITIAL_CONDITION_STAGE)
+        .eq("label", FRONT_PHOTO_LABEL)
+        .order("created_at", { ascending: true });
+
+      if (frontPhotos) {
+        const frontPhotoMap: Record<
+          string,
+          { url: string; isVideo: boolean }
+        > = {};
+        for (const p of frontPhotos) {
+          if (!p.photo_url || frontPhotoMap[p.service_order_id]) continue;
+          frontPhotoMap[p.service_order_id] = {
+            url: p.photo_url,
+            isVideo: isPlayableVideo(p.media_type, p.photo_url),
+          };
+        }
+        for (const s of pendingRes.data) {
+          (s as any)._frontPhoto = frontPhotoMap[s.id] || null;
+        }
       }
     }
 
@@ -438,56 +472,6 @@ export default function QueueList({
     }
     toast.success("Service dilanjutkan!");
     fetchQueues();
-  };
-
-  // ── Tarik kembali service dari QC ke proyek teknisi ──
-  const pullFromQC = async (service: ExtendedServiceOrder) => {
-    if (
-      !confirm(
-        `Tarik service "${service.customer_name}" kembali dari QC ke proyek Anda?`,
-      )
-    )
-      return;
-    try {
-      // Kembalikan status ke in_progress (items/sparepart tetap tersimpan)
-      const { error: updateErr } = await supabase
-        .from("service_orders")
-        .update({ status: "in_progress", qc_submit_notes: null })
-        .eq("id", service.id);
-      if (updateErr) throw updateErr;
-
-      // Timeline
-      await supabase.from("service_timeline").insert({
-        service_order_id: service.id,
-        teknisi_id: teknisiId,
-        status: "qc_pulled_back",
-        message: "Service ditarik kembali dari QC oleh teknisi",
-        details: { action: "pull_from_qc" },
-      });
-
-      // Notifikasi ke QC/supervisor
-      const { data: qcUsers } = await supabase
-        .from("profiles")
-        .select("id")
-        .in("role", ["supervisor", "qc"]);
-      if (qcUsers && qcUsers.length > 0) {
-        await supabase.from("notifications").insert(
-          qcUsers.map((u: any) => ({
-            user_id: u.id,
-            title: "↩️ Service ditarik dari QC",
-            message: `${user?.full_name || "Teknisi"} menarik ${service.invoice_number || "service"} (${service.customer_name}) kembali dari QC.`,
-            type: "warning",
-            link: "/qc",
-            is_read: false,
-          })),
-        );
-      }
-
-      toast.success("Service ditarik kembali dari QC.");
-      fetchQueues();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Gagal menarik service");
-    }
   };
 
   const sendReminderToAdmin = async (service: ExtendedServiceOrder) => {
@@ -1106,11 +1090,6 @@ export default function QueueList({
       count: pendingServices.length,
     },
     { id: "my" as const, label: "Proyek Saya", count: activeCount },
-    {
-      id: "pending" as const,
-      label: "Pending",
-      count: teknisiPendingServices.length,
-    },
   ];
   const groupedByCategory = (services: ExtendedServiceOrder[]) => {
     const groups: Record<string, ExtendedServiceOrder[]> = {};
@@ -1143,33 +1122,34 @@ export default function QueueList({
 
   return (
     <div className="space-y-6">
-      {/* Tab Switcher */}
-      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-1 rounded-xl flex gap-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setQueueTab(tab.id)}
-            className={`flex-1 h-10 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
-              queueTab === tab.id
-                ? "bg-[var(--color-elevated)] text-[var(--color-text)] shadow-sm"
-                : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-elevated)]/50"
-            }`}
-          >
-            {tab.label}
-            {tab.count > 0 && (
-              <span
-                className={`inline-flex items-center justify-center min-w-[20px] px-1.5 h-5 rounded-full text-[11px] font-semibold ${
-                  queueTab === tab.id
-                    ? "bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)]"
-                    : "bg-[var(--color-elevated)] text-[var(--color-text-tertiary)]"
-                }`}
-              >
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      {!forcedTab && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-1 rounded-xl flex gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setQueueTab(tab.id)}
+              className={`flex-1 h-10 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                queueTab === tab.id
+                  ? "bg-[var(--color-elevated)] text-[var(--color-text)] shadow-sm"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:bg-[var(--color-elevated)]/50"
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span
+                  className={`inline-flex items-center justify-center min-w-[20px] px-1.5 h-5 rounded-full text-[11px] font-semibold ${
+                    queueTab === tab.id
+                      ? "bg-[var(--color-accent-teal-soft)] text-[var(--color-accent-teal)]"
+                      : "bg-[var(--color-elevated)] text-[var(--color-text-tertiary)]"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {queueTab === "my" && (
         <div>
@@ -1238,8 +1218,7 @@ export default function QueueList({
                           <span className="px-2.5 py-1 text-[11px] bg-[var(--color-success-bg)] text-[var(--color-success)] font-medium rounded-full border border-[var(--color-success)]/25">
                             ✅ Siap Diambil
                           </span>
-                        )}
-                        {service.last_update && (
+                        )}                        {service.last_update && (
                           <span className="text-[11px] text-[var(--color-text-tertiary)] ml-auto">
                             {new Date(
                               service.last_update.created_at,
@@ -1341,22 +1320,6 @@ export default function QueueList({
                             <Bell className="w-3.5 h-3.5" /> REMINDER
                           </button>
                         )}
-                        {service.status === "qc_pending" && (
-                          <>
-                            <span className="h-9 px-3.5 text-xs bg-[var(--color-info-bg)] text-[var(--color-info)] border border-[var(--color-info)]/25 rounded-lg flex items-center gap-1.5 font-semibold">
-                              <Clock className="w-3.5 h-3.5" /> QC
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                pullFromQC(service);
-                              }}
-                              className="h-9 px-3.5 text-xs bg-[var(--color-danger-bg)] text-[var(--color-danger)] font-semibold rounded-lg hover:opacity-80 transition-opacity flex items-center gap-1.5"
-                            >
-                              <Undo2 className="w-3.5 h-3.5" /> TARIK KEMBALI
-                            </button>
-                          </>
-                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -1435,7 +1398,31 @@ export default function QueueList({
                 >
                   <div className="p-4 sm:p-5">
                     <div className="flex flex-col gap-4">
-                      <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex gap-3">
+                        {(service as any)._frontPhoto ? (
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] flex-shrink-0">
+                            {(service as any)._frontPhoto.isVideo ? (
+                              <VideoThumb
+                                src={(service as any)._frontPhoto.url}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <SmartMedia
+                                src={(service as any)._frontPhoto.url}
+                                mediaType="image"
+                                imgClassName="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col items-center justify-center gap-0.5 flex-shrink-0">
+                            <Watch className="w-5 h-5 text-[var(--color-text-tertiary)]" />
+                            <span className="text-[9px] text-[var(--color-text-tertiary)]">
+                              No Foto
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0 space-y-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="px-2.5 py-1 bg-[var(--color-elevated)] text-[var(--color-accent-teal)] border border-[var(--color-border)] text-xs font-mono font-semibold rounded-md">
                             {service.invoice_number}
@@ -1471,6 +1458,7 @@ export default function QueueList({
                             {service.issue_description}
                           </p>
                         </div>
+                      </div>
                       </div>
 
                       <div className="flex gap-3 pt-1">

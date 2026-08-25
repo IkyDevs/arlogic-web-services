@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import toast from "react-hot-toast";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { useBranch } from "@/lib/context/BranchContext";
@@ -59,6 +60,7 @@ export default function QCProcessView() {
   const supabase = createClient();
   const [services, setServices] = useState<QcService[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pullingId, setPullingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
@@ -116,6 +118,56 @@ export default function QCProcessView() {
   }, [user?.id, supabase, activeBranch]);
 
   useEffect(() => { const t = setTimeout(fetchData, 0); return () => clearTimeout(t); }, [fetchData]);
+
+  const pullFromQC = async (service: QcService) => {
+    if (
+      !confirm(
+        `Tarik service "${service.customer_name}" kembali dari QC ke proyek Anda?`,
+      )
+    )
+      return;
+    if (pullingId) return;
+    setPullingId(service.id);
+    try {
+      const { error: updateErr } = await supabase
+        .from("service_orders")
+        .update({ status: "in_progress", qc_submit_notes: null })
+        .eq("id", service.id);
+      if (updateErr) throw updateErr;
+
+      await supabase.from("service_timeline").insert({
+        service_order_id: service.id,
+        teknisi_id: user?.id,
+        status: "qc_pulled_back",
+        message: "Service ditarik kembali dari QC oleh teknisi",
+        details: { action: "pull_from_qc" },
+      });
+
+      const { data: qcUsers } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("role", ["supervisor", "qc"]);
+      if (qcUsers && qcUsers.length > 0) {
+        await supabase.from("notifications").insert(
+          qcUsers.map((u: any) => ({
+            user_id: u.id,
+            title: "↩️ Service ditarik dari QC",
+            message: `${user?.full_name || "Teknisi"} menarik ${service.invoice_number || "service"} (${service.customer_name}) kembali dari QC.`,
+            type: "warning",
+            link: "/qc",
+            is_read: false,
+          })),
+        );
+      }
+
+      toast.success("Service ditarik kembali dari QC.");
+      fetchData();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Gagal menarik service");
+    } finally {
+      setPullingId(null);
+    }
+  };
 
   const statusBadge = (s: string) => {
     if (s === "qc_pending") return { label: "QC Process", cls: "bg-purple-100 text-purple-700 border-purple-300", icon: <Clock className="w-3 h-3" /> };
@@ -295,6 +347,17 @@ export default function QCProcessView() {
                   {fmtRupiah(svc.status === "completed" ? svc.final_cost || 0 : svc.estimated_cost || 0)}
                 </span>
               </div>
+
+              {svc.status === "qc_pending" && (
+                <button
+                  onClick={() => pullFromQC(svc)}
+                  disabled={pullingId === svc.id}
+                  className="w-full h-9 px-3 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/25 dark:text-red-300 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                  {pullingId === svc.id ? "Memproses..." : "TARIK KEMBALI KE PROYEK"}
+                </button>
+              )}
             </motion.div>
           );
         })}

@@ -31,7 +31,6 @@ import {
   Star,
   Users,
   Package,
-  DollarSign,
   AlertCircle,
   FileText,
   Box,
@@ -49,7 +48,6 @@ import TeknisiStockView from "@/components/teknisi/TeknisiStockView";
 import TeknisiTransferView from "@/components/teknisi/TeknisiTransferView";
 import QCProcessView from "@/components/teknisi/QCProcessView";
 import QueueList from "@/components/teknisi/QueueList";
-import KpiCard from "@/components/teknisi/KpiCard";
 import ProgressUpdate from "@/components/teknisi/ProgressUpdate";
 import LayananForm from "@/components/layanan/LayananForm";
 import TransactionManagement from "@/components/layanan/TransactionManagement";
@@ -426,6 +424,7 @@ export default function TeknisiDashboard() {
 
   const menuItems = [
     { id: "queue", label: "Antrean & Proyek", icon: ClipboardList },
+    { id: "pending", label: "Pending", icon: Clock },
     { id: "stats", label: "Performa", icon: TrendingUp },
     { id: "absensi", label: "Absensi", icon: Clock },
     { id: "stock", label: "Stock Toko", icon: Package },
@@ -444,7 +443,7 @@ export default function TeknisiDashboard() {
   ];
 
   const NAV_GROUPS = [
-    { title: "Workspace", ids: ["queue", "stats", "absensi"] },
+    { title: "Workspace", ids: ["queue", "pending", "stats", "absensi"] },
     { title: "Operasi", ids: ["stock", "customer", "kaspin", "layanan"] },
     { title: "Quality", ids: ["qc-process", "done", "transfer", "engineer"] },
     { title: "Personal", ids: ["service"] },
@@ -653,36 +652,6 @@ export default function TeknisiDashboard() {
                 transition={{ duration: 0.3 }}
                 className="space-y-3 sm:space-y-4 md:space-y-5"
               >
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-                  <KpiCard
-                    label="Selesai Hari Ini"
-                    value={stats.completedToday}
-                    caption="Service selesai hari ini"
-                    icon={CheckCircle}
-                  />
-                  <KpiCard
-                    label="Sedang Dikerjakan"
-                    value={stats.inProgress}
-                    caption="Proyek aktif"
-                    icon={Wrench}
-                  />
-                  <KpiCard
-                    label="Antrean"
-                    value={stats.pendingQueue}
-                    caption="Menunggu diambil"
-                    icon={Clock}
-                  />
-                  <KpiCard
-                    label="Pendapatan Bulan Ini"
-                    value={formatRupiah(stats.totalEarnings)}
-                    caption="Total bulan ini"
-                    icon={DollarSign}
-                    accent
-                    valueClassName="text-lg sm:text-xl lg:text-2xl truncate"
-                  />
-                </div>
-
                 {/* Queue List Component */}
                 <QueueList
                   teknisiId={user?.id || ""}
@@ -961,6 +930,22 @@ export default function TeknisiDashboard() {
                     </motion.div>
                   </div>
                 )}
+              </motion.div>
+            )}
+
+            {activeTab === "pending" && (
+              <motion.div
+                key="pending"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <QueueList
+                  teknisiId={user?.id || ""}
+                  onTakeProject={(service) => setSelectedService(service)}
+                  forcedTab="pending"
+                />
               </motion.div>
             )}
 
