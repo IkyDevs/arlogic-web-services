@@ -1,17 +1,19 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/stores/authStore'
 import { ServiceOrder } from '@/types'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, Plus, X, Save, Calendar, Clock, User, Package, DollarSign, CheckCircle, AlertCircle, Trash2, Wrench, ChevronDown, ChevronUp, Video } from 'lucide-react'
+import { Camera, Plus, X, Save, Calendar, Clock, User, Package, DollarSign, CheckCircle, AlertCircle, Trash2, Wrench, ChevronDown, ChevronUp, Video, Pencil, Loader2 } from 'lucide-react'
 import { useCentralUpload } from '@/hooks/useCentralUpload'
 import { buildTelegramMetadata } from '@/lib/telegram-metadata'
 import { isVideoFile } from '@/lib/upload/upload-config'
 import { mediaTypeFromFile } from '@/lib/media-utils'
 import { useBranchScope } from '@/lib/context/useBranchScope'
+import { ensureVideoUnderLimit } from '@/lib/video-compress'
+import VideoRecorderModal from '@/components/ui/VideoRecorderModal'
 
 interface ProgressUpdateProps {
   service: ServiceOrder
@@ -38,13 +40,143 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
   const [localProgress, setLocalProgress] = useState(0)
   const { branchId } = useBranchScope()
 
+  // ── Riwayat update milik teknisi ini ──
+  interface TimelineEntry {
+    id: string
+    status: string
+    message: string | null
+    photo_url: string | null
+    details: any
+    created_at: string
+    teknisi_id: string | null
+  }
+  const [history, setHistory] = useState<TimelineEntry[]>([])
+  const [histLoading, setHistLoading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const [savingEditId, setSavingEditId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showVideoRec, setShowVideoRec] = useState(false)
+
+  const isLocked = ['completed', 'done'].includes(service.status)
+
+  const loadHistory = useCallback(async () => {
+    if (!service?.id) return
+    setHistLoading(true)
+    const { data } = await supabase
+      .from('service_timeline')
+      .select('*')
+      .eq('service_order_id', service.id)
+      .order('created_at', { ascending: false })
+      .limit(30)
+    setHistory((data || []) as TimelineEntry[])
+    setHistLoading(false)
+  }, [service?.id])
+
+  useEffect(() => {
+    void loadHistory()
+  }, [loadHistory])
+
+  function canManage(entry: TimelineEntry) {
+    return entry.teknisi_id === user?.id && !isLocked
+  }
+
+  async function saveEdit(entry: TimelineEntry) {
+    if (!editText.trim()) {
+      toast.error('Catatan tidak boleh kosong')
+      return
+    }
+    setSavingEditId(entry.id)
+    const { error } = await supabase.from('service_timeline').update({ message: editText.trim() }).eq('id', entry.id)
+    setSavingEditId(null)
+    if (error) {
+      toast.error('Gagal mengubah update: ' + error.message)
+      return
+    }
+    setEditingId(null)
+    toast.success('Update berhasil diubah — tampilan tracking customer ikut terbarui')
+    void loadHistory()
+    onUpdate()
+  }
+
+  async function deleteEntry(entry: TimelineEntry) {
+    setDeletingId(entry.id)
+    try {
+      // Hapus dokumentasi progress yang terkait entri ini (berdasarkan URL foto)
+      const urls: string[] =
+        entry.details?.all_photo_urls?.length > 0
+          ? entry.details.all_photo_urls
+          : entry.photo_url
+            ? [entry.photo_url]
+            : []
+
+      if (urls.length > 0) {
+        const { data: docs } = await supabase
+          .from('service_documentation')
+          .select('id, telegram_chat_id, telegram_message_id')
+          .eq('service_order_id', service.id)
+          .eq('stage', 'progress')
+          .in('photo_url', urls)
+
+        if (docs?.length) {
+          for (const d of docs) {
+            if (d.telegram_chat_id && d.telegram_message_id) {
+              // Best-effort hapus salinan di Telegram channel
+              await fetch('/api/telegram/delete-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: d.telegram_chat_id, message_id: d.telegram_message_id }),
+              }).catch(() => {})
+            }
+          }
+          const { error: delDocsErr } = await supabase
+            .from('service_documentation')
+            .delete()
+            .in('id', docs.map((d) => d.id))
+          if (delDocsErr) throw new Error('Gagal hapus dokumentasi: ' + delDocsErr.message)
+        }
+      }
+
+      const { error } = await supabase.from('service_timeline').delete().eq('id', entry.id)
+      if (error) throw new Error('Gagal menghapus update: ' + error.message)
+
+      toast.success('Update dihapus — tracking customer ikut terbarui')
+      void loadHistory()
+      onUpdate()
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal menghapus update')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   const calculateTotal = (itemsList: any[]) =>
     itemsList.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
   const finalCost = calculateTotal(items)
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
+    let files = Array.from(e.target.files || [])
     if (files.length === 0) return
+    e.target.value = ''
+
+    // Video >50MB dikompres otomatis sebelum masuk antrean upload
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]
+      if (!isVideoFile(f) || f.size <= 50 * 1024 * 1024) continue
+      const tid = toast.loading(`Mengompres ${f.name}... jangan tutup halaman`, { duration: 0 })
+      try {
+        const compressed = await ensureVideoUnderLimit(f, (p) =>
+          toast.loading(`Mengompres ${f.name} — ${p}%`, { id: tid }),
+        )
+        files[i] = compressed
+        toast.success(`${f.name} selesai dikompres (${(compressed.size / 1024 / 1024).toFixed(1)}MB)`)
+      } catch (err: any) {
+        toast.error(`${f.name}: ${err.message}`)
+      }
+      toast.dismiss(tid)
+    }
+    files = files.filter((f) => !!f)
+
     const result = await upload.addFiles(files)
     if (result.errors.length > 0) {
       result.errors.forEach((msg) => toast.error(msg))
@@ -147,8 +279,9 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
          total_photos: newPhotoUrls.length,
          photos: newPhotoUrls
        })
-       toast.success('Progress saved!')
-       onUpdate()
+        toast.success('Progress saved!')
+        void loadHistory()
+        onUpdate()
      } catch (error: any) { toast.error(error.message) }
       finally { setLoading(false); setUploading(false); setLocalProgress(0) }
    }
@@ -166,6 +299,85 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
         className="w-full bg-gray-900 text-white font-semibold py-2.5 rounded-xl hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-sm">
         <CheckCircle className="w-4 h-4" /> SUBMIT TO QC
       </button>
+
+      {/* Riwayat Update */}
+      <div className="border-t border-gray-200 pt-4 space-y-2">
+        <h4 className="text-sm font-semibold text-gray-600">
+          Riwayat Update {isLocked && <span className="text-[10px] text-gray-400 font-normal">(service selesai — riwayat terkunci)</span>}
+        </h4>
+        {histLoading ? (
+          <p className="text-xs text-gray-400 py-2">Memuat...</p>
+        ) : history.length === 0 ? (
+          <p className="text-xs text-gray-400 py-2">Belum ada update.</p>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {history.map((entry) => {
+              const mine = canManage(entry);
+              const isEditing = editingId === entry.id;
+              const mediaCount = entry.details?.all_photo_urls?.length || (entry.photo_url ? 1 : 0);
+              return (
+                <div key={entry.id} className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-sm">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-600 uppercase">{entry.status}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {new Date(entry.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </span>
+                      {mediaCount > 0 && <span className="text-[10px] text-slate-400">📎 {mediaCount}</span>}
+                    </div>
+                    {mine && !isEditing && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => { setEditingId(entry.id); setEditText(entry.message || '') }} title="Edit catatan" className="p-1 rounded hover:bg-blue-50 text-blue-500"><Pencil className="w-3.5 h-3.5" /></button>
+                        {deletingId === entry.id ? (
+                          <>
+                            <button onClick={() => deleteEntry(entry)} disabled className="p-1 rounded bg-red-100 text-red-600"><Loader2 className="w-3.5 h-3.5 animate-spin" /></button>
+                            <button onClick={() => setDeletingId(null)} className="text-[10px] px-1.5 py-1 rounded hover:bg-gray-100 text-gray-500">Batal</button>
+                          </>
+                        ) : (
+                          <button onClick={() => setDeletingId(entry.id)} title="Hapus update ini" className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {deletingId === entry.id ? (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+                      Hapus update ini beserta {mediaCount} dokumentasinya? Tampilan tracking customer ikut berubah.
+                      <div className="flex gap-2 mt-1.5">
+                        <button onClick={() => deleteEntry(entry)} className="px-2.5 py-1 rounded-md bg-red-600 text-white font-semibold">Ya, Hapus</button>
+                        <button onClick={() => setDeletingId(null)} className="px-2.5 py-1 rounded-md border border-gray-300 text-gray-500">Batal</button>
+                      </div>
+                    </div>
+                  ) : isEditing ? (
+                    <div className="mt-2 space-y-1.5">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={2}
+                        autoFocus
+                        className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => setEditingId(null)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-50">Batal</button>
+                        <button
+                          onClick={() => saveEdit(entry)}
+                          disabled={savingEditId === entry.id || !editText.trim()}
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {savingEditId === entry.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                          Simpan & Sinkronkan
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    entry.message && <p className={`mt-1 whitespace-pre-wrap ${mine ? 'text-gray-800' : 'text-gray-600'}`}>{entry.message}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Detail Update (collapsible wizard) */}
       <div className="border-t border-gray-200 pt-4">
@@ -210,6 +422,10 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
                       <button onClick={() => videoInputRef.current?.click()} title="Pilih Video" className="border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center h-24 hover:border-blue-600 transition-colors">
                         <Video className="w-6 h-6 text-gray-300" />
                         <span className="text-[10px] text-gray-400 mt-0.5">Video</span>
+                      </button>
+                      <button onClick={() => setShowVideoRec(true)} title="Rekam Video" className="border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center h-24 hover:border-emerald-600 transition-colors">
+                        <Video className="w-6 h-6 text-emerald-400" />
+                        <span className="text-[10px] text-gray-400 mt-0.5">Rekam</span>
                       </button>
                       <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
                       <input ref={videoInputRef} type="file" accept="video/*" multiple onChange={handlePhotoUpload} className="hidden" />
@@ -287,6 +503,15 @@ export default function ProgressUpdate({ service, onUpdate, onAddJasa, onSubmitT
           )}
         </AnimatePresence>
       </div>
+
+      <VideoRecorderModal
+        open={showVideoRec}
+        onClose={() => setShowVideoRec(false)}
+        onConfirm={(file) => {
+          setShowVideoRec(false);
+          void handlePhotoUpload({ target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>);
+        }}
+      />
     </div>
   )
 }

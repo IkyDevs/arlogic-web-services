@@ -28,6 +28,7 @@ import {
   X,
   ChevronRight,
   RefreshCw,
+  Search,
   FileText,
   Box,
   Bell,
@@ -35,6 +36,7 @@ import {
   Check,
   Trash2,
   Loader,
+  Loader2,
   ImageIcon,
 } from "lucide-react";
 import ServiceDetailModal from "./ServiceDetailModal";
@@ -116,6 +118,7 @@ export default function QueueList({
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [showPendingReasonModal, setShowPendingReasonModal] = useState(false);
   const [pendingReason, setPendingReason] = useState("");
+  const [submittingPending, setSubmittingPending] = useState(false);
   const [pendingTargetService, setPendingTargetService] =
     useState<ExtendedServiceOrder | null>(null);
 
@@ -124,6 +127,7 @@ export default function QueueList({
   const [showRequestSparepart, setShowRequestSparepart] = useState(false);
   const [requestSparepartQuery, setRequestSparepartQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [serviceSearch, setServiceSearch] = useState("");
 
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showSubmitQCModal, setShowSubmitQCModal] = useState(false);
@@ -356,47 +360,68 @@ export default function QueueList({
       toast.error("Alasan pending harus diisi");
       return;
     }
+    if (submittingPending) return;
+    setSubmittingPending(true);
 
-    const activeUser = (await supabase.auth.getUser()).data.user;
-    const activeTeknisiId = activeUser?.id || teknisiId;
+    try {
+      const activeUser = (await supabase.auth.getUser()).data.user;
+      const activeTeknisiId = activeUser?.id || teknisiId;
 
-    const { data: updatedRows, error: updateErr } = await supabase
-      .from("service_orders")
-      .update({ assigned_teknisi_id: activeTeknisiId, status: "assigned" })
-      .eq("id", pendingTargetService.id)
-      .is("assigned_teknisi_id", null)
-      .select();
+      const { data: updatedRows, error: updateErr } = await supabase
+        .from("service_orders")
+        .update({ assigned_teknisi_id: activeTeknisiId, status: "assigned" })
+        .eq("id", pendingTargetService.id)
+        .is("assigned_teknisi_id", null)
+        .select();
 
-    if (updateErr) {
-      toast.error("Gagal update: " + updateErr.message);
-      return;
-    }
+      if (updateErr) {
+        toast.error("Gagal update: " + updateErr.message);
+        return;
+      }
 
-    if (!updatedRows || updatedRows.length === 0) {
-      toast.error("Proyek ini baru saja diambil oleh teknisi lain!");
-      fetchQueues();
+      if (!updatedRows || updatedRows.length === 0) {
+        // Guard atomic menolak — cek apakah pemiliknya justru diri sendiri
+        // (dobel-klik). Kalau iya, anggap sukses tanpa timeline dobel.
+        const { data: current } = await supabase
+          .from("service_orders")
+          .select("assigned_teknisi_id")
+          .eq("id", pendingTargetService.id)
+          .maybeSingle();
+
+        if (current?.assigned_teknisi_id === activeTeknisiId) {
+          toast.success("Proyek ini sudah kamu pending-kan — menunggu persetujuan QC");
+          setShowPendingReasonModal(false);
+          setPendingTargetService(null);
+          fetchQueues();
+          return;
+        }
+        toast.error("Proyek ini baru saja diambil oleh teknisi lain!");
+        fetchQueues();
+        setShowPendingReasonModal(false);
+        setPendingTargetService(null);
+        return;
+      }
+
+      const { error: tlErr } = await supabase.from("service_timeline").insert({
+        service_order_id: pendingTargetService.id,
+        teknisi_id: activeTeknisiId,
+        status: "pending_teknisi",
+        message: `Ditunda oleh teknisi: ${pendingReason.trim()}`,
+        details: { action: "take_pending", reason: pendingReason.trim() },
+      });
+      if (tlErr) {
+        toast.error("Gagal simpan alasan: " + tlErr.message);
+        return;
+      }
+
+      toast.success("Proyek ditunda, menunggu persetujuan QC.");
       setShowPendingReasonModal(false);
+      setPendingReason("");
       setPendingTargetService(null);
-      return;
+      fetchQueues();
+    } finally {
+      setSubmittingPending(false);
     }
-
-    const { error: tlErr } = await supabase.from("service_timeline").insert({
-      service_order_id: pendingTargetService.id,
-      teknisi_id: activeTeknisiId,
-      status: "pending_teknisi",
-      message: `Ditunda oleh teknisi: ${pendingReason.trim()}`,
-      details: { action: "take_pending", reason: pendingReason.trim() },
-    });
-    if (tlErr) {
-      toast.error("Gagal simpan alasan: " + tlErr.message);
-      return;
-    }
-
-    toast.success("Proyek ditunda, menunggu persetujuan QC.");
-    setShowPendingReasonModal(false);
-    setPendingReason("");
-    setPendingTargetService(null);
-    fetchQueues();
   };
 
   const resumeProject = async (service: ExtendedServiceOrder) => {
@@ -1097,6 +1122,25 @@ export default function QueueList({
     return groups;
   };
 
+  const normalizedSearch = serviceSearch.trim().toLowerCase();
+  const filteredPendingServices = normalizedSearch
+    ? pendingServices.filter((s) => {
+        const haystack = [
+          s.invoice_number,
+          s.customer_name,
+          s.customer_phone,
+          s.watch_brand || s.device_brand,
+          s.watch_model || s.device_model,
+          s.issue_description,
+          s.category,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(normalizedSearch);
+      })
+    : pendingServices;
+
   return (
     <div className="space-y-6">
       {/* Tab Switcher */}
@@ -1330,8 +1374,32 @@ export default function QueueList({
               <Package className="w-4 h-4" />
             </div>
             <h3 className="text-lg font-bold text-[var(--color-text)]">
-              List Service ({pendingServices.length})
+              List Service (
+                {serviceSearch.trim()
+                  ? filteredPendingServices.length
+                  : pendingServices.length}
+              )
             </h3>
+          </div>
+
+          <div className="relative mb-4">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)] pointer-events-none" />
+            <input
+              type="text"
+              value={serviceSearch}
+              onChange={(e) => setServiceSearch(e.target.value)}
+              placeholder="Cari nomor service, nama customer..."
+              className="w-full h-11 pl-10 pr-10 bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent-teal)] focus:ring-2 focus:ring-[var(--color-accent-teal)]/20 transition-all"
+            />
+            {serviceSearch && (
+              <button
+                onClick={() => setServiceSearch("")}
+                aria-label="Hapus pencarian"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[var(--color-surface)] transition-colors"
+              >
+                <X className="w-4 h-4 text-[var(--color-text-tertiary)]" />
+              </button>
+            )}
           </div>
 
           {pendingServices.length === 0 ? (
@@ -1344,9 +1412,19 @@ export default function QueueList({
                 Semua service sudah diambil
               </p>
             </div>
+          ) : filteredPendingServices.length === 0 ? (
+            <div className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] p-8 text-center">
+              <Search className="w-12 h-12 mx-auto mb-2 text-[var(--color-text-tertiary)]" />
+              <p className="text-sm font-medium text-[var(--color-text-secondary)]">
+                Service tidak ditemukan
+              </p>
+              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+                Coba gunakan kata kunci lain.
+              </p>
+            </div>
           ) : (
             <div className="grid gap-3 sm:gap-4">
-              {pendingServices.map((service, index) => (
+              {filteredPendingServices.map((service, index) => (
                 <motion.div
                   key={service.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -1404,15 +1482,6 @@ export default function QueueList({
                           className="flex-1 h-11 px-5 text-sm bg-[var(--color-elevated)] text-[var(--color-text)] border border-[var(--color-border)] font-semibold rounded-xl hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center gap-2"
                         >
                           <Eye className="w-4 h-4" /> DETAIL
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            requestTakeProject(service);
-                          }}
-                          className="flex-1 h-11 px-5 text-sm bg-[var(--color-accent-teal-strong)] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-                        >
-                          <CheckCircle className="w-4 h-4" /> AMBIL
                         </button>
                       </div>
                     </div>
@@ -1545,9 +1614,11 @@ export default function QueueList({
               </button>
               <button
                 onClick={submitPending}
-                className="flex-1 h-11 bg-[var(--color-warning)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                disabled={submittingPending}
+                className="flex-1 h-11 bg-[var(--color-warning)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center gap-2"
               >
-                Kirim
+                {submittingPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                {submittingPending ? "Memproses..." : "Kirim"}
               </button>
             </div>
           </motion.div>

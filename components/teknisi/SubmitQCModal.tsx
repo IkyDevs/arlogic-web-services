@@ -6,7 +6,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { motion } from "framer-motion";
 import {
   X, CheckCircle, Package, Camera, MessageSquare, Loader,
-  Check, Trash2, Clock, User, Watch,
+  Check, Trash2, Clock, User, Watch, Video,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCentralUpload } from "@/hooks/useCentralUpload";
@@ -14,6 +14,8 @@ import { buildTelegramMetadata } from "@/lib/telegram-metadata";
 import { mediaTypeFromFile } from "@/lib/media-utils";
 import { isVideoFile } from "@/lib/upload/upload-config";
 import { uploadConfig } from "@/lib/uploadConfig";
+import { ensureVideoUnderLimit } from "@/lib/video-compress";
+import VideoRecorderModal from "@/components/ui/VideoRecorderModal";
 
 const MAX_FILES = uploadConfig.IMAGE_MAX_FILES;
 const MAX_FILE_SIZE = uploadConfig.IMAGE_MAX_SIZE_BYTES;
@@ -37,6 +39,7 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   const supabase = createClient();
   const { user } = useAuthStore();
   const [sessionKey] = useState(() => `qc_${service.id || 'anon'}_${Date.now()}`);
@@ -62,9 +65,29 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
     setTotalCost(updatedItems.reduce((sum: number, item: any) => sum + (item.price || 0) * (item.quantity || 1), 0));
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let files = Array.from(e.target.files || []);
     e.target.value = '';
+
+    // Video >50MB dikompres otomatis di browser sebelum validasi
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (!f.type.startsWith('video/') && !/\.(mp4|mov|webm|3gp|3gpp)$/i.test(f.name)) continue;
+      if (f.size <= 50 * 1024 * 1024) continue;
+      const tid = toast.loading(`Mengompres ${f.name}... jangan tutup halaman`, { duration: 0 });
+      try {
+        const compressed = await ensureVideoUnderLimit(f, (p) =>
+          toast.loading(`Mengompres ${f.name} — ${p}%`, { id: tid }),
+        );
+        files[i] = compressed;
+        toast.success(`${f.name} selesai dikompres (${(compressed.size / 1024 / 1024).toFixed(1)}MB)`);
+      } catch (err: any) {
+        toast.error(`${f.name}: ${err.message}`);
+      }
+      toast.dismiss(tid);
+    }
+    files = files.filter((f) => !!f);
+
     const valid: File[] = [];
     const previews: string[] = [];
     let currentSize = photos.reduce((s, f) => s + f.size, 0);
@@ -343,12 +366,26 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
                 </div>
               ))}
               <button onClick={() => fileInputRef.current?.click()}
-                className="aspect-video border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center hover:border-gray-900 transition-colors bg-gray-50 dark:bg-white/5">
+                className="aspect-video border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg flex flex-col items-center justify-center hover:border-gray-900 transition-colors bg-gray-50 dark:bg-white/5">
                 <Camera className="w-6 h-6 text-gray-300" />
+                <span className="text-[10px] text-gray-400 mt-0.5">Foto/Video</span>
+              </button>
+              <button onClick={() => setShowVideoRecorder(true)}
+                className="aspect-video border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg flex flex-col items-center justify-center hover:border-emerald-600 transition-colors bg-gray-50 dark:bg-white/5">
+                <Video className="w-6 h-6 text-gray-300" />
+                <span className="text-[10px] text-gray-400 mt-0.5">Rekam</span>
               </button>
               <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePhotoUpload} className="hidden" />
             </div>
           </div>
+
+          <VideoRecorderModal
+            open={showVideoRecorder}
+            onClose={() => setShowVideoRecorder(false)}
+            onConfirm={(file) => {
+              handlePhotoUpload({ target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>);
+            }}
+          />
 
           <div>
             <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">

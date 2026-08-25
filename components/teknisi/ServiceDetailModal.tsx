@@ -24,6 +24,7 @@ import {
   Tag,
   Package,
   Award,
+  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/stores/authStore";
@@ -47,6 +48,7 @@ export default function ServiceDetailModal({
   onSkip,
 }: ServiceDetailModalProps) {
   const [loading, setLoading] = useState(false);
+  const [taking, setTaking] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoTypes, setPhotoTypes] = useState<Array<"image" | "video">>([]);
   const [photoLabels, setPhotoLabels] = useState<string[]>([]);
@@ -84,6 +86,8 @@ export default function ServiceDetailModal({
   };
 
   const handleTake = async () => {
+    if (taking || loading) return;
+    setTaking(true);
     setLoading(true);
     try {
       const activeUser = (await supabase.auth.getUser()).data.user;
@@ -108,6 +112,21 @@ export default function ServiceDetailModal({
       if (error) throw error;
 
       if (!updatedRows || updatedRows.length === 0) {
+        // 0 baris = guard atomic menolak. Bisa jadi dobel-klik diri sendiri:
+        // kalau pemiliknya memang kita, perlakukan sebagai sukses (tanpa
+        // insert timeline dobel).
+        const { data: current } = await supabase
+          .from("service_orders")
+          .select("assigned_teknisi_id")
+          .eq("id", service.id)
+          .maybeSingle();
+
+        if (current?.assigned_teknisi_id === activeTeknisiId) {
+          toast.success("Service sudah dalam status kamu ambil");
+          onTake();
+          onClose();
+          return;
+        }
         toast.error("Service ini sudah diambil oleh teknisi lain!");
         onSkip();
         onClose();
@@ -128,6 +147,7 @@ export default function ServiceDetailModal({
     } catch (error: any) {
       toast.error(error.message);
     } finally {
+      setTaking(false);
       setLoading(false);
     }
   };
@@ -465,12 +485,18 @@ export default function ServiceDetailModal({
               </button>
               <button
                 onClick={handleTake}
-                disabled={loading}
+                disabled={loading || taking}
                 className="flex-1 bg-slate-900 text-white font-medium px-4 py-2.5 rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
               >
-                <CheckCircle className="w-4 h-4" />
-                Ambil Service Ini
-                <ArrowRight className="w-4 h-4" />
+                {taking ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Ambil Service Ini
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           </motion.div>
