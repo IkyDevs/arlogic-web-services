@@ -1,44 +1,45 @@
 "use client";
 
-import { use, useState, useEffect, useMemo } from "react";
+import { use, useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPlayableVideo } from "@/lib/media-utils";
 import SmartMedia from "@/components/ui/SmartMedia";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import ServiceCostBreakdown from "@/components/ui/ServiceCostBreakdown";
+import "./glacier.css";
 import {
   CheckCircle, Clock, Wrench, UserCheck, Package, Smartphone,
   DollarSign, AlertCircle, Phone, Watch, Settings, Battery, Zap, ChevronRight,
   ChevronDown, Star, Shield, Copy, Check, Camera,
-  Image, Hash, X, Send, Search, User,
+  Hash, X, Send, Search, User,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const supabase = createClient();
 
 const statusSteps = [
-  { status: "pending", label: "Pesanan Diterima", icon: Clock, desc: "Pesanan service telah diterima", color: "from-slate-400 to-slate-500" },
-  { status: "assigned", label: "Ditugaskan ke Teknisi", icon: UserCheck, desc: "Service ditugaskan ke teknisi", color: "from-blue-500 to-cyan-500" },
-  { status: "in_progress", label: "Sedang Dikerjakan", icon: Wrench, desc: "Service sedang dalam pengerjaan", color: "from-purple-500 to-pink-500" },
-  { status: "waiting_sparepart", label: "Menunggu Sparepart", icon: Package, desc: "Menunggu sparepart", color: "from-orange-500 to-red-500" },
-  { status: "qc_pending", label: "Quality Check", icon: Shield, desc: "Pengecekan kualitas akhir", color: "from-indigo-500 to-purple-500" },
-  { status: "completed", label: "Service Selesai", icon: CheckCircle, desc: "Siap diambil", color: "from-emerald-500 to-green-600" },
+  { status: "pending", label: "Pesanan Diterima", icon: Clock, desc: "Pesanan service telah diterima", color: "from-slate-500 to-slate-600" },
+  { status: "assigned", label: "Ditugaskan ke Teknisi", icon: UserCheck, desc: "Service ditugaskan ke teknisi", color: "from-sky-500 to-cyan-400" },
+  { status: "in_progress", label: "Sedang Dikerjakan", icon: Wrench, desc: "Service sedang dalam pengerjaan", color: "from-sky-400 to-blue-500" },
+  { status: "waiting_sparepart", label: "Menunggu Sparepart", icon: Package, desc: "Menunggu sparepart", color: "from-amber-500 to-orange-500" },
+  { status: "qc_pending", label: "Quality Check", icon: Shield, desc: "Pengecekan kualitas akhir", color: "from-cyan-400 to-teal-400" },
+  { status: "completed", label: "Service Selesai", icon: CheckCircle, desc: "Siap diambil", color: "from-emerald-400 to-teal-300" },
 ];
 
 const statusColors: Record<string, string> = {
-  pending: "bg-slate-100 text-slate-700 border-slate-200",
-  assigned: "bg-blue-100 text-blue-700 border-blue-200",
-  in_progress: "bg-purple-100 text-purple-700 border-purple-200",
-  waiting_sparepart: "bg-orange-100 text-orange-700 border-orange-200",
-  qc_pending: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  completed: "bg-green-100 text-green-700 border-green-200",
-  cancelled: "bg-red-100 text-red-700 border-red-200",
+  pending: "bg-slate-400/10 text-slate-300 border-slate-400/25",
+  assigned: "bg-sky-400/10 text-sky-300 border-sky-400/30",
+  in_progress: "bg-violet-400/10 text-violet-300 border-violet-400/30",
+  waiting_sparepart: "bg-amber-400/10 text-amber-300 border-amber-400/30",
+  qc_pending: "bg-cyan-400/10 text-cyan-300 border-cyan-400/30",
+  completed: "bg-emerald-400/10 text-emerald-300 border-emerald-400/30",
+  cancelled: "bg-red-400/10 text-red-300 border-red-400/30",
 };
 
 const ratingLabels = ["", "Very Unsatisfied", "Unsatisfied", "Neutral", "Satisfied", "Very Satisfied"];
-const ratingColors = ["", "text-red-500", "text-orange-500", "text-yellow-500", "text-blue-500", "text-emerald-500"];
+const ratingColors = ["", "text-red-400", "text-orange-400", "text-yellow-300", "text-sky-300", "text-emerald-300"];
 
 function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -80,6 +81,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
   const [branchContact, setBranchContact] = useState<{ name: string; phone: string } | null>(null);
   const [trackingRequestName, setTrackingRequestName] = useState("");
   const [trackingRequestInvoice, setTrackingRequestInvoice] = useState("");
+  const modalRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   // Feedback state
@@ -243,6 +245,17 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
     void hydrateService(presetService, presetService.token || "");
   }, []);
 
+  // A11y photo viewer: Escape menutup modal + fokus masuk ke dialog
+  useEffect(() => {
+    if (!photoModal) return;
+    modalRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPhotoModal(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [photoModal]);
+
   const trackService = async () => {
     if (!token.trim()) { setError("Masukkan token tracking"); return; }
     setLoading(true); setError(""); setService(null);
@@ -316,41 +329,42 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
 
   if (!service && presetService) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="glacier min-h-screen flex items-center justify-center p-4">
+        <div className="w-8 h-8 border-2 border-[#7dd3fc] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!service) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="glacier min-h-screen flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
+          className="gl-card w-full max-w-md p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
-              <Watch className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-sky-400/25 to-cyan-500/10 border border-[color:var(--gl-border-strong)] rounded-xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_32px_rgba(125,211,252,0.15)]">
+              <Watch className="w-8 h-8 gl-ice" />
             </div>
-              <h1 className="text-2xl font-bold text-slate-900">ARLOGIC SERVICE TRACKER</h1>
-            <p className="text-sm text-slate-500 mt-1">Masukkan kode token tracking Anda</p>
+              <h1 className="text-2xl font-bold text-[color:var(--gl-text)] tracking-tight">ARLOGIC SERVICE TRACKER</h1>
+            <p className="text-sm gl-t2 mt-1">Masukkan kode token tracking Anda</p>
           </div>
           <div className="space-y-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 gl-t3 pointer-events-none" />
               <input type="text" value={token} onChange={(e) => setToken(e.target.value.toUpperCase())}
                 placeholder="Masukkan token tracking"
-                className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                aria-label="Token tracking"
+                className="gl-input pl-9 pr-4 py-3 font-mono"
                 onKeyDown={(e) => e.key === "Enter" && trackService()} />
             </div>
-            {error && <p className="text-red-500 text-sm flex items-center gap-1"><AlertCircle className="w-4 h-4" />{error}</p>}
+            {error && <p role="alert" className="text-red-400 text-sm flex items-center gap-1"><AlertCircle className="w-4 h-4" />{error}</p>}
             <button onClick={trackService} disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
-              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              className="gl-btn-primary w-full font-semibold py-3 rounded-xl flex items-center justify-center gap-2">
+              {loading ? <div className="w-5 h-5 border-2 border-[#7dd3fc] border-t-transparent rounded-full animate-spin" />
                 : <><Search className="w-4 h-4" />                 Lacak Sekarang</>}
             </button>
           </div>
-          <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <p className="text-xs text-slate-500 text-center">Token diberikan saat membuat service. Jika belum menerima token, hubungi admin cabang.</p>
+          <div className="gl-inset mt-6 p-4">
+            <p className="text-xs gl-t2 text-center">Token diberikan saat membuat service. Jika belum menerima token, hubungi admin cabang.</p>
             {trackingRequestWhatsAppUrl ? (
               <div className="mt-3 space-y-2">
                 <input
@@ -358,20 +372,22 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                   value={trackingRequestName}
                   onChange={(event) => setTrackingRequestName(event.target.value)}
                   placeholder="Nama customer"
-                  className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  aria-label="Nama customer"
+                  className="gl-input px-3 py-2 text-xs"
                 />
                 <input
                   type="text"
                   value={trackingRequestInvoice}
                   onChange={(event) => setTrackingRequestInvoice(event.target.value.toUpperCase())}
                   placeholder="Nomor invoice"
-                  className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-mono text-slate-700 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  aria-label="Nomor invoice"
+                  className="gl-input px-3 py-2 text-xs font-mono"
                 />
                 <a
                   href={trackingRequestWhatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mx-auto flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700"
+                  className="mx-auto flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-3 py-2.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25"
                 >
                   <Phone className="h-3.5 w-3.5" />
                   Hubungi admin via WhatsApp
@@ -382,13 +398,13 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                 href={adminWhatsAppUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mx-auto mt-3 flex w-fit items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-green-700"
+                className="mx-auto mt-3 flex w-fit items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-3 py-2.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25"
               >
                 <Phone className="h-3.5 w-3.5" />
                 Hubungi admin
               </a>
             ) : (
-              <p className="mt-2 text-center text-[11px] text-slate-400">Buka melalui link tracking cabang untuk menghubungi admin.</p>
+              <p className="mt-2 text-center text-[11px] gl-t3">Buka melalui link tracking cabang untuk menghubungi admin.</p>
             )}
           </div>
         </motion.div>
@@ -397,28 +413,28 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="glacier min-h-screen">
       <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-5">
         {/* Header Card */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200">
-            <div className="p-5 text-center">
+          className="gl-card overflow-hidden">
+          <div className="grid md:grid-cols-3">
+            <div className="p-5 text-center border-b gl-bd md:border-b-0">
               <div className="flex items-center justify-center gap-2 mb-1">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <Watch className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-sky-400/25 to-cyan-500/10 border border-[color:var(--gl-border-strong)] rounded-xl flex items-center justify-center">
+                  <Watch className="w-5 h-5 gl-ice" />
                 </div>
-                  <span className="text-lg font-bold text-slate-900">Arlogic Watch Service</span>
+                  <span className="text-lg font-bold text-[color:var(--gl-text)]">Arlogic Watch Service</span>
                 </div>
-                <p className="text-xs text-slate-500">Pusat Layanan Service</p>
+                <p className="text-xs gl-t2">Pusat Layanan Service</p>
             </div>
-            <div className="p-5 text-center">
-              <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Invoice</p>
-              <p className="text-lg font-bold font-mono text-slate-900">{service.invoice_number}</p>
-              <p className="text-xs text-slate-500 mt-1">{fmtDate(service.created_at)}</p>
+            <div className="p-5 text-center border-b md:border-b-0 gl-bd md:border-l">
+              <p className="text-[11px] font-semibold uppercase gl-t3 tracking-wider">Invoice</p>
+              <p className="text-lg font-bold font-mono text-[color:var(--gl-text)]">{service.invoice_number}</p>
+              <p className="text-xs gl-t2 mt-1">{fmtDate(service.created_at)}</p>
             </div>
-            <div className="p-5 text-center">
-              <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Status</p>
+            <div className="p-5 text-center md:border-l gl-bd">
+              <p className="text-[11px] font-semibold uppercase gl-t3 tracking-wider">Status</p>
               <div className="mt-1">
                 <span className={`inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full border ${statusColors[service.status] || statusColors.pending}`}>
                   {service.status === "qc_pending" ? "Quality Check" : service.status === "waiting_sparepart" ? "Menunggu Sparepart" : service.status === "in_progress" ? "Dikerjakan" : service.status === "assigned" ? "Ditugaskan" : service.status === "completed" ? "Selesai" : service.status === "cancelled" ? "Dibatalkan" : service.status}
@@ -430,24 +446,24 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
 
         {/* QR Code + Token */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          className="gl-card p-5">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-center sm:text-left">
-              <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider flex items-center gap-2 justify-center sm:justify-start">
+              <p className="text-[11px] font-semibold uppercase gl-t3 tracking-wider flex items-center gap-2 justify-center sm:justify-start">
                 Scan QR Code untuk Lacak Service</p>
-              <p className="text-sm text-slate-500 mt-1">Scan dengan camera HP untuk akses cepat</p>
+              <p className="text-sm gl-t2 mt-1">Scan dengan camera HP untuk akses cepat</p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="border border-slate-200 p-2 bg-white rounded-xl shadow-sm">
+              <div className="border gl-bd p-2 bg-white rounded-xl shadow-sm">
                 <QRCodeSVG value={typeof window !== "undefined" ? window.location.origin + "/tracking" : ""} size={72} level="H" />
-                <p className="text-[10px] text-slate-400 mt-1">Scan untuk lacak</p>
+                <p className="text-[10px] text-slate-500 mt-1 text-center">Scan untuk lacak</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Token</p>
+                <p className="text-xs gl-t2">Token</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <code className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg font-mono text-sm text-slate-800">{service.token}</code>
-                  <button onClick={copyToken} className="p-1.5 hover:bg-slate-100 rounded-lg transition-all">
-                    {copiedId ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-slate-400" />}
+                  <code className="px-2 py-1 bg-white/5 border gl-bd rounded-lg font-mono text-sm text-[color:var(--gl-text)]">{service.token}</code>
+                  <button onClick={copyToken} aria-label="Salin token" className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/5 rounded-lg transition-all">
+                    {copiedId ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 gl-t3" />}
                   </button>
                 </div>
               </div>
@@ -458,28 +474,28 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
         {/* Queue Position - only for active services */}
         {queuePosition && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
-            className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+            className="gl-card p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
-                  <span className="text-white font-bold text-sm">#{queuePosition.position}</span>
+                <div className="w-10 h-10 bg-gradient-to-br from-sky-400/25 to-cyan-500/15 border border-[color:var(--gl-border-strong)] rounded-xl flex items-center justify-center">
+                  <span className="font-bold text-sm gl-ice">#{queuePosition.position}</span>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Antrian Anda</p>
-                  <p className="font-bold text-slate-900">Posisi {queuePosition.position} dari {queuePosition.total}</p>
+                  <p className="text-xs gl-t2">Antrian Anda</p>
+                  <p className="font-bold text-[color:var(--gl-text)]">Posisi {queuePosition.position} dari {queuePosition.total}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs text-slate-500">Sedang dikerjakan</p>
-                <p className="font-semibold text-sm text-slate-900">
+                <p className="text-xs gl-t2">Sedang dikerjakan</p>
+                <p className="font-semibold text-sm text-[color:var(--gl-text)]">
                   {queuePosition.currentWork
                     ? `Antrian #${queuePosition.currentWorkPos} oleh ${queuePosition.currentWork}`
                     : 'Mohon Bersabar ya'}
                 </p>
               </div>
             </div>
-            <div className="mt-3 bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500"
+            <div className="mt-3 bg-white/5 rounded-full h-2 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-sky-400 to-cyan-300 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, (queuePosition.position / queuePosition.total) * 100)}%` }} />
             </div>
           </motion.div>
@@ -487,9 +503,9 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
 
         {/* Progress Steps */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-          className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-          <h2 className="text-base font-bold text-slate-900 mb-5 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-600" /> Progress Service
+          className="gl-card p-5">
+          <h2 className="text-base font-bold text-[color:var(--gl-text)] mb-5 flex items-center gap-2">
+            <Clock className="w-5 h-5 gl-ice" /> Progress Service
           </h2>
           <div className="relative">
             {statusSteps.map((step, index) => {
@@ -498,24 +514,24 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
               return (
                 <div key={step.status} className="relative flex items-start gap-4 pb-8 last:pb-0">
                   <div className="relative flex-shrink-0">
-                    <div className={`w-10 h-10 flex items-center justify-center rounded-xl border-2 z-10 relative transition-all ${isCompleted ? "bg-gradient-to-br " + step.color + " text-white border-transparent shadow-md" : "bg-white text-slate-400 border-slate-200"}`}>
+                    <div className={`w-10 h-10 flex items-center justify-center rounded-xl border-2 z-10 relative transition-all ${isCompleted ? "bg-gradient-to-br " + step.color + " text-white border-transparent shadow-[0_0_16px_rgba(125,211,252,0.25)]" : "bg-white/5 gl-t3 border-[color:var(--gl-border)]"}`}>
                       {isCompleted ? <CheckCircle className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                     </div>
                     {index < statusSteps.length - 1 && (
-                      <div className={`absolute top-10 left-5 w-0.5 h-8 ${isCompleted ? "bg-blue-500" : "bg-slate-200"}`} />
+                      <div className={`absolute top-10 left-5 w-0.5 h-8 ${isCompleted ? "bg-sky-400/70" : "bg-white/10"}`} />
                     )}
                   </div>
-                  <div className={`flex-1 pt-1.5 ${isCurrent ? "bg-blue-50 -mx-3 p-3 rounded-xl border border-blue-100" : ""}`}>
-                    <h3 className={`font-semibold text-sm ${isCompleted ? "text-slate-900" : "text-slate-500"}`}>{step.label}</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">{step.desc}</p>
+                  <div className={`flex-1 pt-1.5 ${isCurrent ? "bg-[color:var(--gl-accent-soft)] -mx-3 p-3 rounded-xl border border-[color:var(--gl-border)]" : ""}`}>
+                    <h3 className={`font-semibold text-sm ${isCompleted ? "text-[color:var(--gl-text)]" : "gl-t2"}`}>{step.label}</h3>
+                    <p className="text-xs gl-t3 mt-0.5">{step.desc}</p>
                     {isCurrent && service.status === "in_progress" && (
-                      <p className="text-xs text-blue-600 mt-1 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />Sedang dikerjakan...</p>
+                      <p className="text-xs text-sky-300 mt-1 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse" />Sedang dikerjakan...</p>
                     )}
                     {isCurrent && service.status === "waiting_sparepart" && (
-                      <p className="text-xs text-orange-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Menunggu konfirmasi sparepart</p>
+                      <p className="text-xs text-amber-300 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Menunggu konfirmasi sparepart</p>
                     )}
                     {isCurrent && service.status === "completed" && (
-                      <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Siap diambil!</p>
+                      <p className="text-xs text-emerald-300 mt-1 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Siap diambil!</p>
                     )}
                   </div>
                 </div>
@@ -528,69 +544,69 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
         <div className="space-y-4">
           {/* Customer & Device Info */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-            className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <button onClick={() => toggleSection("device")}
-              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+            className="gl-card overflow-hidden">
+            <button onClick={() => toggleSection("device")} aria-expanded={expandedSections.device} aria-controls="gl-panel-device"
+              className="w-full flex items-center justify-between p-4 gl-hover-row rounded-t-xl">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <Smartphone className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 bg-[color:var(--gl-accent-soft)] border border-[color:var(--gl-border)] rounded-lg flex items-center justify-center">
+                  <Smartphone className="w-4 h-4 gl-ice" />
                 </div>
-                <h3 className="font-semibold text-sm text-slate-900">Informasi Service</h3>
+                <h3 className="font-semibold text-sm text-[color:var(--gl-text)]">Informasi Service</h3>
               </div>
-              {expandedSections.device ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+              {expandedSections.device ? <ChevronDown className="w-4 h-4 gl-t3" /> : <ChevronRight className="w-4 h-4 gl-t3" />}
             </button>
             {expandedSections.device && (
-              <div className="p-5 space-y-4 border-t border-slate-100">
+              <div id="gl-panel-device" className="p-5 space-y-4 border-t gl-bd">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                    <User className="w-5 h-5 text-blue-600" />
+                  <div className="flex items-center gap-3 p-3 bg-[color:var(--gl-accent-soft)] border border-[color:var(--gl-border)] rounded-xl">
+                    <User className="w-5 h-5 gl-ice flex-shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-500">Customer</p>
-                      <p className="font-semibold text-slate-900">{service.customer_name}</p>
-                      <p className="text-sm text-slate-600">{service.customer_phone}</p>
+                      <p className="text-xs gl-t2">Customer</p>
+                      <p className="font-semibold text-[color:var(--gl-text)]">{service.customer_name}</p>
+                      <p className="text-sm gl-t2">{service.customer_phone}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                    <Watch className="w-5 h-5 text-purple-600" />
+                  <div className="flex items-center gap-3 p-3 bg-violet-400/10 border border-violet-400/20 rounded-xl">
+                    <Watch className="w-5 h-5 text-violet-300 flex-shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-500">Device</p>
-                      <p className="font-semibold text-slate-900">{service.watch_brand || service.device_brand}{service.device_model ? " " + service.device_model : ""}</p>
-                      <p className="text-xs text-slate-500 capitalize">{service.device_type}</p>
+                      <p className="text-xs gl-t2">Device</p>
+                      <p className="font-semibold text-[color:var(--gl-text)]">{service.watch_brand || service.device_brand}{service.device_model ? " " + service.device_model : ""}</p>
+                      <p className="text-xs gl-t3 capitalize">{service.device_type}</p>
                     </div>
                   </div>
                 </div>
                 {service.watch_movement && (
-                  <div className="grid grid-cols-2 gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                    {service.watch_brand && <div><span className="text-xs text-slate-500">Brand:</span> <span className="font-semibold text-sm">{service.watch_brand}</span></div>}
-                    {service.watch_model && <div><span className="text-xs text-slate-500">Model:</span> <span className="font-semibold text-sm">{service.watch_model}</span></div>}
-                    {service.watch_year && <div><span className="text-xs text-slate-500">Tahun:</span> <span className="font-semibold text-sm">{service.watch_year}</span></div>}
-                    {service.watch_movement && <div className="flex items-center gap-1"><span className="text-xs text-slate-500">Movement:</span> {getMovementIcon(service.watch_movement)} <span className="font-semibold text-sm capitalize">{service.watch_movement}</span></div>}
-                    {service.watch_condition && <div><span className="text-xs text-slate-500">Condition:</span> <span className="font-semibold text-sm capitalize">{service.watch_condition}</span></div>}
-                    {service.category && <div><span className="text-xs text-slate-500">Kategori:</span> <span className="font-semibold text-sm capitalize">{service.category}</span></div>}
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-amber-400/5 border border-amber-400/15 rounded-xl">
+                    {service.watch_brand && <div><span className="text-xs gl-t2">Brand:</span> <span className="font-semibold text-sm text-[color:var(--gl-text)]">{service.watch_brand}</span></div>}
+                    {service.watch_model && <div><span className="text-xs gl-t2">Model:</span> <span className="font-semibold text-sm text-[color:var(--gl-text)]">{service.watch_model}</span></div>}
+                    {service.watch_year && <div><span className="text-xs gl-t2">Tahun:</span> <span className="font-semibold text-sm text-[color:var(--gl-text)]">{service.watch_year}</span></div>}
+                    {service.watch_movement && <div className="flex items-center gap-1"><span className="text-xs gl-t2">Movement:</span> <span className="gl-ice">{getMovementIcon(service.watch_movement)}</span> <span className="font-semibold text-sm capitalize text-[color:var(--gl-text)]">{service.watch_movement}</span></div>}
+                    {service.watch_condition && <div><span className="text-xs gl-t2">Condition:</span> <span className="font-semibold text-sm capitalize text-[color:var(--gl-text)]">{service.watch_condition}</span></div>}
+                    {service.category && <div><span className="text-xs gl-t2">Kategori:</span> <span className="font-semibold text-sm capitalize text-[color:var(--gl-text)]">{service.category}</span></div>}
                   </div>
                 )}
                 {service.serial_number && (
-                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <Hash className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm text-slate-700">Serial: <span className="font-mono font-semibold">{service.serial_number}</span></span>
+                  <div className="flex items-center gap-2 p-3 gl-inset">
+                    <Hash className="w-4 h-4 gl-t3" />
+                    <span className="text-sm gl-t2">Serial: <span className="font-mono font-semibold text-[color:var(--gl-text)]">{service.serial_number}</span></span>
                   </div>
                 )}
                 {service.watch_accessories?.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-xs text-slate-500 w-full">Aksesoris:</span>
+                  <div className="flex flex-wrap gap-1.5 p-3 gl-inset">
+                    <span className="text-xs gl-t2 w-full">Aksesoris:</span>
                     {service.watch_accessories.map((acc: string, i: number) => (
-                      <span key={i} className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-600">
+                      <span key={i} className="text-[10px] bg-white/5 border gl-bd px-2 py-0.5 rounded-md gl-t2">
                         {acc}
                       </span>
                     ))}
                   </div>
                 )}
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Kerusakan</p>
-                  <div className="p-3 bg-red-50 rounded-xl border border-red-100 text-sm text-slate-800">{service.issue_description}</div>
+                  <p className="text-xs font-semibold gl-t2 mb-1 uppercase tracking-wider">Kerusakan</p>
+                  <div className="p-3 bg-red-400/10 border border-red-400/20 rounded-xl text-sm text-[color:var(--gl-text)]">{service.issue_description}</div>
                 </div>
-                {service.request && <div><p className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Request Customer</p><div className="p-3 bg-blue-50 rounded-xl border border-blue-100 text-sm">{service.request}</div></div>}
-                {service.notes && <div><p className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wider">Catatan</p><div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-sm">{service.notes}</div></div>}
+                {service.request && <div><p className="text-xs font-semibold gl-t2 mb-1 uppercase tracking-wider">Request Customer</p><div className="p-3 bg-[color:var(--gl-accent-soft)] border border-[color:var(--gl-border)] rounded-xl text-sm text-[color:var(--gl-text)]">{service.request}</div></div>}
+                {service.notes && <div><p className="text-xs font-semibold gl-t2 mb-1 uppercase tracking-wider">Catatan</p><div className="p-3 gl-inset text-sm text-[color:var(--gl-text)]">{service.notes}</div></div>}
               </div>
             )}
           </motion.div>
@@ -598,20 +614,21 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
           {/* Teknisi Info */}
           {teknisiName && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.22 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+              className="gl-card p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-                  <Wrench className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-violet-400/25 to-purple-500/15 border border-[color:var(--gl-border-strong)] rounded-xl flex items-center justify-center">
+                  <Wrench className="w-5 h-5 text-violet-300" />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Teknisi</p>
-                  <p className="font-semibold text-slate-900">{teknisiName}</p>
-                  {service.start_date && <p className="text-xs text-slate-400">Mulai: {fmtDate(service.start_date)}</p>}
+                  <p className="text-[11px] font-semibold uppercase gl-t3 tracking-wider">Technician</p>
+                  <p className="font-semibold text-[color:var(--gl-text)]">{teknisiName}</p>
+                  <p className="text-xs gl-t3">Master Horologist — Assigned to your service</p>
+                  {service.start_date && <p className="text-xs gl-t3">Mulai: {fmtDate(service.start_date)}</p>}
                 </div>
                 {service.work_duration && (
                   <div className="ml-auto text-right">
-                    <p className="text-xs text-slate-500">Durasi</p>
-                    <p className="font-semibold text-sm text-slate-900">{service.work_duration}</p>
+                    <p className="text-xs gl-t2">Durasi</p>
+                    <p className="font-semibold text-sm text-[color:var(--gl-text)]">{service.work_duration}</p>
                   </div>
                 )}
               </div>
@@ -621,35 +638,36 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
           {/* Initial Condition Photos */}
           {initialPhotos.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <button onClick={() => toggleSection("photos")}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              className="gl-card overflow-hidden">
+              <button onClick={() => toggleSection("photos")} aria-expanded={expandedSections.photos} aria-controls="gl-panel-photos"
+                className="w-full flex items-center justify-between p-4 gl-hover-row rounded-t-xl">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                    <Camera className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 bg-emerald-400/10 border border-emerald-400/20 rounded-lg flex items-center justify-center">
+                    <Camera className="w-4 h-4 text-emerald-300" />
                   </div>
-                  <h3 className="font-semibold text-sm text-slate-900">Foto Kondisi Awal ({initialPhotos.length})</h3>
+                  <h3 className="font-semibold text-sm text-[color:var(--gl-text)]">Foto Kondisi Awal ({initialPhotos.length})</h3>
                 </div>
-                {expandedSections.photos ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                {expandedSections.photos ? <ChevronDown className="w-4 h-4 gl-t3" /> : <ChevronRight className="w-4 h-4 gl-t3" />}
               </button>
               {expandedSections.photos && (
-                <div className="p-5 border-t border-slate-100">
+                <div id="gl-panel-photos" className="p-5 border-t gl-bd">
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {initialPhotos.map((photo, i) => (
-                      <motion.div key={photo.id || i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
-                        className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-square cursor-pointer"
+                      <motion.button key={photo.id || i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
+                        type="button" aria-label={"Perbesar foto kondisi awal " + (i + 1)}
+                        className="gl-media-frame relative group aspect-square cursor-pointer block w-full"
                         onClick={() => setPhotoModal({ url: photo.photo_url, media_type: photo.media_type })}>
                         {isPlayableVideo(photo.media_type, photo.photo_url) ? (
                           <video src={photo.photo_url} className="w-full h-full object-cover" />
                         ) : (
-                          <img src={photo.photo_url} alt={"Kondisi Awal " + (i + 1)} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                          <img src={photo.photo_url} alt={"Kondisi Awal " + (i + 1)} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         )}
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center pointer-events-none">
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
                             <Search className="w-4 h-4 text-slate-800" />
                           </div>
                         </div>
-                      </motion.div>
+                      </motion.button>
                     ))}
                   </div>
                 </div>
@@ -660,35 +678,35 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
           {/* Before & After Photos - only when completed */}
           {(service.status === 'completed' || service.status === 'done') && qcPhotos.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.28 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-4">
+              className="gl-card p-4">
+              <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                    <Camera className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 bg-emerald-400/10 border border-emerald-400/20 rounded-lg flex items-center justify-center">
+                    <Camera className="w-4 h-4 text-emerald-300" />
                   </div>
-                  <h3 className="font-semibold text-sm text-slate-900">Before & After</h3>
+                  <h3 className="font-semibold text-sm text-[color:var(--gl-text)]">Before &amp; After</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {initialPhotos.length > 0 && (
                     <div>
-                      <p className="text-xs font-medium text-slate-500 mb-2">Kondisi Awal</p>
+                      <p className="text-xs font-medium gl-t2 mb-2">Kondisi Awal</p>
                       {isPlayableVideo(initialPhotos[0].media_type, initialPhotos[0].photo_url) ? (
-                        <video src={initialPhotos[0].photo_url} className="rounded-xl border border-slate-200 w-full aspect-square object-cover" onClick={() => setPhotoModal({ url: initialPhotos[0].photo_url, media_type: 'video' })} />
+                        <video src={initialPhotos[0].photo_url} className="gl-media-frame w-full aspect-square object-cover cursor-pointer" onClick={() => setPhotoModal({ url: initialPhotos[0].photo_url, media_type: 'video' })} />
                       ) : (
-                        <img src={initialPhotos[0].photo_url} alt="Before"
-                          className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
+                        <img src={initialPhotos[0].photo_url} alt="Before" loading="lazy"
+                          className="gl-media-frame w-full aspect-square object-cover cursor-pointer hover:opacity-90 transition-opacity"
                           onClick={() => setPhotoModal({ url: initialPhotos[0].photo_url, media_type: initialPhotos[0].media_type })} />
                       )}
                     </div>
                   )}
                   <div>
-                    <p className="text-xs font-medium text-slate-500 mb-2">Hasil Service</p>
+                    <p className="text-xs font-medium gl-t2 mb-2">Hasil Service</p>
                     {qcPhotos.length > 0 && (
                       isPlayableVideo(qcPhotos[0].media_type, qcPhotos[0].photo_url) ? (
-                        <video src={qcPhotos[0].photo_url} className="rounded-xl border border-slate-200 w-full aspect-square object-cover" onClick={() => setPhotoModal({ url: qcPhotos[0].photo_url, media_type: 'video' })} />
+                        <video src={qcPhotos[0].photo_url} className="gl-media-frame w-full aspect-square object-cover cursor-pointer" onClick={() => setPhotoModal({ url: qcPhotos[0].photo_url, media_type: 'video' })} />
                       ) : (
-                        <img src={qcPhotos[0].photo_url} alt="After"
-                          className="rounded-xl border border-slate-200 w-full aspect-square object-cover cursor-pointer hover:opacity-90"
+                        <img src={qcPhotos[0].photo_url} alt="After" loading="lazy"
+                          className="gl-media-frame w-full aspect-square object-cover cursor-pointer hover:opacity-90 transition-opacity"
                           onClick={() => setPhotoModal({ url: qcPhotos[0].photo_url, media_type: qcPhotos[0].media_type })} />
                       )
                     )}
@@ -702,37 +720,37 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
           {/* Rincian Biaya — menggunakan ServiceCostBreakdown */}
           {(service.status === "completed" || service.status === "done") && finalItems.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-              <ServiceCostBreakdown items={finalItems} dp={dp} discount={discount} />
+              className="gl-card p-4">
+              <ServiceCostBreakdown items={finalItems} dp={dp} discount={discount} variant="glacier" />
             </motion.div>
           )}
 
           {/* Rincian Pembayaran (legacy fallback — tanpa items) */}
           {(service.status === "completed" || service.status === "done") && finalItems.length === 0 && (service.down_payment > 0 || service.discount > 0) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+              className="gl-card p-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 bg-emerald-400/10 border border-emerald-400/20 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-4 h-4 text-emerald-300" />
                 </div>
-                <h3 className="font-semibold text-sm text-slate-900">Rincian Pembayaran</h3>
+                <h3 className="font-semibold text-sm text-[color:var(--gl-text)]">Rincian Pembayaran</h3>
               </div>
               <div className="space-y-2">
                 {service.down_payment > 0 && (
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">DP</span><span className="font-semibold text-emerald-600">-{fmtRupiah(service.down_payment)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="gl-t2">DP</span><span className="font-semibold text-emerald-400 tabular-nums">-{fmtRupiah(service.down_payment)}</span></div>
                 )}
                 {service.discount > 0 && (
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">Diskon</span><span className="font-semibold text-red-500">-{fmtRupiah(service.discount)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="gl-t2">Diskon</span><span className="font-semibold text-red-400 tabular-nums">-{fmtRupiah(service.discount)}</span></div>
                 )}
-                <div className="h-px bg-slate-200" />
+                <div className="h-px bg-white/10" />
                 <div className="flex justify-between items-center">
-                  <span className="font-semibold text-slate-700">Sisa yang harus dibayar</span>
-                  <span className={`font-bold text-lg ${remaining === 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                  <span className="font-semibold text-[color:var(--gl-text)]">Sisa yang harus dibayar</span>
+                  <span className={`font-bold text-lg tabular-nums ${remaining === 0 ? 'text-emerald-400' : 'text-[color:var(--gl-text)]'}`}>
                     {remaining === 0 ? 'LUNAS' : fmtRupiah(remaining)}
                   </span>
                 </div>
                 {remaining === 0 && (
-                  <p className="text-xs text-emerald-600 font-medium flex items-center gap-1 mt-1"><CheckCircle className="w-3 h-3" />Pembayaran LUNAS</p>
+                  <p className="text-xs text-emerald-300 font-medium flex items-center gap-1 mt-1"><CheckCircle className="w-3 h-3" />Pembayaran LUNAS</p>
                 )}
               </div>
             </motion.div>
@@ -741,37 +759,37 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
           {/* Timeline Updates */}
           {timeline.length > 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <button onClick={() => toggleSection("timeline")}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+              className="gl-card overflow-hidden">
+              <button onClick={() => toggleSection("timeline")} aria-expanded={expandedSections.timeline} aria-controls="gl-panel-timeline"
+                className="w-full flex items-center justify-between p-4 gl-hover-row rounded-t-xl">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-white" />
+                  <div className="w-8 h-8 bg-[color:var(--gl-accent-soft)] border border-[color:var(--gl-border)] rounded-lg flex items-center justify-center">
+                    <Clock className="w-4 h-4 gl-ice" />
                   </div>
-                  <h3 className="font-semibold text-sm text-slate-900">Update Progress</h3>
+                  <h3 className="font-semibold text-sm text-[color:var(--gl-text)]">Update Progress</h3>
                 </div>
-                {expandedSections.timeline ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                {expandedSections.timeline ? <ChevronDown className="w-4 h-4 gl-t3" /> : <ChevronRight className="w-4 h-4 gl-t3" />}
               </button>
               {expandedSections.timeline && (
-                <div className="p-5 space-y-4 max-h-96 overflow-y-auto border-t border-slate-100">
+                <div id="gl-panel-timeline" className="p-5 space-y-4 max-h-96 overflow-y-auto border-t gl-bd">
                   {timeline.map((update, i) => (
                     <div key={update.id} className="relative pl-6 pb-4 last:pb-0">
-                      {i < timeline.length - 1 && <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-blue-200" />}
-                      <div className="absolute left-0 top-1.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm" />
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-3 ml-2 rounded-xl border border-blue-100">
+                      {i < timeline.length - 1 && <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-sky-400/30" />}
+                      <div className="absolute left-0 top-1.5 w-3 h-3 bg-[#7dd3fc] rounded-full border-2 border-[#0a1220] shadow-[0_0_8px_rgba(125,211,252,0.5)]" />
+                      <div className="bg-white/[0.04] border border-[color:var(--gl-border)] p-3 ml-2 rounded-xl">
                         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                          <span className="text-xs text-slate-500">{fmtDate(update.created_at)}</span>
-                          <span className={"text-xs font-bold px-2 py-0.5 rounded-full border " + (update.status === "completed" ? "bg-green-100 text-green-700 border-green-200" : update.status === "waiting_sparepart" ? "bg-orange-100 text-orange-700 border-orange-200" : update.status === "in_progress" ? "bg-purple-100 text-purple-700 border-purple-200" : "bg-blue-100 text-blue-700 border-blue-200")}>
+                          <span className="text-xs gl-t3">{fmtDate(update.created_at)}</span>
+                          <span className={"text-xs font-bold px-2 py-0.5 rounded-full border " + (update.status === "completed" ? "bg-emerald-400/10 text-emerald-300 border-emerald-400/30" : update.status === "waiting_sparepart" ? "bg-amber-400/10 text-amber-300 border-amber-400/30" : update.status === "in_progress" ? "bg-violet-400/10 text-violet-300 border-violet-400/30" : "bg-sky-400/10 text-sky-300 border-sky-400/30")}>
                             {update.status === "completed" ? "SELESAI" : update.status === "waiting_sparepart" ? "MENUNGGU SPAREPART" : update.status === "in_progress" ? "DALAM PENGERJAAN" : update.status === "assigned" ? "DITUGASKAN" : update.status === "qc_pending" ? "QUALITY CHECK" : "UPDATE"}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-700">{update.message}</p>
+                        <p className="text-sm text-[color:var(--gl-text)]">{update.message}</p>
                         {update.photo_url && (
                           <SmartMedia
                             src={update.photo_url}
                             mediaType={update.details?.media_type}
-                            imgClassName="mt-2 rounded-lg border border-slate-200 max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                            videoClassName="mt-2 rounded-lg border border-slate-200 max-h-48 w-full object-contain bg-black"
+                            imgClassName="mt-2 rounded-lg border border-[color:var(--gl-border)] max-h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            videoClassName="mt-2 rounded-lg border border-[color:var(--gl-border)] max-h-48 w-full object-contain bg-black/60"
                             imgOnClick={() => window.open(update.photo_url, "_blank")}
                           />
                         )}
@@ -787,16 +805,16 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
         {/* Completion Message */}
         {service.status === "completed" && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-gradient-to-r from-emerald-500 to-green-600 p-5 rounded-2xl text-white shadow-lg">
+            className="bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-emerald-400/30 p-5 rounded-xl">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center border-2 border-white/30">
-                <CheckCircle className="w-6 h-6" />
+              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/15">
+                <CheckCircle className="w-6 h-6 text-emerald-300" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold">Service Selesai!</h3>
-                <p className="text-sm opacity-90">Jam tangan Anda sudah siap diambil. Bawa invoice dan token ini.</p>
+                <h3 className="text-lg font-bold text-[color:var(--gl-text)]">Service Selesai!</h3>
+                <p className="text-sm gl-t2">Jam tangan Anda sudah siap diambil. Bawa invoice dan token ini.</p>
                 {(service.warranty_months || service.warranty_expiry) && (
-                  <div className="flex items-center gap-3 mt-2 text-xs text-white/80">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-emerald-200/80">
                     <span>Garansi: {service.warranty_months ? `${service.warranty_months} bulan` : ""}</span>
                     {service.warranty_expiry && <span>Exp: {fmtDate(service.warranty_expiry)}</span>}
                   </div>
@@ -809,52 +827,52 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
         {/* Feedback Section - Only when service is completed */}
         {service.status !== "completed" && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl p-5 border border-slate-200 text-center">
-            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <Clock className="w-6 h-6 text-slate-400" />
+            className="gl-card p-5 text-center">
+            <div className="w-12 h-12 bg-white/5 border gl-bd rounded-xl flex items-center justify-center mx-auto mb-3">
+              <Clock className="w-6 h-6 gl-t3" />
             </div>
-              <h3 className="font-bold text-slate-700">Penilaian Belum Tersedia</h3>
-            <p className="text-sm text-slate-500 mt-1">Penilaian dapat diberikan setelah service selesai.</p>
+              <h3 className="font-bold text-[color:var(--gl-text)]">Penilaian Belum Tersedia</h3>
+            <p className="text-sm gl-t2 mt-1">Penilaian dapat diberikan setelah service selesai.</p>
           </motion.div>
         )}
 
         {service.status === "completed" && !feedbackAlready && !feedbackSubmitted && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-            className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+            className="gl-card p-5">
             <div className="text-center mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-200">
-                <Star className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-gradient-to-br from-amber-400/25 to-orange-500/10 border border-amber-400/30 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-[0_0_24px_rgba(251,191,36,0.15)]">
+                <Star className="w-6 h-6 text-amber-300" />
               </div>
-                  <h3 className="text-base font-bold text-slate-900">Beri Nilai</h3>
-                  <p className="text-sm text-slate-500 mt-0.5">Bagaimana pengalaman service Anda?</p>
+                  <h3 className="text-base font-bold text-[color:var(--gl-text)]">Beri Nilai</h3>
+                  <p className="text-sm gl-t2 mt-0.5">Bagaimana pengalaman service Anda?</p>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 py-2">
+            <div className="flex items-center justify-center gap-1.5 py-2" role="radiogroup" aria-label="Rating layanan">
               {[1, 2, 3, 4, 5].map((star) => (
-                <motion.button key={star} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}
-                  onClick={() => setFeedbackRating(star)} onMouseEnter={() => setFeedbackHover(star)} onMouseLeave={() => setFeedbackHover(0)}
-                  className="focus:outline-none">
-                  <Star size={36} className={"transition-all duration-150 " + (star <= (feedbackHover || feedbackRating) ? "text-amber-400 fill-amber-400 drop-shadow-sm" : "text-slate-300")} />
+                <motion.button key={star} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} type="button"
+                  role="radio" aria-checked={feedbackRating === star} aria-label={`${star} bintang dari 5`}
+                  onClick={() => setFeedbackRating(star)} onMouseEnter={() => setFeedbackHover(star)} onMouseLeave={() => setFeedbackHover(0)}>
+                  <Star size={36} className={"transition-all duration-150 " + (star <= (feedbackHover || feedbackRating) ? "text-amber-300 fill-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]" : "text-slate-600")} />
                 </motion.button>
               ))}
             </div>
             {(feedbackRating > 0 || feedbackHover > 0) && (
-              <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+              <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} aria-live="polite"
                 className={"text-center font-semibold text-sm mt-1 " + ratingColors[feedbackHover || feedbackRating]}>
                 {ratingLabels[feedbackHover || feedbackRating]}
               </motion.p>
             )}
 
             <div className="mt-4">
-              <textarea value={feedbackComment} onChange={(e) => setFeedbackComment(e.target.value)}
+              <textarea value={feedbackComment} onChange={(e) => setFeedbackComment(e.target.value)} aria-label="Komentar feedback"
                 placeholder="Ceritakan pengalaman Anda (opsional)..." rows={3}
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-              <p className="text-xs text-slate-400 text-right mt-1">{feedbackComment.length}/500</p>
+                className="gl-input px-3 py-2.5 text-sm resize-none" />
+              <p className="text-xs gl-t3 text-right mt-1">{feedbackComment.length}/500</p>
             </div>
 
             <button onClick={handleFeedbackSubmit} disabled={feedbackLoading || feedbackRating === 0}
-              className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-blue-200">
-              {feedbackLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> :                 <><Send className="w-4 h-4" /> Kirim Penilaian</>}
+              className="gl-btn-primary w-full mt-4 flex items-center justify-center gap-2 py-2.5 font-semibold rounded-xl">
+              {feedbackLoading ? <div className="w-4 h-4 border-2 border-[#7dd3fc] border-t-transparent rounded-full animate-spin" /> :                 <><Send className="w-4 h-4" /> Kirim Penilaian</>}
             </button>
           </motion.div>
         )}
@@ -862,16 +880,16 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
         {/* Feedback Already Submitted */}
         {service.status === "completed" && (feedbackAlready || feedbackSubmitted) && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200 text-center">
-            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-amber-600" />
+            className="bg-gradient-to-br from-amber-400/10 to-orange-500/5 border border-amber-400/25 rounded-xl p-5 text-center">
+            <div className="w-12 h-12 bg-amber-400/10 border border-amber-400/25 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <CheckCircle className="w-6 h-6 text-amber-300" />
             </div>
-              <h3 className="font-bold text-slate-900">Penilaian Terkirim</h3>
-            <p className="text-sm text-slate-600 mt-1">Terima kasih! Penilaian Anda sangat berarti untuk kami.</p>
+              <h3 className="font-bold text-[color:var(--gl-text)]">Penilaian Terkirim</h3>
+            <p className="text-sm gl-t2 mt-1">Terima kasih! Penilaian Anda sangat berarti untuk kami.</p>
             {feedbackSubmitted && feedbackRating > 0 && (
               <div className="flex items-center justify-center gap-1 mt-3">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} size={20} className={star <= feedbackRating ? "text-amber-400 fill-amber-400" : "text-slate-300"} />
+                  <Star key={star} size={20} className={star <= feedbackRating ? "text-amber-300 fill-amber-300" : "text-slate-600"} />
                 ))}
               </div>
             )}
@@ -880,19 +898,19 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
 
         {/* Contact */}
         <div className="text-center pt-2 pb-4">
-          <p className="text-sm text-slate-500">Butuh bantuan terkait service ini?</p>
+          <p className="text-sm gl-t2">Butuh bantuan terkait service ini?</p>
           {adminWhatsAppUrl ? (
             <a
               href={adminWhatsAppUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
+              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-4 py-2.5 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25"
             >
               <Phone className="h-4 w-4" />
               Hubungi admin
             </a>
           ) : (
-            <p className="mt-1 text-xs text-slate-400">Kontak admin untuk cabang ini belum tersedia.</p>
+            <p className="mt-1 text-xs gl-t3">Kontak admin untuk cabang ini belum tersedia.</p>
           )}
         </div>
       </div>
@@ -900,15 +918,16 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
       {/* Photo Modal */}
       {photoModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4" onClick={() => setPhotoModal(null)}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative max-w-2xl w-full">
-            <button onClick={() => setPhotoModal(null)} className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors">
+          <motion.div ref={modalRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Pratinjau dokumentasi service"
+            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative max-w-2xl w-full focus:outline-none">
+            <button onClick={() => setPhotoModal(null)} aria-label="Tutup pratinjau" className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors">
               <X className="w-6 h-6" />
             </button>
             <SmartMedia
               src={photoModal.url}
               mediaType={photoModal.media_type}
-              imgClassName="w-full rounded-2xl shadow-2xl"
-              videoClassName="w-full rounded-2xl shadow-2xl bg-black"
+              imgClassName="w-full rounded-xl shadow-2xl"
+              videoClassName="w-full rounded-xl shadow-2xl bg-black"
             />
           </motion.div>
         </div>
@@ -923,8 +942,8 @@ function TrackingRedirect() {
     router.replace("/tracking");
   }, [router]);
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+    <div className="glacier min-h-screen flex items-center justify-center p-4">
+      <div className="w-8 h-8 border-2 border-[#7dd3fc] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }

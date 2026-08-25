@@ -1,0 +1,199 @@
+/* =====================================================
+   GLACIER — "Frozen Light"
+   Scoped theme untuk Customer Tracking Page saja.
+   Wrapper: class .glacier pada root halaman tracking.
+
+   TIDAK mengubah token global di app/globals.css.
+   Semua token di-namespace --gl-* dan hanya aktif
+   di dalam subtree .glacier.
+   ===================================================== */
+
+.glacier {
+  /* Atmosphere */
+  --gl-bg: #05090f;
+  --gl-glow-ice: rgba(125, 211, 252, 0.07);
+  --gl-glow-teal: rgba(45, 212, 191, 0.05);
+
+  /* Layered translucent surfaces */
+  --gl-surface: rgba(15, 26, 42, 0.55);
+  --gl-surface-raised: rgba(20, 33, 52, 0.65);
+  --gl-surface-inset: rgba(8, 15, 26, 0.5);
+
+  /* Hairline borders */
+  --gl-border: rgba(148, 196, 232, 0.14);
+  --gl-border-strong: rgba(125, 211, 252, 0.3);
+
+  /* Ice accent */
+  --gl-accent: #7dd3fc;
+  --gl-accent-strong: #bae6fd;
+  --gl-accent-soft: rgba(125, 211, 252, 0.12);
+  --gl-accent-ring: rgba(125, 211, 252, 0.35);
+
+  /* Text tiers */
+  --gl-text: #eaf3fa;
+  --gl-text-secondary: #a8c0d4;
+  --gl-text-muted: #7d97ad;
+
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--gl-bg);
+  color: var(--gl-text);
+}
+
+/* Atmospheric layer — subtle arctic glow, bukan neon */
+.glacier::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60rem 40rem at 85% -10%, var(--gl-glow-ice), transparent 60%),
+    radial-gradient(50rem 36rem at -15% 30%, var(--gl-glow-teal), transparent 60%),
+    radial-gradient(70rem 50rem at 50% 120%, rgba(125, 211, 252, 0.04), transparent 60%);
+}
+
+/* Konten selalu di atas atmospheric layer */
+.glacier > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* -----------------------------------------------------
+   Glass surfaces (restrained glassmorphism)
+   ----------------------------------------------------- */
+
+.gl-card {
+  background: var(--gl-surface);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--gl-border);
+  border-radius: 12px;
+  box-shadow:
+    0 12px 40px rgba(2, 8, 20, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.gl-inset {
+  background: var(--gl-surface-inset);
+  border: 1px solid var(--gl-border);
+  border-radius: 12px;
+}
+
+.gl-media-frame {
+  border: 1px solid var(--gl-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--gl-surface-inset);
+}
+
+/* -----------------------------------------------------
+   Controls
+   ----------------------------------------------------- */
+
+.gl-input {
+  width: 100%;
+  background: var(--gl-surface-inset);
+  border: 1px solid var(--gl-border);
+  border-radius: 12px;
+  color: var(--gl-text);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.gl-input::placeholder {
+  color: var(--gl-text-muted);
+}
+
+.gl-input:focus {
+  outline: none;
+  border-color: var(--gl-accent);
+  box-shadow: 0 0 0 3px var(--gl-accent-soft);
+}
+
+.gl-btn-primary {
+  background: linear-gradient(135deg, rgba(125, 211, 252, 0.16), rgba(125, 211, 252, 0.06));
+  border: 1px solid var(--gl-border-strong);
+  color: var(--gl-accent-strong);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.gl-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(125, 211, 252, 0.24), rgba(125, 211, 252, 0.1));
+  border-color: var(--gl-accent);
+}
+
+.gl-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gl-hover-row {
+  transition: background-color 0.2s ease;
+}
+
+.gl-hover-row:hover {
+  background: rgba(125, 211, 252, 0.05);
+}
+
+/* -----------------------------------------------------
+   Text & border helpers (mengurangi repetisi arbitrary value)
+   ----------------------------------------------------- */
+
+.gl-t2 {
+  color: var(--gl-text-secondary);
+}
+
+.gl-t3 {
+  color: var(--gl-text-muted);
+}
+
+.gl-ice {
+  color: var(--gl-accent);
+}
+
+.gl-bd {
+  border-color: var(--gl-border);
+}
+
+/* -----------------------------------------------------
+   Focus visibility (WCAG 2.4.7) — ring ice konsisten
+   ----------------------------------------------------- */
+
+.glacier :focus-visible {
+  outline: 2px solid var(--gl-accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar gelap di dalam scope Glacier */
+.glacier ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.glacier ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.glacier ::-webkit-scrollbar-thumb {
+  background: rgba(125, 211, 252, 0.25);
+  border-radius: 8px;
+}
+
+/* -----------------------------------------------------
+   Reduced motion (House Rule A11Y — semua profile)
+   ----------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .glacier *,
+  .glacier *::before,
+  .glacier *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
