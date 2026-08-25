@@ -66,7 +66,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a] flex items-center justify-center p-4">
       <div className="w-full max-w-5xl">
         <div className="grid lg:grid-cols-2 gap-8 items-center">
           {/* ── LEFT: Branding ── */}

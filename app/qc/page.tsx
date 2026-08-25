@@ -454,7 +454,7 @@ export default function QCDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center w-full max-w-lg px-4 space-y-4">
           <div className="bg-white dark:bg-[#1c1c1c] rounded-xl p-6 border border-gray-200 dark:border-white/10 shadow-sm">
             <div className="h-8 w-48 bg-gray-200 dark:bg-white/5 rounded animate-pulse mx-auto mb-4" />
@@ -478,7 +478,7 @@ export default function QCDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] lg:flex">
+    <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a] lg:flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div

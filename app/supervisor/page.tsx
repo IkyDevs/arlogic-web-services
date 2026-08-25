@@ -613,7 +613,7 @@ export default function SupervisorDashboard() {
   })();
 
   return (
-    <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#F5F5F7] dark:bg-[#0a0a0a] flex flex-col lg:flex-row">
+    <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#eef4fa] dark:bg-[#0a0a0a] flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-60 bg-white dark:bg-[#1c1c1c] border-r border-gray-200 dark:border-white/10 flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-white/10">

@@ -99,7 +99,7 @@ export default function EngineerDashboard() {
   const branchName = (id: string | null) => branches.find((b) => b.id === id)?.name || "Semua Cabang";
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex">
+    <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a] flex">
       {/* ── Sidebar ── */}
       <aside className="w-60 bg-white dark:bg-[#1c1c1c] border-r border-gray-200 dark:border-white/10 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-white/10">

@@ -113,7 +113,7 @@ export default function OwnerDashboard() {
   const isError = !loading && !snapshot && error !== null;
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a]">
+    <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a]">
       <div
         className={`fixed inset-y-0 left-0 w-64 bg-white dark:bg-[#111111] border-r border-slate-200/70 dark:border-white/5 z-40 transform transition-transform lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"

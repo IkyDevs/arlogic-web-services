@@ -2,7 +2,7 @@
 
 export default function TeknisiError({ error, reset }: { error: Error; reset: () => void }) {
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a] flex items-center justify-center p-4">
       <div className="text-center max-w-md">
         <div className="w-20 h-20 bg-red-50 dark:bg-red-950/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
           <span className="text-4xl text-red-400">!</span>

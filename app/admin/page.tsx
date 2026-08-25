@@ -812,7 +812,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-3 text-slate-600 dark:text-slate-400 font-medium">
@@ -824,7 +824,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-[#0a0a0a] lg:flex">
+    <div className="min-h-screen bg-[#eef4fa] dark:bg-[#0a0a0a] lg:flex">
       <AdminSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}

@@ -64,7 +64,7 @@ export default function QCSidebar({
 
       {/* User Info */}
       {user && (
-        <div className="mx-3 mb-4 flex items-center gap-3 p-2.5 bg-[#F5F5F7]/30 rounded-2xl flex-shrink-0">
+        <div className="mx-3 mb-4 flex items-center gap-3 p-2.5 bg-[#eef4fa]/30 rounded-2xl flex-shrink-0">
           <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
             {user?.full_name?.charAt(0) || "Q"}
           </div>

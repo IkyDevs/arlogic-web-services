@@ -10,9 +10,13 @@
    ===================================================== */
 :root {
   /* Background layers */
-  --color-bg: #f5f5f7;
+  --color-bg: #eef4fa;
   --color-surface: #efefef;
   --color-card: #ffffff;
+
+  /* Atmospheric glow (Glacier "Frozen Light") */
+  --atmo-ice: rgba(125, 211, 252, 0.35);
+  --atmo-teal: rgba(45, 212, 191, 0.22);
 
   /* Accent — pure black */
   --color-primary: #1a1a1a;
@@ -68,6 +72,10 @@
   --color-bg: #0a0a0a;
   --color-surface: #141414;
   --color-card: #1c1c1c;
+
+  /* Atmospheric glow — subtle di dark mode */
+  --atmo-ice: rgba(125, 211, 252, 0.07);
+  --atmo-teal: rgba(45, 212, 191, 0.05);
   --color-primary: #ffffff;
   --color-primary-hover: #e5e5e5;
   --color-primary-light: #2a2a2a;
@@ -114,6 +122,10 @@
 
   body {
     background-color: var(--color-bg);
+    background-image:
+      radial-gradient(60rem 40rem at 85% -10%, var(--atmo-ice), transparent 60%),
+      radial-gradient(50rem 36rem at -15% 30%, var(--atmo-teal), transparent 60%);
+    background-attachment: fixed;
     color: var(--color-text);
     font-family:
       "Inter",
