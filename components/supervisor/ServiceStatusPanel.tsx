@@ -2,7 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { PieChart as PieIcon } from "lucide-react";
-import { useTheme } from "@/components/ThemeProvider";
+import { useTheme } from "next-themes";
 
 export interface StatusSlice {
   key: string;
@@ -29,7 +29,7 @@ export default function ServiceStatusPanel({
   total,
   loading,
 }: ServiceStatusPanelProps) {
-  const { theme } = useTheme();
+  const { resolvedTheme: theme } = useTheme();
   const tooltipBg = theme === "dark" ? "#1c1c1c" : "#ffffff";
   const gridColor = theme === "dark" ? "rgba(255,255,255,0.06)" : "#e2e8f0";
 

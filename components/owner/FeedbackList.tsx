@@ -13,6 +13,11 @@ interface Feedback {
   service_order_id: string
   customer_name: string
   rating: number
+  rating_detail?: {
+    kepuasan?: number
+    layanan?: number
+    kualitas?: number
+  } | null
   comment: string | null
   created_at: string
   service_orders?: {
@@ -22,6 +27,19 @@ interface Feedback {
   profiles?: {
     full_name: string
   }
+}
+
+/**
+ * Nilai efektif skala 5 (1 desimal):
+ * - Baris baru: rata-rata 3 dimensi dari rating_detail.
+ * - Baris legacy (rating_detail NULL): fallback ke kolom rating (bulat).
+ */
+const effectiveRating = (f: Pick<Feedback, 'rating' | 'rating_detail'>): number => {
+  const d = f.rating_detail
+  if (d && d.kepuasan != null && d.layanan != null && d.kualitas != null) {
+    return Math.round(((d.kepuasan + d.layanan + d.kualitas) / 3) * 10) / 10
+  }
+  return f.rating
 }
 
 export default function FeedbackList() {
@@ -86,11 +104,12 @@ export default function FeedbackList() {
 
       // Calculate stats
       if (fb.length > 0) {
-        const avg = fb.reduce((sum, f) => sum + f.rating, 0) / fb.length
+        const avg = fb.reduce((sum, f) => sum + effectiveRating(f), 0) / fb.length
         const dist = [0, 0, 0, 0, 0]
         fb.forEach(f => {
-          if (f.rating >= 1 && f.rating <= 5) {
-            dist[f.rating - 1]++
+          const eff = Math.round(effectiveRating(f))
+          if (eff >= 1 && eff <= 5) {
+            dist[eff - 1]++
           }
         })
         setStats({
@@ -129,19 +148,25 @@ export default function FeedbackList() {
     const matchSearch = !search ||
       f.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
       (f.comment || '').toLowerCase().includes(search.toLowerCase())
-    const matchRating = filterRating === null || f.rating === filterRating
+    const matchRating = filterRating === null || Math.round(effectiveRating(f)) === filterRating
     return matchSearch && matchRating
   })
 
+  // Bintang fraksional: baris dasar outline + overlay terisi selebar rating/5
   const StarDisplay = ({ rating, size = 16 }: { rating: number; size?: number }) => (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map(star => (
-        <Star
-          key={star}
-          size={size}
-          className={star <= rating ? 'text-[#F59E0B] fill-[#F59E0B]' : 'text-slate-200'}
-        />
-      ))}
+    <div className="relative inline-flex">
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map(star => (
+          <Star key={star} size={size} className="text-slate-200" />
+        ))}
+      </div>
+      <div className="absolute inset-0 overflow-hidden" style={{ width: `${(Math.min(5, Math.max(0, rating)) / 5) * 100}%` }}>
+        <div className="flex items-center gap-0.5 w-max">
+          {[1, 2, 3, 4, 5].map(star => (
+            <Star key={star} size={size} className="text-[#F59E0B] fill-[#F59E0B] flex-shrink-0" />
+          ))}
+        </div>
+      </div>
     </div>
   )
 
@@ -316,7 +341,9 @@ export default function FeedbackList() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map((fb, i) => (
+          {filtered.map((fb, i) => {
+            const eff = effectiveRating(fb)
+            return (
             <motion.div
               key={fb.id}
               initial={{ opacity: 0, y: 10 }}
@@ -335,13 +362,13 @@ export default function FeedbackList() {
                   {/* Header */}
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="font-semibold text-slate-900 text-sm">{fb.customer_name}</span>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ratingColor(fb.rating)}`}>
-                      {fb.rating}.0 ★ {ratingLabel(fb.rating)}
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${ratingColor(eff)}`}>
+                      {eff.toFixed(1)} ★ {ratingLabel(eff)}
                     </span>
                   </div>
 
                   {/* Stars */}
-                  <StarDisplay rating={fb.rating} size={14} />
+                  <StarDisplay rating={eff} size={14} />
 
                   {/* Comment */}
                   {fb.comment && (
@@ -364,12 +391,13 @@ export default function FeedbackList() {
 
                 {/* Rating badge for mobile */}
                 <div className="sm:hidden flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-900">{fb.rating}</span>
+                  <span className="text-sm font-bold text-slate-900">{eff.toFixed(1)}</span>
                   <Star size={14} className="text-[#F59E0B] fill-[#F59E0B]" />
                 </div>
               </div>
             </motion.div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -461,8 +489,11 @@ export default function FeedbackList() {
                     <div className="flex items-center gap-1 mt-1">
                       {[1, 2, 3, 4, 5].map(s => (
                         <Star key={s} size={14}
-                          className={s <= (selectedService.feedbacks?.[0]?.rating || 0) ? "text-[#F59E0B] fill-[#F59E0B]" : "text-gray-300"} />
+                          className={s <= Math.round(effectiveRating(selectedService.feedbacks?.[0] ?? { rating: 0 })) ? "text-[#F59E0B] fill-[#F59E0B]" : "text-gray-300"} />
                       ))}
+                      {selectedService.feedbacks?.[0] && (
+                        <span className="text-xs font-semibold text-gray-600 ml-1">{effectiveRating(selectedService.feedbacks[0]).toFixed(1)}/5</span>
+                      )}
                     </div>
                   </div>
 

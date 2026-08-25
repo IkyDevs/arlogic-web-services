@@ -1,23 +1,26 @@
 "use client";
 
-import { use, useState, useEffect, useMemo, useRef } from "react";
+import { use, useState, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isPlayableVideo } from "@/lib/media-utils";
 import SmartMedia from "@/components/ui/SmartMedia";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
+import { useTheme } from "next-themes";
 import ServiceCostBreakdown from "@/components/ui/ServiceCostBreakdown";
 import "./glacier.css";
 import {
   CheckCircle, Clock, Wrench, UserCheck, Package, Smartphone,
   DollarSign, AlertCircle, Phone, Watch, Settings, Battery, Zap, ChevronRight,
   ChevronDown, Star, Shield, Copy, Check, Camera,
-  Hash, X, Send, Search, User,
+  Hash, X, Send, Search, User, Sun, Moon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const supabase = createClient();
+
+const subscribeNoop = () => () => {};
 
 const statusSteps = [
   { status: "pending", label: "Pesanan Diterima", icon: Clock, desc: "Pesanan service telah diterima", color: "from-slate-500 to-slate-600" },
@@ -29,17 +32,16 @@ const statusSteps = [
 ];
 
 const statusColors: Record<string, string> = {
-  pending: "bg-slate-400/10 text-slate-300 border-slate-400/25",
-  assigned: "bg-sky-400/10 text-sky-300 border-sky-400/30",
-  in_progress: "bg-violet-400/10 text-violet-300 border-violet-400/30",
-  waiting_sparepart: "bg-amber-400/10 text-amber-300 border-amber-400/30",
-  qc_pending: "bg-cyan-400/10 text-cyan-300 border-cyan-400/30",
-  completed: "bg-emerald-400/10 text-emerald-300 border-emerald-400/30",
-  cancelled: "bg-red-400/10 text-red-300 border-red-400/30",
+  pending: "gl-chip gl-chip-neutral",
+  assigned: "gl-chip gl-chip-info",
+  in_progress: "gl-chip gl-chip-purple",
+  waiting_sparepart: "gl-chip gl-chip-warn",
+  qc_pending: "gl-chip gl-chip-cyan",
+  completed: "gl-chip gl-chip-success",
+  cancelled: "gl-chip gl-chip-danger",
 };
 
 const ratingLabels = ["", "Very Unsatisfied", "Unsatisfied", "Neutral", "Satisfied", "Very Satisfied"];
-const ratingColors = ["", "text-red-400", "text-orange-400", "text-yellow-300", "text-sky-300", "text-emerald-300"];
 
 function fmtRupiah(n: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
@@ -47,6 +49,32 @@ function fmtRupiah(n: number) {
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function maskPhone(phone: string | null | undefined) {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  const last4 = digits.slice(-4);
+  return `•••• ••• ${last4}`;
+}
+
+function GlacierThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  // Hydration-safe "mounted" tanpa setState di effect
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
+  const isDark = resolvedTheme !== "light";
+
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="gl-theme-toggle"
+      aria-label={isDark ? "Aktifkan Light Mode" : "Aktifkan Dark Mode"}
+      title={isDark ? "Aktifkan Light Mode" : "Aktifkan Dark Mode"}
+    >
+      {!mounted ? <span className="w-4 h-4 block" /> : isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+    </button>
+  );
 }
 
 function getMovementIcon(m: string) {
@@ -99,8 +127,8 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackAlready, setFeedbackAlready] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const [feedbackRating, setFeedbackRating] = useState(0);
-  const [feedbackHover, setFeedbackHover] = useState(0);
+  const [feedbackRatings, setFeedbackRatings] = useState({ kepuasan: 0, layanan: 0, kualitas: 0 });
+  const [feedbackHover, setFeedbackHover] = useState<{ row: string | null; value: number }>({ row: null, value: 0 });
   const [feedbackComment, setFeedbackComment] = useState("");
   const [teknisiName, setTeknisiName] = useState("");
   const branchIdFromPath = branchName || (slug && slug.length > 1 ? slug[0] : null);
@@ -288,14 +316,23 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
 
   const toggleSection = (s: keyof typeof expandedSections) => setExpandedSections((p) => ({ ...p, [s]: !p[s] }));
 
+  // Rata-rata 3 dimensi (skala 5, 1 desimal) — sumber: rating_detail di DB
+  const feedbackAverage = useMemo(() => {
+    const sum = feedbackRatings.kepuasan + feedbackRatings.layanan + feedbackRatings.kualitas;
+    return Math.round((sum / 3) * 10) / 10;
+  }, [feedbackRatings]);
+
   const handleFeedbackSubmit = async () => {
-    if (feedbackRating === 0) { toast.error("Pilih rating terlebih dahulu"); return; }
+    const { kepuasan, layanan, kualitas } = feedbackRatings;
+    if (kepuasan === 0 || layanan === 0 || kualitas === 0) { toast.error("Lengkapi semua penilaian (kepuasan, layanan, kualitas)"); return; }
     if (!service) return;
     setFeedbackLoading(true);
     try {
       const { error: insertError } = await supabase.from("feedbacks").insert({
         service_order_id: service.id, customer_name: service.customer_name,
-        rating: feedbackRating, comment: feedbackComment.trim() || null,
+        rating: Math.round(feedbackAverage),
+        rating_detail: { kepuasan, layanan, kualitas },
+        comment: feedbackComment.trim() || null,
         teknisi_id: service.assigned_teknisi_id || null,
         branch_id: service.branch_id || null,
       });
@@ -312,7 +349,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
           user_id: owner.id,
           type: "feedback",
           title: "New Customer Feedback",
-          message: service.customer_name + " rated service " + service.invoice_number + " with " + feedbackRating + " stars",
+          message: service.customer_name + " rated service " + service.invoice_number + " with " + feedbackAverage.toFixed(1) + "/5 stars",
         }));
 
         await supabase.from("notifications").insert(notifications);
@@ -330,6 +367,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
   if (!service && presetService) {
     return (
       <div className="glacier min-h-screen flex items-center justify-center p-4">
+        <GlacierThemeToggle />
         <div className="w-8 h-8 border-2 border-[#7dd3fc] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -338,6 +376,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
   if (!service) {
     return (
       <div className="glacier min-h-screen flex items-center justify-center p-4">
+        <GlacierThemeToggle />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="gl-card w-full max-w-md p-8">
           <div className="text-center mb-8">
@@ -387,7 +426,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                   href={trackingRequestWhatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mx-auto flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-3 py-2.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25"
+                  className="gl-btn-wa mx-auto flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold"
                 >
                   <Phone className="h-3.5 w-3.5" />
                   Hubungi admin via WhatsApp
@@ -398,7 +437,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                 href={adminWhatsAppUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mx-auto mt-3 flex w-fit items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-3 py-2.5 text-xs font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25"
+                className="gl-btn-wa mx-auto mt-3 flex w-fit items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold"
               >
                 <Phone className="h-3.5 w-3.5" />
                 Hubungi admin
@@ -414,6 +453,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
 
   return (
     <div className="glacier min-h-screen">
+      <GlacierThemeToggle />
       <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-5">
         {/* Header Card */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
@@ -461,8 +501,8 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
               <div>
                 <p className="text-xs gl-t2">Token</p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <code className="px-2 py-1 bg-white/5 border gl-bd rounded-lg font-mono text-sm text-[color:var(--gl-text)]">{service.token}</code>
-                  <button onClick={copyToken} aria-label="Salin token" className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/5 rounded-lg transition-all">
+                  <code className="px-2 py-1 bg-[color:var(--gl-surface-inset)] border gl-bd rounded-lg font-mono text-sm text-[color:var(--gl-text)]">{service.token}</code>
+                  <button onClick={copyToken} aria-label="Salin token" className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-[color:var(--gl-accent-soft)] rounded-lg transition-all">
                     {copiedId ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 gl-t3" />}
                   </button>
                 </div>
@@ -494,7 +534,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                 </p>
               </div>
             </div>
-            <div className="mt-3 bg-white/5 rounded-full h-2 overflow-hidden">
+            <div className="mt-3 bg-[color:var(--gl-surface-inset)] rounded-full h-2 overflow-hidden">
               <div className="h-full bg-gradient-to-r from-sky-400 to-cyan-300 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(100, (queuePosition.position / queuePosition.total) * 100)}%` }} />
             </div>
@@ -511,19 +551,27 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
             {statusSteps.map((step, index) => {
               const isCompleted = index <= currentStep;
               const isCurrent = index === currentStep;
+              const stepDesc =
+                step.status === "pending"
+                  ? service.created_by_name
+                    ? `Pesanan service telah diterima oleh ${service.created_by_name}${service.created_by_role ? ` (${String(service.created_by_role).toUpperCase()})` : ""}`
+                    : step.desc
+                  : step.status === "assigned" && teknisiName
+                    ? `Service ditugaskan ke teknisi — ${teknisiName}`
+                    : step.desc;
               return (
                 <div key={step.status} className="relative flex items-start gap-4 pb-8 last:pb-0">
                   <div className="relative flex-shrink-0">
-                    <div className={`w-10 h-10 flex items-center justify-center rounded-xl border-2 z-10 relative transition-all ${isCompleted ? "bg-gradient-to-br " + step.color + " text-white border-transparent shadow-[0_0_16px_rgba(125,211,252,0.25)]" : "bg-white/5 gl-t3 border-[color:var(--gl-border)]"}`}>
+                    <div className={`w-10 h-10 flex items-center justify-center rounded-xl border-2 z-10 relative transition-all ${isCompleted ? "bg-gradient-to-br " + step.color + " text-white border-transparent shadow-[0_0_16px_rgba(125,211,252,0.25)]" : "bg-[color:var(--gl-surface-inset)] gl-t3 border-[color:var(--gl-border)]"}`}>
                       {isCompleted ? <CheckCircle className="w-5 h-5" /> : <step.icon className="w-5 h-5" />}
                     </div>
                     {index < statusSteps.length - 1 && (
-                      <div className={`absolute top-10 left-5 w-0.5 h-8 ${isCompleted ? "bg-sky-400/70" : "bg-white/10"}`} />
+                      <div className={`absolute top-10 left-5 w-0.5 h-8 ${isCompleted ? "bg-sky-400/70" : "bg-[color:var(--gl-border)]"}`} />
                     )}
                   </div>
                   <div className={`flex-1 pt-1.5 ${isCurrent ? "bg-[color:var(--gl-accent-soft)] -mx-3 p-3 rounded-xl border border-[color:var(--gl-border)]" : ""}`}>
                     <h3 className={`font-semibold text-sm ${isCompleted ? "text-[color:var(--gl-text)]" : "gl-t2"}`}>{step.label}</h3>
-                    <p className="text-xs gl-t3 mt-0.5">{step.desc}</p>
+                    <p className="text-xs gl-t3 mt-0.5">{stepDesc}</p>
                     {isCurrent && service.status === "in_progress" && (
                       <p className="text-xs text-sky-300 mt-1 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse" />Sedang dikerjakan...</p>
                     )}
@@ -563,7 +611,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                     <div>
                       <p className="text-xs gl-t2">Customer</p>
                       <p className="font-semibold text-[color:var(--gl-text)]">{service.customer_name}</p>
-                      <p className="text-sm gl-t2">{service.customer_phone}</p>
+                      <p className="text-sm gl-t2">{maskPhone(service.customer_phone)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-violet-400/10 border border-violet-400/20 rounded-xl">
@@ -595,7 +643,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                   <div className="flex flex-wrap gap-1.5 p-3 gl-inset">
                     <span className="text-xs gl-t2 w-full">Aksesoris:</span>
                     {service.watch_accessories.map((acc: string, i: number) => (
-                      <span key={i} className="text-[10px] bg-white/5 border gl-bd px-2 py-0.5 rounded-md gl-t2">
+                      <span key={i} className="text-[10px] bg-[color:var(--gl-surface-inset)] border gl-bd px-2 py-0.5 rounded-md gl-t2">
                         {acc}
                       </span>
                     ))}
@@ -775,11 +823,11 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                   {timeline.map((update, i) => (
                     <div key={update.id} className="relative pl-6 pb-4 last:pb-0">
                       {i < timeline.length - 1 && <div className="absolute left-2 top-4 bottom-0 w-0.5 bg-sky-400/30" />}
-                      <div className="absolute left-0 top-1.5 w-3 h-3 bg-[#7dd3fc] rounded-full border-2 border-[#0a1220] shadow-[0_0_8px_rgba(125,211,252,0.5)]" />
-                      <div className="bg-white/[0.04] border border-[color:var(--gl-border)] p-3 ml-2 rounded-xl">
+                      <div className="absolute left-0 top-1.5 w-3 h-3 bg-[#7dd3fc] rounded-full border-2 border-[color:var(--gl-bg)] shadow-[0_0_8px_rgba(125,211,252,0.5)]" />
+                      <div className="bg-[color:var(--gl-surface-inset)] border border-[color:var(--gl-border)] p-3 ml-2 rounded-xl">
                         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                           <span className="text-xs gl-t3">{fmtDate(update.created_at)}</span>
-                          <span className={"text-xs font-bold px-2 py-0.5 rounded-full border " + (update.status === "completed" ? "bg-emerald-400/10 text-emerald-300 border-emerald-400/30" : update.status === "waiting_sparepart" ? "bg-amber-400/10 text-amber-300 border-amber-400/30" : update.status === "in_progress" ? "bg-violet-400/10 text-violet-300 border-violet-400/30" : "bg-sky-400/10 text-sky-300 border-sky-400/30")}>
+                          <span className={"gl-chip " + (update.status === "completed" ? "gl-chip-success" : update.status === "waiting_sparepart" ? "gl-chip-warn" : update.status === "in_progress" ? "gl-chip-purple" : update.status === "assigned" ? "gl-chip-info" : update.status === "qc_pending" ? "gl-chip-cyan" : "gl-chip-neutral")}>
                             {update.status === "completed" ? "SELESAI" : update.status === "waiting_sparepart" ? "MENUNGGU SPAREPART" : update.status === "in_progress" ? "DALAM PENGERJAAN" : update.status === "assigned" ? "DITUGASKAN" : update.status === "qc_pending" ? "QUALITY CHECK" : "UPDATE"}
                           </span>
                         </div>
@@ -814,7 +862,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
                 <h3 className="text-lg font-bold text-[color:var(--gl-text)]">Service Selesai!</h3>
                 <p className="text-sm gl-t2">Jam tangan Anda sudah siap diambil. Bawa invoice dan token ini.</p>
                 {(service.warranty_months || service.warranty_expiry) && (
-                  <div className="flex items-center gap-3 mt-2 text-xs text-emerald-200/80">
+                  <div className="flex items-center gap-3 mt-2 text-xs gl-ok-text">
                     <span>Garansi: {service.warranty_months ? `${service.warranty_months} bulan` : ""}</span>
                     {service.warranty_expiry && <span>Exp: {fmtDate(service.warranty_expiry)}</span>}
                   </div>
@@ -828,7 +876,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
         {service.status !== "completed" && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
             className="gl-card p-5 text-center">
-            <div className="w-12 h-12 bg-white/5 border gl-bd rounded-xl flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 gl-inset flex items-center justify-center mx-auto mb-3">
               <Clock className="w-6 h-6 gl-t3" />
             </div>
               <h3 className="font-bold text-[color:var(--gl-text)]">Penilaian Belum Tersedia</h3>
@@ -841,27 +889,46 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
             className="gl-card p-5">
             <div className="text-center mb-4">
               <div className="w-12 h-12 bg-gradient-to-br from-amber-400/25 to-orange-500/10 border border-amber-400/30 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-[0_0_24px_rgba(251,191,36,0.15)]">
-                <Star className="w-6 h-6 text-amber-300" />
+                <Star className="w-6 h-6 text-amber-400" />
               </div>
                   <h3 className="text-base font-bold text-[color:var(--gl-text)]">Beri Nilai</h3>
                   <p className="text-sm gl-t2 mt-0.5">Bagaimana pengalaman service Anda?</p>
             </div>
 
-            <div className="flex items-center justify-center gap-1.5 py-2" role="radiogroup" aria-label="Rating layanan">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <motion.button key={star} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} type="button"
-                  role="radio" aria-checked={feedbackRating === star} aria-label={`${star} bintang dari 5`}
-                  onClick={() => setFeedbackRating(star)} onMouseEnter={() => setFeedbackHover(star)} onMouseLeave={() => setFeedbackHover(0)}>
-                  <Star size={36} className={"transition-all duration-150 " + (star <= (feedbackHover || feedbackRating) ? "text-amber-300 fill-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.4)]" : "text-slate-600")} />
-                </motion.button>
-              ))}
+            <div className="space-y-4 py-2">
+              {([
+                { key: "kepuasan", label: "Kepuasan" },
+                { key: "layanan", label: "Layanan" },
+                { key: "kualitas", label: "Kualitas Service" },
+              ] as const).map(({ key, label }) => {
+                const value = feedbackRatings[key];
+                const shown = feedbackHover.row === key ? feedbackHover.value : value;
+                return (
+                  <div key={key} className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+                    <div className="min-w-[9rem]">
+                      <p className="text-sm font-semibold text-[color:var(--gl-text)]">{label}</p>
+                      <p aria-live="polite" className="text-xs gl-t3 h-4">{shown > 0 ? ratingLabels[shown] : "Wajib diisi"}</p>
+                    </div>
+                    <div className="flex items-center gap-1" role="radiogroup" aria-label={`Rating ${label}`}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <motion.button key={star} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }} type="button"
+                          role="radio" aria-checked={value === star} aria-label={`${label}: ${star} bintang dari 5`}
+                          onClick={() => setFeedbackRatings((p) => ({ ...p, [key]: star }))}
+                          onMouseEnter={() => setFeedbackHover({ row: key, value: star })}
+                          onMouseLeave={() => setFeedbackHover({ row: null, value: 0 })}>
+                          <Star size={28} className={"transition-all duration-150 " + (star <= shown ? "text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.35)]" : "text-[color:var(--gl-text-muted)]")} />
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            {(feedbackRating > 0 || feedbackHover > 0) && (
-              <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} aria-live="polite"
-                className={"text-center font-semibold text-sm mt-1 " + ratingColors[feedbackHover || feedbackRating]}>
-                {ratingLabels[feedbackHover || feedbackRating]}
-              </motion.p>
-            )}
+
+            <div className="mt-2 gl-inset px-3 py-2 flex items-center justify-between">
+              <span className="text-xs gl-t2">Rata-rata penilaian Anda</span>
+              <span className="text-sm font-bold text-[color:var(--gl-accent-strong)] tabular-nums">{feedbackAverage.toFixed(1)} / 5</span>
+            </div>
 
             <div className="mt-4">
               <textarea value={feedbackComment} onChange={(e) => setFeedbackComment(e.target.value)} aria-label="Komentar feedback"
@@ -870,7 +937,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
               <p className="text-xs gl-t3 text-right mt-1">{feedbackComment.length}/500</p>
             </div>
 
-            <button onClick={handleFeedbackSubmit} disabled={feedbackLoading || feedbackRating === 0}
+            <button onClick={handleFeedbackSubmit} disabled={feedbackLoading || feedbackAverage === 0}
               className="gl-btn-primary w-full mt-4 flex items-center justify-center gap-2 py-2.5 font-semibold rounded-xl">
               {feedbackLoading ? <div className="w-4 h-4 border-2 border-[#7dd3fc] border-t-transparent rounded-full animate-spin" /> :                 <><Send className="w-4 h-4" /> Kirim Penilaian</>}
             </button>
@@ -882,15 +949,27 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-gradient-to-br from-amber-400/10 to-orange-500/5 border border-amber-400/25 rounded-xl p-5 text-center">
             <div className="w-12 h-12 bg-amber-400/10 border border-amber-400/25 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <CheckCircle className="w-6 h-6 text-amber-300" />
+              <CheckCircle className="w-6 h-6 text-amber-400" />
             </div>
               <h3 className="font-bold text-[color:var(--gl-text)]">Penilaian Terkirim</h3>
             <p className="text-sm gl-t2 mt-1">Terima kasih! Penilaian Anda sangat berarti untuk kami.</p>
-            {feedbackSubmitted && feedbackRating > 0 && (
-              <div className="flex items-center justify-center gap-1 mt-3">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star key={star} size={20} className={star <= feedbackRating ? "text-amber-300 fill-amber-300" : "text-slate-600"} />
-                ))}
+            {feedbackSubmitted && feedbackAverage > 0 && (
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <span className="text-sm font-bold text-[color:var(--gl-accent-strong)] tabular-nums">{feedbackAverage.toFixed(1)}</span>
+                <div className="relative inline-flex">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} size={20} className="text-[color:var(--gl-text-muted)]" />
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 overflow-hidden" style={{ width: `${(feedbackAverage / 5) * 100}%` }}>
+                    <div className="flex items-center gap-0.5 w-max">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star key={star} size={20} className="text-amber-400 fill-amber-400 flex-shrink-0" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </motion.div>
@@ -904,7 +983,7 @@ export function TrackingContent({ slug, branchName, presetService }: { slug?: st
               href={adminWhatsAppUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-400/30 px-4 py-2.5 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/25"
+              className="gl-btn-wa mt-2 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"
             >
               <Phone className="h-4 w-4" />
               Hubungi admin

@@ -61,7 +61,7 @@ import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import NotificationBell from "@/components/ui/NotificationBell";
 import ReportModal from "@/components/ui/ReportModal";
 import UserAvatar from "@/components/ui/UserAvatar";
-import { useTheme } from "@/components/ThemeProvider";
+import { useTheme } from "next-themes";
 import { useBranch } from "@/lib/context/BranchContext";
 import { useBranchScope } from "@/lib/context/useBranchScope";
 
@@ -157,7 +157,7 @@ const ServiceCatalogManager = dynamic(
 export default function AdminDashboard() {
   let isDark = false;
   try {
-    const { theme } = useTheme();
+    const { resolvedTheme: theme } = useTheme();
     isDark = theme === "dark";
   } catch (e) {
     isDark = false;

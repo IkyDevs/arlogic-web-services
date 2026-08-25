@@ -49,7 +49,7 @@ const STYLES = {
     jasaDot: "bg-blue-500",
   },
   glacier: {
-    headerDot: "bg-[#7dd3fc]",
+    headerDot: "bg-[color:var(--gl-accent)]",
     headerLabel: "text-xs font-semibold text-[color:var(--gl-text-secondary)] uppercase tracking-wider",
     headerBorder: "border-b border-[color:var(--gl-border)]",
     groupLabel: "text-[10px] font-bold text-[color:var(--gl-text-muted)] uppercase tracking-wider mb-1.5 px-0.5",
@@ -61,15 +61,15 @@ const STYLES = {
     subtotalValue: "text-xs font-semibold text-[color:var(--gl-text)] tabular-nums",
     separator: "border-t border-[color:var(--gl-border)] my-2",
     totalLabel: "text-sm font-bold text-[color:var(--gl-text)]",
-    totalValue: "text-sm font-bold text-[#bae6fd] tabular-nums",
+    totalValue: "text-sm font-bold text-[color:var(--gl-accent-strong)] tabular-nums",
     dpValue: "text-sm font-semibold text-emerald-400 tabular-nums",
     discountValue: "text-sm font-semibold text-red-400 tabular-nums",
     remainingLabel: "text-sm font-bold text-[color:var(--gl-text)]",
     lunasValue: "flex items-center gap-1.5 text-sm font-bold text-emerald-400 tabular-nums",
-    remainingValue: "text-sm font-bold text-[#bae6fd] tabular-nums",
+    remainingValue: "text-sm font-bold text-[color:var(--gl-accent-strong)] tabular-nums",
     rowLabel: "text-sm text-[color:var(--gl-text-secondary)]",
     sparepartDot: "bg-amber-400",
-    jasaDot: "bg-[#7dd3fc]",
+    jasaDot: "bg-[color:var(--gl-accent)]",
   },
 } as const
 

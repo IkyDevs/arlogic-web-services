@@ -184,6 +184,124 @@
 }
 
 /* -----------------------------------------------------
+   LIGHT MODE — diaktifkan next-themes via html[data-theme]
+   (script next-themes berjalan sebelum first paint → tanpa FOUC)
+   ----------------------------------------------------- */
+
+html[data-theme="light"] .glacier {
+  --gl-bg: #eef4fa;
+  --gl-glow-ice: rgba(125, 211, 252, 0.35);
+  --gl-glow-teal: rgba(45, 212, 191, 0.22);
+
+  --gl-surface: rgba(255, 255, 255, 0.66);
+  --gl-surface-raised: rgba(255, 255, 255, 0.82);
+  --gl-surface-inset: rgba(236, 244, 250, 0.75);
+
+  --gl-border: rgba(2, 132, 199, 0.16);
+  --gl-border-strong: rgba(2, 132, 199, 0.34);
+
+  --gl-accent: #0284c7;
+  --gl-accent-strong: #075985;
+  --gl-accent-soft: rgba(125, 211, 252, 0.25);
+  --gl-accent-ring: rgba(2, 132, 199, 0.35);
+
+  --gl-text: #10202e;
+  --gl-text-secondary: #40586c;
+  --gl-text-muted: #64809a;
+
+  box-shadow: none;
+}
+
+html[data-theme="light"] .glacier ::-webkit-scrollbar-thumb {
+  background: rgba(2, 132, 199, 0.3);
+}
+
+html[data-theme="light"] .gl-card {
+  box-shadow:
+    0 12px 40px rgba(15, 60, 100, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* -----------------------------------------------------
+   Status chips — tema-aware (dipakai stepper badge & timeline)
+   ----------------------------------------------------- */
+
+.gl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+.gl-chip-neutral { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3); }
+.gl-chip-info    { background: rgba(125, 211, 252, 0.12); color: #7dd3fc; border-color: rgba(125, 211, 252, 0.3); }
+.gl-chip-purple  { background: rgba(167, 139, 250, 0.12); color: #c4b5fd; border-color: rgba(167, 139, 250, 0.3); }
+.gl-chip-warn    { background: rgba(251, 191, 36, 0.12);  color: #fcd34d; border-color: rgba(251, 191, 36, 0.3); }
+.gl-chip-cyan    { background: rgba(103, 232, 249, 0.12); color: #67e8f9; border-color: rgba(103, 232, 249, 0.3); }
+.gl-chip-success { background: rgba(52, 211, 153, 0.12);  color: #6ee7b7; border-color: rgba(52, 211, 153, 0.3); }
+.gl-chip-danger  { background: rgba(248, 113, 113, 0.12); color: #fca5a5; border-color: rgba(248, 113, 113, 0.3); }
+
+html[data-theme="light"] .gl-chip-neutral { background: rgba(100, 116, 139, 0.1);  color: #475569; border-color: rgba(100, 116, 139, 0.25); }
+html[data-theme="light"] .gl-chip-info    { background: rgba(2, 132, 199, 0.08);   color: #0369a1; border-color: rgba(2, 132, 199, 0.25); }
+html[data-theme="light"] .gl-chip-purple  { background: rgba(124, 58, 237, 0.08);  color: #6d28d9; border-color: rgba(124, 58, 237, 0.25); }
+html[data-theme="light"] .gl-chip-warn    { background: rgba(217, 119, 6, 0.1);    color: #b45309; border-color: rgba(217, 119, 6, 0.28); }
+html[data-theme="light"] .gl-chip-cyan    { background: rgba(8, 145, 178, 0.08);   color: #0e7490; border-color: rgba(8, 145, 178, 0.25); }
+html[data-theme="light"] .gl-chip-success { background: rgba(5, 150, 105, 0.08);   color: #047857; border-color: rgba(5, 150, 105, 0.25); }
+html[data-theme="light"] .gl-chip-danger  { background: rgba(220, 38, 38, 0.08);   color: #b91c1c; border-color: rgba(220, 38, 38, 0.25); }
+
+/* Teks semantik tema-aware */
+.gl-ok-text   { color: #6ee7b7; }
+.gl-warn-text { color: #fcd34d; }
+html[data-theme="light"] .gl-ok-text   { color: #047857; }
+html[data-theme="light"] .gl-warn-text { color: #b45309; }
+
+/* Tombol WhatsApp tema-aware */
+.gl-btn-wa {
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  color: #34d399;
+  transition: background 0.2s ease;
+}
+
+.gl-btn-wa:hover { background: rgba(16, 185, 129, 0.24); }
+
+html[data-theme="light"] .gl-btn-wa {
+  background: rgba(5, 150, 105, 0.1);
+  border-color: rgba(5, 150, 105, 0.3);
+  color: #047857;
+}
+
+html[data-theme="light"] .gl-btn-wa:hover { background: rgba(5, 150, 105, 0.18); }
+
+/* Toggle theme mengambang bergaya Glacier */
+.gl-theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--gl-surface-raised);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--gl-border);
+  color: var(--gl-accent);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.gl-theme-toggle:hover {
+  border-color: var(--gl-accent-ring);
+}
+
+/* -----------------------------------------------------
    Reduced motion (House Rule A11Y — semua profile)
    ----------------------------------------------------- */
 

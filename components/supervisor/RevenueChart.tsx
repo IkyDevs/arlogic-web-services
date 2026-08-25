@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { BarChart3 } from "lucide-react";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
-import { useTheme } from "@/components/ThemeProvider";
+import { useTheme } from "next-themes";
 
 interface RevenueChartProps {
   data: Array<{ name: string; pendapatan: number }>;
@@ -19,7 +19,7 @@ interface RevenueChartProps {
 }
 
 export default function RevenueChart({ data, loading }: RevenueChartProps) {
-  const { theme } = useTheme();
+  const { resolvedTheme: theme } = useTheme();
   const axisColor = theme === "dark" ? "#64748b" : "#94a3b8";
   const gridColor = theme === "dark" ? "rgba(255,255,255,0.06)" : "#e2e8f0";
   const tooltipBg = theme === "dark" ? "#1c1c1c" : "#ffffff";
