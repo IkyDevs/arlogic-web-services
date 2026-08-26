@@ -1,8 +1,45 @@
 # 📄 DEVELOPMENT REPORT: Revisi UI/UX Supervisor Dashboard
 
-## 26 Agustus 2026 — Monitoring Command Center
+## 26 Agustus 2026 — Revisi v2: Adopsi Komponen Management Transaksi (View-Only, Antar Cabang)
 
 ---
+
+### 🎯 TUJUAN SESI v2
+
+Feedback user: pending di supervisor harus bisa **drill-down sampai detail item**, dan seluruh komponen dashboard harus **mengikuti Management Transaksi**, antar cabang. Keputusan user: Opsi B-hybrid · ServiceList penuh · **view-only** · komponen custom revisi v1 **dibuang semua**.
+
+### ⚡ EKSEKUSI v2
+
+| File | Perubahan | Status |
+|:--|:----------|:-------|
+| `components/layanan/TransactionManagement.tsx` | Prop aditif `readOnly?: boolean` (default false): sembunyikan tombol +Transaksi/Pengeluaran/Cashdraw; teruskan readOnly ke LayananList | Done |
+| `components/layanan/LayananList.tsx` | Prop aditif `readOnly?: boolean`: sembunyikan Complete/Cancel/Edit/Delete; **Detail & Nota tetap tampil** | Done |
+| `components/admin/ServiceList.tsx` | Prop aditif `readOnly?: boolean`: sembunyikan Tambah Service + Edit/Hapus per baris | Done |
+| `app/supervisor/page.tsx` | Overview = `<TransactionManagement readOnly />` + `<ServiceList readOnly />` (dynamic import); tab Users & navigasi verbatim | Done |
+| 15 komponen `components/supervisor/*`, `hooks/useSupervisorDashboard.ts`, `lib/domain/shared/timeseries.ts`, `lib/domain/serviceStatus.ts` | **Dihapus** (grep-verify: tanpa consumer lain) | Done |
+
+Consumer lain TransactionManagement/LayananList/ServiceList (admin, qc, teknisi) tidak berubah perilaku — prop baru default false.
+
+### Interaksi Supervisor Sekarang
+
+- BranchSelector (dalam TransactionManagement) mengatur scope **transaksi + service** sekaligus via `useBranchScope`; default role global = Semua Cabang.
+- Breakdown kartu klikable → FilterModal → daftar → Detail Transaksi.
+- ServiceList utuh: filter status/cabang/teknisi/tanggal/sort + **Detail Service** (foto dsb), read-only.
+
+### 🧪 TESTING v2
+- ✅ `bunx tsc --noEmit` 0 error · ✅ `bun run build` (/supervisor OK) · ✅ `bun run test` 102 passed
+- ⚠️ UAT authenticated + console check tetap perlu user.
+
+### Catatan v2
+- Fitur panel lama (ranking cabang, donut status, tabel komparasi, alert ringkas) ikut terhapus bersama komponennya sesuai arahan "rubah semuanya".
+- ServiceList menampilkan dropdown filter cabangnya sendiri + global BranchSelector dari blok transaksi; keduanya membaca scope yang sama.
+
+---
+
+## 26 Agustus 2026 — Monitoring Command Center (v1)
+
+---
+
 
 ### 🎯 TUJUAN SESI
 

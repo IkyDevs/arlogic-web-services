@@ -83,7 +83,7 @@ const statusFilterOptions = [
   { value: "cancelled", label: "Dibatalkan" },
 ];
 
-export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
+export default function ServiceList({ onAdd, readOnly = false }: { onAdd?: () => void; readOnly?: boolean }) {
   const supabase = createClient();
   const { user } = useAuthStore();
   const { branchId } = useBranchScope();
@@ -264,10 +264,12 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
           <h1 className="text-xl md:text-2xl font-bold text-slate-900">Daftar Service</h1>
           <p className="text-sm text-slate-500 mt-0.5">Kelola semua service order</p>
         </div>
-        <button onClick={onAdd}
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white font-medium rounded-xl hover:bg-slate-800 transition-all text-sm shadow-lg shadow-slate-200">
-          <Plus className="w-4 h-4" /> Tambah Service
-        </button>
+        {!readOnly && (
+          <button onClick={onAdd}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white font-medium rounded-xl hover:bg-slate-800 transition-all text-sm shadow-lg shadow-slate-200">
+            <Plus className="w-4 h-4" /> Tambah Service
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -344,7 +346,7 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                 <tr><td colSpan={9} className="text-center py-12">
                   <div className="text-slate-300"><Watch className="w-10 h-10 mx-auto mb-2 opacity-40" /></div>
                   <p className="text-slate-400">Belum ada service order</p>
-                  <button onClick={onAdd} className="mt-3 text-sm text-blue-600 hover:underline font-medium">Tambah service baru</button>
+                  {!readOnly && <button onClick={onAdd} className="mt-3 text-sm text-blue-600 hover:underline font-medium">Tambah service baru</button>}
                 </td></tr>
               ) : services.map((svc, i) => {
                 const MoveIcon = movementIcons[svc.watch_movement] || Watch;
@@ -389,45 +391,51 @@ export default function ServiceList({ onAdd }: { onAdd?: () => void }) {
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{fmtDate(svc.created_at)}</td>
                     <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => {
-                          if (allowed) {
-                            setEditingService(svc);
-                          } else {
-                            toast.error(`Hanya ${svc.created_by_role ? `role ${svc.created_by_role.toUpperCase()}` : "pembuat service"} yang berhak mengedit service ini!`);
-                          }
-                        }}
-                        title={allowed ? "Edit Service Order" : `Hanya ${svc.created_by_role || 'pembuat'} yang berhak edit`}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
-                          allowed
-                            ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
-                            : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
-                        }`}
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                        Edit
-                      </button>
-                      {(currentUserProfile?.role === "admin" || currentUserProfile?.role === "engineer") ? (
-                        <button
-                          onClick={() => {
-                            setDeletingService(svc);
-                            setDeleteConfirmText("");
-                          }}
-                          title="Hapus Service Permanen"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-all"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Hapus
-                        </button>
+                      {readOnly ? (
+                        <span className="text-slate-400">—</span>
                       ) : (
-                        <button
-                          disabled
-                          title="Hanya role ADMIN atau ENGINEER yang berhak menghapus service"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Hapus
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              if (allowed) {
+                                setEditingService(svc);
+                              } else {
+                                toast.error(`Hanya ${svc.created_by_role ? `role ${svc.created_by_role.toUpperCase()}` : "pembuat service"} yang berhak mengedit service ini!`);
+                              }
+                            }}
+                            title={allowed ? "Edit Service Order" : `Hanya ${svc.created_by_role || 'pembuat'} yang berhak edit`}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all ${
+                              allowed
+                                ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
+                            }`}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                          {(currentUserProfile?.role === "admin" || currentUserProfile?.role === "engineer") ? (
+                            <button
+                              onClick={() => {
+                                setDeletingService(svc);
+                                setDeleteConfirmText("");
+                              }}
+                              title="Hapus Service Permanen"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border bg-red-50 text-red-600 border-red-200 hover:bg-red-100 transition-all"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Hapus
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              title="Hanya role ADMIN atau ENGINEER yang berhak menghapus service"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Hapus
+                            </button>
+                          )}
+                        </>
                       )}
                     </td>
                   </motion.tr>

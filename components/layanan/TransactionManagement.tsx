@@ -76,7 +76,7 @@ function LoadingSpinner() {
   );
 }
 
-export default function TransactionManagement({ isDark = false }: { isDark?: boolean }) {
+export default function TransactionManagement({ isDark = false, readOnly = false }: { isDark?: boolean; readOnly?: boolean }) {
   const { transactions, analytics, fetch, loading } = useTransactionStore();
   const { branchId } = useBranchScope();
   
@@ -299,20 +299,22 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setShowAddForm(true)}
-              className="px-3 py-2 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center gap-1.5 shadow-sm transition-all">
-              <FileText className="w-3.5 h-3.5" />+ Transaksi
-            </button>
-            <button onClick={() => setShowExpenseForm(true)}
-              className="px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm transition-all">
-              <Receipt className="w-3.5 h-3.5" />Pengeluaran
-            </button>
-            <button onClick={() => setShowCashdrawForm(true)}
-              className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 shadow-sm transition-all">
-              <Banknote className="w-3.5 h-3.5" />Cashdraw
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setShowAddForm(true)}
+                className="px-3 py-2 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center gap-1.5 shadow-sm transition-all">
+                <FileText className="w-3.5 h-3.5" />+ Transaksi
+              </button>
+              <button onClick={() => setShowExpenseForm(true)}
+                className="px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center gap-1.5 shadow-sm transition-all">
+                <Receipt className="w-3.5 h-3.5" />Pengeluaran
+              </button>
+              <button onClick={() => setShowCashdrawForm(true)}
+                className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 shadow-sm transition-all">
+                <Banknote className="w-3.5 h-3.5" />Cashdraw
+              </button>
+            </div>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <BranchSelector />
             <PeriodFilter
@@ -343,20 +345,22 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
           />
         </div>
         
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button onClick={() => setShowAddForm(true)}
-            className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center justify-center gap-1.5 shadow-sm">
-            <FileText className="w-3.5 h-3.5" />Transaksi
-          </button>
-          <button onClick={() => setShowExpenseForm(true)}
-            className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center justify-center gap-1.5 shadow-sm">
-            <Receipt className="w-3.5 h-3.5" />Pengeluaran
-          </button>
-          <button onClick={() => setShowCashdrawForm(true)}
-            className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-sm">
-            <Banknote className="w-3.5 h-3.5" />Cashdraw
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button onClick={() => setShowAddForm(true)}
+              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 flex items-center justify-center gap-1.5 shadow-sm">
+              <FileText className="w-3.5 h-3.5" />Transaksi
+            </button>
+            <button onClick={() => setShowExpenseForm(true)}
+              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center justify-center gap-1.5 shadow-sm">
+              <Receipt className="w-3.5 h-3.5" />Pengeluaran
+            </button>
+            <button onClick={() => setShowCashdrawForm(true)}
+              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-1.5 shadow-sm">
+              <Banknote className="w-3.5 h-3.5" />Cashdraw
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -465,7 +469,7 @@ export default function TransactionManagement({ isDark = false }: { isDark?: boo
             {loading ? (
               <LoadingSpinner />
             ) : (
-              <LayananList isAdmin={true} compact={false} statusFilter={activeStatusFilter} onEdit={handleEdit} />
+              <LayananList isAdmin={true} readOnly={readOnly} compact={false} statusFilter={activeStatusFilter} onEdit={readOnly ? undefined : handleEdit} />
             )}
           </div>
         </div>

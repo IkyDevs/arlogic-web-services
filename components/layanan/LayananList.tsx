@@ -42,6 +42,8 @@ interface LayananListProps {
   dateFilter?: string;
   statusFilter?: string;
   onEdit?: (layanan: any) => void;
+  /** Sembunyikan aksi tulis (Complete/Cancel/Edit/Delete); Detail & Nota tetap tampil */
+  readOnly?: boolean;
 }
 
 const jenisLayananOptions = [
@@ -396,6 +398,7 @@ export default function LayananList({
   dateFilter,
   statusFilter,
   onEdit,
+  readOnly = false,
 }: LayananListProps) {
   const { transactions, loading, updateStatus, remove } = useTransactionStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -937,7 +940,7 @@ export default function LayananList({
                           >
                             <Receipt className="w-4 h-4" />
                           </button>
-                          {tx.status === "active" && (
+                          {tx.status === "active" && !readOnly && (
                             <>
                               <button
                                 onClick={() =>
@@ -959,7 +962,7 @@ export default function LayananList({
                               </button>
                             </>
                           )}
-                          {tx.upload_status === "FAILED" && (
+                          {tx.upload_status === "FAILED" && !readOnly && (
                             <button
                               onClick={() => onEdit?.(tx)}
                               className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg"
@@ -968,20 +971,24 @@ export default function LayananList({
                               <RefreshCw className="w-4 h-4" />
                             </button>
                           )}
-                          <button
-                            onClick={() => onEdit?.(tx)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
-                            title="Edit"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(tx)}
-                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!readOnly && (
+                            <button
+                              onClick={() => onEdit?.(tx)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                              title="Edit"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                          )}
+                          {!readOnly && (
+                            <button
+                              onClick={() => handleDelete(tx)}
+                              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}
