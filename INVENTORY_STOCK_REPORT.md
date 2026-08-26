@@ -84,3 +84,75 @@ Melanjutkan WIP stock toko menjadi fitur utuh sesuai keputusan final: stok per-c
 
 ### ✍️ SIGN-OFF
 Developer: Sisyphus · Status: **Kode selesai; menunggu eksekusi migration + verifikasi SQL + retag oleh user**
+
+---
+
+# TAHAP C — IMPORT STOK TOKO (CSV/XLSX/XLS)
+
+## 26 Agustus 2026
+
+---
+
+### 🎯 TUJUAN SESI
+
+Melanjutkan Tahap C: import stok toko dari file (CSV/XLSX/XLS) dengan model mapping **System Field ← Kolom File**, validasi per baris, pratinjau dampak delta, dan penerapan aman lewat jalur RPC terpusat `adjust_store_stock` — tanpa migration database dan tanpa delete+insert stok.
+
+---
+
+### 📝 KEPUTUSAN TEKNIS
+
+| # | Keputusan | Alasan |
+|---|---|---|
+| 1 | Apply via `adjustStoreStock` (RPC atomik) — bukan UPDATE langsung `stock_toko` | Otorisasi cabang, anti-minus, dual-write legacy, ledger `stock_movements` tetap menegak |
+| 2 | Delta = imported − current; delta 0 tidak dikirim ke RPC | Hemat RPC call; tidak ada mutasi tak perlu |
+| 3 | Gagal di tengah → stop + kompensasi terbalik (LIFO) baris yang sudah masuk; kompensasi gagal = status "partial" dilaporkan eksplisit | Tidak ada silent partial failure; stok tidak tertinggal setengah ter-update |
+| 4 | Matching SKU: trim + case-insensitive (`normalizeSkuKey`) terpusat di domain | Satu source of truth semantik matching |
+| 5 | Supplier = OPSI 1: dropdown tampil tapi selalu "Tidak dipilih", tidak dibuat kolom DB | Sesuai requirement Tahap C |
+| 6 | Harga dipetakan di UI tetapi belum disimpan ke database | Scope Tahap C hanya quantity |
+| 7 | Kolom file yang tidak dipetakan → diabaikan, tidak masuk payload | Sesuai requirement |
+| 8 | SKU duplikat dalam file ditolak (case-insensitive) | Duplikat bikin delta ambigu untuk satu target adjust |
+| 9 | Validasi signature file (magic bytes ZIP/OLE2) sebelum parse | XLSX.read diam-diam mem-parsing byte acak sebagai teks → file rusak lolos sbg sheet kosong (ditemukan saat test) |
+| 10 | Fetch stok current via `.in("sku", chunk≤100)` — matching DB case-sensitive | Deterministik; mismatch casing muncul jelas sebagai "tidak ditemukan" di pratinjau, bukan tebakan |
+
+---
+
+### ⚡ EKSEKUSI
+
+#### Domain
+| File | Isi |
+|---|---|
+| `lib/domain/inventory/importFile.ts` | Parser multi-format (csv/xlsx/xls), deteksi format, signature check, multi-sheet, ParsedTable ternormalisasi |
+| `lib/domain/inventory/import.ts` | `SYSTEM_FIELDS`, auto-map (suggestion), `validateFieldMapping` (required + anti-duplikat kolom), `buildMappedRows`+`fieldMappingToColumnMap`+`columnMapToFieldMapping`, `validateRows`, `calculateImpact` (delta, notFound), `normalizeSkuKey` |
+| `lib/domain/inventory/service.ts` | `applyStoreStockImport`: sequential apply via `adjustStoreStock`, stop-on-error, kompensasi LIFO, progress callback |
+
+#### UI
+| File | Isi |
+|---|---|
+| `components/inventory/StockImportModal.tsx` **BARU** | Flow: Upload → File Summary → Sheet Selection (>1 sheet) → Column Mapping (dropdown per system field) → Import Summary (total/valid/invalid/mapped/ignored/error rows) → Impact Summary (SKU/current/imported/delta berwarna) → Confirm → Progress → Result → refresh Stock Toko. Branch terkunci via prop `branchId`; guard tanpa cabang aktif |
+| `components/admin/InventoryManagement.tsx` | Tombol **Import Stok Toko** + render modal (`onImported` → `fetchInventory()` + `onUpdate?.()`) |
+
+#### Database
+**TIDAK ADA migration / perubahan schema / perubahan data.** RPC existing dipakai apa adanya.
+
+---
+
+### 🧪 TESTING
+
+| Test | Status |
+|---|---|
+| `bunx tsc --noEmit` | ✅ PASS |
+| `bun run build` | ✅ Compiled successfully |
+| `bun run test` | ✅ 13 file / 128 passed — termasuk 21 test import baru: mapping model (required/optional/duplikat/override/unused column), impact +5/−5/0 & notFound, parser csv/xlsx/multi-sheet/file rusak, apply sukses/gagal/kompensasi/partial/delta-0 |
+| Regresi test lama | ✅ semua pass |
+| UAT manual authenticated (upload file nyata → confirm) | ⚠️ oleh user |
+
+---
+
+### 📝 ISSUES / CATATAN
+- Item katalog yang cocok SKU tetapi belum punya baris `stock_toko` untuk cabang → current dianggap 0 (RPC insert-if-missing).
+- SKU sama pada >1 item katalog (data ganda) → baris dilewati dan dilaporkan eksplisit di pratinjau.
+- Matching DB saat fetch bersifat case-sensitive; beda casing file vs katalog akan muncul sebagai "tidak ditemukan" (terlihat di pratinjau, bukan silent).
+- Modal Import Barang existing (katalog barang) TIDAK diubah — fitur ini khusus quantity stok toko cabang aktif.
+
+### ✍️ SIGN-OFF
+Developer: Sisyphus · Status: **Tahap C complete (kode+test+build); UAT upload file nyata oleh user**

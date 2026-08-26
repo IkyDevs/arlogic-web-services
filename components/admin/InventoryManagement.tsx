@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ImportBarangModal from "@/components/admin/ImportBarangModal";
+import StockImportModal from "@/components/inventory/StockImportModal";
 import {
   adjustStoreStock,
   adjustWarehouseStock,
@@ -39,6 +40,7 @@ export default function InventoryManagement({
   const [inventory, setInventory] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showStockImport, setShowStockImport] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
@@ -492,6 +494,13 @@ export default function InventoryManagement({
             >
               <Upload className="w-4 h-4" />
               Import Barang
+            </button>
+            <button
+              onClick={() => setShowStockImport(true)}
+              className="bg-emerald-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm"
+            >
+              <Upload className="w-4 h-4" />
+              Import Stok Toko
             </button>
             <button
               onClick={() => {
@@ -1158,6 +1167,13 @@ export default function InventoryManagement({
         open={showImport}
         onClose={() => setShowImport(false)}
         onImported={() => { fetchInventory(); }}
+      />
+
+      <StockImportModal
+        open={showStockImport}
+        onClose={() => setShowStockImport(false)}
+        onImported={() => { fetchInventory(); onUpdate?.(); }}
+        branchId={branchId ?? ""}
       />
     </>
   );

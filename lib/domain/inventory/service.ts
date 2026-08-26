@@ -106,6 +106,111 @@ export async function searchStoreStock(
     .filter((r) => r.quantity > 0);
 }
 
+// ─── Import Stok Toko: apply delta berurutan + kompensasi aman ─────
+
+export interface StoreStockImportLine {
+  inventoryId: string;
+  sku: string;
+  /** imported - current; 0 tidak boleh masuk daftar ini */
+  delta: number;
+}
+
+export interface StoreStockImportFailure {
+  sku: string;
+  message: string;
+}
+
+export interface StoreStockImportResult {
+  /** success = semua delta terpasang; failed = rollback bersih;
+   *  partial = gagal + sebagian kompensasi ikut gagal (perlu perbaikan manual) */
+  status: "success" | "failed" | "partial";
+  appliedCount: number;
+  compensatedCount: number;
+  compensationFailed: StoreStockImportFailure[];
+  failure?: StoreStockImportFailure;
+}
+
+/**
+ * Terapkan hasil import stok toko SATU PER SATU lewat adjustStoreStock
+ * (RPC atomik: otorisasi cabang, anti-minus, ledger).
+ *
+ * Safety partial-failure: bila satu baris gagal, penerapan BERHENTI dan
+ * seluruh baris yang sudah terpasang DIKOMPENSASI (delta dibalik) agar stok
+ * tidak tertinggal setengah ter-update. Kompensasi yang juga gagal dilaporkan
+ * eksplisit (status "partial") — tidak pernah silent.
+ */
+export async function applyStoreStockImport(
+  supabase: SupabaseClient,
+  lines: StoreStockImportLine[],
+  opts: {
+    branchId: string;
+    source?: StockSource;
+    reason?: string;
+    onProgress?: (appliedCount: number, total: number) => void;
+  },
+): Promise<StoreStockImportResult> {
+  const applied: StoreStockImportLine[] = [];
+  const source = opts.source ?? "adjustment";
+  const reason = opts.reason ?? "Import stok toko";
+
+  for (const line of lines) {
+    if (line.delta === 0) continue;
+    try {
+      await adjustStoreStock(supabase, {
+        inventoryId: line.inventoryId,
+        branchId: opts.branchId,
+        delta: line.delta,
+        source,
+        reason,
+      });
+    } catch (e: unknown) {
+      const failure = {
+        sku: line.sku,
+        message: e instanceof Error ? e.message : "Gagal menerapkan delta stok",
+      };
+      // Kompensasi terbalik (LIFO) hanya atas baris yang SUDAH berhasil.
+      let compensatedCount = 0;
+      const compensationFailed: StoreStockImportFailure[] = [];
+      for (const done of [...applied].reverse()) {
+        try {
+          await adjustStoreStock(supabase, {
+            inventoryId: done.inventoryId,
+            branchId: opts.branchId,
+            delta: -done.delta,
+            source,
+            reason: "Kompensasi import stok gagal",
+          });
+          compensatedCount++;
+        } catch (compErr: unknown) {
+          compensationFailed.push({
+            sku: done.sku,
+            message:
+              compErr instanceof Error
+                ? compErr.message
+                : "Kompensasi gagal",
+          });
+        }
+      }
+      return {
+        status: compensationFailed.length > 0 ? "partial" : "failed",
+        appliedCount: applied.length,
+        compensatedCount,
+        compensationFailed,
+        failure,
+      };
+    }
+    applied.push(line);
+    opts.onProgress?.(applied.length, lines.length);
+  }
+
+  return {
+    status: "success",
+    appliedCount: applied.length,
+    compensatedCount: 0,
+    compensationFailed: [],
+  };
+}
+
 // ─── Rollback helpers (dipakai transaksi service) ──────────────────
 
 export interface AppliedStockChange {
