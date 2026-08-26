@@ -74,10 +74,7 @@ export default function InventoryManagement({
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferItemId, setTransferItemId] = useState<string>("");
   const [transferQuantity, setTransferQuantity] = useState("");
-  const [transferFrom, setTransferFrom] = useState<"warehouse" | "store">(
-    "warehouse",
-  );
-  const [transferTo, setTransferTo] = useState<"warehouse" | "store">("store");
+  // Transfer khusus SATU ARAH: Gudang -> Stock Toko cabang
   const [transferNotes, setTransferNotes] = useState("");
   // Cabang tujuan/sumber utk sisi "Toko" (wajib pada model stok multi-cabang)
   const [transferBranchId, setTransferBranchId] = useState<string>("");
@@ -211,8 +208,6 @@ export default function InventoryManagement({
   const openTransferForm = (itemId?: string) => {
     setTransferItemId(itemId || "");
     setTransferQuantity("");
-    setTransferFrom("warehouse");
-    setTransferTo("store");
     setTransferNotes("");
     // Admin cabang terkunci ke cabangnya; admin_gudang default cabang pertama
     setTransferBranchId(user?.branch_id || branches[0]?.id || "");
@@ -265,22 +260,14 @@ export default function InventoryManagement({
       return;
     }
 
-    if ((transferFrom === "store" || transferTo === "store") && !transferBranchId) {
-      toast.error("Pilih cabang untuk stock toko");
+    if (!transferBranchId) {
+      toast.error("Pilih cabang tujuan stock toko");
       return;
     }
 
-    const storeBranchQty =
-      (selectedItem as any).stock_toko?.find(
-        (s: any) => s.branch_id === transferBranchId,
-      )?.quantity ?? 0;
-
-    const sourceStock =
-      transferFrom === "warehouse"
-        ? selectedItem.warehouse_stock || 0
-        : storeBranchQty;
+    const sourceStock = selectedItem.warehouse_stock || 0;
     if (sourceStock < qty) {
-      toast.error(`Stock tidak cukup (tersedia ${sourceStock})`);
+      toast.error(`Stock gudang tidak cukup (tersedia ${sourceStock})`);
       return;
     }
 
@@ -296,8 +283,8 @@ export default function InventoryManagement({
 
 📝 Item: ${selectedItem.item_name}
 🏷️ SKU: ${selectedItem.sku}
-📍 Dari: ${transferFrom === "warehouse" ? "Gudang" : "Toko"}
-📍 Ke: ${transferTo === "warehouse" ? "Gudang" : "Toko"}
+📍 Dari: Gudang
+📍 Ke: Stock Toko — ${branches.find((b) => b.id === transferBranchId)?.name || "-"}
 📊 Jumlah: ${qty} ${selectedItem.unit}
 📝 Catatan: ${transferNotes || "-"}
 👤 Admin: ${user?.full_name || "Admin"}
@@ -329,8 +316,8 @@ export default function InventoryManagement({
         .from("stock_transfers")
         .insert({
           inventory_id: transferItemId,
-          from_location: transferFrom,
-          to_location: transferTo,
+          from_location: "warehouse",
+          to_location: "store",
           quantity: qty,
           notes: transferNotes || null,
           photo_url: photoUrl || null,
@@ -340,79 +327,42 @@ export default function InventoryManagement({
 
       if (transferError) throw transferError;
 
-      const warehouseDelta =
-        transferFrom === "warehouse"
-          ? -qty
-          : transferTo === "warehouse"
-            ? qty
-            : 0;
-      const storeDelta =
-        transferFrom === "store" ? -qty : transferTo === "store" ? qty : 0;
-
-      // Eksekusi lewat RPC terpusat (keputusan final §18): sisi sumber dulu,
-      // lalu tujuan; sisi kedua gagal => sisi pertama dikompensasi.
-      let sourceAppliedDelta = 0;
+      // Satu arah: Gudang -qty  →  Toko cabang +qty (RPC terpusat).
+      let gudangApplied = false;
       try {
-        if (transferFrom === "warehouse" && warehouseDelta !== 0) {
-          await adjustWarehouseStock(supabase, {
-            inventoryId: transferItemId,
-            delta: warehouseDelta,
-            source: "adjustment",
-            reason: `Transfer ke toko`,
-          });
-          sourceAppliedDelta = warehouseDelta;
-        } else if (transferFrom === "store" && storeDelta !== 0) {
-          await adjustStoreStock(supabase, {
-            inventoryId: transferItemId,
-            branchId: transferBranchId,
-            delta: storeDelta,
-            source: "adjustment",
-            reason: `Transfer keluar`,
-          });
-          sourceAppliedDelta = storeDelta;
-        }
+        await adjustWarehouseStock(supabase, {
+          inventoryId: transferItemId,
+          delta: -qty,
+          source: "adjustment",
+          reason: `Transfer ke stok toko`,
+        });
+        gudangApplied = true;
 
-        if (transferTo === "warehouse") {
-          await adjustWarehouseStock(supabase, {
-            inventoryId: transferItemId,
-            delta: qty,
-            source: "adjustment",
-            reason: `Transfer masuk`,
-          });
-        } else {
-          await adjustStoreStock(supabase, {
-            inventoryId: transferItemId,
-            branchId: transferBranchId,
-            delta: qty,
-            source: "adjustment",
-            reason: `Transfer masuk ke cabang`,
-          });
-        }
+        await adjustStoreStock(supabase, {
+          inventoryId: transferItemId,
+          branchId: transferBranchId,
+          delta: qty,
+          source: "adjustment",
+          reason: `Transfer dari gudang`,
+        });
       } catch (stockErr: any) {
-        if (sourceAppliedDelta !== 0) {
+        // Gudang sudah dipotong tapi toko gagal -> kembalikan gudang.
+        if (gudangApplied) {
           try {
-            if (transferFrom === "warehouse") {
-              await adjustWarehouseStock(supabase, {
-                inventoryId: transferItemId,
-                delta: -sourceAppliedDelta,
-                source: "adjustment",
-                reason: "Kompensasi transfer gagal",
-              });
-            } else {
-              await adjustStoreStock(supabase, {
-                inventoryId: transferItemId,
-                branchId: transferBranchId,
-                delta: -sourceAppliedDelta,
-                source: "adjustment",
-                reason: "Kompensasi transfer gagal",
-              });
-            }
+            await adjustWarehouseStock(supabase, {
+              inventoryId: transferItemId,
+              delta: qty,
+              source: "adjustment",
+              reason: "Kompensasi transfer gagal",
+            });
           } catch (compErr) {
             console.error("[inventory] kompensasi transfer gagal", compErr);
           }
         }
         throw new Error(stockErr?.message || "Gagal memproses transfer stok");
       }
+
+      toast.success("Stock transfer berhasil!");
 
       toast.success("Stock transfer berhasil!");
       setShowTransferForm(false);
@@ -1085,72 +1035,31 @@ export default function InventoryManagement({
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">
-                      Dari
-                    </label>
-                    <select
-                      value={transferFrom}
-                      onChange={(e) => {
-                        const val = e.target.value as "warehouse" | "store";
-                        setTransferFrom(val);
-                        if (val === transferTo)
-                          setTransferTo(
-                            val === "warehouse" ? "store" : "warehouse",
-                          );
-                      }}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900"
-                    >
-                      <option value="warehouse">Gudang</option>
-                      <option value="store">Toko</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">
-                      Ke
-                    </label>
-                    <select
-                      value={transferTo}
-                      onChange={(e) => {
-                        const val = e.target.value as "warehouse" | "store";
-                        setTransferTo(val);
-                        if (val === transferFrom)
-                          setTransferFrom(
-                            val === "warehouse" ? "store" : "warehouse",
-                          );
-                      }}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900"
-                    >
-                      <option value="warehouse">Gudang</option>
-                      <option value="store">Toko</option>
-                    </select>
-                  </div>
+                <div className="rounded-lg bg-slate-50 dark:bg-white/5 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-gray-200">
+                  Arah: Gudang → Stock Toko Cabang
                 </div>
-                {(transferFrom === "store" || transferTo === "store") && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">
-                      Cabang (Stock Toko)
-                    </label>
-                    <select
-                      value={transferBranchId}
-                      onChange={(e) => setTransferBranchId(e.target.value)}
-                      disabled={!canManageGudang}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
-                    >
-                      {branches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                    {!canManageGudang && (
-                      <p className="text-xs text-slate-400 mt-1">
-                        Admin cabang hanya dapat mengatur stok cabangnya sendiri.
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">
+                    Cabang Tujuan
+                  </label>
+                  <select
+                    value={transferBranchId}
+                    onChange={(e) => setTransferBranchId(e.target.value)}
+                    disabled={!canManageGudang}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  {!canManageGudang && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Admin cabang hanya dapat mengatur stok cabangnya sendiri.
+                    </p>
+                  )}
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-900 mb-1">
                     Jumlah

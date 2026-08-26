@@ -121,8 +121,10 @@ export default memo(function LayananForm({
   const [uploadKey] = useState(() => (initialData as any)?.upload_session_key || `layanan_${user?.id || 'anon'}_${Date.now()}`)
   const upload = useCentralUpload(uploadKey);
   const { activeBranch } = useBranch();
-  // Tipe baris SKU utk service_langsung: jasa (default) | sparepart
-  const [skuMode, setSkuMode] = useState<Record<string, "jasa" | "sparepart">>({});
+  // Tipe baris SKU utk service_langsung: jasa (default) | sparepart | custom
+  const [skuMode, setSkuMode] = useState<
+    Record<string, "jasa" | "sparepart" | "custom">
+  >({});
   const createTx = useTransactionStore((s) => s.create);
   const updateTx = useTransactionStore((s) => s.update);
 
@@ -242,7 +244,7 @@ export default memo(function LayananForm({
   // Cabang sumber stok utk picker Sparepart/Jam (admin cabang terkunci di cabangnya)
   const stockBranchId = user?.branch_id ?? (activeBranch as any)?.id ?? null;
 
-  const getSkuMode = (i: number, j: number): "jasa" | "sparepart" =>
+  const getSkuMode = (i: number, j: number): "jasa" | "sparepart" | "custom" =>
     skuMode[`${i}-${j}`] ?? "jasa";
 
   const derivedNominal2 = useMemo(() => {
@@ -1386,7 +1388,7 @@ export default memo(function LayananForm({
                         {item.jenis_layanan === "service_langsung" && (
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-semibold text-gray-400 uppercase">Tipe:</span>
-                            {(["jasa", "sparepart"] as const).map((m) => (
+                            {(["jasa", "sparepart", "custom"] as const).map((m) => (
                               <button
                                 key={m}
                                 type="button"
@@ -1395,7 +1397,7 @@ export default memo(function LayananForm({
                                     ...prev,
                                     [`${itemIdx}-${skuIdx}`]: m,
                                   }));
-                                  if (m === "jasa") {
+                                  if (m !== "sparepart") {
                                     updateSku(itemIdx, skuIdx, "inventory_id", null);
                                   }
                                 }}
@@ -1404,11 +1406,13 @@ export default memo(function LayananForm({
                                   getSkuMode(itemIdx, skuIdx) === m
                                     ? m === "sparepart"
                                       ? "bg-purple-600 border-purple-600 text-white"
-                                      : "bg-blue-600 border-blue-600 text-white"
+                                      : m === "custom"
+                                        ? "bg-amber-500 border-amber-500 text-white"
+                                        : "bg-blue-600 border-blue-600 text-white"
                                     : "border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-400 dark:hover:border-white/30"
                                 }`}
                               >
-                                {m === "jasa" ? "Jasa" : "Sparepart"}
+                                {m === "jasa" ? "Jasa" : m === "sparepart" ? "Sparepart" : "Custom"}
                               </button>
                             ))}
                           </div>
@@ -1428,6 +1432,35 @@ export default memo(function LayananForm({
                                 updateSku(itemIdx, skuIdx, "nominal", String(opt.price || opt.buy_price || 0));
                               }}
                             />
+                          ) : getSkuMode(itemIdx, skuIdx) === "custom" ? (
+                            <>
+                              <input
+                                type="text"
+                                value={sku.sku}
+                                onChange={(e) =>
+                                  updateSku(itemIdx, skuIdx, "sku", e.target.value)
+                                }
+                                placeholder="SKU manual"
+                                className="w-full md:flex-1 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                              />
+                              <div className="relative w-full md:w-32">
+                                <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                <input
+                                  type="text"
+                                  value={sku.nominal || ""}
+                                  onChange={(e) =>
+                                    updateSku(
+                                      itemIdx,
+                                      skuIdx,
+                                      "nominal",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="Nominal"
+                                  className="w-full pl-7 pr-2 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                                />
+                              </div>
+                            </>
                           ) : (
                             <ServiceCatalogPicker
                               skuValue={sku.sku}
