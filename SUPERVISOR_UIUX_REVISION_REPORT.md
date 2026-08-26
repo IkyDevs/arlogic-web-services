@@ -1,8 +1,37 @@
 # 📄 DEVELOPMENT REPORT: Revisi UI/UX Supervisor Dashboard
 
+## 26 Agustus 2026 — Revisi v3: Monitoring Cabang + Pop-up Detail (Mode Bandingkan)
+
+---
+
+### 🎯 TUJUAN SESI v3
+
+Feedback user atas v2: jangan menyalin 100% management transaksi ke halaman; daftar transaksi/service inline **dihapus** dari halaman; monitoring cabang harus kembali; daftar tampil sebagai **pop-up**; ada mode **bandingkan 2 cabang berdampingan**.
+
+### ⚡ EKSEKUSI v3
+
+| File | Perubahan | Status |
+|:--|:----------|:-------|
+| `components/supervisor/MonitoringModals.tsx` | **Baru** — modal shell (ESC/backdrop close, framer-motion) + SupervisorTransactionsModal & SupervisorServicesModal: embed TransactionManagement/ServiceList read-only; scope cabang via BranchContext (set saat buka, restore saat tutup) | Done |
+| `components/supervisor/BranchMonitoringCard.tsx` | **Baru** — kartu ringkas per cabang: Transaksi · Service · Pendapatan · %Selesai + badge pending + 2 tombol pop-up | Done |
+| `app/supervisor/page.tsx` | Overview baru: 4 chip ringkasan gabungan klikable → pop-up "Semua Cabang"; tombol **Bandingkan** → pilih Cabang A ↔ B, kartu keduanya berdampingan (`lg:grid-cols-2`); fetch lean 2 query + realtime; tab Users verbatim | Done |
+
+Halaman tidak lagi memuat daftar transaksi/service panjang — semuanya lewat pop-up. Komponen readOnly v2 tetap dipakai di dalam modal.
+
+### 🧪 TESTING v3
+- ✅ `bunx tsc --noEmit` 0 error · ✅ `bun run build` (/supervisor OK) · ✅ `bun run test` 102 passed
+- ⚠️ UAT authenticated + console check tetap perlu user.
+
+### Catatan v3
+- Periode chip & custom range mengontrol angka ringkasan/kartu; periode di dalam pop-up dikelola komponen masing-masing (independen).
+- Saat pop-up terbuka, scope cabang global di-set lalu dikembalikan ke nilai sebelumnya saat ditutup.
+
+---
+
 ## 26 Agustus 2026 — Revisi v2: Adopsi Komponen Management Transaksi (View-Only, Antar Cabang)
 
 ---
+
 
 ### 🎯 TUJUAN SESI v2
 

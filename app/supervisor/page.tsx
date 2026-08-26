@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
 import { useBranch } from "@/lib/context/BranchContext";
@@ -14,28 +13,63 @@ import {
   CheckCircle2,
   Loader2,
   Plus,
+  X,
+  Calendar,
+  Columns2,
+  ShoppingCart,
+  Wrench,
+  Hourglass,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import ReportModal from "@/components/ui/ReportModal";
 import UserAvatar from "@/components/ui/UserAvatar";
-
-// Komponen yang sama dengan Management Transaksi (Admin/QC/Teknisi),
-// dirender read-only untuk supervisor.
-const TransactionManagement = dynamic(
-  () => import("@/components/layanan/TransactionManagement"),
-  {
-    loading: () => (
-      <div className="text-center py-8 text-slate-500">Loading...</div>
-    ),
-    ssr: false,
-  },
-);
-const ServiceList = dynamic(() => import("@/components/admin/ServiceList"), {
-  loading: () => <div className="text-center py-8 text-slate-500">Loading...</div>,
-  ssr: false,
-});
+import BranchMonitoringCard, {
+  type BranchMonitoringStat,
+} from "@/components/supervisor/BranchMonitoringCard";
+import {
+  SupervisorTransactionsModal,
+  SupervisorServicesModal,
+} from "@/components/supervisor/MonitoringModals";
 
 type Tab = "overview" | "users";
+type Period = "hari" | "minggu" | "bulan" | "tahun";
+
+const OPEN_SERVICE_STATUSES = [
+  "pending",
+  "assigned",
+  "in_progress",
+  "waiting_sparepart",
+  "sparepart_ready",
+  "qc_pending",
+  "revision_required",
+];
+
+function getWindow(p: Period, customStart: string, customEnd: string) {
+  if (customStart) {
+    const s = new Date(customStart);
+    const e = customEnd ? new Date(customEnd) : new Date(customStart);
+    return {
+      start: s.toISOString(),
+      end: new Date(e.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+  const now = new Date();
+  let start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  if (p === "minggu") {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
+  } else if (p === "bulan") {
+    start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    start.setHours(0, 0, 0, 0);
+  } else if (p === "tahun") {
+    start = new Date(now);
+    start.setDate(start.getDate() - 365);
+    start.setHours(0, 0, 0, 0);
+  }
+  return { start: start.toISOString(), end: end.toISOString() };
+}
 
 export default function SupervisorDashboard() {
   const { user, logout } = useAuthStore();
@@ -43,6 +77,173 @@ export default function SupervisorDashboard() {
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [showReport, setShowReport] = useState(false);
+
+  // ── Monitoring overview ──
+  const [period, setPeriod] = useState<Period>("hari");
+  const [dateRangeStart, setDateRangeStart] = useState("");
+  const [dateRangeEnd, setDateRangeEnd] = useState("");
+  const [stats, setStats] = useState<BranchMonitoringStat[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareA, setCompareA] = useState("");
+  const [compareB, setCompareB] = useState("");
+  const [modal, setModal] = useState<{
+    type: "tx" | "svc";
+    branch: { id: string | null; name: string };
+  } | null>(null);
+
+  const fetchOverview = useCallback(async () => {
+    if (branches.length === 0) {
+      setLoadingStats(false);
+      return;
+    }
+    const { start, end } = getWindow(period, dateRangeStart, dateRangeEnd);
+    try {
+      const [txRes, svcRes] = await Promise.all([
+        supabase
+          .from("layanan")
+          .select("nominal, jenis_layanan, branch_id")
+          .gte("created_at", start)
+          .lte("created_at", end)
+          .limit(20000),
+        supabase
+          .from("service_orders")
+          .select("status, branch_id")
+          .gte("created_at", start)
+          .lte("created_at", end)
+          .limit(20000),
+      ]);
+      const map = new Map<string, BranchMonitoringStat>();
+      for (const b of branches) {
+        map.set(b.id, {
+          id: b.id,
+          name: b.name,
+          code: b.code,
+          transactions: 0,
+          revenue: 0,
+          services: 0,
+          pending: 0,
+          completed: 0,
+        });
+      }
+      for (const r of txRes.data || []) {
+        const cell = r.branch_id ? map.get(r.branch_id) : undefined;
+        if (!cell) continue;
+        cell.transactions += 1;
+        if (r.jenis_layanan !== "pengeluaran") cell.revenue += r.nominal || 0;
+      }
+      for (const r of svcRes.data || []) {
+        const cell = r.branch_id ? map.get(r.branch_id) : undefined;
+        if (!cell) continue;
+        cell.services += 1;
+        if (r.status === "completed") cell.completed += 1;
+        else if ((OPEN_SERVICE_STATUSES as string[]).includes(r.status || ""))
+          cell.pending += 1;
+      }
+      setStats(Array.from(map.values()));
+    } catch (e) {
+      console.error("Gagal memuat monitoring supervisor:", e);
+      toast.error("Gagal memuat data monitoring");
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [branches, supabase, period, dateRangeStart, dateRangeEnd]);
+
+  useEffect(() => {
+    const t = setTimeout(fetchOverview, 0);
+    return () => clearTimeout(t);
+  }, [fetchOverview]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("supervisor-overview")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "layanan" },
+        () => fetchOverview(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_orders" },
+        () => fetchOverview(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchOverview]);
+
+  useEffect(() => {
+    if (branches.length >= 2 && (!compareA || !compareB)) {
+      setCompareA((v) => v || branches[0].id);
+      setCompareB((v) => v || branches[1].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [branches]);
+
+  const summary = useMemo(
+    () =>
+      stats.reduce(
+        (acc, s) => ({
+          transactions: acc.transactions + s.transactions,
+          services: acc.services + s.services,
+          pending: acc.pending + s.pending,
+          revenue: acc.revenue + s.revenue,
+        }),
+        { transactions: 0, services: 0, pending: 0, revenue: 0 },
+      ),
+    [stats],
+  );
+
+  const ALL_BRANCH: { id: string | null; name: string } = {
+    id: null,
+    name: "Semua Cabang",
+  };
+
+  const summaryChips: Array<{
+    key: string;
+    label: string;
+    value: string;
+    Icon: LucideIcon;
+    iconCls: string;
+    modalType: "tx" | "svc";
+  }> = [
+    {
+      key: "tx",
+      label: "Total Transaksi",
+      value: summary.transactions.toLocaleString("id-ID"),
+      Icon: ShoppingCart,
+      iconCls: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
+      modalType: "tx",
+    },
+    {
+      key: "svc",
+      label: "Total Service",
+      value: summary.services.toLocaleString("id-ID"),
+      Icon: Wrench,
+      iconCls:
+        "bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400",
+      modalType: "svc",
+    },
+    {
+      key: "pending",
+      label: "Service Pending",
+      value: summary.pending.toLocaleString("id-ID"),
+      Icon: Hourglass,
+      iconCls: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
+      modalType: "svc",
+    },
+    {
+      key: "rev",
+      label: "Total Pendapatan",
+      value: `Rp ${new Intl.NumberFormat("id-ID").format(summary.revenue)}`,
+      Icon: Wallet,
+      iconCls: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
+      modalType: "tx",
+    },
+  ];
+
+  const statById = (id: string) => stats.find((s) => s.id === id);
 
   // ── Kelola User (logika tab users — tidak diubah) ──
   const [users, setUsers] = useState<
@@ -58,7 +259,6 @@ export default function SupervisorDashboard() {
   >([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Form tambah user
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -66,7 +266,6 @@ export default function SupervisorDashboard() {
   const [newBranch, setNewBranch] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // Rolling teknisi
   const [rollingUserId, setRollingUserId] = useState("");
   const [rollingBranch, setRollingBranch] = useState("");
   const [rollingReason, setRollingReason] = useState("");
@@ -177,6 +376,13 @@ export default function SupervisorDashboard() {
     owner: "Owner",
   };
 
+  const compareCards: BranchMonitoringStat[] =
+    compareMode && compareA && compareB
+      ? ([statById(compareA), statById(compareB)].filter(
+          Boolean,
+        ) as BranchMonitoringStat[])
+      : [];
+
   return (
     <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#eef4fa] dark:bg-[#0a0a0a] flex flex-col lg:flex-row">
       {/* Desktop Sidebar */}
@@ -235,31 +441,218 @@ export default function SupervisorDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden p-4 md:p-6 lg:p-6 pb-20 lg:pb-0">
-        {/* Header */}
-        <div className="flex-shrink-0 mb-4">
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {tab === "overview" ? "Dashboard Supervisor" : "Kelola User"}
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              {tab === "overview"
-                ? "Pantau transaksi dan service seluruh cabang secara real-time."
-                : "Kelola user & rolling teknisi per cabang."}
-            </p>
+        {/* Header + Filter */}
+        <div className="flex-shrink-0 mb-4 flex flex-col gap-3">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {tab === "overview" ? "Dashboard Supervisor" : "Kelola User"}
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                {tab === "overview"
+                  ? "Pantau transaksi dan service seluruh cabang secara real-time."
+                  : "Kelola user & rolling teknisi per cabang."}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setCompareMode((v) => !v)}
+                aria-pressed={compareMode}
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-[#0a0a0a] ${
+                  compareMode
+                    ? "bg-blue-600 border-blue-600 text-white"
+                    : "bg-white dark:bg-[#1c1c1c] border-gray-200/70 dark:border-white/10 text-gray-600 hover:text-blue-600 dark:text-gray-300"
+                }`}
+                title="Bandingkan dua cabang berdampingan"
+              >
+                <Columns2 className="w-4 h-4" aria-hidden="true" />
+                Bandingkan
+              </button>
+
+              <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200/70 dark:border-white/10 p-1">
+                {(
+                  [
+                    { id: "hari", label: "Hari Ini" },
+                    { id: "minggu", label: "Mingguan" },
+                    { id: "bulan", label: "Bulanan" },
+                    { id: "tahun", label: "Tahunan" },
+                  ] as const
+                ).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPeriod(p.id)}
+                    aria-pressed={period === p.id}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+                Dari
+                <input
+                  type="date"
+                  value={dateRangeStart}
+                  onChange={(e) => setDateRangeStart(e.target.value)}
+                  aria-label="Dari tanggal"
+                  className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
+                Sampai
+                <input
+                  type="date"
+                  value={dateRangeEnd}
+                  min={dateRangeStart || undefined}
+                  onChange={(e) => setDateRangeEnd(e.target.value)}
+                  aria-label="Sampai tanggal"
+                  className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
+                />
+              </label>
+
+              {(dateRangeStart || dateRangeEnd) && (
+                <button
+                  onClick={() => {
+                    setDateRangeStart("");
+                    setDateRangeEnd("");
+                  }}
+                  aria-label="Reset filter tanggal"
+                  className="flex items-center justify-center w-8 h-8 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-gray-500 hover:text-red-600 hover:border-red-300 transition-all focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <X className="w-4 h-4" aria-hidden="true" />
+                </button>
+              )}
+
+              <button
+                onClick={() => setShowReport(true)}
+                aria-label="Report an issue or bug"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+              >
+                <Plus className="w-4 h-4" aria-hidden="true" /> Lapor
+              </button>
+
+              <div className="hidden sm:block">
+                <UserAvatar user={user} />
+              </div>
+            </div>
           </div>
         </div>
 
         {tab === "overview" && (
-          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-5 pb-4">
-            {/* Transaksi — komponen yang sama dengan Management Transaksi (read-only, antar cabang) */}
-            <section aria-label="Manajemen Transaksi">
-              <TransactionManagement readOnly />
-            </section>
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pb-4">
+            {/* Ringkasan gabungan — klik untuk buka pop-up */}
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              {loadingStats
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-20 animate-pulse bg-gray-100 dark:bg-white/5 rounded-2xl"
+                    />
+                  ))
+                : summaryChips.map(({ key, label, value, Icon, iconCls, modalType }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setModal({
+                          type: modalType,
+                          branch: ALL_BRANCH,
+                        })
+                      }
+                      className="rounded-2xl border border-gray-200/70 dark:border-white/10 bg-white dark:bg-[#1c1c1c] p-4 text-left hover:border-blue-400 dark:hover:border-blue-600 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+                      aria-label={`${label}, buka pop-up`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconCls}`}>
+                          <Icon className="w-4 h-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-100 tabular-nums truncate">
+                            {value}
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-gray-400 truncate">{label}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+            </div>
 
-            {/* Service — Daftar Service lengkap dengan Detail Service (read-only, antar cabang) */}
-            <section aria-label="Daftar Service">
-              <ServiceList readOnly />
-            </section>
+            {/* Bar bandingkan */}
+            {compareMode && (
+              <div className="flex-shrink-0 flex flex-wrap items-center gap-3 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-2xl px-4 py-3">
+                <span className="text-xs font-semibold text-gray-500">Bandingkan:</span>
+                <select
+                  value={compareA}
+                  onChange={(e) => setCompareA(e.target.value)}
+                  aria-label="Cabang A"
+                  className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                <ArrowRightLeft className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                <select
+                  value={compareB}
+                  onChange={(e) => setCompareB(e.target.value)}
+                  aria-label="Cabang B"
+                  className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Kartu monitoring cabang */}
+            {loadingStats ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {Array.from({ length: Math.max(branches.length, 3) }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-44 animate-pulse bg-gray-100 dark:bg-white/5 rounded-2xl"
+                  />
+                ))}
+              </div>
+            ) : compareMode ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {compareCards.map((s) => (
+                  <BranchMonitoringCard
+                    key={s.id}
+                    stat={s}
+                    onViewTransactions={() =>
+                      setModal({ type: "tx", branch: { id: s.id, name: s.name } })
+                    }
+                    onViewServices={() =>
+                      setModal({ type: "svc", branch: { id: s.id, name: s.name } })
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {stats.map((s) => (
+                  <BranchMonitoringCard
+                    key={s.id}
+                    stat={s}
+                    onViewTransactions={() =>
+                      setModal({ type: "tx", branch: { id: s.id, name: s.name } })
+                    }
+                    onViewServices={() =>
+                      setModal({ type: "svc", branch: { id: s.id, name: s.name } })
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -494,6 +887,18 @@ export default function SupervisorDashboard() {
           </div>
         )}
       </main>
+
+      {/* Pop-up Transaksi / Service */}
+      <SupervisorTransactionsModal
+        open={modal?.type === "tx"}
+        branch={modal?.branch ?? ALL_BRANCH}
+        onClose={() => setModal(null)}
+      />
+      <SupervisorServicesModal
+        open={modal?.type === "svc"}
+        branch={modal?.branch ?? ALL_BRANCH}
+        onClose={() => setModal(null)}
+      />
 
       {/* Bottom Navigation Bar for Mobile/Tablet */}
       <nav
