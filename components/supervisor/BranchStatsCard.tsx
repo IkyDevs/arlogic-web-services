@@ -2,23 +2,14 @@
 
 import { Wallet } from "lucide-react";
 import { formatRupiah } from "@/lib/domain/shared/formatters";
+import {
+  SERVICE_STATUS_META as STATUS_META,
+  countStatus,
+  statusTotal,
+} from "@/lib/domain/serviceStatus";
 
-export const STATUS_META: { key: string; label: string; cls: string; match: string[] }[] = [
-  { key: "pending", label: "Pending", cls: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300", match: ["pending"] },
-  { key: "digarap", label: "Digarap", cls: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400", match: ["assigned", "in_progress"] },
-  { key: "nunggu", label: "Nunggu", cls: "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400", match: ["waiting_sparepart", "sparepart_ready"] },
-  { key: "qc", label: "QC", cls: "bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400", match: ["qc_pending", "revision_required"] },
-  { key: "selesai", label: "Selesai", cls: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400", match: ["completed"] },
-  { key: "batal", label: "Batal", cls: "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400", match: ["cancelled"] },
-];
-
-export function countStatus(status: Record<string, number>, keys: string[]) {
-  return keys.reduce((sum, k) => sum + (status[k] || 0), 0);
-}
-
-export function statusTotal(status: Record<string, number>) {
-  return Object.values(status).reduce((a, b) => a + b, 0);
-}
+// Re-export: kontrak lama dipertahankan; definisi kanonis di lib/domain/serviceStatus.ts.
+export { STATUS_META, countStatus, statusTotal };
 
 interface BranchStatsCardProps {
   branch: { id: string; name: string; code?: string };

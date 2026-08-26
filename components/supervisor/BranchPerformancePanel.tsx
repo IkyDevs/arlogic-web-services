@@ -12,6 +12,10 @@ export interface BranchPerformanceRow {
   teknisiCount: number;
   activeLoad: number;
   contribution: number;
+  /** Opsional — disediakan revisi UI untuk highlight monitoring */
+  pending?: number;
+  completed?: number;
+  completionRate?: number;
 }
 
 interface BranchPerformancePanelProps {
@@ -101,11 +105,31 @@ export default function BranchPerformancePanel({
                         }}
                       />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1">
-                      {r.contribution.toFixed(1)}% dari total · {r.count} transaksi ·{" "}
-                      {r.services} service · {r.teknisiCount} teknisi
-                      {r.activeLoad > 0 && ` · ${r.activeLoad} beban aktif`}
-                      {r.expenses > 0 && ` · pengeluaran ${formatRupiah(r.expenses)}`}
+                    <p className="text-[10px] text-gray-400 mt-1 flex flex-wrap items-center gap-x-1">
+                      <span>
+                        {r.contribution.toFixed(1)}% dari total · {r.count} transaksi ·{" "}
+                        {r.services} service · {r.teknisiCount} teknisi
+                      </span>
+                      {(r.pending ?? 0) > 0 && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 font-semibold">
+                          {r.pending} pending
+                        </span>
+                      )}
+                      {r.completionRate !== undefined && (
+                        <span
+                          className={`font-semibold ${
+                            r.completionRate >= 70
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : r.completionRate < 40
+                                ? "text-red-500 dark:text-red-400"
+                                : "text-gray-400"
+                          }`}
+                        >
+                          · selesai {r.completed ?? 0} ({r.completionRate}%)
+                        </span>
+                      )}
+                      {r.activeLoad > 0 && <span>· {r.activeLoad} beban aktif</span>}
+                      {r.expenses > 0 && <span>· pengeluaran {formatRupiah(r.expenses)}</span>}
                     </p>
                   </div>
                 </div>

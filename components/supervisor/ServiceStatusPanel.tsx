@@ -110,8 +110,13 @@ export default function ServiceStatusPanel({
                     {legendDot(s.color)}
                     <span className="truncate">{s.label}</span>
                   </span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100 flex-shrink-0">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 flex-shrink-0 tabular-nums">
                     {s.value}
+                    {total > 0 && (
+                      <span className="ml-1 font-normal text-gray-400">
+                        · {Math.round((s.value / total) * 100)}%
+                      </span>
+                    )}
                   </span>
                 </div>
               ))}

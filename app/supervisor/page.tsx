@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
-import { useBranch } from "@/lib/context/BranchContext";
 import toast from "react-hot-toast";
 import {
   LayoutDashboard,
@@ -15,53 +14,46 @@ import {
   Plus,
   X,
   Calendar,
-  Wallet,
-  Wrench,
-  ReceiptText,
-  TrendingDown,
+  RefreshCw,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 import ReportModal from "@/components/ui/ReportModal";
 import UserAvatar from "@/components/ui/UserAvatar";
+import TransactionDetailModal from "@/components/ui/TransactionDetailModal";
 import BranchComparisonTable from "@/components/supervisor/BranchComparisonTable";
 import BranchDetailModal from "@/components/supervisor/BranchDetailModal";
 import BranchPerformancePanel from "@/components/supervisor/BranchPerformancePanel";
 import RevenueChart from "@/components/supervisor/RevenueChart";
-import ServiceStatusPanel, {
-  type StatusSlice,
-} from "@/components/supervisor/ServiceStatusPanel";
-import SupervisorAlerts, {
-  type SupervisorAlert,
-} from "@/components/supervisor/SupervisorAlerts";
-import { countStatus } from "@/components/supervisor/BranchStatsCard";
-import { formatRupiah } from "@/lib/domain/shared/formatters";
+import ServiceStatusPanel from "@/components/supervisor/ServiceStatusPanel";
+import SupervisorAlerts from "@/components/supervisor/SupervisorAlerts";
+import KPIStrip from "@/components/supervisor/KPIStrip";
+import {
+  TransactionTrendCard,
+  ServiceTrendCard,
+} from "@/components/supervisor/TrendSection";
+import PendingServiceMonitor from "@/components/supervisor/PendingServiceMonitor";
+import RecentTransactionsCard from "@/components/supervisor/RecentTransactionsCard";
+import RecentServicesCard from "@/components/supervisor/RecentServicesCard";
+import TechnicianPerformancePanel from "@/components/supervisor/TechnicianPerformancePanel";
+import PaymentBreakdownCard from "@/components/supervisor/PaymentBreakdownCard";
+import QuickSummaryStrip from "@/components/supervisor/QuickSummaryStrip";
+import { useSupervisorDashboard } from "@/hooks/useSupervisorDashboard";
+import { buildSeries } from "@/lib/domain/shared/timeseries";
+import { fetchTransactionById } from "@/lib/domain/transaction/service";
+import type { TransactionData } from "@/lib/domain/transaction/types";
+import type { RecentTransaction } from "@/hooks/useSupervisorDashboard";
 
 type Tab = "overview" | "users";
-type Period = "hari" | "minggu" | "bulan" | "tahun" | "custom";
-
-interface BranchRevenue {
-  revenue: number;
-  count: number;
-  expenses: number;
-  serviceCount: number;
-}
 
 export default function SupervisorDashboard() {
   const { user, logout } = useAuthStore();
-  const { branches } = useBranch();
   const supabase = createClient();
+  const dash = useSupervisorDashboard();
   const [tab, setTab] = useState<Tab>("overview");
   const [showReport, setShowReport] = useState(false);
 
-  const [branchStats, setBranchStats] = useState<
-    Record<string, { services: number; teknisi: number }>
-  >({});
-  const [serviceStatus, setServiceStatus] = useState<
-    Record<string, Record<string, number>>
-  >({});
-  const [teknisiWorkload, setTeknisiWorkload] = useState<
-    Record<string, Array<{ name: string; active: number }>>
-  >({});
+  // ── Kelola User (logika tab users — tidak diubah) ──
   const [users, setUsers] = useState<
     Array<{
       id: string;
@@ -75,7 +67,6 @@ export default function SupervisorDashboard() {
   >([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Form tambah user
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -83,211 +74,12 @@ export default function SupervisorDashboard() {
   const [newBranch, setNewBranch] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // Rolling teknisi
   const [rollingUserId, setRollingUserId] = useState("");
   const [rollingBranch, setRollingBranch] = useState("");
   const [rollingReason, setRollingReason] = useState("");
   const [rolling, setRolling] = useState(false);
 
-  // ── Statistik per cabang ──
-  const [period, setPeriod] = useState<Period | "custom">("hari");
-  const [dateRangeStart, setDateRangeStart] = useState<string>("");
-  const [dateRangeEnd, setDateRangeEnd] = useState<string>("");
-  const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("");
-  const [branchRevenue, setBranchRevenue] = useState<
-    Record<string, BranchRevenue>
-  >({});
-  const [prevTotals, setPrevTotals] = useState({
-    revenue: 0,
-    count: 0,
-    expenses: 0,
-    serviceCount: 0,
-  });
-  const [loadingStats, setLoadingStats] = useState(true);
-
-  const [detailBranch, setDetailBranch] = useState<{
-    id: string;
-    name: string;
-    code?: string;
-  } | null>(null);
-
-  const getDateRange = useCallback(
-    (p: Period): { start: string; end: string } => {
-      const now = new Date();
-      let start = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        0,
-        0,
-        0,
-      );
-      let end = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        23,
-        59,
-        59,
-      );
-
-      if (p === "minggu") {
-        start = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() - 6,
-          0,
-          0,
-          0,
-        );
-        end = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          23,
-          59,
-          59,
-        );
-      } else if (p === "bulan") {
-        // Last 30 days (same as Owner Dashboard)
-        start = new Date(now);
-        start.setDate(start.getDate() - 30);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          23,
-          59,
-          59,
-        );
-      } else if (p === "tahun") {
-        // Last 365 days (same as Owner Dashboard)
-        start = new Date(now);
-        start.setDate(start.getDate() - 365);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          23,
-          59,
-          59,
-        );
-      }
-
-      return { start: start.toISOString(), end: end.toISOString() };
-    },
-    [],
-  );
-
-  const activeRange = useCallback((): { start: string; end: string } => {
-    if (dateRangeStart) {
-      const s = new Date(dateRangeStart);
-      const e = dateRangeEnd ? new Date(dateRangeEnd) : new Date(dateRangeStart);
-      return {
-        start: s.toISOString(),
-        end: new Date(e.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-      };
-    }
-    return getDateRange(period);
-  }, [dateRangeStart, dateRangeEnd, period, getDateRange]);
-
-  const clearCustom = () => {
-    setDateRangeStart("");
-    setDateRangeEnd("");
-  };
-
-  const fetchStats = useCallback(async () => {
-    if (branches.length === 0) {
-      setLoadingStats(false);
-      return;
-    }
-    setLoadingStats(true);
-    const { start, end } = activeRange();
-    const out: Record<string, BranchRevenue> = {};
-    for (const b of branches) {
-      const { data } = await supabase
-        .from("layanan")
-        .select("nominal, jenis_layanan")
-        .eq("branch_id", b.id)
-        .gte("created_at", start)
-        .lte("created_at", end);
-      const rows = data || [];
-      let revenue = 0,
-        expenses = 0;
-      for (const r of rows) {
-        if (r.jenis_layanan === "pengeluaran") expenses += r.nominal || 0;
-        else revenue += r.nominal || 0;
-      }
-      const { count: svc } = await supabase
-        .from("service_orders")
-        .select("id", { count: "exact", head: true })
-        .eq("branch_id", b.id)
-        .gte("created_at", start)
-        .lte("created_at", end);
-      out[b.id] = {
-        revenue,
-        count: rows.length,
-        expenses,
-        serviceCount: svc || 0,
-      };
-    }
-    setBranchRevenue(out);
-
-    // Periode sebelumnya untuk perbandingan KPI (window paralel sebelum rentang aktif)
-    const spanMs = new Date(end).getTime() - new Date(start).getTime();
-    const prevStart = new Date(new Date(start).getTime() - spanMs).toISOString();
-    const prevEnd = new Date(new Date(start).getTime() - 1).toISOString();
-    const { data: prevRows } = await supabase
-      .from("layanan")
-      .select("nominal, jenis_layanan")
-      .gte("created_at", prevStart)
-      .lte("created_at", prevEnd);
-    let prevRevenue = 0,
-      prevExpenses = 0;
-    for (const r of prevRows || []) {
-      if (r.jenis_layanan === "pengeluaran") prevExpenses += r.nominal || 0;
-      else prevRevenue += r.nominal || 0;
-    }
-    const { count: prevSvc } = await supabase
-      .from("service_orders")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", prevStart)
-      .lte("created_at", prevEnd);
-    setPrevTotals({
-      revenue: prevRevenue,
-      count: prevRows?.length || 0,
-      expenses: prevExpenses,
-      serviceCount: prevSvc || 0,
-    });
-    setLoadingStats(false);
-  }, [branches, supabase, activeRange]);
-
-  const fetchOverview = useCallback(async () => {
-    if (branches.length === 0) return;
-    const { start, end } = activeRange();
-    const stats: Record<string, { services: number; teknisi: number }> = {};
-    for (const b of branches) {
-      const [{ count: svc }, { count: teks }] = await Promise.all([
-        supabase
-          .from("service_orders")
-          .select("id", { count: "exact", head: true })
-          .eq("branch_id", b.id)
-          .gte("created_at", start)
-          .lte("created_at", end),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("branch_id", b.id)
-          .eq("role", "teknisi"),
-      ]);
-      stats[b.id] = { services: svc || 0, teknisi: teks || 0 };
-    }
-    setBranchStats(stats);
-  }, [branches, supabase, activeRange]);
-
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = async () => {
     setLoadingUsers(true);
     const { data } = await supabase
       .from("profiles")
@@ -298,147 +90,22 @@ export default function SupervisorDashboard() {
       .order("full_name");
     setUsers(data || []);
     setLoadingUsers(false);
-  }, [supabase]);
+  };
 
-  const fetchServiceStatus = useCallback(async () => {
-    const { start, end } = activeRange();
-    const { data } = await supabase
-      .from("service_orders")
-      .select("branch_id, status")
-      .gte("created_at", start)
-      .lte("created_at", end)
-      .limit(10000);
-    if (!data) return;
-    const out: Record<string, Record<string, number>> = {};
-    for (const r of data) {
-      if (!out[r.branch_id]) out[r.branch_id] = {};
-      out[r.branch_id][r.status] = (out[r.branch_id][r.status] || 0) + 1;
-    }
-    setServiceStatus(out);
-  }, [supabase, activeRange]);
-
-  const fetchTeknisiWorkload = useCallback(async () => {
-    const { start, end } = activeRange();
-    const { data: teks } = await supabase
-      .from("profiles")
-      .select("id, full_name, branch_id")
-      .eq("role", "teknisi");
-    if (!teks?.length) return;
-    const ids = teks.map((t: any) => t.id);
-    const { data: active } = await supabase
-      .from("service_orders")
-      .select("assigned_teknisi_id")
-      .in("assigned_teknisi_id", ids)
-      .in("status", [
-        "assigned",
-        "in_progress",
-        "waiting_sparepart",
-        "sparepart_ready",
-        "qc_pending",
-      ])
-      .gte("created_at", start)
-      .lte("created_at", end);
-    const countMap: Record<string, number> = {};
-    for (const r of active || []) {
-      countMap[r.assigned_teknisi_id] = (countMap[r.assigned_teknisi_id] || 0) + 1;
-    }
-    const perBranch: Record<string, Array<{ name: string; active: number }>> = {};
-    for (const t of teks) {
-      if (!perBranch[t.branch_id]) perBranch[t.branch_id] = [];
-      perBranch[t.branch_id].push({ name: t.full_name, active: countMap[t.id] || 0 });
-    }
-    setTeknisiWorkload(perBranch);
-  }, [supabase, activeRange]);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      fetchServiceStatus();
-      fetchTeknisiWorkload();
-    }, 0);
-    return () => clearTimeout(t);
-  }, [fetchServiceStatus, fetchTeknisiWorkload]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("supervisor-stats")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "layanan" },
-        () => {
-          fetchStats();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "service_orders" },
-        () => {
-          fetchServiceStatus();
-          fetchTeknisiWorkload();
-          fetchOverview();
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, fetchStats, fetchServiceStatus, fetchTeknisiWorkload, fetchOverview]);
-
-  useEffect(() => {
-    const t = setTimeout(fetchOverview, 0);
-    return () => clearTimeout(t);
-  }, [fetchOverview]);
-  useEffect(() => {
-    const t = setTimeout(fetchStats, 0);
-    return () => clearTimeout(t);
-  }, [fetchStats]);
   useEffect(() => {
     if (tab !== "users") return;
     const t = setTimeout(fetchUsers, 0);
     return () => clearTimeout(t);
-  }, [tab, fetchUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   useEffect(() => {
-    if (branches.length > 0 && !newBranch) {
-      const t = setTimeout(() => setNewBranch(branches[0].id), 0);
+    if (dash.branches.length > 0 && !newBranch) {
+      const t = setTimeout(() => setNewBranch(dash.branches[0].id), 0);
       return () => clearTimeout(t);
     }
-  }, [branches, newBranch]);
-
-  const branchName = (id: string | null) =>
-    branches.find((b) => b.id === id)?.name || "-";
-  const roleLabel: Record<string, string> = {
-    teknisi: "Teknisi",
-    admin: "Admin",
-    qc: "QC",
-    supervisor: "Supervisor",
-    engineer: "Engineer",
-    owner: "Owner",
-  };
-
-  // Calculate summary totals
-  const calculateSummary = () => {
-    const branchesToSum = selectedBranchFilter
-      ? Object.entries(branchRevenue).filter(
-          ([key]) => key === selectedBranchFilter,
-        )
-      : Object.entries(branchRevenue);
-
-    let totalRevenue = 0,
-      totalCount = 0,
-      totalExpenses = 0,
-      totalServices = 0;
-    for (const [, st] of branchesToSum) {
-      totalRevenue += st.revenue;
-      totalCount += st.count;
-      totalExpenses += st.expenses;
-      totalServices += st.serviceCount;
-    }
-    return { totalRevenue, totalCount, totalExpenses, totalServices };
-  };
-
-  // Filter displayed branches
-  const displayedBranches = selectedBranchFilter
-    ? branches.filter((b) => b.id === selectedBranchFilter)
-    : branches;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dash.branches, newBranch]);
 
   const createUser = async () => {
     if (!newEmail.trim() || !newName.trim()) {
@@ -481,15 +148,13 @@ export default function SupervisorDashboard() {
     try {
       const target = users.find((u) => u.id === rollingUserId);
       if (!target) throw new Error("User tidak ditemukan");
-      // Catat riwayat rolling
       await supabase.from("branch_assignments").insert({
         profile_id: rollingUserId,
         branch_id: target.branch_id,
         end_date: new Date().toISOString(),
-        reason: `Rolling dari ${branchName(target.branch_id)} ke ${branchName(rollingBranch)} - ${rollingReason || "penugasan"}`,
+        reason: `Rolling dari ${dash.branchNameOf(target.branch_id)} ke ${dash.branchNameOf(rollingBranch)} - ${rollingReason || "penugasan"}`,
         created_by: user?.id,
       });
-      // Update cabang aktif + simpan cabang asal jika belum ada
       const home = target.home_branch_id || target.branch_id;
       await supabase
         .from("profiles")
@@ -500,7 +165,6 @@ export default function SupervisorDashboard() {
       setRollingBranch("");
       setRollingReason("");
       fetchUsers();
-      fetchOverview();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Gagal");
     } finally {
@@ -508,109 +172,55 @@ export default function SupervisorDashboard() {
     }
   };
 
-  // ── Derivasi dashboard (data nyata dari state fetch) ──
-  const statusTotals: Record<string, number> = {};
-  for (const b of displayedBranches) {
-    const st = serviceStatus[b.id] || {};
-    for (const [k, v] of Object.entries(st)) statusTotals[k] = (statusTotals[k] || 0) + v;
-  }
-  const statusDefs: StatusSlice[] = [
-    { key: "pending", label: "Pending", value: countStatus(statusTotals, ["pending"]), color: "#94a3b8" },
-    { key: "digarap", label: "Digarap", value: countStatus(statusTotals, ["assigned", "in_progress"]), color: "#3b82f6" },
-    { key: "nunggu", label: "Nunggu", value: countStatus(statusTotals, ["waiting_sparepart", "sparepart_ready"]), color: "#f59e0b" },
-    { key: "qc", label: "QC", value: countStatus(statusTotals, ["qc_pending", "revision_required"]), color: "#8b5cf6" },
-    { key: "selesai", label: "Selesai", value: countStatus(statusTotals, ["completed"]), color: "#10b981" },
-    { key: "batal", label: "Batal", value: countStatus(statusTotals, ["cancelled"]), color: "#ef4444" },
-  ];
-  const statusSlices = statusDefs;
-  const statusTotalService = statusDefs.reduce((s, d) => s + d.value, 0);
+  // ── Detail cabang & transaksi ──
+  const [detailBranch, setDetailBranch] = useState<{
+    id: string;
+    name: string;
+    code?: string;
+  } | null>(null);
 
-  const displayedTotalRevenue = displayedBranches.reduce(
-    (s, b) => s + (branchRevenue[b.id]?.revenue || 0),
-    0,
+  const [txDetail, setTxDetail] = useState<TransactionData | null>(null);
+  const [txLoadingId, setTxLoadingId] = useState<string | null>(null);
+  const openTransaction = async (tx: RecentTransaction) => {
+    setTxLoadingId(tx.id);
+    try {
+      const full = await fetchTransactionById(tx.id);
+      if (full) setTxDetail(full);
+      else toast.error("Transaksi tidak ditemukan");
+    } catch {
+      toast.error("Gagal memuat detail transaksi");
+    } finally {
+      setTxLoadingId(null);
+    }
+  };
+
+  const sparkTx = useMemo(
+    () =>
+      buildSeries(
+        dash.trendData.txCur,
+        dash.trendData.range,
+        dash.trendData.defaultBucket,
+      ).slice(-14),
+    [dash.trendData],
   );
-  const perfRows = displayedBranches
-    .map((b) => {
-      const st = branchRevenue[b.id] || { revenue: 0, count: 0, expenses: 0, serviceCount: 0 };
-      const s = branchStats[b.id];
-      const teks = teknisiWorkload[b.id] || [];
-      return {
-        branch: { id: b.id, name: b.name, code: b.code },
-        revenue: st.revenue,
-        count: st.count,
-        services: s?.services || 0,
-        expenses: st.expenses,
-        teknisiCount: s?.teknisi || teks.length || 0,
-        activeLoad: teks.reduce((a, t) => a + t.active, 0),
-        contribution: displayedTotalRevenue > 0 ? (st.revenue / displayedTotalRevenue) * 100 : 0,
-      };
-    })
-    .sort((a, b) => b.revenue - a.revenue);
+  const sparkSvc = useMemo(
+    () =>
+      buildSeries(
+        dash.trendData.svcInCur,
+        dash.trendData.range,
+        dash.trendData.defaultBucket,
+      ).slice(-14),
+    [dash.trendData],
+  );
 
-  const chartData = displayedBranches.map((b) => ({
-    name: b.name,
-    pendapatan: branchRevenue[b.id]?.revenue || 0,
-  }));
-
-  const alerts: SupervisorAlert[] = (() => {
-    const list: SupervisorAlert[] = [];
-    if (statusTotalService > 0) {
-      const pendingShare = statusDefs[0].value / statusTotalService;
-      if (pendingShare >= 0.3) {
-        list.push({
-          severity: "warning",
-          title: `${statusDefs[0].value} service masih pending`,
-          detail: `${Math.round(pendingShare * 100)}% dari service dalam periode ini berada di status Pending.`,
-        });
-      }
-      const digarapVal = statusDefs[1].value;
-      if (digarapVal > 0 && digarapVal / statusTotalService >= 0.5) {
-        list.push({
-          severity: "info",
-          title: `Aktivitas pengerjaan tinggi (${digarapVal} digarap)`,
-          detail: "Mayoritas service sedang dalam proses pengerjaan.",
-        });
-      }
-    }
-    for (const b of displayedBranches) {
-      const teks = teknisiWorkload[b.id] || [];
-      if (teks.length === 0 && branchStats[b.id]?.services) {
-        list.push({
-          severity: "warning",
-          title: `Cabang ${b.name} belum punya teknisi`,
-          detail: "Cabang ini mencatat service tetapi tidak memiliki teknisi terdaftar.",
-        });
-      }
-    }
-    const totalExp = displayedBranches.reduce((s, b) => s + (branchRevenue[b.id]?.expenses || 0), 0);
-    if (displayedTotalRevenue > 0 && totalExp >= 0.5 * displayedTotalRevenue) {
-      list.push({
-        severity: "warning",
-        title: "Pengeluaran tinggi",
-        detail: `Pengeluaran ${formatRupiah(totalExp)} mencapai ${Math.round((totalExp / displayedTotalRevenue) * 100)}% dari pendapatan periode ini.`,
-      });
-    }
-    if (displayedBranches.length > 1) {
-      const withRev = perfRows.filter((r) => r.revenue > 0);
-      if (withRev.length > 0) {
-        const best = withRev[0];
-        list.push({
-          severity: "info",
-          title: `Performa terbaik: ${best.branch.name}`,
-          detail: `${formatRupiah(best.revenue)} pendapatan, ${best.contribution.toFixed(1)}% dari total.`,
-        });
-        if (withRev.length > 1) {
-          const worst = withRev[withRev.length - 1];
-          list.push({
-            severity: "info",
-            title: `Perlu perhatian: ${worst.branch.name}`,
-            detail: `Pendapatan terendah ${formatRupiah(worst.revenue)} di antara cabang lain.`,
-          });
-        }
-      }
-    }
-    return list.slice(0, 5);
-  })();
+  const roleLabel: Record<string, string> = {
+    teknisi: "Teknisi",
+    admin: "Admin",
+    qc: "QC",
+    supervisor: "Supervisor",
+    engineer: "Engineer",
+    owner: "Owner",
+  };
 
   return (
     <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#eef4fa] dark:bg-[#0a0a0a] flex flex-col lg:flex-row">
@@ -618,9 +228,9 @@ export default function SupervisorDashboard() {
       <aside className="hidden lg:flex w-60 bg-white dark:bg-[#1c1c1c] border-r border-gray-200 dark:border-white/10 flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-white/10">
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Supervisor Panel
+            Dashboard Supervisor
           </h1>
-          <p className="text-xs text-gray-500">Monitor Semua Cabang</p>
+          <p className="text-xs text-gray-500">Monitoring Command Center</p>
         </div>
         <nav
           className="flex-1 p-3 space-y-1"
@@ -670,29 +280,24 @@ export default function SupervisorDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden p-4 md:p-6 lg:p-6 pb-20 lg:pb-0">
-        <div className="flex-shrink-0 flex flex-col gap-3">
-          {/* Header: greeting + actions/filters */}
+        {/* Header */}
+        <div className="flex-shrink-0 flex flex-col gap-3 mb-4">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {tab === "overview"
-                  ? `${(() => {
-                      const h = new Date().getHours();
-                      if (h < 11) return "Selamat pagi";
-                      if (h < 15) return "Selamat siang";
-                      if (h < 19) return "Selamat sore";
-                      return "Selamat malam";
-                    })()}, ${user?.full_name?.split(" ")[0] || "Supervisor"} 👋`
+                  ? "Dashboard Supervisor"
                   : "Kelola User"}
               </h2>
               <p className="text-xs sm:text-sm text-gray-500 mt-1">
                 {tab === "overview"
-                  ? "Ringkasan performa seluruh cabang untuk periode aktif."
+                  ? "Pantau transaksi dan service seluruh cabang secara real-time."
                   : "Kelola user & rolling teknisi per cabang."}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* Periode */}
               <div className="flex flex-wrap gap-1 bg-white dark:bg-[#1c1c1c] rounded-xl border border-gray-200/70 dark:border-white/10 p-1">
                 {(
                   [
@@ -700,29 +305,30 @@ export default function SupervisorDashboard() {
                     { id: "minggu", label: "Mingguan" },
                     { id: "bulan", label: "Bulanan" },
                     { id: "tahun", label: "Tahunan" },
-                  ] as Array<{ id: Period; label: string }>
+                  ] as const
                 ).map((p) => (
                   <button
                     key={p.id}
                     onClick={() => {
-                      clearCustom();
-                      setPeriod(p.id);
+                      dash.clearCustomDates();
+                      dash.setPeriod(p.id);
                     }}
-                    aria-pressed={period === p.id}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${period === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
+                    aria-pressed={dash.period === p.id}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 dark:focus:ring-offset-[#0a0a0a] ${dash.period === p.id ? "bg-slate-900 text-white" : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"}`}
                   >
                     {p.label}
                   </button>
                 ))}
               </div>
 
+              {/* Custom range */}
               <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300">
                 <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                 Dari
                 <input
                   type="date"
-                  value={dateRangeStart}
-                  onChange={(e) => setDateRangeStart(e.target.value)}
+                  value={dash.dateRangeStart}
+                  onChange={(e) => dash.setDateRangeStart(e.target.value)}
                   aria-label="Dari tanggal"
                   className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
                 />
@@ -731,20 +337,17 @@ export default function SupervisorDashboard() {
                 Sampai
                 <input
                   type="date"
-                  value={dateRangeEnd}
-                  min={dateRangeStart || undefined}
-                  onChange={(e) => setDateRangeEnd(e.target.value)}
+                  value={dash.dateRangeEnd}
+                  min={dash.dateRangeStart || undefined}
+                  onChange={(e) => dash.setDateRangeEnd(e.target.value)}
                   aria-label="Sampai tanggal"
                   className="bg-transparent text-xs font-semibold text-gray-700 dark:text-gray-300 focus:outline-none cursor-pointer"
                 />
               </label>
 
-              {dateRangeStart && (
+              {dash.dateRangeStart && (
                 <button
-                  onClick={() => {
-                    setDateRangeStart("");
-                    setDateRangeEnd("");
-                  }}
+                  onClick={dash.clearCustomDates}
                   aria-label="Reset date filter"
                   className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 dark:hover:border-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
                 >
@@ -753,19 +356,35 @@ export default function SupervisorDashboard() {
                 </button>
               )}
 
+              {/* Cabang */}
               <select
-                value={selectedBranchFilter}
-                onChange={(e) => setSelectedBranchFilter(e.target.value)}
+                value={dash.selectedBranchFilter}
+                onChange={(e) => dash.setSelectedBranchFilter(e.target.value)}
                 aria-label="Filter by branch"
                 className="px-3 py-1.5 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
               >
                 <option value="">Semua Cabang</option>
-                {branches.map((b) => (
+                {dash.branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
                   </option>
                 ))}
               </select>
+
+              {/* Refresh */}
+              <button
+                onClick={() => dash.refreshAll()}
+                disabled={dash.refreshing}
+                aria-label="Refresh data"
+                aria-busy={dash.refreshing}
+                title="Refresh data"
+                className="flex items-center justify-center w-8 h-8 bg-white dark:bg-[#1c1c1c] border border-gray-200/70 dark:border-white/10 rounded-lg text-gray-500 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700 disabled:opacity-50 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a]"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${dash.refreshing ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+              </button>
 
               <button
                 onClick={() => setShowReport(true)}
@@ -783,151 +402,100 @@ export default function SupervisorDashboard() {
         </div>
 
         {tab === "overview" && (
-          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pb-4">
+            {/* CORE KPI */}
+            <KPIStrip
+              kpi={dash.kpi}
+              txSpark={sparkTx}
+              svcSpark={sparkSvc}
+              loading={dash.loading}
+            />
 
-            {/* KPI Overview */}
-            {(() => {
-              const summary = calculateSummary();
-              const pct = (cur: number, prev: number) =>
-                prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null;
-              const kpis = [
-                {
-                  key: "pendapatan",
-                  label: "Total Pendapatan",
-                  value: formatRupiah(summary.totalRevenue),
-                  trend: pct(summary.totalRevenue, prevTotals.revenue),
-                  Icon: Wallet,
-                  accent: true,
-                  sub: `${displayedBranches.length} cabang`,
-                },
-                {
-                  key: "transaksi",
-                  label: "Total Transaksi",
-                  value: String(summary.totalCount),
-                  trend: pct(summary.totalCount, prevTotals.count),
-                  Icon: ReceiptText,
-                  accent: false,
-                  sub: "transaksi masuk",
-                },
-                {
-                  key: "service",
-                  label: "Total Service",
-                  value: String(summary.totalServices),
-                  trend: pct(summary.totalServices, prevTotals.serviceCount),
-                  Icon: Wrench,
-                  accent: false,
-                  sub: "service order",
-                },
-                {
-                  key: "pengeluaran",
-                  label: "Total Pengeluaran",
-                  value: formatRupiah(summary.totalExpenses),
-                  trend: pct(summary.totalExpenses, prevTotals.expenses),
-                  Icon: TrendingDown,
-                  accent: false,
-                  sub: "dalam periode",
-                },
-              ];
-              return (
-                <div className="flex-shrink-0 grid grid-cols-2 xl:grid-cols-4 gap-3">
-                  {loadingStats
-                    ? Array.from({ length: 4 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="h-28 animate-pulse bg-gray-100 dark:bg-white/5 rounded-2xl"
-                        />
-                      ))
-                    : kpis.map((k) => (
-                        <div
-                          key={k.key}
-                          className={`rounded-2xl border p-4 bg-white dark:bg-[#1c1c1c] ${
-                            k.accent
-                              ? "border-blue-200/70 dark:border-blue-800/40 bg-blue-50/40 dark:bg-blue-900/10"
-                              : "border-gray-200/70 dark:border-white/10"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span
-                              className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                k.accent
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300"
-                              }`}
-                            >
-                              <k.Icon className="w-4 h-4" aria-hidden="true" />
-                            </span>
-                            {k.trend !== null && (
-                              <span
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                                  k.trend >= 0
-                                    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                    : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                                }`}
-                              >
-                                {k.trend >= 0 ? "↑" : "↓"} {Math.abs(k.trend)}%
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                            {k.value}
-                          </p>
-                          <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                            {k.label}
-                          </p>
-                          <p className="text-[9px] text-gray-400 mt-0.5">{k.sub}</p>
-                        </div>
-                      ))}
-                </div>
-              );
-            })()}
+            {/* TREND TRANSAKSI + SERVICE */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+              <TransactionTrendCard data={dash.trendData} loading={dash.loading} />
+              <ServiceTrendCard data={dash.trendData} loading={dash.loading} />
+            </div>
 
-            {/* Supervisor Insight */}
-            {alerts.length > 0 && (
-              <div className="flex-shrink-0">
-                <SupervisorAlerts alerts={alerts} />
-              </div>
+            {/* STATUS SERVICE + PENDING */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+              <ServiceStatusPanel
+                slices={dash.statusSlices}
+                total={dash.statusTotalService}
+                loading={dash.loading}
+              />
+              <PendingServiceMonitor
+                stages={dash.pendingStages}
+                totalServices={dash.statusTotalService}
+                loading={dash.loading}
+              />
+            </div>
+
+            {/* PERLU PERHATIAN */}
+            {dash.alerts.length > 0 && (
+              <section aria-label="Perlu perhatian" className="flex-shrink-0">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
+                  Perlu Perhatian
+                </h3>
+                <SupervisorAlerts alerts={dash.alerts} />
+              </section>
             )}
 
-            {/* Performance & Insight */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
-              <div className="xl:col-span-2">
-                <BranchPerformancePanel
-                  rows={perfRows}
-                  loading={loadingStats}
-                  onSelect={(branch) => setDetailBranch(branch)}
-                />
-              </div>
-              <div className="order-first xl:order-none w-full">
-                <ServiceStatusPanel
-                  slices={statusSlices}
-                  total={statusTotalService}
-                  loading={loadingStats}
-                />
-              </div>
+            {/* TRANSAKSI TERBARU + SERVICE TERBARU */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+              <RecentTransactionsCard
+                rows={dash.recentTransactions}
+                loading={dash.loading}
+                onSelect={openTransaction}
+              />
+              <RecentServicesCard rows={dash.recentServices} loading={dash.loading} />
             </div>
 
-            <RevenueChart data={chartData} loading={loadingStats} />
+            {/* PERFORMA CABANG */}
+            <section aria-label="Performa cabang" className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+                <div className="xl:col-span-2 min-w-0">
+                  <BranchPerformancePanel
+                    rows={dash.branchPerfRows}
+                    loading={dash.loading}
+                    onSelect={(branch) => setDetailBranch(branch)}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <RevenueChart data={dash.chartData} loading={dash.loading} />
+                </div>
+              </div>
+              <BranchComparisonTable rows={dash.comparisonRows} />
+            </section>
 
-            <div className="flex-shrink-0 min-h-0">
-            <BranchComparisonTable
-              rows={displayedBranches.map((b) => {
-                const st = branchRevenue[b.id];
-                const s = branchStats[b.id];
-                const status = serviceStatus[b.id] || {};
-                const teks = teknisiWorkload[b.id] || [];
-                return {
-                  branchName: b.name,
-                  revenue: st?.revenue || 0,
-                  transactions: st?.count || 0,
-                  services: s?.services || 0,
-                  status,
-                  teknisiCount: s?.teknisi || teks.length || 0,
-                  activeLoad: teks.reduce((a, t) => a + t.active, 0),
-                  expenses: st?.expenses || 0,
-                };
-              })}
+            {/* PERFORMA TEKNISI */}
+            <TechnicianPerformancePanel
+              rows={dash.technicianPerformance}
+              loading={dash.loading}
             />
+
+            {/* PAYMENT INSIGHT + QUICK SUMMARY */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+              <PaymentBreakdownCard
+                slices={dash.paymentBreakdown}
+                totalNominal={dash.paymentNominalTotal}
+                loading={dash.loading}
+              />
+              <div className="lg:col-span-2 flex">
+                <QuickSummaryStrip summary={dash.summary} />
+              </div>
             </div>
+          </div>
+        )}
+
+        {txLoadingId && (
+          <div
+            className="fixed inset-0 z-[95] flex items-center justify-center bg-black/30"
+            role="status"
+            aria-label="Memuat detail transaksi"
+          >
+            <Loader2 className="w-6 h-6 animate-spin text-white" aria-hidden="true" />
           </div>
         )}
 
@@ -1009,7 +577,7 @@ export default function SupervisorDashboard() {
                     aria-label="Branch assignment"
                     className="w-full px-3 py-2.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a] transition-all"
                   >
-                    {branches.map((b) => (
+                    {dash.branches.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
                       </option>
@@ -1061,7 +629,7 @@ export default function SupervisorDashboard() {
                       .filter((u) => u.role === "teknisi")
                       .map((u) => (
                         <option key={u.id} value={u.id}>
-                          {u.full_name} ({branchName(u.branch_id)})
+                          {u.full_name} ({dash.branchNameOf(u.branch_id)})
                         </option>
                       ))}
                   </select>
@@ -1078,7 +646,7 @@ export default function SupervisorDashboard() {
                     className="w-full px-3 py-2.5 bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-[#0a0a0a] transition-all"
                   >
                     <option value="">Cabang tujuan</option>
-                    {branches.map((b) => (
+                    {dash.branches.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name}
                       </option>
@@ -1149,7 +717,7 @@ export default function SupervisorDashboard() {
                         {roleLabel[u.role] || u.role}
                       </span>
                       <span className="text-[10px] font-mono bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                        {branchName(u.branch_id)}
+                        {dash.branchNameOf(u.branch_id)}
                         {u.branch_id !== u.home_branch_id &&
                           u.home_branch_id &&
                           " (rolling)"}
@@ -1166,15 +734,44 @@ export default function SupervisorDashboard() {
       {detailBranch && (
         <BranchDetailModal
           branch={detailBranch}
-          range={activeRange()}
+          range={{
+            start: dash.trendData.range.start
+              ? new Date(dash.trendData.range.start).toISOString()
+              : "",
+            end: dash.trendData.range.end
+              ? new Date(dash.trendData.range.end).toISOString()
+              : "",
+          }}
           revenue={
-            branchRevenue[detailBranch.id]?.revenue || 0
+            (detailBranch &&
+              dash.branchDetailMaps.revenue[detailBranch.id]?.revenue) ||
+            0
           }
-          transactions={branchRevenue[detailBranch.id]?.count || 0}
-          expenses={branchRevenue[detailBranch.id]?.expenses || 0}
-          status={serviceStatus[detailBranch.id] || {}}
-          teknisi={teknisiWorkload[detailBranch.id] || []}
+          transactions={
+            (detailBranch &&
+              dash.branchDetailMaps.revenue[detailBranch.id]?.count) ||
+            0
+          }
+          expenses={
+            (detailBranch &&
+              dash.branchDetailMaps.revenue[detailBranch.id]?.expenses) ||
+            0
+          }
+          status={
+            (detailBranch && dash.branchDetailMaps.status[detailBranch.id]) || {}
+          }
+          teknisi={
+            (detailBranch && dash.branchDetailMaps.teknisi[detailBranch.id]) || []
+          }
           onClose={() => setDetailBranch(null)}
+        />
+      )}
+
+      {txDetail && (
+        <TransactionDetailModal
+          isOpen
+          onClose={() => setTxDetail(null)}
+          transaction={txDetail}
         />
       )}
 
