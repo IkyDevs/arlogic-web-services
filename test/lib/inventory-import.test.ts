@@ -245,6 +245,83 @@ describe("model mapping System Field ← Kolom File", () => {
   });
 });
 
+describe("raw error & baris instruksi template (fix audit)", () => {
+  const mapping = { produkSku: "sku", jumlahStock: "quantity" } as Record<string, "sku" | "quantity">;
+
+  it("error qty membawa nilai mentah cell penyebab", () => {
+    const res = validateRows(
+      { headers: ["produkSku", "jumlahStock"], rows: [{ produkSku: "SP002", jumlahStock: "abc" }] },
+      mapping,
+    );
+    expect(res.valid).toHaveLength(0);
+    expect(res.errors[0].raw).toEqual({ sku: "SP002", quantity: "abc" });
+    expect(res.errors[0].error).toBe("Quantity bukan angka");
+  });
+
+  it("baris instruksi template (struktur nyata DATA_BARANG) terdeteksi & diberi pesan jelas", () => {
+    const res = validateRows(
+      {
+        headers: ["KODE", "NAMA BARANG", "STOK"],
+        rows: [
+          {
+            KODE: "Data Kolom ini jangan di edit dan tidak boleh kosong.",
+            "NAMA BARANG": "Data dapat diubah maksimal 80 karakter.",
+            STOK: "Jangan ubah data stok ini Perubahan data stok diabaikan.",
+          },
+          { KODE: "401020SW", "NAMA BARANG": "Baterai smartwatch", STOK: 2 },
+        ],
+      },
+      { KODE: "sku", "NAMA BARANG": "name", STOK: "quantity" },
+    );
+    expect(res.valid).toHaveLength(1);
+    const tpl = res.errors[0];
+    expect(tpl.isTemplateRow).toBe(true);
+    expect(tpl.error).toContain("instruksi template");
+    expect(tpl.raw?.sku).toContain("jangan di edit");
+  });
+
+  it("'1.000' / '1,000' DITOLAK — tidak dikonversi diam-diam menjadi 1", () => {
+    const res = validateRows(
+      {
+        headers: ["sku", "qty"],
+        rows: [
+          { sku: "SP-A", qty: "1.000" },
+          { sku: "SP-B", qty: "1,000" },
+          { sku: "SP-C", qty: "7" },
+        ],
+      },
+      { sku: "sku", qty: "quantity" },
+    );
+    // Tidak ada silent corruption: SP-A tidak masuk valid sbg qty=1
+    expect(res.valid.map((r) => r.sku)).toEqual(["SP-C"]);
+    expect(res.valid[0].quantity).toBe(7);
+    const sepErrors = res.errors.filter((e) => e.error.includes("ambigu"));
+    expect(sepErrors).toHaveLength(2);
+    expect(sepErrors[0].raw?.quantity).toBe("1.000");
+  });
+
+  it("qty kosong, strip '-', dan desimal tetap ditolak dengan pesan spesifik", () => {
+    const res = validateRows(
+      {
+        headers: ["sku", "qty"],
+        rows: [
+          { sku: "SP-D", qty: "" },
+          { sku: "SP-E", qty: "-" },
+          { sku: "SP-F", qty: 2.5 },
+        ],
+      },
+      { sku: "sku", qty: "quantity" },
+    );
+    expect(res.errors.map((e) => e.error)).toEqual([
+      "Quantity kosong",
+      "Quantity bukan angka",
+      "Quantity harus bilangan >= 0",
+    ]);
+    // teks pendek '-' BUKAN template
+    expect(res.errors.every((e) => !e.isTemplateRow)).toBe(true);
+  });
+});
+
 // ─── applyStoreStockImport (mock SupabaseClient.rpc) ────────────────
 
 interface RpcCall {

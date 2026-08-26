@@ -71,6 +71,8 @@ const MAX_ERROR_ROWS_SHOWN = 5;
 const MAX_IMPACT_ROWS_SHOWN = 50;
 const MAX_NOTFOUND_SHOWN = 8;
 const SKU_FETCH_CHUNK = 100;
+/** Guard D: >=80% SKU valid tak cocok →peringatan "isi katalog via Import Barang" */
+const NOTFOUND_RATIO_GUARD = 0.8;
 
 export default function StockImportModal({
   open,
@@ -532,10 +534,55 @@ export default function StockImportModal({
 
   // ─────────────────────── REVIEW (summary + impact) ───────────────────────
   if (step === "review" && table && validation && impact) {
+    const templateRows = validation.errors.filter((e) => e.isTemplateRow);
+    const invalidRows = validation.errors.filter((e) => !e.isTemplateRow);
     const shownErrors = validation.errors.slice(0, MAX_ERROR_ROWS_SHOWN);
     const shownImpact = impact.lines.slice(0, MAX_IMPACT_ROWS_SHOWN);
+    const notFoundRatio =
+      validation.valid.length > 0
+        ? impact.notFound.length / validation.valid.length
+        : 0;
+    const catalogEmpty =
+      currentStock !== null && currentStock.size === 0 && validation.valid.length > 0;
     return shell(
       <>
+        {/* Guard: katalog kosong / hampir semua SKU tak cocok */}
+        {(catalogEmpty || notFoundRatio >= NOTFOUND_RATIO_GUARD) && (
+          <div
+            className={`flex items-start gap-3 rounded-xl border p-4 ${
+              catalogEmpty
+                ? "bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30"
+                : "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30"
+            }`}
+          >
+            <AlertTriangle
+              className={`w-5 h-5 shrink-0 mt-0.5 ${
+                catalogEmpty ? "text-red-500" : "text-amber-500"
+              }`}
+            />
+            <div className="text-sm space-y-1">
+              <p
+                className={`font-bold ${
+                  catalogEmpty
+                    ? "text-red-600 dark:text-red-300"
+                    : "text-amber-700 dark:text-amber-300"
+                }`}
+              >
+                {catalogEmpty
+                  ? "Tidak ada SKU yang cocok dengan katalog inventory."
+                  : `${impact.notFound.length} dari ${validation.valid.length} SKU tidak cocok dengan katalog.`}
+              </p>
+              <p className="text-gray-600 dark:text-gray-300">
+                Import Stok Toko hanya mengatur QTY barang yang{" "}
+                <b>sudah ada</b> di katalog — tidak membuat item baru. Buat
+                katalog terlebih dahulu melalui tombol{" "}
+                <b>&quot;Import Barang&quot;</b> di halaman ini (mendukung file
+                export Kasir Pintar), lalu ulangi Import Stok Toko.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Import Summary */}
         <div>
           <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">
@@ -545,8 +592,8 @@ export default function StockImportModal({
             {[
               { label: "Total Baris", value: table.rows.length },
               { label: "Baris Valid", value: validation.valid.length },
-              { label: "Baris Invalid", value: validation.errors.length },
-              { label: "Kosong Dilewati", value: validation.skippedEmpty },
+              { label: "Baris Invalid", value: invalidRows.length },
+              { label: "Instruksi Template", value: templateRows.length },
             ].map((s) => (
               <div
                 key={s.label}
@@ -575,26 +622,67 @@ export default function StockImportModal({
                 Diabaikan: {ignoredColumns.join(", ")}
               </span>
             )}
+            {validation.skippedEmpty > 0 && (
+              <span className="bg-gray-100 dark:bg-white/5 text-gray-500 px-2 py-0.5 rounded-full">
+                Baris kosong dilewati: {validation.skippedEmpty}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Error rows */}
+        {/* Error rows — tampilkan nilai mentah penyebab error */}
         {validation.errors.length > 0 && (
           <div className="rounded-xl border border-red-200 dark:border-red-500/30 overflow-hidden">
             <div className="px-3 py-2 bg-red-50 dark:bg-red-500/10 text-xs font-bold text-red-600 dark:text-red-300">
-              Baris Error ({validation.errors.length})
+              Baris Bermasalah ({validation.errors.length}
+              {templateRows.length > 0 &&
+                ` — termasuk ${templateRows.length} instruksi template`}
+              )
             </div>
             <table className="w-full text-xs">
+              <thead className="bg-gray-50 dark:bg-[#2c2c2c]">
+                <tr className="text-left text-[10px] uppercase text-gray-400">
+                  <th className="px-3 py-1.5">Baris</th>
+                  <th className="px-3 py-1.5">SKU</th>
+                  <th className="px-3 py-1.5">Quantity</th>
+                  <th className="px-3 py-1.5">Masalah</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
                 {shownErrors.map((err) => (
-                  <tr key={`${err.rowNumber}-${err.error}`}>
-                    <td className="px-3 py-1.5 text-gray-400 w-16">
-                      Baris {err.rowNumber}
+                  <tr
+                    key={`${err.rowNumber}-${err.error}`}
+                    className={
+                      err.isTemplateRow
+                        ? "bg-slate-50 dark:bg-white/5"
+                        : undefined
+                    }
+                  >
+                    <td className="px-3 py-1.5 text-gray-400">
+                      {err.rowNumber}
                     </td>
-                    <td className="px-3 py-1.5 font-mono text-gray-600 dark:text-gray-300 w-28 truncate">
-                      {err.sku}
+                    <td className="px-3 py-1.5 font-mono text-gray-600 dark:text-gray-300 max-w-[10rem] truncate" title={err.raw?.sku ?? err.sku}>
+                      {err.raw?.sku ?? err.sku}
                     </td>
-                    <td className="px-3 py-1.5 text-red-600 dark:text-red-300">
+                    <td className="px-3 py-1.5 font-mono text-gray-600 dark:text-gray-300 max-w-[8rem] truncate" title={err.raw?.quantity ?? ""}>
+                      {err.isTemplateRow
+                        ? "—"
+                        : err.raw?.quantity !== undefined
+                          ? `"${err.raw.quantity}"`
+                          : "—"}
+                    </td>
+                    <td
+                      className={`px-3 py-1.5 ${
+                        err.isTemplateRow
+                          ? "text-slate-500 dark:text-gray-400"
+                          : "text-red-600 dark:text-red-300"
+                      }`}
+                    >
+                      {err.isTemplateRow && (
+                        <span className="inline-block mr-1 text-[9px] uppercase font-bold bg-slate-200 dark:bg-white/10 text-slate-500 px-1 py-0.5 rounded align-middle">
+                          Template
+                        </span>
+                      )}
                       {err.error}
                     </td>
                   </tr>
@@ -603,8 +691,8 @@ export default function StockImportModal({
             </table>
             {validation.errors.length > shownErrors.length && (
               <p className="px-3 py-1.5 text-[11px] text-gray-400">
-                ... dan {validation.errors.length - shownErrors.length} error
-                lainnya
+                ... dan {validation.errors.length - shownErrors.length} baris
+                bermasalah lainnya
               </p>
             )}
           </div>
@@ -830,12 +918,14 @@ export default function StockImportModal({
           </div>
         )}
 
-        {validation && validation.errors.length > 0 && (
-          <p className="text-[11px] text-gray-400">
-            Catatan: {validation.errors.length} baris invalid dari file
-            dilewati tanpa diproses.
-          </p>
-        )}
+        {validation &&
+          validation.errors.some((e) => !e.isTemplateRow) && (
+            <p className="text-[11px] text-gray-400">
+              Catatan:{" "}
+              {validation.errors.filter((e) => !e.isTemplateRow).length} baris
+              invalid dari file dilewati tanpa diproses.
+            </p>
+          )}
       </>,
       <button
         onClick={finish}

@@ -156,3 +156,42 @@ Melanjutkan Tahap C: import stok toko dari file (CSV/XLSX/XLS) dengan model mapp
 
 ### ✍️ SIGN-OFF
 Developer: Sisyphus · Status: **Tahap C complete (kode+test+build); UAT upload file nyata oleh user**
+
+---
+
+# TAHAP C-FIX — AUDIT IMPORT STOK TOKO (1557 SKU notFound + Row 2)
+
+## 26 Agustus 2026
+
+---
+
+### 🎯 TUJUAN SESI
+
+Audit root-cause laporan user: Impact Summary kosong (1557 SKU "tidak ditemukan") + error row 2 "Quantity bukan angka". Audit read-only terhadap DB production, kode, dan file asli `DATA_BARANG_*.xls`. Fix B+C+D dieksekusi setelah ACC; keputusan katalog = **Opsi A1** (isi katalog via Import Barang existing — TANPA create-if-missing).
+
+### 🔍 ROOT CAUSE (terverifikasi bukti)
+
+| Masalah | Akar | Bukti |
+|---|---|---|
+| 1557 SKU notFound | **Katalog `inventory` production KOSONG (0 baris)** — Import Stok Toko by design hanya adjust item existing | service-role count `*/0` (bypass RLS); `stock_movements` memuat smoke-test hari ini pada 2 item yang kini terhapus; file = export katalog Kasir Pintar yang belum pernah dibuat di inventory |
+| Row 2 qty error | Baris 2 file = **baris instruksi template Kasir Pintar** (`kode_barang_edit` berisi kalimat "Data Kolom ini jangan di edit…", `stok_edit` teks) | parse langsung file asli; repro lokal mereproduksi persis pesan user |
+| (Laten) `Number("1.000")===1` | Konversi JS senyap pada qty ber-pemisah → korupsi delta tanpa error | repro unit |
+
+### ⚡ FIX (B+C+D)
+
+| File | Perubahan |
+|---|---|
+| `lib/domain/inventory/import.ts` | **B**: `RowError.raw{sku,name,quantity}` (nilai mentah penyebab) + deteksi baris instruksi template (teks ≥30 char non-numerik di kolom SKU/Qty → `isTemplateRow`, pesan ramah). **C**: parser qty ketat — hanya bilangan bulat polos; `"1.000"`/`"1,000"` DITOLAK dengan pesan ambigu; kosong → "Quantity kosong" |
+| `components/inventory/StockImportModal.tsx` | **B**: tabel error baru dgn kolom SKU/Quantity mentah + badge "Template". **D**: guard review — katalog kosong (0 match) → box merah; ≥80% notFound → box amber; keduanya mengarahkan ke tombol **Import Barang** dulu |
+| `test/lib/inventory-import.test.ts` | +4 test: raw capture, template-row (fixture struktur DATA_BARANG nyata), separator reject anti-silent-corruption, pesan spesifik qty kosong/-/desimal |
+
+### 🧪 TESTING
+`bunx tsc --noEmit` ✅ · `bun run build` ✅ Compiled successfully · `bun run test` ✅ 13 file / **132 passed** (25 import). Flow apply **tidak berubah**: existing SKU → current → delta → RPC `adjust_store_stock`; `service.ts` nol diff; tanpa migration/tulis DB.
+
+### 📋 UNTUK USER (jalur A1)
+1. Klik **Import Barang** (biru) → upload file Kasir Pintar (`DATA_BARANG_*.xls`) → katalog + stock gudang terbentuk.
+2. Klik **Import Stok Toko** (hijau) → mapping SKU/KODE dll. → pratinjau delta → konfirmasi.
+3. Catatan: baris instruksi template kini otomatis dikenali & ditandai, bukan error membingungkan.
+
+### ✍️ SIGN-OFF
+Developer: Sisyphus · Status: **Fix selesai & terverifikasi; menunggu UAT user (A1: seed katalog via Import Barang)**

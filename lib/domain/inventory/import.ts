@@ -51,6 +51,14 @@ export interface RowError {
   rowNumber: number;
   sku: string;
   error: string;
+  /** Nilai mentah cell penyebab error — ditampilkan di UI agar jelas */
+  raw?: {
+    sku?: string;
+    name?: string;
+    quantity?: string;
+  };
+  /** true = baris instruksi template (mis. export Kasir Pintar), bukan data barang */
+  isTemplateRow?: boolean;
 }
 export interface ValidationResult {
   valid: ValidatedRow[];
@@ -61,6 +69,32 @@ export interface ValidationResult {
 }
 
 const normalizeKey = (s: string) => s.trim().toUpperCase();
+
+/** Teks panjang non-numerik di kolom SKU/Quantity = instruksi template, bukan data */
+const TEMPLATE_TEXT_MIN_LENGTH = 30;
+function looksLikeInstructionText(value: unknown): boolean {
+  const s = String(value ?? "").trim();
+  return s.length >= TEMPLATE_TEXT_MIN_LENGTH && Number.isNaN(Number(s));
+}
+
+/** Quantity wajib bilangan bulat polos. "1.000" dsb. DITOLAK, bukan dikonversi
+ *  diam-diam (Number("1.000")===1 = korupsi data senyap). */
+function parseQuantity(raw: unknown): { ok: true; value: number } | { ok: false; message: string } {
+  if (raw === "" || raw === null || raw === undefined) {
+    return { ok: false, message: "Quantity kosong" };
+  }
+  if (typeof raw === "number") return { ok: true, value: raw };
+  const s = String(raw).trim();
+  if (s === "") return { ok: false, message: "Quantity kosong" };
+  if (/^-?\d+$/.test(s)) return { ok: true, value: Number(s) };
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(s) || /^-?\d+,\d+$/.test(s)) {
+    return {
+      ok: false,
+      message: `Quantity berformat ambigu ("${s}"). Gunakan angka bulat tanpa pemisah ribuan/desimal, contoh: 1000`,
+    };
+  }
+  return { ok: false, message: "Quantity bukan angka" };
+}
 
 export function validateRows(
   table: ParsedTable,
@@ -83,7 +117,8 @@ export function validateRows(
 
   table.rows.forEach((row, i) => {
     const rowNumber = i + 2; // +1 header, +1 base-1
-    const rawSku = String(row[skuCol] ?? "").trim();
+    const rawSkuCell = row[skuCol];
+    const rawSku = String(rawSkuCell ?? "").trim();
     const rawName = nameCol ? String(row[nameCol] ?? "").trim() : "";
     const rawQty = row[qtyCol];
 
@@ -92,24 +127,46 @@ export function validateRows(
       skippedEmpty++;
       return;
     }
+
+    const raw = {
+      sku: rawSku || undefined,
+      name: rawName || undefined,
+      quantity:
+        rawQty === "" || rawQty === null || rawQty === undefined
+          ? undefined
+          : String(rawQty),
+    };
+    const isTemplate =
+      looksLikeInstructionText(rawSkuCell) || looksLikeInstructionText(rawQty);
+    const pushError = (error: string) =>
+      errors.push({
+        rowNumber,
+        sku: rawSku || rawName || "-",
+        error: isTemplate
+          ? "Baris instruksi template terdeteksi — dilewati, bukan data barang"
+          : error,
+        raw,
+        ...(isTemplate ? { isTemplateRow: true } : {}),
+      });
+
     if (!rawSku) {
-      errors.push({ rowNumber, sku: rawName || "-", error: "SKU kosong" });
+      pushError("SKU kosong");
       return;
     }
-    const qtyNum = Number(rawQty);
-    if (rawQty === "" || rawQty === null || rawQty === undefined || Number.isNaN(qtyNum)) {
-      errors.push({ rowNumber, sku: rawSku, error: "Quantity bukan angka" });
+    const qty = parseQuantity(rawQty);
+    if (!qty.ok) {
+      pushError(qty.message);
       return;
     }
-    if (!Number.isInteger(qtyNum) || qtyNum < 0) {
-      errors.push({ rowNumber, sku: rawSku, error: "Quantity harus bilangan >= 0" });
+    if (!Number.isInteger(qty.value) || qty.value < 0) {
+      pushError("Quantity harus bilangan >= 0");
       return;
     }
     // Satu SKU = satu target adjust; duplikat bikin delta ambigu → ditolak
     const key = normalizeKey(rawSku);
     if (seenSku.has(key)) {
       duplicateCount++;
-      errors.push({ rowNumber, sku: rawSku, error: "SKU duplikat dalam file" });
+      pushError("SKU duplikat dalam file");
       return;
     }
     seenSku.add(key);
@@ -117,7 +174,7 @@ export function validateRows(
       rowNumber,
       sku: rawSku,
       name: rawName || undefined,
-      quantity: qtyNum,
+      quantity: qty.value,
     });
   });
 
