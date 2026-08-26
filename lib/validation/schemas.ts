@@ -18,6 +18,7 @@ export const createUserSchema = z.object({
   role: z.enum(['admin', 'teknisi', 'supervisor', 'owner', 'qc', 'engineer', 'customer']),
   gender: z.enum(['male', 'female', 'other']).default('other'),
   branch_id: z.string().uuid().nullable().optional(),
+  is_admin_gudang: z.boolean().optional(),
 })
 
 export const deleteUserSchema = z.object({

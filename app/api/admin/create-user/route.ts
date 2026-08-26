@@ -41,7 +41,15 @@ export async function POST(request: NextRequest) {
       email: parsed.email,
       password: parsed.password,
       email_confirm: true,
-      user_metadata: { full_name: parsed.full_name, role: parsed.role, branch_id: parsed.branch_id || null },
+      user_metadata: {
+        full_name: parsed.full_name,
+        role: parsed.role,
+        branch_id: parsed.branch_id || null,
+        is_admin_gudang: (parsed as any).is_admin_gudang === true,
+      },
+      app_metadata: {
+        is_admin_gudang: (parsed as any).is_admin_gudang === true,
+      },
     })
 
     if (authError) {

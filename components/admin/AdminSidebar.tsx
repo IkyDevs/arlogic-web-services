@@ -29,7 +29,7 @@ const menuItems = [
   { id: "services", label: "Service", icon: ClipboardList },
   { id: "sparepart", label: "Request Sparepart", icon: Package },
   { id: "attendance", label: "Absensi", icon: Clock },
-  { id: "inventory", label: "Inventaris", icon: Package },
+  { id: "inventory", label: "Stock Toko", icon: Package },
   { id: "closing", label: "Closing", icon: FileText },
   { id: "done", label: "Selesai", icon: CheckCircle },
   { id: "template", label: "Template", icon: MessageSquare },

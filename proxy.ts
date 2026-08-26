@@ -97,6 +97,8 @@ export async function proxy(request: NextRequest) {
 
   // Role-based route protection (only if role exists)
   if (user && userRole && path !== "/login" && path !== "/") {
+    // Kompatibilitas: role lama 'admin_gudang' kini = 'admin' + flag is_admin_gudang
+    const effectiveRole = userRole === "admin_gudang" ? "admin" : userRole;
     // Map role to its allowed dashboard path
     const roleDashboard: Record<string, string> = {
       admin: "/admin",
@@ -110,7 +112,6 @@ export async function proxy(request: NextRequest) {
 
     const roleRoutes: Record<string, string[]> = {
       admin: ["/admin"],
-      admin_gudang: ["/admin"],
       teknisi: isEngineer ? ["/teknisi", "/engineer"] : ["/teknisi"],
       supervisor: ["/qc", "/supervisor"],
       qc: ["/qc"],
@@ -118,11 +119,11 @@ export async function proxy(request: NextRequest) {
       customer: ["/tracking"],
     };
 
-    const allowedPaths = roleRoutes[userRole] || [];
+    const allowedPaths = roleRoutes[effectiveRole] || [];
     const isAllowed = allowedPaths.some((allowedPath) =>
       path.startsWith(allowedPath),
     );
-    const dashboard = roleDashboard[userRole] || "/login";
+    const dashboard = roleDashboard[effectiveRole] || "/login";
 
     if (!isAllowed && !isPublicRoute) {
       return NextResponse.redirect(new URL(dashboard, request.url));

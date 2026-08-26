@@ -71,6 +71,8 @@ export default function InventoryManagement({
   const [activeCategory, setActiveCategory] = useState<string>("all");
   // Klasifikasi stock: Sparepart | Jam (R2)
   const [activeClass, setActiveClass] = useState<"all" | "sparepart" | "jam">("all");
+  // Search stok toko (SKU / nama item) — filter klien sesuai arsitektur fetch existing
+  const [searchQuery, setSearchQuery] = useState("");
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferItemId, setTransferItemId] = useState<string>("");
   const [transferQuantity, setTransferQuantity] = useState("");
@@ -501,13 +503,15 @@ export default function InventoryManagement({
               <Plus className="w-4 h-4" />
               Tambah Item
             </button>
-            <button
-              onClick={() => openTransferForm()}
-              className="bg-slate-700 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-600 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm"
-            >
-              <Package className="w-4 h-4" />
-              Transfer Stock
-            </button>
+            {canManageGudang && (
+              <button
+                onClick={() => openTransferForm()}
+                className="bg-slate-700 text-white font-medium px-4 py-2 rounded-lg hover:bg-slate-600 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm"
+              >
+                <Package className="w-4 h-4" />
+                Transfer Stock
+              </button>
+            )}
           </div>
         </div>
 
@@ -825,6 +829,17 @@ export default function InventoryManagement({
           </div>
         ) : (
           <>
+            {/* Search Stock Toko */}
+            <div className="relative mb-3">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari stok toko (nama / SKU)..."
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-900"
+              />
+            </div>
+
             {/* Class Tabs — Stock Sparepart vs Stock Jam */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-hide">
               {([
@@ -880,7 +895,10 @@ export default function InventoryManagement({
                     (activeClass === "all" ||
                       (item.item_class === "jam" ? "jam" : "sparepart") === activeClass) &&
                     (activeCategory === "all" ||
-                      item.category === activeCategory),
+                      item.category === activeCategory) &&
+                    (!searchQuery.trim() ||
+                      item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      (item.sku || "").toLowerCase().includes(searchQuery.toLowerCase())),
                 )
                 .map((item) => (
                   <div
@@ -900,13 +918,15 @@ export default function InventoryManagement({
                         </div>
                       )}
                       <div className="absolute top-2 right-2 flex gap-1">
-                        <button
-                          onClick={() => openTransferForm(item.id)}
-                          className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-slate-50"
-                          title="Transfer Stock"
-                        >
-                          <Package className="w-3 h-3 text-amber-600" />
-                        </button>
+                        {canManageGudang && (
+                          <button
+                            onClick={() => openTransferForm(item.id)}
+                            className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-slate-50"
+                            title="Transfer Stock"
+                          >
+                            <Package className="w-3 h-3 text-amber-600" />
+                          </button>
+                        )}
                         <button
                           onClick={() => editItem(item)}
                           className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-slate-50"

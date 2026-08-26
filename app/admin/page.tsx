@@ -234,8 +234,11 @@ export default function AdminDashboard() {
   const { activeBranch } = useBranch();
   const { branchId } = useBranchScope();
   const branchMatch = branchId ? { branch_id: branchId } : {};
-  // Permission Gudang berbasis role admin_gudang (bukan isCentral)
-  const hasGudangRole = user?.role === "admin_gudang";
+  // Permission Gudang berbasis flag profile (admin toko + gudang), bukan role terpisah
+  const hasGudangRole =
+    user?.role === "admin_gudang" ||
+    Boolean((user as any)?.is_admin_gudang) ||
+    Boolean((user as any)?.user_metadata?.is_admin_gudang);
   const router = useRouter();
 
   // ==================== SEARCH FUNCTIONS ====================
