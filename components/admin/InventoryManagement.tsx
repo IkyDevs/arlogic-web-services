@@ -79,6 +79,8 @@ export default function InventoryManagement({
   );
   const [transferTo, setTransferTo] = useState<"warehouse" | "store">("store");
   const [transferNotes, setTransferNotes] = useState("");
+  // Cabang tujuan/sumber utk sisi "Toko" (wajib pada model stok multi-cabang)
+  const [transferBranchId, setTransferBranchId] = useState<string>("");
   const [transferPhotoFile, setTransferPhotoFile] = useState<File | null>(null);
   const [transferPhotoPreview, setTransferPhotoPreview] = useState<
     string | null
@@ -212,6 +214,8 @@ export default function InventoryManagement({
     setTransferFrom("warehouse");
     setTransferTo("store");
     setTransferNotes("");
+    // Admin cabang terkunci ke cabangnya; admin_gudang default cabang pertama
+    setTransferBranchId(user?.branch_id || branches[0]?.id || "");
     setTransferPhotoFile(null);
     setTransferPhotoPreview(null);
     setShowTransferForm(true);
@@ -261,12 +265,22 @@ export default function InventoryManagement({
       return;
     }
 
+    if ((transferFrom === "store" || transferTo === "store") && !transferBranchId) {
+      toast.error("Pilih cabang untuk stock toko");
+      return;
+    }
+
+    const storeBranchQty =
+      (selectedItem as any).stock_toko?.find(
+        (s: any) => s.branch_id === transferBranchId,
+      )?.quantity ?? 0;
+
     const sourceStock =
       transferFrom === "warehouse"
-        ? selectedItem.warehouse_stock
-        : selectedItem.store_stock;
+        ? selectedItem.warehouse_stock || 0
+        : storeBranchQty;
     if (sourceStock < qty) {
-      toast.error("Stock tidak cukup");
+      toast.error(`Stock tidak cukup (tersedia ${sourceStock})`);
       return;
     }
 
@@ -335,21 +349,70 @@ export default function InventoryManagement({
       const storeDelta =
         transferFrom === "store" ? -qty : transferTo === "store" ? qty : 0;
 
-      const { error: updateError } = await supabase
-        .from("inventory")
-        .update({
-          warehouse_stock: Math.max(
-            0,
-            (selectedItem.warehouse_stock || 0) + warehouseDelta,
-          ),
-          store_stock: Math.max(
-            0,
-            (selectedItem.store_stock || 0) + storeDelta,
-          ),
-        })
-        .eq("id", transferItemId);
+      // Eksekusi lewat RPC terpusat (keputusan final §18): sisi sumber dulu,
+      // lalu tujuan; sisi kedua gagal => sisi pertama dikompensasi.
+      let sourceAppliedDelta = 0;
+      try {
+        if (transferFrom === "warehouse" && warehouseDelta !== 0) {
+          await adjustWarehouseStock(supabase, {
+            inventoryId: transferItemId,
+            delta: warehouseDelta,
+            source: "adjustment",
+            reason: `Transfer ke toko`,
+          });
+          sourceAppliedDelta = warehouseDelta;
+        } else if (transferFrom === "store" && storeDelta !== 0) {
+          await adjustStoreStock(supabase, {
+            inventoryId: transferItemId,
+            branchId: transferBranchId,
+            delta: storeDelta,
+            source: "adjustment",
+            reason: `Transfer keluar`,
+          });
+          sourceAppliedDelta = storeDelta;
+        }
 
-      if (updateError) throw updateError;
+        if (transferTo === "warehouse") {
+          await adjustWarehouseStock(supabase, {
+            inventoryId: transferItemId,
+            delta: qty,
+            source: "adjustment",
+            reason: `Transfer masuk`,
+          });
+        } else {
+          await adjustStoreStock(supabase, {
+            inventoryId: transferItemId,
+            branchId: transferBranchId,
+            delta: qty,
+            source: "adjustment",
+            reason: `Transfer masuk ke cabang`,
+          });
+        }
+      } catch (stockErr: any) {
+        if (sourceAppliedDelta !== 0) {
+          try {
+            if (transferFrom === "warehouse") {
+              await adjustWarehouseStock(supabase, {
+                inventoryId: transferItemId,
+                delta: -sourceAppliedDelta,
+                source: "adjustment",
+                reason: "Kompensasi transfer gagal",
+              });
+            } else {
+              await adjustStoreStock(supabase, {
+                inventoryId: transferItemId,
+                branchId: transferBranchId,
+                delta: -sourceAppliedDelta,
+                source: "adjustment",
+                reason: "Kompensasi transfer gagal",
+              });
+            }
+          } catch (compErr) {
+            console.error("[inventory] kompensasi transfer gagal", compErr);
+          }
+        }
+        throw new Error(stockErr?.message || "Gagal memproses transfer stok");
+      }
 
       toast.success("Stock transfer berhasil!");
       setShowTransferForm(false);
@@ -1064,6 +1127,30 @@ export default function InventoryManagement({
                     </select>
                   </div>
                 </div>
+                {(transferFrom === "store" || transferTo === "store") && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">
+                      Cabang (Stock Toko)
+                    </label>
+                    <select
+                      value={transferBranchId}
+                      onChange={(e) => setTransferBranchId(e.target.value)}
+                      disabled={!canManageGudang}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                    {!canManageGudang && (
+                      <p className="text-xs text-slate-400 mt-1">
+                        Admin cabang hanya dapat mengatur stok cabangnya sendiri.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-900 mb-1">
                     Jumlah
