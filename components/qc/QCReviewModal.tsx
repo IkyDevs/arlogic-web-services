@@ -37,6 +37,11 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import {
+  adjustStoreStock,
+  searchStoreStock,
+  type StoreStockOption,
+} from "@/lib/domain/inventory/service";
+import {
   clearDraft,
   saveDraftTextSync,
   loadDraft,
@@ -110,6 +115,10 @@ export default function QCReviewModal({
     quantity: 1,
   });
   const [showAddSparepart, setShowAddSparepart] = useState(false);
+  // Stock Sparepart cabang: picker wajib (tanpa input manual) — keputusan final #4
+  const [sparepartStock, setSparepartStock] = useState<StoreStockOption[]>([]);
+  const [selectedSparepartId, setSelectedSparepartId] = useState<string>("");
+  const [sparepartQuery, setSparepartQuery] = useState("");
   const [editingItem, setEditingItem] = useState<{
     [key: number]: { price?: number; quantity?: number };
   }>({});
@@ -227,7 +236,29 @@ export default function QCReviewModal({
       ? Math.round((effectiveDiscount / totalBeforeDiscount) * 100)
       : 0;
 
-  // ── Item editing ──
+  useEffect(() => {
+    const branchId = (service as any)?.branch_id as string | undefined;
+    if (!service || !branchId) return;
+    let alive = true;
+    const t = setTimeout(async () => {
+      try {
+        const rows = await searchStoreStock(supabase, {
+          branchId,
+          itemClass: "sparepart",
+          query: sparepartQuery,
+        });
+        if (alive) setSparepartStock(rows);
+      } catch (e) {
+        console.error("[inventory] gagal muat stok cabang", e);
+      }
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service?.id, sparepartQuery]);
+
   // ── Item editing ──
   const startEditItem = (index: number, item: any) => {
     setEditingItem({
@@ -241,14 +272,36 @@ export default function QCReviewModal({
     if (!edit) return;
     const item = localItems[index];
     if (!item?.id) return;
+    const newQty = edit.quantity ?? item.quantity ?? 1;
+    const oldQty = item.quantity ?? 1;
+    const usageDelta = newQty - oldQty;
+
+    // Stok disesuaikan DULU: gagal => edit dibatalkan, tidak ada state setengah jadi.
+    if ((item as any).inventory_id && usageDelta !== 0) {
+      try {
+        await adjustStoreStock(supabase, {
+          inventoryId: (item as any).inventory_id,
+          branchId: (service as any)?.branch_id ?? null,
+          delta: -usageDelta,
+          source: "qc",
+          reason: "Edit quantity oleh QC",
+          refType: "service_item",
+          refId: item.id,
+        });
+      } catch (stockErr: any) {
+        toast.error("Gagal menyesuaikan stok: " + (stockErr?.message || stockErr));
+        return;
+      }
+    }
+
     try {
       const { error } = await supabase
         .from("service_items")
-        .update({ price: edit.price ?? item.price, quantity: edit.quantity ?? item.quantity })
+        .update({ price: edit.price ?? item.price, quantity: newQty })
         .eq("id", item.id);
       if (error) throw error;
       const updated = [...localItems];
-      updated[index] = { ...updated[index], price: edit.price ?? item.price, quantity: edit.quantity ?? item.quantity };
+      updated[index] = { ...updated[index], price: edit.price ?? item.price, quantity: newQty };
       setLocalItems(updated);
       await supabase.from("service_timeline").insert({
         service_order_id: service.id, status: "item_updated",
@@ -258,6 +311,20 @@ export default function QCReviewModal({
       const { [index]: _, ...rest } = editingItem;
       setEditingItem(rest);
     } catch (err: any) {
+      // DB update gagal -> kembalikan penyesuaian stok yang sudah diterapkan
+      if ((item as any).inventory_id && usageDelta !== 0) {
+        try {
+          await adjustStoreStock(supabase, {
+            inventoryId: (item as any).inventory_id,
+            branchId: (service as any)?.branch_id ?? null,
+            delta: usageDelta,
+            source: "qc",
+            reason: "Kompensasi gagal update item",
+          });
+        } catch (compErr) {
+          console.error("[inventory] kompensasi stok gagal", compErr);
+        }
+      }
       toast.error("Gagal menyimpan: " + err.message);
     }
   };
@@ -276,6 +343,22 @@ export default function QCReviewModal({
     try {
       const { error } = await supabase.from("service_items").delete().eq("id", item.id);
       if (error) throw error;
+      // Sparepart yang berasal dari stock dikembalikan ke stok cabang
+      if ((item as any).inventory_id) {
+        try {
+          await adjustStoreStock(supabase, {
+            inventoryId: (item as any).inventory_id,
+            branchId: (service as any)?.branch_id ?? null,
+            delta: item.quantity || 1,
+            source: "qc",
+            reason: "Item dihapus QC",
+            refType: "service_item",
+            refId: item.id,
+          });
+        } catch (stockErr) {
+          console.error("[inventory] gagal restore stock sparepart", stockErr);
+        }
+      }
       setLocalItems(localItems.filter((_, i) => i !== index));
       await supabase.from("service_timeline").insert({
         service_order_id: service.id, status: "item_deleted",
@@ -310,23 +393,68 @@ export default function QCReviewModal({
   };
 
   const addCustomSparepart = async () => {
-    if (!customSparepart.name.trim() || customSparepart.price <= 0) return;
+    const picked = selectedSparepartId
+      ? sparepartStock.find((s) => s.id === selectedSparepartId)
+      : null;
+
+    // Keputusan final #4: tanpa input manual — wajib dari stok cabang.
+    if (!picked) {
+      toast.error("Pilih sparepart dari stok cabang");
+      return;
+    }
+    if (customSparepart.quantity > picked.quantity) {
+      toast.error(`Stok tidak cukup! Tersedia ${picked.quantity} di cabang ini`);
+      return;
+    }
+    const name = picked.item_name;
+    const price = customSparepart.price || picked.price || picked.buy_price || 0;
+    if (!name.trim() || price <= 0) return;
+
     try {
-      const { data, error } = await supabase.from("service_items").insert({
-        service_order_id: service.id, item_type: "sparepart", name: customSparepart.name.trim(),
-        price: customSparepart.price, quantity: customSparepart.quantity, is_final: false,
-      }).select().single();
+      const { data, error } = await supabase
+        .from("service_items")
+        .insert({
+          service_order_id: service.id,
+          item_type: "sparepart",
+          name: name.trim(),
+          price,
+          quantity: customSparepart.quantity,
+          is_final: false,
+          inventory_id: picked.id,
+        })
+        .select()
+        .single();
       if (error) throw error;
+
+      try {
+        await adjustStoreStock(supabase, {
+          inventoryId: picked.id,
+          branchId: (service as any)?.branch_id ?? null,
+          delta: -customSparepart.quantity,
+          source: "qc",
+          reason: "Sparepart ditambahkan QC",
+          refType: "service_item",
+          refId: data.id,
+        });
+      } catch (stockErr: any) {
+        toast.error(
+          "Item tersimpan, namun stok gagal dikurangi: " +
+            (stockErr?.message || stockErr),
+        );
+      }
+
       setLocalItems([...localItems, data]);
       setCustomSparepart({ name: "", price: 0, quantity: 1 });
+      setSelectedSparepartId("");
       setShowAddSparepart(false);
       await supabase.from("service_timeline").insert({
-        service_order_id: service.id, status: "item_added",
-        message: `QC menambah sparepart ${customSparepart.name.trim()}`,
+        service_order_id: service.id,
+        status: "item_added",
+        message: `QC menambah sparepart ${name.trim()}`,
         details: { action: "qc_add_item", reviewer: reviewerName },
       });
     } catch (err: any) {
-      toast.error("Gagal menambah: " + err.message);
+      toast.error("Gagal menambah sparepart: " + err.message);
     }
   };
 
@@ -1444,21 +1572,37 @@ export default function QCReviewModal({
                 {showAddSparepart ? (
                   <div className="p-3.5 bg-purple-50 rounded-xl border border-purple-200 space-y-3">
                     <p className="text-xs font-semibold text-purple-700 flex items-center gap-1.5">
-                      <Plus className="w-3 h-3" /> Tambah a
+                      <Plus className="w-3 h-3" /> Tambah Sparepart dari Stock Cabang
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      <input
-                        type="text"
-                        value={customSparepart.name}
-                        onChange={(e) =>
-                          setCustomSparepart({
-                            ...customSparepart,
-                            name: e.target.value,
-                          })
+                    <input
+                      type="text"
+                      value={sparepartQuery}
+                      onChange={(e) => setSparepartQuery(e.target.value)}
+                      placeholder="Cari sparepart (nama / SKU)..."
+                      className="w-full px-3 py-2 text-xs border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 bg-white"
+                    />
+                    <select
+                      value={selectedSparepartId}
+                      onChange={(e) => {
+                        setSelectedSparepartId(e.target.value);
+                        const opt = sparepartStock.find((s) => s.id === e.target.value);
+                        if (opt) {
+                          setCustomSparepart((prev) => ({
+                            ...prev,
+                            price: opt.price || opt.buy_price || 0,
+                          }));
                         }
-                        placeholder="Nama sparepart..."
-                        className="min-w-[120px] flex-1 px-3 py-2 text-xs border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 bg-white"
-                      />
+                      }}
+                      className="w-full px-3 py-2 text-xs border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 bg-white"
+                    >
+                      <option value="">— Pilih sparepart —</option>
+                      {sparepartStock.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.item_name} — stok {s.quantity}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex flex-wrap gap-2">
                       <input
                         type="number"
                         value={customSparepart.quantity || ""}
@@ -1485,10 +1629,7 @@ export default function QCReviewModal({
                       />
                       <button
                         onClick={addCustomSparepart}
-                        disabled={
-                          !customSparepart.name.trim() ||
-                          customSparepart.price <= 0
-                        }
+                        disabled={!selectedSparepartId}
                         className="px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-xs"
                       >
                         Tambah

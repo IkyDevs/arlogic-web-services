@@ -12,6 +12,13 @@ import type {
 import type { JenisLayanan, MetodePembayaran, LeadSource } from "./enums"
 import { validateTransaction } from "../shared/validation"
 import type { ValidationError } from "../shared/validation"
+import {
+  applyUsageDeltas,
+  compensateUsageDeltas,
+  computeStockDeltas,
+  type InventoryRefLine,
+  type AppliedStockChange,
+} from "@/lib/domain/inventory/service"
 
 // ─── SKU Parsing ───────────────────────────────────────────────────
 export function parseSKUs(detailSku: string | null | undefined, nominal: number | null | undefined): SKUItem[] {
@@ -115,6 +122,36 @@ export function mapLegacyTransaction(row: LegacyLayananRow): TransactionData {
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
+}
+
+// ─── Stock Integration (rollback-aware) ────────────────────────────
+// Baris SKU dengan inventory_id = sparepart/jam dari stok cabang.
+// pengeluaran/cashdraw tidak menyentuh stok.
+
+const STOCK_EXEMPT_JENIS = ["pengeluaran", "cashdraw"]
+
+function collectInventoryLines(items: TransactionServiceItem[]): InventoryRefLine[] {
+  const out: InventoryRefLine[] = []
+  for (const item of items) {
+    if (STOCK_EXEMPT_JENIS.includes(item.jenis_layanan)) continue
+    for (const sku of item.skus || []) {
+      if (sku.inventory_id) out.push({ inventory_id: sku.inventory_id, quantity: 1 })
+    }
+  }
+  return out
+}
+
+function collectLegacyRowLines(
+  rows: Array<{ jenis_layanan: string; detail_sku?: string | null }>,
+): InventoryRefLine[] {
+  const out: InventoryRefLine[] = []
+  for (const row of rows) {
+    if (STOCK_EXEMPT_JENIS.includes(row.jenis_layanan)) continue
+    for (const sku of parseSKUs(row.detail_sku, null)) {
+      if (sku.inventory_id) out.push({ inventory_id: sku.inventory_id, quantity: 1 })
+    }
+  }
+  return out
 }
 
 // ─── Analytics ─────────────────────────────────────────────────────
@@ -266,6 +303,27 @@ export async function createTransaction(
   const firstItem = tx.items[0]
 
   const supabase = getSupabase()
+
+  // Potong stok DULU lewat RPC atomik; gagal => transaksi tidak dibuat.
+  let stockApplied: AppliedStockChange[] = []
+  const stockLines = collectInventoryLines(tx.items)
+  if (stockLines.length > 0) {
+    try {
+      stockApplied = await applyUsageDeltas(
+        supabase,
+        computeStockDeltas([], stockLines),
+        {
+          branchId: tx.branch_id ?? null,
+          source: "service_transaction",
+          reason: `Transaksi ${tx.customer_name.trim()}`,
+        },
+      )
+    } catch (stockErr) {
+      const msg = stockErr instanceof Error ? stockErr.message : String(stockErr)
+      throw new Error(`Stok gagal diproses, transaksi tidak disimpan: ${msg}`)
+    }
+  }
+
   const { data: newLayanan, error: layananError } = await supabase
     .from("layanan")
     .insert({
@@ -301,7 +359,10 @@ export async function createTransaction(
     .select("id, created_at")
     .single()
 
-  if (layananError) throw layananError
+  if (layananError) {
+    await compensateUsageDeltas(supabase, stockApplied, { branchId: tx.branch_id })
+    throw layananError
+  }
 
   if (tx.items.length > 0 && newLayanan?.id) {
     const itemRows = tx.items.map((item) => ({
@@ -312,7 +373,12 @@ export async function createTransaction(
       nominal: calculateItemSubtotal(item.skus),
     }))
     const { error: itemErr } = await supabase.from("layanan_items").insert(itemRows)
-    if (itemErr) console.error("Gagal simpan items:", itemErr)
+    if (itemErr) {
+      // Konsistensi stok↔transaksi: batalkan transaksi baru + kembalikan stok.
+      await compensateUsageDeltas(supabase, stockApplied, { branchId: tx.branch_id })
+      await supabase.from("layanan").delete().eq("id", newLayanan.id)
+      throw itemErr
+    }
   }
 
   if (
@@ -373,21 +439,56 @@ export async function updateTransaction(
     updatePayload.detail_sku = firstItem?.skus?.[0]?.sku || null
     updatePayload.nominal = total
 
-    const { error: updateError } = await supabase.from("layanan").update(updatePayload).eq("id", id)
-    if (updateError) throw updateError
+    // Rollback stok (keputusan #1): bandingkan pemakaian lama vs baru.
+    const [{ data: oldRow }, { data: oldItemRows }] = await Promise.all([
+      supabase.from("layanan").select("branch_id").eq("id", id).maybeSingle(),
+      supabase
+        .from("layanan_items")
+        .select("jenis_layanan, detail_sku")
+        .eq("layanan_id", id),
+    ])
+    const deltas = computeStockDeltas(
+      collectLegacyRowLines(oldItemRows || []),
+      collectInventoryLines(tx.items),
+    )
+    let stockApplied: AppliedStockChange[] = []
+    if (deltas.length > 0) {
+      try {
+        stockApplied = await applyUsageDeltas(supabase, deltas, {
+          branchId: tx.branch_id ?? oldRow?.branch_id ?? null,
+          source: "service_transaction",
+          reason: "Edit transaksi",
+        })
+      } catch (stockErr) {
+        const msg = stockErr instanceof Error ? stockErr.message : String(stockErr)
+        throw new Error(`Stok gagal diproses, perubahan tidak disimpan: ${msg}`)
+      }
+    }
 
-    await supabase.from("layanan_items").delete().eq("layanan_id", id)
+    try {
+      const { error: updateError } = await supabase.from("layanan").update(updatePayload).eq("id", id)
+      if (updateError) throw updateError
 
-    if (tx.items.length > 0) {
-      const itemRows = tx.items.map((item) => ({
-        layanan_id: id,
-        jenis_layanan: item.jenis_layanan,
-        detail_sku: serializeSKUs(item.skus),
-        notes: item.notes || "",
-        nominal: calculateItemSubtotal(item.skus),
-      }))
-      const { error: itemErr } = await supabase.from("layanan_items").insert(itemRows)
-      if (itemErr) console.error("Gagal simpan items:", itemErr)
+      await supabase.from("layanan_items").delete().eq("layanan_id", id)
+
+      if (tx.items.length > 0) {
+        const itemRows = tx.items.map((item) => ({
+          layanan_id: id,
+          jenis_layanan: item.jenis_layanan,
+          detail_sku: serializeSKUs(item.skus),
+          notes: item.notes || "",
+          nominal: calculateItemSubtotal(item.skus),
+        }))
+        const { error: itemErr } = await supabase.from("layanan_items").insert(itemRows)
+        if (itemErr) throw itemErr
+      }
+    } catch (mutErr) {
+      // DB gagal setelah stok berubah -> kembalikan stok ke kondisi awal.
+      await compensateUsageDeltas(supabase, stockApplied, {
+        branchId: tx.branch_id ?? oldRow?.branch_id ?? null,
+      })
+      if (mutErr instanceof Error) throw mutErr
+      throw new Error(String(mutErr))
     }
   } else {
     const { error: updateError } = await supabase.from("layanan").update(updatePayload).eq("id", id)
@@ -397,8 +498,35 @@ export async function updateTransaction(
 
 export async function deleteTransaction(id: string): Promise<void> {
   const supabase = getSupabase()
+  // Rollback stok dulu (keputusan #1); gagal => penghapusan dibatalkan.
+  const [{ data: row }, { data: itemRows }] = await Promise.all([
+    supabase.from("layanan").select("branch_id").eq("id", id).maybeSingle(),
+    supabase
+      .from("layanan_items")
+      .select("jenis_layanan, detail_sku")
+      .eq("layanan_id", id),
+  ])
+  const deltas = computeStockDeltas(collectLegacyRowLines(itemRows || []), [])
+  let stockApplied: AppliedStockChange[] = []
+  if (deltas.length > 0) {
+    try {
+      stockApplied = await applyUsageDeltas(supabase, deltas, {
+        branchId: row?.branch_id ?? null,
+        source: "service_transaction",
+        reason: "Hapus transaksi",
+      })
+    } catch (stockErr) {
+      const msg = stockErr instanceof Error ? stockErr.message : String(stockErr)
+      throw new Error(`Gagal mengembalikan stok, transaksi tidak dihapus: ${msg}`)
+    }
+  }
   const { error } = await supabase.from("layanan").delete().eq("id", id)
-  if (error) throw error
+  if (error) {
+    await compensateUsageDeltas(supabase, stockApplied, {
+      branchId: row?.branch_id ?? null,
+    })
+    throw error
+  }
 }
 
 export async function updateTransactionStatus(

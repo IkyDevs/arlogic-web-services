@@ -67,13 +67,17 @@ import { useBranchScope } from "@/lib/context/useBranchScope";
 
 // Dynamic imports
 const InventoryManagement = dynamic(
-  () => import("@/components/admin/InventoryManagement"),
-  {
+  () => import("@/components/admin/InventoryManagement"),  {
     loading: () => (
       <div className="text-center py-8 text-slate-500">Loading...</div>
     ),
   },
 );
+const GudangView = dynamic(() => import("@/components/admin/GudangView"), {
+  loading: () => (
+    <div className="text-center py-8 text-slate-500">Loading...</div>
+  ),
+});
 const ServiceInput = dynamic(() => import("@/components/admin/ServiceInput"), {
   loading: () => (
     <div className="text-center py-8 text-slate-500">Loading...</div>
@@ -230,7 +234,8 @@ export default function AdminDashboard() {
   const { activeBranch } = useBranch();
   const { branchId } = useBranchScope();
   const branchMatch = branchId ? { branch_id: branchId } : {};
-  const isCentralBranch = activeBranch?.is_central === true || activeBranch?.code === "JBR";
+  // Permission Gudang berbasis role admin_gudang (bukan isCentral)
+  const hasGudangRole = user?.role === "admin_gudang";
   const router = useRouter();
 
   // ==================== SEARCH FUNCTIONS ====================
@@ -832,7 +837,7 @@ export default function AdminDashboard() {
         setSidebarOpen={setSidebarOpen}
         todayAttendance={todayAttendance}
         handleAttendance={handleAttendance}
-        isCentral={isCentralBranch}
+        hasGudangRole={hasGudangRole}
         handleLogout={handleLogout}
         doneCount={doneServiceCount} // Pass doneServiceCount here
       />
@@ -985,6 +990,8 @@ export default function AdminDashboard() {
           {activeTab === "inventory" && (
             <InventoryManagement onUpdate={fetchInventory} />
           )}
+
+          {activeTab === "gudang" && hasGudangRole && <GudangView />}
 
 
           {activeTab === "attendance" && (

@@ -24,6 +24,10 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ImportBarangModal from "@/components/admin/ImportBarangModal";
+import {
+  adjustStoreStock,
+  adjustWarehouseStock,
+} from "@/lib/domain/inventory/service";
 
 interface InventoryManagementProps {
   onUpdate?: () => void;
@@ -44,8 +48,9 @@ export default function InventoryManagement({
   const supabase = createClient();
   const { branchId } = useBranchScope();
   const { branches, activeBranch } = useBranch();
-  const isCentral = activeBranch?.is_central === true || activeBranch?.code === "JBR";
   const { user } = useAuthStore();
+  // Permission Gudang berbasis role admin_gudang (bukan isCentral)
+  const canManageGudang = user?.role === "admin_gudang";
   const [sessionKey] = useState(
     () => `inventory_${user?.id || "anon"}_${Date.now()}`,
   );
@@ -56,6 +61,7 @@ export default function InventoryManagement({
     item_name: "",
     sku: "",
     category: "",
+    item_class: "sparepart",
     store_stock: "",
     warehouse_stock: "",
     unit: "pcs",
@@ -63,6 +69,8 @@ export default function InventoryManagement({
     price: "",
   });
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  // Klasifikasi stock: Sparepart | Jam (R2)
+  const [activeClass, setActiveClass] = useState<"all" | "sparepart" | "jam">("all");
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [transferItemId, setTransferItemId] = useState<string>("");
   const [transferQuantity, setTransferQuantity] = useState("");
@@ -107,27 +115,18 @@ export default function InventoryManagement({
     if (data) setCategories(data.map((c) => c.name));
   };
 
-  // ── Stock 2 tipe: gudang & toko (per cabang) ──
+  // ── Stock 2 tipe: gudang & toko (per cabang) — via RPC terpusat ──
   const updateStock = async (inventoryId: string, type: "gudang" | "toko", branchIdForToko: string | null, delta: number) => {
     try {
       if (type === "gudang") {
-        const { data: existing } = await supabase.from("stock_gudang").select("id, quantity").eq("inventory_id", inventoryId).maybeSingle();
-        if (existing) {
-          await supabase.from("stock_gudang").update({ quantity: Math.max(0, (existing.quantity || 0) + delta), updated_at: new Date().toISOString() }).eq("id", existing.id);
-        } else {
-          await supabase.from("stock_gudang").insert({ inventory_id: inventoryId, quantity: Math.max(0, delta) });
-        }
+        await adjustWarehouseStock(supabase, { inventoryId, delta, source: "adjustment", reason: "Adjust inventaris" });
       } else if (branchIdForToko) {
-        const { data: existing } = await supabase.from("stock_toko").select("id, quantity").eq("inventory_id", inventoryId).eq("branch_id", branchIdForToko).maybeSingle();
-        if (existing) {
-          await supabase.from("stock_toko").update({ quantity: Math.max(0, (existing.quantity || 0) + delta), updated_at: new Date().toISOString() }).eq("id", existing.id);
-        } else {
-          await supabase.from("stock_toko").insert({ inventory_id: inventoryId, branch_id: branchIdForToko, quantity: Math.max(0, delta) });
-        }
+        await adjustStoreStock(supabase, { inventoryId, branchId: branchIdForToko, delta, source: "adjustment", reason: "Adjust inventaris" });
       }
       fetchInventory();
-    } catch {
-      // ignore
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Gagal mengubah stok");
+      fetchInventory();
     }
   };
 
@@ -161,6 +160,7 @@ export default function InventoryManagement({
       item_name: "",
       sku: "",
       category: "",
+      item_class: "sparepart",
       store_stock: "",
       warehouse_stock: "",
       unit: "pcs",
@@ -177,6 +177,7 @@ export default function InventoryManagement({
       item_name: item.item_name,
       sku: item.sku,
       category: item.category || "",
+      item_class: item.item_class === "jam" ? "jam" : "sparepart",
       store_stock: String(item.store_stock ?? 0),
       warehouse_stock: String(item.warehouse_stock ?? 0),
       unit: item.unit || "pcs",
@@ -420,6 +421,7 @@ export default function InventoryManagement({
         item_name: formData.item_name,
         sku: formData.sku,
         category: formData.category || "Uncategorized",
+        item_class: formData.item_class === "jam" ? "jam" : "sparepart",
         store_stock: parseInt(formData.store_stock) || 0,
         warehouse_stock: parseInt(formData.warehouse_stock) || 0,
         unit: formData.unit || "pcs",
@@ -593,6 +595,22 @@ export default function InventoryManagement({
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900"
                       required
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-1">
+                      Jenis Stock
+                    </label>
+                    <select
+                      value={formData.item_class}
+                      onChange={(e) =>
+                        setFormData({ ...formData, item_class: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-slate-900 bg-white"
+                    >
+                      <option value="sparepart">Sparepart</option>
+                      <option value="jam">Jam</option>
+                    </select>
                   </div>
 
                   <div>
@@ -794,6 +812,27 @@ export default function InventoryManagement({
           </div>
         ) : (
           <>
+            {/* Class Tabs — Stock Sparepart vs Stock Jam */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-hide">
+              {([
+                { v: "all", label: "Semua Stock" },
+                { v: "sparepart", label: "Sparepart" },
+                { v: "jam", label: "Jam" },
+              ] as const).map((c) => (
+                <button
+                  key={c.v}
+                  onClick={() => setActiveClass(c.v)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
+                    activeClass === c.v
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
             {/* Category Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
               <button
@@ -825,8 +864,10 @@ export default function InventoryManagement({
               {inventory
                 .filter(
                   (item) =>
-                    activeCategory === "all" ||
-                    item.category === activeCategory,
+                    (activeClass === "all" ||
+                      (item.item_class === "jam" ? "jam" : "sparepart") === activeClass) &&
+                    (activeCategory === "all" ||
+                      item.category === activeCategory),
                 )
                 .map((item) => (
                   <div
@@ -893,7 +934,7 @@ export default function InventoryManagement({
                           <span className="text-slate-500 ml-0.5">
                             {item.unit}
                           </span>
-                          {isCentral && (
+                          {canManageGudang && (
                             <div className="flex items-center justify-center gap-1 mt-1">
                               <button onClick={() => updateStock(item.id, "gudang", null, -1)} className="px-1.5 bg-slate-200 rounded text-slate-700">−</button>
                               <span className="text-[9px] text-slate-400">Gudang</span>
@@ -916,7 +957,7 @@ export default function InventoryManagement({
                           </div>
                         </div>
                       </div>
-                      {isCentral && branches.length > 0 && (
+                      {canManageGudang && branches.length > 0 && (
                         <div className="mt-2 space-y-0.5">
                           {branches.map((b) => {
                             const qty = item.stock_toko?.find((s: any) => s.branch_id === b.id)?.quantity ?? 0;

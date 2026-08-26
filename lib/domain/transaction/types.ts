@@ -4,6 +4,8 @@ import type { JenisLayanan, MetodePembayaran, LeadSource } from "./enums"
 export interface SKUItem {
   sku: string
   nominal: number
+  /** Terisi bila baris ini = Sparepart/Jam dari stok cabang (bukan jasa bebas) */
+  inventory_id?: string | null
 }
 
 // ─── Transaction Service Item ──────────────────────────────────────

@@ -180,6 +180,11 @@
 | `updated_at`        | `timestamptz` | Nullable    |
 | `branch_id`         | `uuid`        | Nullable    |
 | `buy_price`         | `numeric`     | Nullable    |
+| `item_class`        | `text`        | NOT NULL DEFAULT 'sparepart' *(migrasi 20260825; 'sparepart'\|'jam')* |
+
+## Table `stock_movements` *(baru — migrasi 20260826)*
+
+Ledger audit semua perubahan stok (source/actor/delta/result). Ditulis eksklusif oleh RPC `adjust_store_stock` / `adjust_warehouse_stock`. Select: owner/engineer/admin_gudang/supervisor.
 
 ## Table `categories`
 

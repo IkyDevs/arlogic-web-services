@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useBranch } from "@/lib/context/BranchContext";
-import { Search, Warehouse, AlertTriangle } from "lucide-react";
+import { adjustWarehouseStock } from "@/lib/domain/inventory/service";
+import { Search, Warehouse, AlertTriangle, Minus, Plus } from "lucide-react";
 import ImportBarangModal from "@/components/admin/ImportBarangModal";
+import toast from "react-hot-toast";
 
 interface WarehouseItem {
   id: string;
@@ -20,10 +21,10 @@ interface WarehouseItem {
 
 export default function GudangView() {
   const supabase = createClient();
-  const { activeBranch } = useBranch();
   const [items, setItems] = useState<WarehouseItem[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [adjustingId, setAdjustingId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
 
   const fetchStock = useCallback(async () => {
@@ -41,6 +42,36 @@ export default function GudangView() {
 
   useEffect(() => { const t = setTimeout(fetchStock, 0); return () => clearTimeout(t); }, [fetchStock]);
 
+  // V1 Gudang: lihat + tambah/kurangi stock gudang (tanpa transfer)
+  const handleAdjust = async (item: WarehouseItem, delta: number) => {
+    if (delta < 0 && item.warehouse_stock <= 0) {
+      toast.error("Stock gudang sudah 0");
+      return;
+    }
+    setAdjustingId(item.id);
+    try {
+      await adjustWarehouseStock(supabase, {
+        inventoryId: item.id,
+        delta,
+        source: "gudang",
+        reason: "Adjust manual gudang",
+      });
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? { ...it, warehouse_stock: Math.max(0, it.warehouse_stock + delta) }
+            : it,
+        ),
+      );
+      toast.success(`Stock ${item.item_name} ${delta > 0 ? "+" : ""}${delta}`);
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengubah stock gudang");
+      fetchStock();
+    } finally {
+      setAdjustingId(null);
+    }
+  };
+
   const filtered = items.filter((it) =>
     it.item_name.toLowerCase().includes(search.toLowerCase()) ||
     (it.sku || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -55,7 +86,7 @@ export default function GudangView() {
             <Warehouse className="w-4 h-4 inline mr-1 text-blue-500" />
             Management Gudang
           </h3>
-          <p className="text-xs text-gray-500">Stock gudang pusat ({activeBranch?.name || "-"}) — barang masuk & keluar</p>
+          <p className="text-xs text-gray-500">Stock Gudang — barang masuk &amp; keluar gudang</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -100,10 +131,30 @@ export default function GudangView() {
                     <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{it.item_name}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{it.sku}</td>
                     <td className="px-4 py-2.5">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${low ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}>
-                        {low && <AlertTriangle className="w-3 h-3" />}
-                        {it.warehouse_stock} {it.unit}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${low ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}>
+                          {low && <AlertTriangle className="w-3 h-3" />}
+                          {it.warehouse_stock} {it.unit}
+                        </span>
+                        <button
+                          onClick={() => handleAdjust(it, -1)}
+                          disabled={adjustingId === it.id}
+                          aria-label={`Kurangi stock gudang ${it.item_name}`}
+                          title="Kurangi stock gudang"
+                          className="w-6 h-6 flex items-center justify-center bg-slate-100 dark:bg-white/10 rounded text-slate-700 dark:text-gray-200 hover:bg-slate-200 disabled:opacity-50"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleAdjust(it, 1)}
+                          disabled={adjustingId === it.id}
+                          aria-label={`Tambah stock gudang ${it.item_name}`}
+                          title="Tambah stock gudang"
+                          className="w-6 h-6 flex items-center justify-center bg-slate-100 dark:bg-white/10 rounded text-slate-700 dark:text-gray-200 hover:bg-slate-200 disabled:opacity-50"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-gray-500">{it.min_stock}</td>
                     <td className="px-4 py-2.5 text-gray-900 dark:text-gray-100">{it.buy_price ? `Rp ${it.buy_price.toLocaleString("id-ID")}` : "-"}</td>

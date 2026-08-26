@@ -110,6 +110,7 @@ export async function proxy(request: NextRequest) {
 
     const roleRoutes: Record<string, string[]> = {
       admin: ["/admin"],
+      admin_gudang: ["/admin"],
       teknisi: isEngineer ? ["/teknisi", "/engineer"] : ["/teknisi"],
       supervisor: ["/qc", "/supervisor"],
       qc: ["/qc"],

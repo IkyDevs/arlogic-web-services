@@ -45,7 +45,8 @@ interface AdminSidebarProps {
   handleAttendance: (type: "check_in" | "check_out") => void;
   handleLogout: () => void;
   doneCount: number; // Added doneCount prop
-  isCentral?: boolean; // cabang pusat → menu Gudang
+  /** role admin_gudang → menu Gudang (permission berbasis role, bukan isCentral) */
+  hasGudangRole?: boolean;
 }
 
 export default function AdminSidebar({
@@ -57,9 +58,9 @@ export default function AdminSidebar({
   handleAttendance,
   handleLogout,
   doneCount, // Destructure doneCount
-  isCentral = false,
+  hasGudangRole = false,
 }: AdminSidebarProps) {
-  const items = isCentral
+  const items = hasGudangRole
     ? [
         ...menuItems.slice(0, 7),
         { id: "gudang", label: "Gudang", icon: Warehouse },

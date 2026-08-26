@@ -16,6 +16,7 @@ import { isVideoFile } from "@/lib/upload/upload-config";
 import { uploadConfig } from "@/lib/uploadConfig";
 import { ensureVideoUnderLimit } from "@/lib/video-compress";
 import VideoRecorderModal from "@/components/ui/VideoRecorderModal";
+import { adjustStoreStock } from "@/lib/domain/inventory/service";
 
 const MAX_FILES = uploadConfig.IMAGE_MAX_FILES;
 const MAX_FILE_SIZE = uploadConfig.IMAGE_MAX_SIZE_BYTES;
@@ -145,6 +146,27 @@ export default function SubmitQCModal({ service, teknisiId, onClose, onSuccess }
   const deleteItem = async (index: number) => {
     const item = items[index];
     if (!item?.id) return;
+    // Sparepart dari stok dikembalikan DULU; gagal => penghapusan dibatalkan
+    // agar stok dan item tidak sinkron.
+    if (item.inventory_id && item.item_type === "sparepart") {
+      try {
+        await adjustStoreStock(supabase, {
+          inventoryId: item.inventory_id,
+          branchId: service?.branch_id ?? null,
+          delta: item.quantity || 1,
+          source: "technician",
+          reason: "Item dihapus teknisi sebelum QC",
+          refType: "service_item",
+          refId: item.id,
+        });
+      } catch (stockErr: any) {
+        toast.error(
+          "Gagal mengembalikan stok, item tidak dihapus: " +
+            (stockErr?.message || stockErr),
+        );
+        return;
+      }
+    }
     try {
       const { error } = await supabase.from("service_items").delete().eq("id", item.id);
       if (error) throw error;

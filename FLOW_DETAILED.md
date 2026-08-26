@@ -554,3 +554,10 @@ components/teknisi/:               — 15 file:
 
 ---^ above errata, more social with directories all to
 This report's".
+### 8.6 Stock Toko V2 (migrasi 20260826–27)
+- Sumber kebenaran stok = tabel `stock_toko` (per cabang) & `stock_gudang` (pusat); kolom legacy `store_stock/warehouse_stock` di-sync otomatis oleh RPC.
+- Satu pintu perubahan stok: RPC `adjust_store_stock` / `adjust_warehouse_stock` (atomic, anti-minus, otorisasi role+cabang server-side, menulis `stock_movements`).
+- Konsumen: LayananForm (beli_jam & sparepart service_langsung), AddSparepartModal teknisi, QCReviewModal, Inventaris/Gudang.
+- Sparepart/Jam wajib dipilih dari stok cabang (tanpa input manual); Jasa tetap bebas.
+- Rollback otomatis saat transaksi dihapus/di-edit atau item dihapus/qty dikurangi.
+- RLS: admin cabang = cabang sendiri; admin_gudang/owner = semua + gudang; teknisi/qc = baca cabang sendiri.

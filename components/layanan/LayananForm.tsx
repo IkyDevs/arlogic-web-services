@@ -7,6 +7,7 @@ import { useCentralUpload } from "@/hooks/useCentralUpload";
 import { convertHeicFiles, isHeicFile } from "@/lib/upload/upload-compressor";
 import { extractTelegramRefs, deleteTelegramMessages, editTelegramCaption } from "@/lib/telegram-sync";
 import { useBranch } from "@/lib/context/BranchContext";
+import SparepartPicker from "@/components/inventory/SparepartPicker";
 import {
   jenisLayananLabels,
   metodePembayaranLabels,
@@ -120,6 +121,8 @@ export default memo(function LayananForm({
   const [uploadKey] = useState(() => (initialData as any)?.upload_session_key || `layanan_${user?.id || 'anon'}_${Date.now()}`)
   const upload = useCentralUpload(uploadKey);
   const { activeBranch } = useBranch();
+  // Tipe baris SKU utk service_langsung: jasa (default) | sparepart
+  const [skuMode, setSkuMode] = useState<Record<string, "jasa" | "sparepart">>({});
   const createTx = useTransactionStore((s) => s.create);
   const updateTx = useTransactionStore((s) => s.update);
 
@@ -236,6 +239,12 @@ export default memo(function LayananForm({
     (i) => i.jenis_layanan === "ambil_jam_service",
   );
 
+  // Cabang sumber stok utk picker Sparepart/Jam (admin cabang terkunci di cabangnya)
+  const stockBranchId = user?.branch_id ?? (activeBranch as any)?.id ?? null;
+
+  const getSkuMode = (i: number, j: number): "jasa" | "sparepart" =>
+    skuMode[`${i}-${j}`] ?? "jasa";
+
   const derivedNominal2 = useMemo(() => {
     if (metodePembayaran !== "split_payment") return splitPayment.nominal_2;
     const n1 = parseInt(splitPayment.nominal_1) || 0;
@@ -292,7 +301,12 @@ export default memo(function LayananForm({
   }, []);
 
   const updateSku = useCallback(
-    (itemIdx: number, skuIdx: number, field: keyof SKUItem, value: string) => {
+    (
+      itemIdx: number,
+      skuIdx: number,
+      field: keyof SKUItem,
+      value: string | null,
+    ) => {
       setItems((prev) =>
         prev.map((item, i) =>
           i === itemIdx
@@ -304,7 +318,7 @@ export default memo(function LayananForm({
                         ...sku,
                         [field]:
                           field === "nominal"
-                            ? parseInt(value.replace(/\D/g, "")) || 0
+                            ? parseInt(String(value ?? "").replace(/\D/g, "")) || 0
                             : value,
                       }
                     : sku,
@@ -628,6 +642,27 @@ export default memo(function LayananForm({
       toast.error("Transaksi sedang diproses...");
       return;
     }
+    // Validasi stok: baris Sparepart/Jam wajib memilih item dari stok cabang
+    if (!initialData?.id) {
+      const missing: string[] = [];
+      items.forEach((it, idx) => {
+        it.skus.forEach((s, j) => {
+          const needStock =
+            it.jenis_layanan === "beli_jam" ||
+            (it.jenis_layanan === "service_langsung" &&
+              getSkuMode(idx, j) === "sparepart");
+          if (needStock && !s.inventory_id) {
+            missing.push(`Item #${idx + 1} SKU #${j + 1}`);
+          }
+        });
+      });
+      if (missing.length > 0) {
+        toast.error(
+          "Pilih sparepart/jam dari stok cabang untuk: " + missing.join(", "),
+        );
+        return;
+      }
+    }
     submittingRef.current = true;
     setShowConfirmation(false);
     setLoading(true);
@@ -799,6 +834,8 @@ export default memo(function LayananForm({
           full_tx_obj: JSON.stringify({ id: (tx as any)?.id, customer_name: (tx as any)?.customer_name }),
         });
         toast.success("Transaksi berhasil ditambahkan!");
+
+        // Potong stok sparepart/jam kini ditangani createTransaction (atomic RPC).
       }
 
       syncCustomer(customerName, customerWhatsapp, (activeBranch as any)?.id).catch(() => {});
@@ -1278,6 +1315,29 @@ export default memo(function LayananForm({
                     })}
                   </select>
 
+                  {item.jenis_layanan === "beli_jam" && !initialData?.id && (
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-2.5">
+                      <label className="block text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-1">
+                        Pilih Jam dari Stock Cabang
+                      </label>
+                      <SparepartPicker
+                        branchId={stockBranchId}
+                        itemClass="jam"
+                        value={(item.skus[0]?.inventory_id as string | null | undefined) ?? null}
+                        onSelect={(opt) => {
+                          if (!opt) return;
+                          updateSku(itemIdx, 0, "inventory_id", opt.id);
+                          updateSku(itemIdx, 0, "sku", opt.sku || opt.item_name);
+                          updateSku(itemIdx, 0, "nominal", String(opt.price || opt.buy_price || 0));
+                        }}
+                        placeholder="Cari jam dari stok cabang..."
+                      />
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">
+                        Stok jam cabang berkurang otomatis saat transaksi disimpan.
+                      </p>
+                    </div>
+                  )}
+
                   {item.jenis_layanan === "ambil_jam_service" && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2.5">
                       {linkedServiceOrderIds.length > 0 ? (
@@ -1321,17 +1381,64 @@ export default memo(function LayananForm({
                     {item.skus.map((sku, skuIdx) => (
                       <div
                         key={skuIdx}
-                        className="flex flex-col md:flex-row items-start md:items-center gap-2"
+                        className="flex flex-col gap-2"
                       >
+                        {item.jenis_layanan === "service_langsung" && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-gray-400 uppercase">Tipe:</span>
+                            {(["jasa", "sparepart"] as const).map((m) => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => {
+                                  setSkuMode((prev) => ({
+                                    ...prev,
+                                    [`${itemIdx}-${skuIdx}`]: m,
+                                  }));
+                                  if (m === "jasa") {
+                                    updateSku(itemIdx, skuIdx, "inventory_id", null);
+                                  }
+                                }}
+                                aria-pressed={getSkuMode(itemIdx, skuIdx) === m}
+                                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                  getSkuMode(itemIdx, skuIdx) === m
+                                    ? m === "sparepart"
+                                      ? "bg-purple-600 border-purple-600 text-white"
+                                      : "bg-blue-600 border-blue-600 text-white"
+                                    : "border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-400 dark:hover:border-white/30"
+                                }`}
+                              >
+                                {m === "jasa" ? "Jasa" : "Sparepart"}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
                         {item.jenis_layanan === "service_langsung" ? (
-                          <ServiceCatalogPicker
-                            skuValue={sku.sku}
-                            nominalValue={sku.nominal}
-                            onChange={(skuName, nominal) => {
-                              updateSku(itemIdx, skuIdx, "sku", skuName);
-                              updateSku(itemIdx, skuIdx, "nominal", String(nominal));
-                            }}
-                          />
+                          getSkuMode(itemIdx, skuIdx) === "sparepart" ? (
+                            <SparepartPicker
+                              branchId={stockBranchId}
+                              itemClass="sparepart"
+                              accentCls="border-purple-200 dark:border-purple-800 focus:ring-purple-500/20"
+                              value={(sku.inventory_id as string | null | undefined) ?? null}
+                              onSelect={(opt) => {
+                                if (!opt) return;
+                                updateSku(itemIdx, skuIdx, "inventory_id", opt.id);
+                                updateSku(itemIdx, skuIdx, "sku", opt.sku || opt.item_name);
+                                updateSku(itemIdx, skuIdx, "nominal", String(opt.price || opt.buy_price || 0));
+                              }}
+                            />
+                          ) : (
+                            <ServiceCatalogPicker
+                              skuValue={sku.sku}
+                              nominalValue={sku.nominal}
+                              onChange={(skuName, nominal) => {
+                                updateSku(itemIdx, skuIdx, "inventory_id", null);
+                                updateSku(itemIdx, skuIdx, "sku", skuName);
+                                updateSku(itemIdx, skuIdx, "nominal", String(nominal));
+                              }}
+                            />
+                          )
                         ) : (
                           <>
                             <input
@@ -1366,20 +1473,22 @@ export default memo(function LayananForm({
                           <button
                             type="button"
                             onClick={() => removeSku(itemIdx, skuIdx)}
-                            className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors self-start md:self-center"
+                            className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors self-start md:self-center w-fit"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => addSku(itemIdx)}
-                      className="flex items-center justify-center gap-1 w-full px-3 py-1.5 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
-                    >
-                      <Plus className="w-3 h-3" /> Tambah SKU
-                    </button>
+                    {item.jenis_layanan !== "beli_jam" && (
+                      <button
+                        type="button"
+                        onClick={() => addSku(itemIdx)}
+                        className="flex items-center justify-center gap-1 w-full px-3 py-1.5 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
+                      >
+                        <Plus className="w-3 h-3" /> Tambah SKU
+                      </button>
+                    )}
                   </div>
 
                   <textarea
