@@ -706,10 +706,12 @@ export default memo(function LayananForm({
       const metodeLabel =
         metodePembayaranOptions.find((o) => o.value === metodePembayaran)
           ?.label || metodePembayaran;
-      const allSkusForCaption = items
-        .flatMap((item) => item.skus.map((s) => s.sku))
-        .filter(Boolean)
-        .join(", ");
+      const skuLines = items
+        .flatMap((item) => item.skus)
+        .filter((s) => s.sku);
+      const allSkusForCaption = skuLines.length > 0
+        ? "\n" + skuLines.map((s, i) => `sku ${i + 1} : ${s.sku} = Rp ${(s.nominal || 0).toLocaleString("id-ID")}`).join("\n")
+        : "";
       const allNotesForCaption = items
         .map((item) => item.notes)
         .filter(Boolean)
@@ -724,7 +726,7 @@ export default memo(function LayananForm({
         metodePembayaran === "split_payment"
           ? `💳 SPLIT PAYMENT\n  ► ${splitMetodeOptions.find((o) => o.value === splitPayment.metode_1)?.label || splitPayment.metode_1}: Rp ${(parseInt(splitPayment.nominal_1) || 0).toLocaleString("id-ID")}\n  ► ${splitMetodeOptions.find((o) => o.value === splitPayment.metode_2)?.label || splitPayment.metode_2}: Rp ${(parseInt(derivedNominal2) || 0).toLocaleString("id-ID")}\n  💰 Total: Rp ${total.toLocaleString("id-ID")}`
           : `💰 Nominal: Rp ${total.toLocaleString("id-ID")}\n💳 Metode: ${metodeLabel}`,
-        allSkusForCaption ? `\n📋 SKU: ${allSkusForCaption}` : "",
+        allSkusForCaption ? `📋 SKU: ${allSkusForCaption}` : "",
         allNotesForCaption ? `\n📝 Keterangan: ${allNotesForCaption}` : "",
         `\n👤 Operator: ${selectedUser?.full_name || user?.full_name}`,
         `\n⏰ ${fmtDateTime}`,
