@@ -22,8 +22,11 @@ import {
 
 interface SparepartEntry {
   key: string;
-  option: StoreStockOption | null;
+  sku: string;
+  nominal: number;
+  inventoryId: string | null;
   quantity: number;
+  option: StoreStockOption | null;
 }
 
 interface AddSparepartModalProps {
@@ -33,8 +36,6 @@ interface AddSparepartModalProps {
   onSuccess: () => void;
 }
 
-// Keputusan final #3/#4: sparepart oleh teknisi WAJIB dari stok cabang
-// tempat service berada — tidak ada input nama/harga manual.
 export default function AddSparepartModal({
   isOpen,
   onClose,
@@ -42,7 +43,7 @@ export default function AddSparepartModal({
   onSuccess,
 }: AddSparepartModalProps) {
   const [entries, setEntries] = useState<SparepartEntry[]>([
-    { key: "e1", option: null, quantity: 1 },
+    { key: "e1", sku: "", nominal: 0, inventoryId: null, quantity: 1, option: null },
   ]);
   const [stock, setStock] = useState<StoreStockOption[]>([]);
   const [query, setQuery] = useState("");
@@ -81,7 +82,7 @@ export default function AddSparepartModal({
 
   useEffect(() => {
     if (isOpen) {
-      setEntries([{ key: `e${Date.now()}`, option: null, quantity: 1 }]);
+      setEntries([{ key: `e${Date.now()}`, sku: "", nominal: 0, inventoryId: null, quantity: 1, option: null }]);
       setQuery("");
       setSuccess(false);
     }
@@ -90,7 +91,7 @@ export default function AddSparepartModal({
   const addRow = () =>
     setEntries([
       ...entries,
-      { key: `e${Date.now()}`, option: null, quantity: 1 },
+      { key: `e${Date.now()}`, sku: "", nominal: 0, inventoryId: null, quantity: 1, option: null },
     ]);
 
   const updateEntry = (key: string, patch: Partial<SparepartEntry>) =>
@@ -102,15 +103,15 @@ export default function AddSparepartModal({
   };
 
   const handleSave = async () => {
-    const valid = entries.filter((e) => e.option && e.quantity > 0);
+    const valid = entries.filter((e) => e.sku && e.quantity > 0 && (e.nominal > 0 || e.inventoryId));
     if (valid.length === 0) {
-      toast.error("Tambahkan minimal 1 sparepart dari stok");
+      toast.error("Tambahkan minimal 1 sparepart");
       return;
     }
     for (const e of valid) {
-      if ((e.option?.quantity ?? 0) < e.quantity) {
+      if (e.inventoryId && e.option && (e.option.quantity ?? 0) < e.quantity) {
         toast.error(
-          `Stok ${e.option?.item_name} tidak cukup (tersedia ${e.option?.quantity})`,
+          `Stok ${e.option.item_name} tidak cukup (tersedia ${e.option.quantity})`,
         );
         return;
       }
@@ -120,11 +121,11 @@ export default function AddSparepartModal({
     try {
       const items = valid.map((e) => ({
         service_order_id: service.id,
-        name: e.option!.item_name,
+        name: e.sku,
         quantity: e.quantity,
-        price: e.option!.price || e.option!.buy_price || 0,
+        price: e.inventoryId ? (e.option!.price || e.option!.buy_price || 0) : e.nominal,
         item_type: "sparepart" as const,
-        inventory_id: e.option!.id,
+        inventory_id: e.inventoryId,
       }));
 
       const { data: inserted, error: insertError } = await supabase
@@ -133,45 +134,46 @@ export default function AddSparepartModal({
         .select();
       if (insertError) throw insertError;
 
-      // Potong stok per baris; gagal di tengah -> kompensasi penuh agar
-      // tidak ada state setengah jadi.
-      const applied: Array<{ id: string; delta: number }> = [];
-      try {
-        for (const e of valid) {
-          await adjustStoreStock(supabase, {
-            inventoryId: e.option!.id,
-            branchId,
-            delta: -e.quantity,
-            source: "technician",
-            reason: `Sparepart service ${service.invoice_number ?? ""}`.trim(),
-            refType: "service_item",
-            refId: inserted?.[valid.indexOf(e)]?.id,
-          });
-          applied.push({ id: e.option!.id, delta: -e.quantity });
+      const catalogItems = valid.filter((e) => e.inventoryId);
+      if (catalogItems.length > 0) {
+        const applied: Array<{ id: string; delta: number }> = [];
+        try {
+          for (const e of catalogItems) {
+            await adjustStoreStock(supabase, {
+              inventoryId: e.inventoryId!,
+              branchId,
+              delta: -e.quantity,
+              source: "technician",
+              reason: `Sparepart service ${service.invoice_number ?? ""}`.trim(),
+              refType: "service_item",
+              refId: inserted?.[valid.indexOf(e)]?.id,
+            });
+            applied.push({ id: e.inventoryId!, delta: -e.quantity });
+          }
+        } catch (stockErr: any) {
+          for (const a of applied) {
+            await adjustStoreStock(supabase, {
+              inventoryId: a.id,
+              branchId,
+              delta: -a.delta,
+              source: "technician",
+              reason: "Kompensasi gagal simpan sparepart",
+            }).catch(() => {});
+          }
+          if (inserted?.length) {
+            await supabase
+              .from("service_items")
+              .delete()
+              .in("id", inserted.map((r: any) => r.id));
+          }
+          throw new Error(stockErr?.message || "Gagal memotong stok");
         }
-      } catch (stockErr: any) {
-        for (const a of applied) {
-          await adjustStoreStock(supabase, {
-            inventoryId: a.id,
-            branchId,
-            delta: -a.delta,
-            source: "technician",
-            reason: "Kompensasi gagal simpan sparepart",
-          }).catch(() => {});
-        }
-        if (inserted?.length) {
-          await supabase
-            .from("service_items")
-            .delete()
-            .in("id", inserted.map((r: any) => r.id));
-        }
-        throw new Error(stockErr?.message || "Gagal memotong stok");
       }
 
       const sparepartDesc = valid
         .map(
           (e) =>
-            `• ${e.option!.item_name} (${e.quantity}x)`,
+            `• ${e.sku} (${e.quantity}x)${e.inventoryId ? "" : " [manual]"}`,
         )
         .join("\n");
       await supabase.from("service_timeline").insert({
@@ -182,15 +184,15 @@ export default function AddSparepartModal({
         details: {
           action: "add_sparepart",
           spareparts: valid.map((e) => ({
-            inventory_id: e.option!.id,
-            name: e.option!.item_name,
+            inventory_id: e.inventoryId,
+            name: e.sku,
             qty: e.quantity,
-            price: e.option!.price || e.option!.buy_price || 0,
+            price: e.inventoryId ? (e.option!.price || e.option!.buy_price || 0) : e.nominal,
           })),
           total_sparepart_cost: valid.reduce(
             (sum, e) =>
               sum +
-              (e.option!.price || e.option!.buy_price || 0) * e.quantity,
+              (e.inventoryId ? (e.option!.price || e.option!.buy_price || 0) : e.nominal) * e.quantity,
             0,
           ),
         },
@@ -232,7 +234,7 @@ export default function AddSparepartModal({
                 Tambah Sparepart
               </h2>
               <p className="text-xs text-[var(--color-text-secondary)]">
-                Dari stok cabang · {service?.invoice_number}
+                Stok cabang / manual · {service?.invoice_number}
               </p>
             </div>
           </div>
@@ -271,17 +273,16 @@ export default function AddSparepartModal({
                 <div className="py-8 text-center text-sm text-slate-400 flex items-center justify-center gap-2">
                   <Loader className="w-4 h-4 animate-spin" /> Memuat stok...
                 </div>
-              ) : stock.length === 0 ? (
-                <div className="py-6 text-center text-sm text-slate-400 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
-                  Tidak ada sparepart tersedia di stok cabang ini.
-                  <br />
-                  <span className="text-xs">
-                    Lakukan restock via menu Inventaris atau Request PO.
-                  </span>
-                </div>
               ) : (
                 <div className="space-y-2">
-                  {entries.map((entry, i) => (
+                  {entries.map((entry, i) => {
+                    const matches = query.trim()
+                      ? stock.filter((s) =>
+                          s.item_name.toLowerCase().includes(query.toLowerCase()) ||
+                          (s.sku && s.sku.toLowerCase().includes(query.toLowerCase()))
+                        ).slice(0, 20)
+                      : stock.slice(0, 20);
+                    return (
                     <div
                       key={entry.key}
                       className="p-3 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] space-y-2"
@@ -299,52 +300,112 @@ export default function AddSparepartModal({
                           </button>
                         )}
                       </div>
-                      <select
-                        value={entry.option?.id ?? ""}
-                        onChange={(e) => {
-                          const opt =
-                            stock.find((s) => s.id === e.target.value) ?? null;
-                          updateEntry(entry.key, { option: opt });
-                        }}
-                        className="w-full px-3 py-2 text-sm bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-[var(--color-accent)]"
-                      >
-                        <option value="">— Pilih sparepart —</option>
-                        {stock.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.item_name} — stok {s.quantity} —{" "}
-                            Rp {(s.price || s.buy_price || 0).toLocaleString("id-ID")}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                         <input
-                          type="number"
-                          min={1}
-                          max={entry.option?.quantity ?? undefined}
-                          value={entry.quantity || ""}
-                          onChange={(e) =>
+                          type="text"
+                          value={entry.sku}
+                          onChange={(e) => {
                             updateEntry(entry.key, {
-                              quantity: Math.max(
-                                1,
-                                parseInt(e.target.value) || 1,
-                              ),
-                            })
-                          }
-                          placeholder={`Qty (max ${entry.option?.quantity ?? "-"})`}
-                          className="w-full px-3 py-1.5 text-sm bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl focus:outline-none text-center"
+                              sku: e.target.value,
+                              option: null,
+                              inventoryId: null,
+                              nominal: 0,
+                            });
+                            setQuery(e.target.value);
+                          }}
+                          onFocus={() => setQuery(entry.sku)}
+                          placeholder="Cari sparepart (nama / SKU)..."
+                          className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-[var(--color-accent)]"
                         />
-                        <div className="px-3 py-1.5 text-sm text-right text-slate-500 dark:text-slate-300 bg-black/[0.03] dark:bg-white/5 rounded-xl">
-                          Harga otomatis dari stok
-                        </div>
+                        {entry.sku && matches.length > 0 && !entry.option && (
+                          <div className="absolute z-30 mt-1 w-full bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                            {matches.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => {
+                                  updateEntry(entry.key, {
+                                    sku: s.sku || s.item_name,
+                                    option: s,
+                                    inventoryId: s.id,
+                                    nominal: s.price || s.buy_price || 0,
+                                  });
+                                  setQuery("");
+                                }}
+                                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                              >
+                                <span className="text-sm text-gray-800 dark:text-gray-200 truncate">
+                                  {s.item_name}
+                                </span>
+                                <span className="text-xs font-semibold text-gray-500 flex-shrink-0">
+                                  stok {s.quantity}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {entry.option &&
+                      {entry.inventoryId ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            max={entry.option?.quantity ?? undefined}
+                            value={entry.quantity || ""}
+                            onChange={(e) =>
+                              updateEntry(entry.key, {
+                                quantity: Math.max(1, parseInt(e.target.value) || 1),
+                              })
+                            }
+                            placeholder={`Qty (max ${entry.option?.quantity ?? "-"})`}
+                            className="w-full px-3 py-1.5 text-sm bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl focus:outline-none text-center"
+                          />
+                          <div className="px-3 py-1.5 text-sm text-right text-slate-500 dark:text-slate-300 bg-black/[0.03] dark:bg-white/5 rounded-xl">
+                            Rp {(entry.nominal || 0).toLocaleString("id-ID")}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            value={entry.quantity || ""}
+                            onChange={(e) =>
+                              updateEntry(entry.key, {
+                                quantity: Math.max(1, parseInt(e.target.value) || 1),
+                              })
+                            }
+                            placeholder="Qty"
+                            className="w-full px-3 py-1.5 text-sm bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl focus:outline-none text-center"
+                          />
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">Rp</span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={entry.nominal || ""}
+                              onChange={(e) =>
+                                updateEntry(entry.key, {
+                                  nominal: parseInt(e.target.value.replace(/\D/g, "")) || 0,
+                                })
+                              }
+                              placeholder="Harga"
+                              className="w-full pl-7 pr-2 py-1.5 text-sm bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl focus:outline-none text-right"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {entry.inventoryId &&
+                        entry.option &&
                         entry.quantity > entry.option.quantity && (
                           <p className="text-[11px] text-red-500">
                             Qty melebihi stok (tersedia {entry.option.quantity})
                           </p>
                         )}
                     </div>
-                  ))}
+                  );
+                  })}
 
                   <button
                     onClick={addRow}
@@ -371,7 +432,7 @@ export default function AddSparepartModal({
               disabled={
                 loading ||
                 loadingStock ||
-                entries.every((e) => !e.option)
+                entries.every((e) => !e.sku)
               }
               className="flex-1 bg-purple-600 text-white font-medium px-4 py-2.5 rounded-xl hover:bg-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
             >
