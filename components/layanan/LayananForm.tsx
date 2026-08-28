@@ -644,23 +644,24 @@ export default memo(function LayananForm({
       toast.error("Transaksi sedang diproses...");
       return;
     }
-    // Validasi stok: baris Sparepart/Jam wajib memilih item dari stok cabang
+    // Validasi stok: baris Sparepart/Jam wajib memiliki SKU.
+    // Manual SKU (inventory_id = null) diperbolehkan selama SKU terisi.
     if (!initialData?.id) {
       const missing: string[] = [];
       items.forEach((it, idx) => {
         it.skus.forEach((s, j) => {
-          const needStock =
+          const needSku =
             it.jenis_layanan === "beli_jam" ||
             (it.jenis_layanan === "service_langsung" &&
               getSkuMode(idx, j) === "sparepart");
-          if (needStock && !s.inventory_id) {
+          if (needSku && !s.sku) {
             missing.push(`Item #${idx + 1} SKU #${j + 1}`);
           }
         });
       });
       if (missing.length > 0) {
         toast.error(
-          "Pilih sparepart/jam dari stok cabang untuk: " + missing.join(", "),
+          "Masukkan SKU untuk: " + missing.join(", "),
         );
         return;
       }
