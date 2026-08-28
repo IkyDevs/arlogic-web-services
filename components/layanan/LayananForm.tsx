@@ -121,9 +121,9 @@ export default memo(function LayananForm({
   const [uploadKey] = useState(() => (initialData as any)?.upload_session_key || `layanan_${user?.id || 'anon'}_${Date.now()}`)
   const upload = useCentralUpload(uploadKey);
   const { activeBranch } = useBranch();
-  // Tipe baris SKU utk service_langsung: jasa (default) | sparepart | custom
+  // Tipe baris SKU utk service_langsung: jasa (default) | sparepart
   const [skuMode, setSkuMode] = useState<
-    Record<string, "jasa" | "sparepart" | "custom">
+    Record<string, "jasa" | "sparepart">
   >({});
   const createTx = useTransactionStore((s) => s.create);
   const updateTx = useTransactionStore((s) => s.update);
@@ -244,7 +244,7 @@ export default memo(function LayananForm({
   // Cabang sumber stok utk picker Sparepart/Jam (admin cabang terkunci di cabangnya)
   const stockBranchId = user?.branch_id ?? (activeBranch as any)?.id ?? null;
 
-  const getSkuMode = (i: number, j: number): "jasa" | "sparepart" | "custom" =>
+  const getSkuMode = (i: number, j: number): "jasa" | "sparepart" =>
     skuMode[`${i}-${j}`] ?? "jasa";
 
   const derivedNominal2 = useMemo(() => {
@@ -1325,12 +1325,12 @@ export default memo(function LayananForm({
                       <SparepartPicker
                         branchId={stockBranchId}
                         itemClass="jam"
-                        value={(item.skus[0]?.inventory_id as string | null | undefined) ?? null}
-                        onSelect={(opt) => {
-                          if (!opt) return;
-                          updateSku(itemIdx, 0, "inventory_id", opt.id);
-                          updateSku(itemIdx, 0, "sku", opt.sku || opt.item_name);
-                          updateSku(itemIdx, 0, "nominal", String(opt.price || opt.buy_price || 0));
+                        skuValue={item.skus[0]?.sku || ""}
+                        nominalValue={item.skus[0]?.nominal || ""}
+                        onChange={(skuName, nominal, inventoryId) => {
+                          updateSku(itemIdx, 0, "inventory_id", inventoryId);
+                          updateSku(itemIdx, 0, "sku", skuName);
+                          updateSku(itemIdx, 0, "nominal", String(nominal));
                         }}
                         placeholder="Cari jam dari stok cabang..."
                       />
@@ -1388,7 +1388,7 @@ export default memo(function LayananForm({
                         {item.jenis_layanan === "service_langsung" && (
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-semibold text-gray-400 uppercase">Tipe:</span>
-                            {(["jasa", "sparepart", "custom"] as const).map((m) => (
+                            {(["jasa", "sparepart"] as const).map((m) => (
                               <button
                                 key={m}
                                 type="button"
@@ -1406,13 +1406,11 @@ export default memo(function LayananForm({
                                   getSkuMode(itemIdx, skuIdx) === m
                                     ? m === "sparepart"
                                       ? "bg-purple-600 border-purple-600 text-white"
-                                      : m === "custom"
-                                        ? "bg-amber-500 border-amber-500 text-white"
-                                        : "bg-blue-600 border-blue-600 text-white"
+                                      : "bg-blue-600 border-blue-600 text-white"
                                     : "border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-400 dark:hover:border-white/30"
                                 }`}
                               >
-                                {m === "jasa" ? "Jasa" : m === "sparepart" ? "Sparepart" : "Custom"}
+                                {m === "jasa" ? "Jasa" : "Sparepart"}
                               </button>
                             ))}
                           </div>
@@ -1424,43 +1422,14 @@ export default memo(function LayananForm({
                               branchId={stockBranchId}
                               itemClass="sparepart"
                               accentCls="border-purple-200 dark:border-purple-800 focus:ring-purple-500/20"
-                              value={(sku.inventory_id as string | null | undefined) ?? null}
-                              onSelect={(opt) => {
-                                if (!opt) return;
-                                updateSku(itemIdx, skuIdx, "inventory_id", opt.id);
-                                updateSku(itemIdx, skuIdx, "sku", opt.sku || opt.item_name);
-                                updateSku(itemIdx, skuIdx, "nominal", String(opt.price || opt.buy_price || 0));
+                              skuValue={sku.sku}
+                              nominalValue={sku.nominal}
+                              onChange={(skuName, nominal, inventoryId) => {
+                                updateSku(itemIdx, skuIdx, "inventory_id", inventoryId);
+                                updateSku(itemIdx, skuIdx, "sku", skuName);
+                                updateSku(itemIdx, skuIdx, "nominal", String(nominal));
                               }}
                             />
-                          ) : getSkuMode(itemIdx, skuIdx) === "custom" ? (
-                            <>
-                              <input
-                                type="text"
-                                value={sku.sku}
-                                onChange={(e) =>
-                                  updateSku(itemIdx, skuIdx, "sku", e.target.value)
-                                }
-                                placeholder="SKU manual"
-                                className="w-full md:flex-1 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                              />
-                              <div className="relative w-full md:w-32">
-                                <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                                <input
-                                  type="text"
-                                  value={sku.nominal || ""}
-                                  onChange={(e) =>
-                                    updateSku(
-                                      itemIdx,
-                                      skuIdx,
-                                      "nominal",
-                                      e.target.value,
-                                    )
-                                  }
-                                  placeholder="Nominal"
-                                  className="w-full pl-7 pr-2 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm bg-white dark:bg-[#1c1c1c] focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                                />
-                              </div>
-                            </>
                           ) : (
                             <ServiceCatalogPicker
                               skuValue={sku.sku}

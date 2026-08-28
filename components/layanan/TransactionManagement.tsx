@@ -76,9 +76,10 @@ function LoadingSpinner() {
   );
 }
 
-export default function TransactionManagement({ isDark = false, readOnly = false }: { isDark?: boolean; readOnly?: boolean }) {
+export default function TransactionManagement({ isDark = false, readOnly = false, branchId: branchIdProp }: { isDark?: boolean; readOnly?: boolean; branchId?: string | null }) {
   const { transactions, analytics, fetch, loading } = useTransactionStore();
-  const { branchId } = useBranchScope();
+  const scopeBranchId = useBranchScope().branchId;
+  const branchId = branchIdProp ?? scopeBranchId;
   
   // Period filter state
   const [periodValue, setPeriodValue] = useState<PeriodValue>(DEFAULT_PERIOD);
@@ -316,7 +317,7 @@ export default function TransactionManagement({ isDark = false, readOnly = false
             </div>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            <BranchSelector />
+            {!branchIdProp && <BranchSelector />}
             <PeriodFilter
               value={periodValue}
               onChange={handlePeriodChange}

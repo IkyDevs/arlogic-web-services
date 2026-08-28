@@ -85,11 +85,7 @@ export default function ServiceCatalogPicker({
         />
         {open && (
           <div className="absolute z-30 mt-1 w-full bg-white dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 rounded-lg shadow-xl max-h-56 overflow-y-auto">
-            {matches.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-gray-400">
-                Tidak ditemukan di katalog — ketik manual
-              </p>
-            ) : (
+            {matches.length === 0 ? null : (
               matches.map((m) => (
                 <button
                   key={m.name + "-" + m.price}

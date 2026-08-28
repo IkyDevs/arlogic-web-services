@@ -83,10 +83,11 @@ const statusFilterOptions = [
   { value: "cancelled", label: "Dibatalkan" },
 ];
 
-export default function ServiceList({ onAdd, readOnly = false }: { onAdd?: () => void; readOnly?: boolean }) {
+export default function ServiceList({ onAdd, readOnly = false, branchId: branchIdProp }: { onAdd?: () => void; readOnly?: boolean; branchId?: string | null }) {
   const supabase = createClient();
   const { user } = useAuthStore();
-  const { branchId } = useBranchScope();
+  const scopeBranchId = useBranchScope().branchId;
+  const branchId = branchIdProp ?? scopeBranchId;
   const { branches } = useBranch();
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,7 +205,7 @@ export default function ServiceList({ onAdd, readOnly = false }: { onAdd?: () =>
     }
   };
 
-  useEffect(() => { fetchServices(); }, [movementFilter, categoryFilter, statusFilter, branchFilter, brandFilter, teknisiFilter, dateStart, dateEnd, sortField, sortDir]);
+  useEffect(() => { fetchServices(); }, [movementFilter, categoryFilter, statusFilter, branchFilter, branchId, brandFilter, teknisiFilter, dateStart, dateEnd, sortField, sortDir]);
   useEffect(() => { extractCategories(); extractBrands(); extractTeknisi(); }, []);
 
   // Auto-refresh ketika service baru ditambahkan (Add Service)
@@ -216,7 +217,7 @@ export default function ServiceList({ onAdd, readOnly = false }: { onAdd?: () =>
     };
     window.addEventListener("new-service", handler);
     return () => window.removeEventListener("new-service", handler);
-  }, [movementFilter, categoryFilter, statusFilter, branchFilter, brandFilter, teknisiFilter, dateStart, dateEnd, sortField, sortDir, showModal, selectedService]);
+  }, [movementFilter, categoryFilter, statusFilter, branchFilter, branchId, brandFilter, teknisiFilter, dateStart, dateEnd, sortField, sortDir, showModal, selectedService]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchServices(), 300);

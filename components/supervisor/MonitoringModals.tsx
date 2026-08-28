@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useBranch } from "@/lib/context/BranchContext";
 
 const TransactionManagement = dynamic(
   () => import("@/components/layanan/TransactionManagement"),
@@ -31,21 +30,6 @@ interface MonitoringModalProps {
   open: boolean;
   branch: ModalBranch;
   onClose: () => void;
-}
-
-function useBranchScopeSwap(open: boolean, branchId: string | null) {
-  const { activeBranchId, setActiveBranchId } = useBranch();
-  useEffect(() => {
-    if (!open) return;
-    const prev = activeBranchId;
-    setActiveBranchId(branchId);
-    return () => {
-      setActiveBranchId(prev);
-    };
-    // sengaja tidak mengikutkan activeBranchId agar restore memakai nilai
-    // saat modal dibuka (nilai di dalam modal boleh berubah lewat selector).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, branchId, setActiveBranchId]);
 }
 
 function MonitoringModalShell({
@@ -118,7 +102,6 @@ export function SupervisorTransactionsModal({
   branch,
   onClose,
 }: MonitoringModalProps) {
-  useBranchScopeSwap(open, branch.id);
   return (
     <MonitoringModalShell
       open={open}
@@ -126,7 +109,7 @@ export function SupervisorTransactionsModal({
       subtitle="Read-only · klik item untuk detail lengkap"
       onClose={onClose}
     >
-      <TransactionManagement readOnly />
+      <TransactionManagement readOnly branchId={branch.id} />
     </MonitoringModalShell>
   );
 }
@@ -136,7 +119,6 @@ export function SupervisorServicesModal({
   branch,
   onClose,
 }: MonitoringModalProps) {
-  useBranchScopeSwap(open, branch.id);
   return (
     <MonitoringModalShell
       open={open}
@@ -144,7 +126,7 @@ export function SupervisorServicesModal({
       subtitle="Read-only · klik baris untuk Detail Service"
       onClose={onClose}
     >
-      <ServiceList readOnly />
+      <ServiceList readOnly branchId={branch.id} />
     </MonitoringModalShell>
   );
 }
