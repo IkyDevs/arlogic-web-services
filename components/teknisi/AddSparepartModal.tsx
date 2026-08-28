@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/stores/authStore";
 import { motion } from "framer-motion";
@@ -47,38 +47,50 @@ export default function AddSparepartModal({
   ]);
   const [stock, setStock] = useState<StoreStockOption[]>([]);
   const [query, setQuery] = useState("");
-  const [loadingStock, setLoadingStock] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const supabase = createClient();
   const { user } = useAuthStore();
+  const requestIdRef = useRef(0);
 
   const branchId = (service?.branch_id ?? null) as string | null;
 
-  useEffect(() => {
-    if (!isOpen || !branchId) return;
-    let alive = true;
-    setLoadingStock(true);
-    const t = setTimeout(async () => {
+  const fetchStock = useCallback(
+    async (q: string, reqId: number) => {
+      if (!branchId) return;
       try {
         const rows = await searchStoreStock(supabase, {
           branchId,
           itemClass: "sparepart",
-          query,
+          query: q,
         });
-        if (alive) setStock(rows);
+        if (requestIdRef.current === reqId) setStock(rows);
       } catch (e) {
         console.error("[inventory] gagal muat stok cabang", e);
       } finally {
-        if (alive) setLoadingStock(false);
+        if (requestIdRef.current === reqId) {
+          setInitialLoading(false);
+        }
       }
-    }, 250);
-    return () => {
-      alive = false;
-      clearTimeout(t);
-    };
+    },
+    [supabase, branchId],
+  );
+
+  useEffect(() => {
+    if (!isOpen || !branchId) return;
+    const reqId = ++requestIdRef.current;
+    const t = setTimeout(() => fetchStock(query, reqId), 250);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, branchId, query]);
+
+  useEffect(() => {
+    if (!isOpen || !branchId) return;
+    const reqId = ++requestIdRef.current;
+    setInitialLoading(true);
+    fetchStock("", reqId);
+  }, [isOpen, branchId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -258,30 +270,14 @@ export default function AddSparepartModal({
             </div>
           ) : (
             <>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari sparepart (nama / SKU)..."
-                  className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-[var(--color-accent)]"
-                />
-              </div>
-
-              {loadingStock ? (
-                <div className="py-8 text-center text-sm text-slate-400 flex items-center justify-center gap-2">
-                  <Loader className="w-4 h-4 animate-spin" /> Memuat stok...
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {entries.map((entry, i) => {
-                    const matches = query.trim()
-                      ? stock.filter((s) =>
-                          s.item_name.toLowerCase().includes(query.toLowerCase()) ||
-                          (s.sku && s.sku.toLowerCase().includes(query.toLowerCase()))
-                        ).slice(0, 20)
-                      : stock.slice(0, 20);
+              <div className="space-y-2">
+                {entries.map((entry, i) => {
+                  const matches = entry.sku.trim()
+                    ? stock.filter((s) =>
+                        s.item_name.toLowerCase().includes(entry.sku.toLowerCase()) ||
+                        (s.sku && s.sku.toLowerCase().includes(entry.sku.toLowerCase()))
+                      ).slice(0, 20)
+                    : stock.slice(0, 20);
                     return (
                     <div
                       key={entry.key}
@@ -414,7 +410,6 @@ export default function AddSparepartModal({
                     <Plus className="w-3.5 h-3.5" /> Tambah Baris
                   </button>
                 </div>
-              )}
             </>
           )}
         </div>
@@ -431,7 +426,6 @@ export default function AddSparepartModal({
               onClick={handleSave}
               disabled={
                 loading ||
-                loadingStock ||
                 entries.every((e) => !e.sku)
               }
               className="flex-1 bg-purple-600 text-white font-medium px-4 py-2.5 rounded-xl hover:bg-purple-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
