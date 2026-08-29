@@ -182,9 +182,37 @@
 | `buy_price`         | `numeric`     | Nullable    |
 | `item_class`        | `text`        | NOT NULL DEFAULT 'sparepart' *(migrasi 20260825; 'sparepart'\|'jam')* |
 
-## Table `stock_movements` *(baru — migrasi 20260826)*
+## Table `stock_movements` *(baru — migrasi 20260826, extended T002)*
 
-Ledger audit semua perubahan stok (source/actor/delta/result). Ditulis eksklusif oleh RPC `adjust_store_stock` / `adjust_warehouse_stock`. Select: owner/engineer/admin_gudang/supervisor.
+Ledger audit immutable untuk semua perubahan stok. Ditulis eksklusif oleh RPC.
+
+### Columns
+
+| Name            | Type          | Constraints |
+| --------------- | ------------- | ----------- |
+| `id`            | `uuid`        | Primary     |
+| `created_at`    | `timestamptz` | NOT NULL DEFAULT now() |
+| `source`        | `text`        | NOT NULL |
+| `actor`         | `uuid`        | Nullable    |
+| `branch_id`     | `uuid`        | Nullable    |
+| `inventory_id`  | `uuid`        | NOT NULL    |
+| `delta`         | `int4`        | NOT NULL    |
+| `result_quantity`| `int4`       | Nullable    |
+| `reason`        | `text`        | Nullable    |
+| `ref_type`      | `text`        | Nullable    |
+| `ref_id`        | `uuid`        | Nullable    |
+| `movement_type` | `text`        | Nullable (T002: CHECK constraint) |
+
+### Constraints (T002)
+
+- `chk_movement_type`: movement_type IS NULL OR IN ('ADJUSTMENT', 'USAGE', 'TRANSFER_OUT', 'TRANSFER_IN', 'TRANSFER_REVERSAL_OUT', 'TRANSFER_REVERSAL_IN')
+- `uq_stock_movements_ref`: UNIQUE (ref_type, ref_id, movement_type) — enforces idempotency
+
+### Immutability
+
+- No INSERT/UPDATE/DELETE RLS policies
+- REVOKE INSERT, UPDATE, DELETE FROM authenticated
+- Only SECURITY DEFINER RPCs can write
 
 ## Table `categories`
 
@@ -1221,3 +1249,57 @@ Many-to-many: Stock Item ↔ Supplier.
 | `stock_item_suppliers_select_authenticated`| SELECT | authenticated| PERMISSIVE | `true`                        | —                                  |
 | `stock_item_suppliers_insert_management`| INSERT | authenticated| PERMISSIVE | —                               | `public.auth_can_manage_all_stocks()` |
 | `stock_item_suppliers_delete_management`| DELETE | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()` | —                                  |
+
+---
+
+## T002: Inventory Movement Engine *(migration 20260830)*
+
+Centralized mutation engine for canonical inventory tables. This is the ONLY canonical application-level mechanism allowed to mutate `stock_balances` quantities.
+
+### RPCs
+
+| RPC | Purpose | Visibility | Movement Type |
+|-----|---------|------------|---------------|
+| `adjust_stock()` | Physical stock mutation (ADJUSTMENT) | Public | ADJUSTMENT |
+| `use_stock()` | Physical stock mutation (USAGE) | Public | USAGE |
+| `reserve_stock()` | Create reservation | Public | — |
+| `release_reservation()` | Release reservation | Public | — |
+| `execute_transfer_approval()` | Atomic two-balance transfer | Internal | TRANSFER_OUT + TRANSFER_IN |
+
+### Error Codes
+
+| Code | Message |
+|------|---------|
+| `INSUFFICIENT_STOCK` | Stok tidak mencukupi |
+| `INSUFFICIENT_AVAILABLE` | Stok tersedia tidak mencukupi |
+| `BALANCE_NOT_FOUND` | Balance tidak ditemukan |
+| `FORBIDDEN` | Tidak berwenang |
+| `FORBIDDEN_BRANCH` | Tidak berwenang untuk cabang ini |
+| `DUPLICATE_MOVEMENT` | Operasi sudah pernah dilakukan |
+| `INVALID_QUANTITY` | Quantity harus positif |
+| `INVALID_DELTA` | Delta tidak valid |
+| `INVALID_ITEM` | Item tidak valid |
+| `INVALID_LOCATION` | Location tidak valid |
+| `INVALID_REFERENCE` | Reference tidak valid |
+| `TRANSFER_SAME_LOCATION` | Source dan destination tidak boleh sama |
+
+### Authorization Matrix
+
+| Role | adjust_stock | use_stock | reserve_stock | release_reservation | execute_transfer_approval |
+|------|--------------|-----------|---------------|---------------------|---------------------------|
+| owner | ✅ all | ✅ all | ✅ all | ✅ all | ✅ all |
+| admin_gudang | ✅ all | ✅ all | ✅ all | ✅ all | ✅ all |
+| admin (own branch) | ✅ own | ✅ own | ✅ own | ✅ own | ❌ |
+| engineer | ❌ | ❌ | ❌ | ❌ | ❌ |
+| supervisor | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+### Concurrency Protection
+
+- `FOR UPDATE` row locking on `stock_balances`
+- Deterministic lock ordering for multi-balance operations (UUID comparison)
+- Prevents deadlock regardless of transfer direction
+
+### Idempotency
+
+- Unique constraint: `uq_stock_movements_ref` on `(ref_type, ref_id, movement_type)`
+- Duplicate requests rejected with `DUPLICATE_MOVEMENT` error

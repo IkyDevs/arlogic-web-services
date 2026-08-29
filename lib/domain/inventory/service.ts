@@ -1,10 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { mapDatabaseError } from "./errors";
 
 // ─── Inventory Domain Service (Single Source of Truth) ─────────────
 // Semua perubahan stok WAJIB lewat sini -> RPC Postgres atomik
 // (adjust_store_stock / adjust_warehouse_stock). RPC menegakkan
 // otorisasi role/cabang, anti-minus, dual-write kolom legacy, dan
 // mencatat stock_movements.
+//
+// T002: Canonical movement engine RPCs:
+//   adjustStock()            -> ADJUSTMENT only
+//   useStock()               -> USAGE only
+//   reserveStock()           -> reservation creation
+//   releaseReservation()     -> reservation release
+//   executeTransferApproval() -> internal atomic transfer
 
 export type StockSource =
   | "web_app"
@@ -261,6 +269,181 @@ export async function compensateUsageDeltas(
 }
 
 // ─── Pure helpers (unit-testable) ───────────────────────────────────
+
+// ─── T002: Canonical Movement Engine RPCs ─────────────────────────
+
+export type CanonicalMovementSource =
+  | "web_app"
+  | "service_transaction"
+  | "transfer"
+  | "adjustment"
+  | "import";
+
+export interface CanonicalStockAdjust {
+  stockItemId: string;
+  locationId: string;
+  delta: number;
+  source: CanonicalMovementSource;
+  reason: string;
+  refType: string;
+  refId: string;
+}
+
+/**
+ * Physical stock mutation: ADJUSTMENT only.
+ * Creates movement record with movement_type = 'ADJUSTMENT'.
+ * Returns new physical_quantity.
+ */
+export async function adjustStock(
+  supabase: SupabaseClient,
+  a: CanonicalStockAdjust,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("adjust_stock", {
+    p_stock_item_id: a.stockItemId,
+    p_location_id: a.locationId,
+    p_delta: a.delta,
+    p_source: a.source,
+    p_reason: a.reason,
+    p_ref_type: a.refType,
+    p_ref_id: a.refId,
+  });
+  if (error) throw mapDatabaseError(error);
+  return Number(data ?? 0);
+}
+
+export interface UseStockParams {
+  stockItemId: string;
+  locationId: string;
+  quantity: number;
+  source: CanonicalMovementSource;
+  reason: string;
+  refType: string;
+  refId: string;
+}
+
+/**
+ * Physical stock mutation: USAGE only.
+ * Consumes stock (quantity must be positive, applied as -delta).
+ * Creates movement record with movement_type = 'USAGE'.
+ * Returns new physical_quantity.
+ */
+export async function useStock(
+  supabase: SupabaseClient,
+  params: UseStockParams,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("use_stock", {
+    p_stock_item_id: params.stockItemId,
+    p_location_id: params.locationId,
+    p_quantity: params.quantity,
+    p_source: params.source,
+    p_reason: params.reason,
+    p_ref_type: params.refType,
+    p_ref_id: params.refId,
+  });
+  if (error) throw mapDatabaseError(error);
+  return Number(data ?? 0);
+}
+
+export interface ReserveStockParams {
+  stockItemId: string;
+  locationId: string;
+  quantity: number;
+  refType: string;
+  refId: string;
+}
+
+/**
+ * Create reservation: reserved_quantity += quantity.
+ * NO movement record (reservation is not physical mutation).
+ * Validates available_quantity >= quantity.
+ * Returns new reserved_quantity.
+ */
+export async function reserveStock(
+  supabase: SupabaseClient,
+  params: ReserveStockParams,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("reserve_stock", {
+    p_stock_item_id: params.stockItemId,
+    p_location_id: params.locationId,
+    p_quantity: params.quantity,
+    p_ref_type: params.refType,
+    p_ref_id: params.refId,
+  });
+  if (error) throw mapDatabaseError(error);
+  return Number(data ?? 0);
+}
+
+export interface ReleaseReservationParams {
+  stockItemId: string;
+  locationId: string;
+  quantity: number;
+  refType: string;
+  refId: string;
+}
+
+/**
+ * Release reservation: reserved_quantity -= quantity.
+ * NO movement record (reservation release is not physical mutation).
+ * Returns new reserved_quantity.
+ */
+export async function releaseReservation(
+  supabase: SupabaseClient,
+  params: ReleaseReservationParams,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("release_reservation", {
+    p_stock_item_id: params.stockItemId,
+    p_location_id: params.locationId,
+    p_quantity: params.quantity,
+    p_ref_type: params.refType,
+    p_ref_id: params.refId,
+  });
+  if (error) throw mapDatabaseError(error);
+  return Number(data ?? 0);
+}
+
+export interface ExecuteTransferApprovalParams {
+  stockItemId: string;
+  sourceLocationId: string;
+  destLocationId: string;
+  quantity: number;
+  sourceRefType: string;
+  sourceRefId: string;
+  destRefType: string;
+  destRefId: string;
+}
+
+/**
+ * Internal atomic transfer: TRANSFER_OUT (source) + TRANSFER_IN (dest).
+ * Used by future Transfer Approval workflow.
+ * NOT exposed to frontend as general-purpose RPC.
+ *
+ * Atomic steps:
+ *   1. Lock both balances (deterministic UUID order)
+ *   2. Validate source has sufficient available stock
+ *   3. Decrease source physical_quantity
+ *   4. Decrease source reserved_quantity
+ *   5. Increase destination physical_quantity
+ *   6. Create TRANSFER_OUT movement (source)
+ *   7. Create TRANSFER_IN movement (dest)
+ *
+ * If any step fails, EVERYTHING rolls back.
+ */
+export async function executeTransferApproval(
+  supabase: SupabaseClient,
+  params: ExecuteTransferApprovalParams,
+): Promise<void> {
+  const { error } = await supabase.rpc("execute_transfer_approval", {
+    p_stock_item_id: params.stockItemId,
+    p_source_location: params.sourceLocationId,
+    p_dest_location: params.destLocationId,
+    p_quantity: params.quantity,
+    p_source_ref_type: params.sourceRefType,
+    p_source_ref_id: params.sourceRefId,
+    p_dest_ref_type: params.destRefType,
+    p_dest_ref_id: params.destRefId,
+  });
+  if (error) throw mapDatabaseError(error);
+}
 
 export interface InventoryRefLine {
   inventory_id?: string | null;
