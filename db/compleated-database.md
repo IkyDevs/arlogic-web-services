@@ -1303,3 +1303,59 @@ Centralized mutation engine for canonical inventory tables. This is the ONLY can
 
 - Unique constraint: `uq_stock_movements_ref` on `(ref_type, ref_id, movement_type)`
 - Duplicate requests rejected with `DUPLICATE_MOVEMENT` error
+
+---
+
+## T003: Stock Transfer Lifecycle *(migration 20260831)*
+
+Implements the Inventory Transfer business lifecycle: `DRAFT → PENDING → APPROVED / REJECTED`
+
+### Tables
+
+| Table | Purpose |
+|-------|---------|
+| `stock_transfers` | Transfer header (status, locations, actors) |
+| `stock_transfer_items` | Line items (item, requested_quantity) |
+| `stock_transfer_history` | Lifecycle audit trail |
+
+### State Machine
+
+```text
+DRAFT → PENDING → APPROVED / REJECTED
+```
+
+### RPCs
+
+| RPC | Purpose | Visibility |
+|-----|---------|------------|
+| `submit_stock_transfer()` | DRAFT → PENDING (reserves items) | Public |
+| `approve_stock_transfer()` | PENDING → APPROVED (executes transfer) | Management |
+| `reject_stock_transfer()` | PENDING → REJECTED (releases reservations) | Management |
+
+### Authorization Matrix
+
+| Action | owner | admin_gudang | admin (own branch) | engineer | supervisor |
+|--------|-------|--------------|-------------------|----------|------------|
+| Create transfer | ✅ all | ✅ all | ✅ own branch | ✅ own branch | ❌ |
+| Edit DRAFT | ✅ all | ✅ all | ✅ creator only | ✅ creator only | ❌ |
+| Submit transfer | ✅ all | ✅ all | ✅ creator only | ✅ creator only | ❌ |
+| Approve transfer | ✅ all | ✅ all | ❌ | ❌ | ❌ |
+| Reject transfer | ✅ all | ✅ all | ❌ | ❌ | ❌ |
+| View transfer | ✅ all | ✅ all | ✅ own branch | ✅ own branch | ✅ all |
+
+### Error Codes
+
+| Code | Message |
+|------|---------|
+| `TRANSFER_NOT_FOUND` | Transfer tidak ditemukan |
+| `INVALID_TRANSITION` | Transisi status tidak valid |
+| `FORBIDDEN` | Tidak berwenang |
+| `FORBIDDEN_BRANCH` | Tidak berwenang untuk cabang ini |
+| `EMPTY_TRANSFER` | Transfer tidak memiliki item |
+| `INVALID_QUANTITY` | Quantity harus positif |
+| `DUPLICATE_TRANSITION` | Transisi sudah pernah dilakukan |
+| `TRANSFER_TERMINAL` | Transfer sudah dalam status terminal |
+| `CONCURRENT_MODIFICATION` | Data sudah dimodifikasi oleh user lain |
+| `APPROVAL_FAILED` | Persetujuan gagal |
+| `INVALID_LOCATION` | Source dan destination tidak boleh sama |
+| `REJECT_REASON_REQUIRED` | Alasan reject wajib diisi |
