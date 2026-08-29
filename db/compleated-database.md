@@ -797,6 +797,99 @@ Ledger audit semua perubahan stok (source/actor/delta/result). Ditulis eksklusif
 | `quantity`     | `int4`        | Nullable    |
 | `updated_at`   | `timestamptz` | Nullable    |
 
+## Table `suppliers` *(new — migration 20260829)*
+
+### Columns
+
+| Name         | Type          | Constraints |
+| ------------ | ------------- | ----------- |
+| `id`         | `uuid`        | Primary     |
+| `name`       | `text`        | NOT NULL    |
+| `phone`      | `text`        | Nullable    |
+| `email`      | `text`        | Nullable    |
+| `address`    | `text`        | Nullable    |
+| `notes`      | `text`        | Nullable    |
+| `created_at` | `timestamptz` | NOT NULL    |
+| `updated_at` | `timestamptz` | NOT NULL    |
+
+## Table `stock_items` *(new — migration 20260829)*
+
+Global catalog within single business. NOT tied to any location. Quantity lives in `stock_balances`.
+
+### Columns
+
+| Name                    | Type          | Constraints |
+| ----------------------- | ------------- | ----------- |
+| `id`                    | `uuid`        | Primary     |
+| `name`                  | `text`        | NOT NULL    |
+| `sku`                   | `text`        | NOT NULL, Unique |
+| `category_id`           | `uuid`        | FK → categories(id), Nullable |
+| `unit`                  | `text`        | NOT NULL DEFAULT 'pcs' |
+| `default_minimum_stock` | `int4`        | NOT NULL DEFAULT 0 |
+| `sell_price`            | `numeric`     | DEFAULT 0   |
+| `buy_price`             | `numeric`     | DEFAULT 0   |
+| `photo_url`             | `text`        | Nullable    |
+| `compatible_brands`     | `_text`       | Nullable    |
+| `compatible_models`     | `_text`       | Nullable    |
+| `item_class`            | `text`        | NOT NULL DEFAULT 'sparepart' CHECK ('sparepart','jam') |
+| `is_serial_tracked`     | `boolean`     | NOT NULL DEFAULT false |
+| `created_at`            | `timestamptz` | NOT NULL    |
+| `updated_at`            | `timestamptz` | NOT NULL    |
+
+## Table `stock_balances` *(new — migration 20260829)*
+
+Per-location stock quantities. One row per `stock_item` per `branch`.
+
+### Columns
+
+| Name                | Type          | Constraints |
+| ------------------- | ------------- | ----------- |
+| `id`                | `uuid`        | Primary     |
+| `stock_item_id`     | `uuid`        | FK → stock_items(id), NOT NULL |
+| `location_id`       | `uuid`        | FK → branches(id), NOT NULL |
+| `physical_quantity` | `int4`        | NOT NULL DEFAULT 0, CHECK ≥ 0 |
+| `reserved_quantity` | `int4`        | NOT NULL DEFAULT 0, CHECK ≥ 0, CHECK ≤ physical_quantity |
+| `minimum_stock`     | `int4`        | Nullable (NULL = use stock_items.default_minimum_stock) |
+| `updated_at`        | `timestamptz` | NOT NULL    |
+
+**Unique constraint:** `(stock_item_id, location_id)`
+
+**Computed:** `available_quantity = physical_quantity - reserved_quantity`
+
+## Table `stock_units` *(new — migration 20260829)*
+
+Individual serial-tracked physical units (for watch-type items).
+
+### Columns
+
+| Name            | Type          | Constraints |
+| --------------- | ------------- | ----------- |
+| `id`            | `uuid`        | Primary     |
+| `stock_item_id` | `uuid`        | FK → stock_items(id), NOT NULL |
+| `serial_number` | `text`        | NOT NULL    |
+| `status`        | `text`        | NOT NULL DEFAULT 'available' CHECK ('available','reserved','used','damaged') |
+| `location_id`   | `uuid`        | FK → branches(id), Nullable |
+| `notes`         | `text`        | Nullable    |
+| `created_at`    | `timestamptz` | NOT NULL    |
+| `updated_at`    | `timestamptz` | NOT NULL    |
+
+**Unique constraint:** `(stock_item_id, serial_number)`
+
+## Table `stock_item_suppliers` *(new — migration 20260829)*
+
+Many-to-many: Stock Item ↔ Supplier.
+
+### Columns
+
+| Name            | Type          | Constraints |
+| --------------- | ------------- | ----------- |
+| `id`            | `uuid`        | Primary     |
+| `stock_item_id` | `uuid`        | FK → stock_items(id), NOT NULL |
+| `supplier_id`   | `uuid`        | FK → suppliers(id), NOT NULL |
+| `created_at`    | `timestamptz` | NOT NULL    |
+
+**Unique constraint:** `(stock_item_id, supplier_id)`
+
 ## Custom Types / Enums
 
 ### `media_type`
@@ -1085,3 +1178,46 @@ Ledger audit semua perubahan stok (source/actor/delta/result). Ditulis eksklusif
 | Policy              | Command | Roles  | Action     | USING                      | WITH CHECK                 |
 | ------------------- | ------- | ------ | ---------- | -------------------------- | -------------------------- |
 | `public_all_access` | ALL     | public | PERMISSIVE | `(auth.uid() IS NOT NULL)` | `(auth.uid() IS NOT NULL)` |
+
+### `stock_items` *(new — migration 20260829)*
+
+| Policy                            | Command | Roles        | Action     | USING                                          | WITH CHECK                                 |
+| --------------------------------- | ------- | ------------ | ---------- | ---------------------------------------------- | ------------------------------------------ |
+| `stock_items_select_authenticated`| SELECT  | authenticated| PERMISSIVE | `true`                                         | —                                          |
+| `stock_items_insert_management`   | INSERT  | authenticated| PERMISSIVE | —                                              | `public.auth_can_manage_all_stocks()`      |
+| `stock_items_update_management`   | UPDATE  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()`          | `public.auth_can_manage_all_stocks()`      |
+| `stock_items_delete_management`   | DELETE  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()`          | —                                          |
+
+### `stock_balances` *(new — migration 20260829)*
+
+| Policy                              | Command | Roles        | Action     | USING                                                                 | WITH CHECK |
+| ----------------------------------- | ------- | ------------ | ---------- | --------------------------------------------------------------------- | ---------- |
+| `stock_balances_select_management`  | SELECT  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks() OR public.auth_profile_role() IN ('engineer','supervisor') OR location_id = public.auth_branch_id()` | —          |
+
+*No insert/update/delete policies = writes denied to client-side (RPC only)*
+
+### `stock_units` *(new — migration 20260829)*
+
+| Policy                           | Command | Roles        | Action     | USING                                                                 | WITH CHECK                                 |
+| -------------------------------- | ------- | ------------ | ---------- | --------------------------------------------------------------------- | ------------------------------------------ |
+| `stock_units_select_management`  | SELECT  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks() OR public.auth_profile_role() IN ('engineer','supervisor') OR location_id = public.auth_branch_id()` | —                                          |
+| `stock_units_insert_management`  | INSERT  | authenticated| PERMISSIVE | —                                                                     | `public.auth_can_manage_all_stocks()`      |
+| `stock_units_update_management`  | UPDATE  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()`                                 | `public.auth_can_manage_all_stocks()`      |
+| `stock_units_delete_management`  | DELETE  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()`                                 | —                                          |
+
+### `suppliers` *(new — migration 20260829)*
+
+| Policy                        | Command | Roles        | Action     | USING                            | WITH CHECK                         |
+| ----------------------------- | ------- | ------------ | ---------- | -------------------------------- | ---------------------------------- |
+| `suppliers_select_authenticated`| SELECT | authenticated| PERMISSIVE | `true`                          | —                                  |
+| `suppliers_insert_management` | INSERT  | authenticated| PERMISSIVE | —                               | `public.auth_can_manage_all_stocks()` |
+| `suppliers_update_management` | UPDATE  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()` | `public.auth_can_manage_all_stocks()` |
+| `suppliers_delete_management` | DELETE  | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()` | —                                  |
+
+### `stock_item_suppliers` *(new — migration 20260829)*
+
+| Policy                                  | Command | Roles        | Action     | USING                            | WITH CHECK                         |
+| --------------------------------------- | ------- | ------------ | ---------- | -------------------------------- | ---------------------------------- |
+| `stock_item_suppliers_select_authenticated`| SELECT | authenticated| PERMISSIVE | `true`                        | —                                  |
+| `stock_item_suppliers_insert_management`| INSERT | authenticated| PERMISSIVE | —                               | `public.auth_can_manage_all_stocks()` |
+| `stock_item_suppliers_delete_management`| DELETE | authenticated| PERMISSIVE | `public.auth_can_manage_all_stocks()` | —                                  |
