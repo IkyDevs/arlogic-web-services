@@ -184,13 +184,13 @@ export default function QCDashboard() {
 
   const fetchServices = async () => {
     setLoading(true);
-    // Filter ke cabang user jika QC atau Supervisor
     const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name), branch:branch_id(name)")
       .eq("status", "qc_pending")
       .match(branchScope)
+      .or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${user?.branch_id || ''}`)
       .order("created_at", { ascending: true });
 
     if (data) {
@@ -211,6 +211,7 @@ export default function QCDashboard() {
       .select("*, profiles:assigned_teknisi_id(full_name)")
       .in("status", ["assigned", "in_progress"])
       .match(branchScope)
+      .or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${user?.branch_id || ''}`)
       .order("created_at", { ascending: true })
       .limit(500);
 
@@ -230,6 +231,7 @@ export default function QCDashboard() {
       .select("*, profiles:assigned_teknisi_id(full_name), branch:branch_id(name)")
       .in("status", ["completed", "done"])
       .match(branchScope)
+      .or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${user?.branch_id || ''}`)
       .order("completed_at", { ascending: false })
       .limit(20);
 
@@ -257,6 +259,7 @@ export default function QCDashboard() {
       .select("*, profiles:assigned_teknisi_id(full_name), branch:branch_id(name)")
       .eq("status", "revision_required")
       .match(branchScope)
+      .or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${user?.branch_id || ''}`)
       .order("qc_recalled_at", { ascending: false })
       .limit(50);
 
@@ -270,12 +273,12 @@ export default function QCDashboard() {
   };
 
   const fetchPendingApprovals = async () => {
-    // Cari service yang ada timeline pending_teknisi TANPA timeline pending_approved setelahnya
     const branchScope = (isQc || isSupervisor) && user?.branch_id ? { branch_id: user.branch_id } : {};
     const { data: allServices } = await supabase
       .from("service_orders")
       .select("*, profiles:assigned_teknisi_id(full_name)")
       .match(branchScope)
+      .or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${user?.branch_id || ''}`)
       .order("created_at", { ascending: false });
 
     if (!allServices) return;

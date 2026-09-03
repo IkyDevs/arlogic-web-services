@@ -119,6 +119,7 @@ export interface ServiceOrder {
   created_by_name?: string;
   created_by_role?: string;
   branch_id?: string | null;
+  transferred_to_branch_id?: string | null;
 
   // Timeline
   created_at: string;

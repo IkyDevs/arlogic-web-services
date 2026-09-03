@@ -387,7 +387,7 @@ operator: ${handlerName}`;
               photo_status: photoStatus, // "pending" atau "no_photo"
               created_by: user?.id,
               created_by_name: user?.full_name,
-              status: "completed",
+              status: "active",
               branch_id: (activeBranch as any)?.id || null,
               upload_session_key: uploadKey,
             },

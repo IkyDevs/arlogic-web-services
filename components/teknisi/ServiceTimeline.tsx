@@ -6,8 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useCentralUpload } from '@/hooks/useCentralUpload'
 import { buildTelegramMetadata } from '@/lib/telegram-metadata'
 import { isVideoFile } from '@/lib/upload/upload-config'
-import { ensureUploadableVideo } from '@/lib/video/transcode'
-import { isPlayableVideo, mediaTypeFromFile } from '@/lib/media-utils'
+import { mediaTypeFromFile } from '@/lib/media-utils'
 import SmartMedia from '@/components/ui/SmartMedia'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -52,8 +51,6 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   const upload = useCentralUpload(sessionKey)
   const [uploading, setUploading] = useState(false)
   const [localProgress, setLocalProgress] = useState(0)
-  const [processingVideo, setProcessingVideo] = useState(false)
-  const [bypassVideoTranscode, setBypassVideoTranscode] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [savingEditId, setSavingEditId] = useState<string | null>(null)
@@ -72,38 +69,13 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     if (data) setTimeline(data)
   }
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>, raw = false) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length === 0) return
     e.target.value = ''
 
-    const processedFiles: File[] = []
-    for (const file of files) {
-      if (isVideoFile(file)) {
-        if (raw && file.size <= 48 * 1024 * 1024) {
-          setBypassVideoTranscode(true)
-          processedFiles.push(file)
-          continue
-        }
-        setBypassVideoTranscode(false)
-        setProcessingVideo(true)
-        setLocalProgress(0)
-        try {
-          const readyFile = await ensureUploadableVideo(file, (p) => setLocalProgress(p))
-          processedFiles.push(readyFile)
-        } catch (err: any) {
-          toast.error(err?.message || 'Video gagal diproses. Coba video lain.')
-        } finally {
-          setProcessingVideo(false)
-          setLocalProgress(0)
-        }
-      } else {
-        processedFiles.push(file)
-      }
-    }
-
-    if (processedFiles.length > 0) {
-      const result = await upload.addFiles(processedFiles)
+    if (files.length > 0) {
+      const result = await upload.addFiles(files)
       if (result.errors.length > 0) {
         result.errors.forEach((msg) => toast.error(msg))
       }
@@ -147,7 +119,6 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
           undefined,
           undefined,
           (p) => setLocalProgress(Math.min(85, 10 + Math.round(p * 0.75))),
-          bypassVideoTranscode,
         )
         clearInterval(timer)
         setLocalProgress(100)
@@ -429,10 +400,10 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
 
 
 
-        {(processingVideo || uploading) && (
+        {uploading && (
           <div className="mb-3 rounded-xl bg-gray-900 text-white px-4 py-2.5 text-sm flex items-center gap-2" role="status" aria-live="polite">
             <Loader className="w-4 h-4 animate-spin" />
-            <span className="flex-1">{processingVideo ? 'Mengompres video...' : 'Mengirim...'}</span>
+            <span className="flex-1">Mengirim...</span>
             <span className="font-semibold tabular-nums">{localProgress}%</span>
           </div>
         )}
@@ -442,7 +413,7 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
           className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 resize-none" />
 
         <div className="flex gap-2 mt-2 flex-wrap">
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading || processingVideo}
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Camera className="w-4 h-4" /> Foto
           </button>
@@ -450,7 +421,7 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
 
           <button
             onClick={() => recordInputRef.current?.click()}
-            disabled={uploading || processingVideo}
+            disabled={uploading}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Video className="w-4 h-4" /> Rekam Langsung
           </button>
@@ -459,17 +430,17 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
             type="file"
             accept="video/*"
             capture="environment"
-            onChange={(e) => handlePhotoSelect(e, true)}
+            onChange={handlePhotoSelect}
             className="hidden"
           />
 
-          <button onClick={() => videoInputRef.current?.click()} disabled={uploading || processingVideo}
+          <button onClick={() => videoInputRef.current?.click()} disabled={uploading}
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Camera className="w-4 h-4" /> Video Galeri
           </button>
           <input ref={videoInputRef} type="file" accept="video/*" multiple onChange={handlePhotoSelect} className="hidden" />
 
-          <button onClick={() => addTimelineUpdate(newMessage)} disabled={loading || processingVideo || (!newMessage.trim() && upload.pendingFiles.length === 0)}
+          <button onClick={() => addTimelineUpdate(newMessage)} disabled={loading || (!newMessage.trim() && upload.pendingFiles.length === 0)}
             className="flex-1 min-w-[100px] px-4 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1">
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Kirim

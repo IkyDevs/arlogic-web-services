@@ -56,6 +56,7 @@ import QRCodeGenerator from "@/components/admin/QRCodeGenerator";
 import ThemeToggle from "@/components/ThemeToggle";
 import CustomerList from "@/components/admin/CustomerList";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import TransferServiceTab from "@/components/admin/TransferServiceTab";
 import MobileBottomNav from "@/components/ui/MobileBottomNav";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import NotificationBell from "@/components/ui/NotificationBell";
@@ -706,6 +707,10 @@ export default function AdminDashboard() {
     setShowQRModal(true);
   };
 
+  const viewServiceDetails = (service: any) => {
+    setSelectedService(service);
+  };
+
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
     toast.success("Token disalin!");
@@ -984,6 +989,10 @@ export default function AdminDashboard() {
 
           {activeTab === "services" && (
             <ServiceList onAdd={() => setShowServiceForm(true)} />
+          )}
+
+          {activeTab === "transfer-service" && (
+            <TransferServiceTab onViewDetails={viewServiceDetails} />
           )}
 
           {activeTab === "service-catalog" && <ServiceCatalogManager />}

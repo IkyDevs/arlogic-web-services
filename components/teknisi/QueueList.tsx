@@ -209,6 +209,7 @@ export default function QueueList({
         .select("*")
         .eq("status", "pending")
         .match(branchId ? { branch_id: branchId } : {})
+        .or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${branchId || ''}`)
         .order("created_at", { ascending: true }),
       supabase
         .from("service_orders")
@@ -222,6 +223,7 @@ export default function QueueList({
           "sparepart_ready",
           "revision_required",
         ])
+        .or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${branchId || ''}`)
         .order("created_at", { ascending: false }),
     ]);
 

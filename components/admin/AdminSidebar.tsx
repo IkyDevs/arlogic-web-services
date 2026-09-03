@@ -19,6 +19,7 @@ import {
   X,
   CheckCircle as CheckCircleIcon,
   Warehouse,
+  ArrowLeftRight,
 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -27,6 +28,7 @@ const menuItems = [
   { id: "customer", label: "Pelanggan", icon: Users },
   { id: "management-transaction", label: "Transaksi", icon: ShoppingCart },
   { id: "services", label: "Service", icon: ClipboardList },
+  { id: "transfer-service", label: "Transfer Service", icon: ArrowLeftRight },
   { id: "sparepart", label: "Request Sparepart", icon: Package },
   { id: "attendance", label: "Absensi", icon: Clock },
   { id: "inventory", label: "Stock Toko", icon: Package },

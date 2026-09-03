@@ -168,6 +168,7 @@ export default function ServiceList({ onAdd, readOnly = false, branchId: branchI
     let q = supabase.from("service_orders").select("*, profiles:assigned_teknisi_id(full_name)").neq("status", "done").order(sortField, { ascending: sortDir === "asc" });
     if (branchFilter) q = q.eq("branch_id", branchFilter);
     else if (branchId) q = q.eq("branch_id", branchId);
+    q = q.or(`transferred_to_branch_id.is.null,transferred_to_branch_id.eq.${branchId || ''}`);
     if (statusFilter) q = q.eq("status", statusFilter);
     if (movementFilter) q = q.eq("watch_movement", movementFilter);
     if (categoryFilter) q = q.eq("category", categoryFilter);
