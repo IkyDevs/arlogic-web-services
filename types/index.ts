@@ -193,6 +193,8 @@ export interface ServiceTimeline {
   status: string;
   message: string;
   photo_url?: string;
+  photo_urls?: string[];
+  media_types?: string[];
   details?: any;
   created_at: string;
 }

@@ -14,7 +14,8 @@ import {
   Clock, Send, CheckCircle, AlertCircle,
   Wrench, Package, Camera, User, MessageSquare,
   ChevronDown, ChevronUp, Phone,
-  Check, X, Loader, Plus, ExternalLink, Video
+  Check, X, Loader, Plus, ExternalLink, Video,
+  Pencil, Trash2, Save, Loader2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -36,10 +37,9 @@ const updateTemplates = [
   { icon: Check, label: 'Selesai', message: 'Service selesai, siap diambil customer', status: 'completed' },
 ]
 
-export default function ServiceTimeline({ serviceId, customerPhone, customerName, invoiceNumber, onUpdate }: ServiceTimelineProps) {  const [timeline, setTimeline] = useState<any[]>([])
+export default function ServiceTimeline({ serviceId, customerPhone, customerName, invoiceNumber, onUpdate }: ServiceTimelineProps) {
+  const [timeline, setTimeline] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [spareparts, setSpareparts] = useState<Array<{ name: string; qty: number; price: number }>>([])
@@ -54,6 +54,10 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   const [localProgress, setLocalProgress] = useState(0)
   const [processingVideo, setProcessingVideo] = useState(false)
   const [bypassVideoTranscode, setBypassVideoTranscode] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+  const [savingEditId, setSavingEditId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchTimeline()
@@ -69,103 +73,175 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   }
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>, raw = false) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (isVideoFile(file)) {
-      if (raw && file.size <= 48 * 1024 * 1024) {
-        setBypassVideoTranscode(true)
-        setSelectedPhoto(file)
-        setPhotoPreview(URL.createObjectURL(file))
-        const mb = (file.size / (1024 * 1024)).toFixed(1)
-        toast.success(`Video siap dikirim (${mb} MB)`)
-        return
-      }
-      setBypassVideoTranscode(false)
-      setProcessingVideo(true)
-      setLocalProgress(0)
-      try {
-        const readyFile = await ensureUploadableVideo(file, (p) => setLocalProgress(p))
-        setSelectedPhoto(readyFile)
-        setPhotoPreview(URL.createObjectURL(readyFile))
-        const mb = (readyFile.size / (1024 * 1024)).toFixed(1)
-        toast.success(`Video siap dikirim (${mb} MB)`)
-      } catch (err: any) {
-        toast.error(err?.message || 'Video gagal diproses. Coba video lain.')
-        e.target.value = ''
-      } finally {
-        setProcessingVideo(false)
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    e.target.value = ''
+
+    const processedFiles: File[] = []
+    for (const file of files) {
+      if (isVideoFile(file)) {
+        if (raw && file.size <= 48 * 1024 * 1024) {
+          setBypassVideoTranscode(true)
+          processedFiles.push(file)
+          continue
+        }
+        setBypassVideoTranscode(false)
+        setProcessingVideo(true)
         setLocalProgress(0)
+        try {
+          const readyFile = await ensureUploadableVideo(file, (p) => setLocalProgress(p))
+          processedFiles.push(readyFile)
+        } catch (err: any) {
+          toast.error(err?.message || 'Video gagal diproses. Coba video lain.')
+        } finally {
+          setProcessingVideo(false)
+          setLocalProgress(0)
+        }
+      } else {
+        processedFiles.push(file)
       }
-      return
     }
-    setBypassVideoTranscode(false)
-    setSelectedPhoto(file)
-    setPhotoPreview(URL.createObjectURL(file))
+
+    if (processedFiles.length > 0) {
+      const result = await upload.addFiles(processedFiles)
+      if (result.errors.length > 0) {
+        result.errors.forEach((msg) => toast.error(msg))
+      }
+    }
   }
 
-const removePhoto = () => {
-    setSelectedPhoto(null)
-    if (photoPreview) URL.revokeObjectURL(photoPreview)
-    setPhotoPreview(null)
-    setBypassVideoTranscode(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-    if (videoInputRef.current) videoInputRef.current.value = ''
-    if (recordInputRef.current) recordInputRef.current.value = ''
+  const removePhoto = (id: string) => {
+    upload.removeFile(id)
   }
 
   const addTimelineUpdate = async (message: string, status?: string) => {
     if (!message.trim()) { toast.error('Masukkan pesan'); return }
     setLoading(true)
-      let photoUrl = null
-      let uploadResult: Awaited<ReturnType<typeof upload.legacyUpload>>[number] | null = null
-      try {
-        const d = new Date();
-        const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-        const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-        const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
-        let fullCaption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message || 'Progress service'}\nstatus: ${status || 'in_progress'}`;
+    const filesToUpload = upload.pendingFiles.map((pf) => pf.file)
+    try {
+      const d = new Date();
+      const dayNames = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+      const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      const dateStr = `${dayNames[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${monthNames[d.getMonth()]} (${String(d.getMonth()+1).padStart(2,"0")}), ${d.getFullYear()}`;
+      const fullCaption = `tanggal : ${dateStr}\nteknisi : ${user?.full_name || '-'}\nupdate: ${message || 'Progress service'}\nstatus: ${status || 'in_progress'}`;
 
-        let mediaType: 'image' | 'video' = 'image'
-        if (selectedPhoto) {
-          mediaType = mediaTypeFromFile(selectedPhoto)
-          setUploading(true)
-          setLocalProgress(0)
-          const results = await upload.legacyUpload(
-            [selectedPhoto],
-            'teknisi_update',
-            fullCaption,
-            undefined,
-            undefined,
-            undefined,
-            (p) => setLocalProgress(p),
-            bypassVideoTranscode,
-          )
-          setLocalProgress(100)
-          uploadResult = results?.[0] || null
-          if (!uploadResult) { setUploading(false); toast.error('Failed to upload photo'); return }
+      const newPhotoUrls: string[] = []
+      const mediaTypes: Array<'image' | 'video'> = []
+
+      if (filesToUpload.length > 0) {
+        const mediaTypeHints = filesToUpload.map((f) => mediaTypeFromFile(f))
+        setUploading(true)
+        setLocalProgress(10)
+        const timer = setInterval(() => {
+          setLocalProgress((prev) => {
+            if (prev >= 90) return prev
+            return prev + 15
+          })
+        }, 400)
+
+        const results = await upload.legacyUpload(
+          filesToUpload,
+          'teknisi_update',
+          fullCaption,
+          undefined,
+          undefined,
+          undefined,
+          (p) => setLocalProgress(Math.min(85, 10 + Math.round(p * 0.75))),
+          bypassVideoTranscode,
+        )
+        clearInterval(timer)
+        setLocalProgress(100)
+
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i]
+          if (result) {
+            newPhotoUrls.push(result.url)
+            mediaTypes.push(mediaTypeHints[i] || 'image')
+          }
         }
-        const telegramMeta = buildTelegramMetadata(uploadResult ? [uploadResult] : [])
+      }
 
-        const { error: timelineError } = await supabase.from('service_timeline').insert({
-          service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
-          message: message || 'Progress service',
-          photo_url: uploadResult?.url || null,
-          details: {
-            updated_by: user?.full_name,
-            timestamp: new Date().toISOString(),
-            has_photo: !!uploadResult,
-            media_type: uploadResult ? mediaType : null,
-          },
-          ...telegramMeta,
-        })
+      if (newPhotoUrls.length === 0 && filesToUpload.length > 0) {
+        toast.error(`Gagal upload ${filesToUpload.length} foto. Cek koneksi dan coba lagi.`)
+        setLoading(false)
+        setUploading(false)
+        return
+      }
+
+      const telegramMeta = buildTelegramMetadata(
+        newPhotoUrls.map((url, i) => ({ url, chat_id: '', message_id: 0 }))
+      )
+
+      const { error: timelineError } = await supabase.from('service_timeline').insert({
+        service_order_id: serviceId, teknisi_id: user?.id, status: status || 'in_progress',
+        message: message || 'Progress service',
+        photo_url: newPhotoUrls[0] || null,
+        details: {
+          updated_by: user?.full_name,
+          timestamp: new Date().toISOString(),
+          has_photo: newPhotoUrls.length > 0,
+          photos_count: newPhotoUrls.length,
+          all_photo_urls: newPhotoUrls,
+          media_types: mediaTypes,
+          media_type: mediaTypes[0] || null,
+        },
+        ...telegramMeta,
+      })
       if (timelineError) throw timelineError
 
       toast.success('Update added!')
       setNewMessage('')
-      removePhoto()
+      await upload.clear()
       if (onUpdate) onUpdate()
     } catch (error: any) { toast.error(error.message) }
     finally { setLoading(false); setUploading(false); setLocalProgress(0) }
+  }
+
+  const saveEdit = async (entry: any) => {
+    if (!editText.trim()) { toast.error('Catatan tidak boleh kosong'); return }
+    setSavingEditId(entry.id)
+    const { error } = await supabase.from('service_timeline').update({ message: editText.trim() }).eq('id', entry.id)
+    setSavingEditId(null)
+    if (error) { toast.error('Gagal mengubah update: ' + error.message); return }
+    setEditingId(null)
+    toast.success('Update berhasil diubah')
+    fetchTimeline()
+    if (onUpdate) onUpdate()
+  }
+
+  const deleteEntry = async (entry: any) => {
+    setDeletingId(entry.id)
+    try {
+      const urls: string[] =
+        entry.details?.all_photo_urls?.length > 0
+          ? entry.details.all_photo_urls
+          : entry.photo_url
+            ? [entry.photo_url]
+            : []
+
+      if (urls.length > 0) {
+        const { data: docs } = await supabase
+          .from('service_documentation')
+          .select('id')
+          .eq('service_order_id', serviceId)
+          .in('photo_url', urls)
+
+        if (docs?.length) {
+          await supabase.from('service_documentation').delete().in('id', docs.map((d) => d.id))
+        }
+      }
+
+      const { error } = await supabase.from('service_timeline').delete().eq('id', entry.id)
+      if (error) throw new Error('Gagal menghapus update: ' + error.message)
+
+      toast.success('Update dihapus')
+      fetchTimeline()
+      if (onUpdate) onUpdate()
+    } catch (e: any) {
+      toast.error(e.message || 'Gagal menghapus update')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const sendToCustomer = () => {
@@ -222,18 +298,82 @@ const removePhoto = () => {
                         <span className="text-[11px] text-gray-500">{new Date(update.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                         <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${badge.color}`}>{badge.label}</span>
                       </div>
-                      {update.details?.updated_by && <span className="text-[10px] text-gray-400">oleh {update.details.updated_by}</span>}
+                      <div className="flex items-center gap-1">
+                        {update.details?.updated_by && <span className="text-[10px] text-gray-400">oleh {update.details.updated_by}</span>}
+                        {update.teknisi_id === user?.id && editingId !== update.id && deletingId !== update.id && (
+                          <div className="flex items-center gap-0.5 ml-1">
+                            <button onClick={() => { setEditingId(update.id); setEditText(update.message || '') }} title="Edit catatan" className="p-1 rounded hover:bg-blue-50 text-blue-500"><Pencil className="w-3 h-3" /></button>
+                            <button onClick={() => setDeletingId(update.id)} title="Hapus update ini" className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-700">{update.message}</p>
-                    {update.photo_url && (
-                      <SmartMedia
-                        src={update.photo_url}
-                        mediaType={update.details?.media_type}
-                        imgClassName="mt-2 rounded-lg border border-gray-200 max-h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        videoClassName="mt-2 rounded-lg border border-gray-200 max-h-48 w-full object-contain bg-black"
-                        imgOnClick={() => window.open(update.photo_url, '_blank')}
-                      />
+
+                    {deletingId === update.id ? (
+                      <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+                        Hapus update ini beserta fotonya?
+                        <div className="flex gap-2 mt-1.5">
+                          <button onClick={() => deleteEntry(update)} className="px-2.5 py-1 rounded-md bg-red-600 text-white font-semibold">
+                            Ya, Hapus
+                          </button>
+                          <button onClick={() => setDeletingId(null)} className="px-2.5 py-1 rounded-md border border-gray-300 text-gray-500">Batal</button>
+                        </div>
+                      </div>
+                    ) : editingId === update.id ? (
+                      <div className="space-y-1.5">
+                        <textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          rows={2}
+                          autoFocus
+                          className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/15 focus:border-blue-500"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => setEditingId(null)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-50">Batal</button>
+                          <button
+                            onClick={() => saveEdit(update)}
+                            disabled={savingEditId === update.id || !editText.trim()}
+                            className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            {savingEditId === update.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                            Simpan
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-700">{update.message}</p>
                     )}
+                    {(() => {
+                      const urls: string[] = update.photo_urls?.length
+                        ? update.photo_urls
+                        : update.details?.all_photo_urls?.length
+                          ? update.details.all_photo_urls
+                          : update.photo_url
+                            ? [update.photo_url]
+                            : []
+                      const types: string[] = update.media_types?.length
+                        ? update.media_types
+                        : update.details?.media_types?.length
+                          ? update.details.media_types
+                          : update.details?.media_type
+                            ? [update.details.media_type]
+                            : []
+                      if (urls.length === 0) return null
+                      return (
+                        <div className={`grid gap-2 mt-2 ${urls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                          {urls.map((url: string, i: number) => (
+                            <SmartMedia
+                              key={`${update.id}-${i}`}
+                              src={url}
+                              mediaType={types[i] || types[0] || null}
+                              imgClassName="rounded-lg border border-gray-200 max-h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              videoClassName="rounded-lg border border-gray-200 max-h-48 w-full object-contain bg-black"
+                              imgOnClick={() => window.open(url, '_blank')}
+                            />
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </div>
                 </motion.div>
               )
@@ -272,14 +412,18 @@ const removePhoto = () => {
           )}
         </AnimatePresence>
 
-        {photoPreview && selectedPhoto && (
-          <div className="relative mb-3">
-            {isVideoFile(selectedPhoto) ? (
-              <video src={photoPreview} controls className="w-full h-40 object-cover rounded-xl border border-gray-200" />
-            ) : (
-              <img src={photoPreview} alt="Preview" className="w-full h-28 object-cover rounded-xl border border-gray-200" />
-            )}
-            <button onClick={removePhoto} className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"><X className="w-4 h-4" /></button>
+        {upload.pendingFiles.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {upload.pendingFiles.map((pf) => (
+              <div key={pf.id} className="relative group">
+                {isVideoFile(pf.file) ? (
+                  <video src={pf.preview} className="w-full h-24 object-cover rounded-lg border border-gray-200" />
+                ) : (
+                  <img src={pf.preview} alt="" className="w-full h-24 object-cover rounded-lg border border-gray-200" />
+                )}
+                <button onClick={() => removePhoto(pf.id)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100"><X className="w-3 h-3" /></button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -302,7 +446,7 @@ const removePhoto = () => {
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Camera className="w-4 h-4" /> Foto
           </button>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoSelect} className="hidden" />
 
           <button
             onClick={() => recordInputRef.current?.click()}
@@ -323,9 +467,9 @@ const removePhoto = () => {
             className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors text-sm flex items-center gap-1">
             <Camera className="w-4 h-4" /> Video Galeri
           </button>
-          <input ref={videoInputRef} type="file" accept="video/*" onChange={handlePhotoSelect} className="hidden" />
+          <input ref={videoInputRef} type="file" accept="video/*" multiple onChange={handlePhotoSelect} className="hidden" />
 
-          <button onClick={() => addTimelineUpdate(newMessage)} disabled={loading || processingVideo || (!newMessage.trim() && !selectedPhoto)}
+          <button onClick={() => addTimelineUpdate(newMessage)} disabled={loading || processingVideo || (!newMessage.trim() && upload.pendingFiles.length === 0)}
             className="flex-1 min-w-[100px] px-4 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-1">
             {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Kirim

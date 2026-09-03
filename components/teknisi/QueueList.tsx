@@ -256,7 +256,7 @@ export default function QueueList({
     for (const s of assigned) {
       const tlStatus = (s as any).last_update?.status || "";
 
-      if (tlStatus === "pending_teknisi" || tlStatus === "pending_approved") {
+      if (tlStatus === "pending_teknisi") {
         (s as any)._pendingStatus = tlStatus;
         (s as any)._pendingReason =
           (s as any).last_update?.details?.reason ||
@@ -431,8 +431,9 @@ export default function QueueList({
       }
 
       if (!updatedRows || updatedRows.length === 0) {
-        // Guard atomic menolak — cek apakah pemiliknya justru diri sendiri
-        // (dobel-klik). Kalau iya, anggap sukses tanpa timeline dobel.
+        // Guard atomic menolak — cek apakah pemiliknya justru diri sendiri.
+        // Jika iya, update tidak perlu (sudah assigned), tapi timeline TETAP harus di-insert
+        // agar QC melihat service di tab Pending.
         const { data: current } = await supabase
           .from("service_orders")
           .select("assigned_teknisi_id")
@@ -440,8 +441,21 @@ export default function QueueList({
           .maybeSingle();
 
         if (current?.assigned_teknisi_id === activeTeknisiId) {
-          toast.success("Proyek ini sudah kamu pending-kan — menunggu persetujuan QC");
+          // Service sudah assigned ke teknisi ini — skip update, langsung insert timeline
+          const { error: tlErrRetry } = await supabase.from("service_timeline").insert({
+            service_order_id: pendingTargetService.id,
+            teknisi_id: activeTeknisiId,
+            status: "pending_teknisi",
+            message: `Ditunda oleh teknisi: ${pendingReason.trim()}`,
+            details: { action: "take_pending", reason: pendingReason.trim() },
+          });
+          if (tlErrRetry) {
+            toast.error("Gagal simpan alasan: " + tlErrRetry.message);
+            return;
+          }
+          toast.success("Proyek ditunda, menunggu persetujuan QC.");
           setShowPendingReasonModal(false);
+          setPendingReason("");
           setPendingTargetService(null);
           fetchQueues();
           return;
