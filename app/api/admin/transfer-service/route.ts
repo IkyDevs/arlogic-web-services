@@ -72,12 +72,12 @@ export async function POST(request: Request) {
       branch_id: targetBranchId,
       assigned_teknisi_id: null,
       status: "pending",
-      updated_at: new Date().toISOString(),
     })
     .eq("id", serviceOrderId);
 
   if (updateErr) {
-    return NextResponse.json({ error: "Failed to transfer service" }, { status: 500 });
+    console.error("[Transfer Service]", updateErr);
+    return NextResponse.json({ error: "Failed to transfer service", detail: updateErr.message }, { status: 500 });
   }
 
   await supabase.from("service_timeline").insert({
