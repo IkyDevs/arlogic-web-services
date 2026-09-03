@@ -64,22 +64,36 @@ export default function ClosingDashboard() {
 
   useEffect(() => { fetchData(); fetchClosings(); }, [date, branchId]);
 
-  // Group by payment method
+  // Group by payment method — handles split payments
   const paymentGroups = useMemo(() => {
     const groups: Record<string, { expected: number; count: number; items: any[] }> = {};
     for (const tx of transactions) {
-      const m = tx.metode_pembayaran || "unknown";
-      if (!groups[m]) groups[m] = { expected: 0, count: 0, items: [] };
-      
+      const isSplit = tx.split_payment && tx.metode_pembayaran_1 && tx.metode_pembayaran_2;
+      const isExpense = tx.jenis_layanan === "pengeluaran";
       const nominal = tx.nominal || 0;
-      if (tx.jenis_layanan === "pengeluaran") {
-        groups[m].expected -= nominal;
+
+      if (isSplit) {
+        const n1 = tx.nominal_1 || 0;
+        const n2 = tx.nominal_2 || 0;
+
+        const m1 = tx.metode_pembayaran_1;
+        if (!groups[m1]) groups[m1] = { expected: 0, count: 0, items: [] };
+        groups[m1].expected += isExpense ? -n1 : n1;
+        groups[m1].count++;
+        groups[m1].items.push(tx);
+
+        const m2 = tx.metode_pembayaran_2;
+        if (!groups[m2]) groups[m2] = { expected: 0, count: 0, items: [] };
+        groups[m2].expected += isExpense ? -n2 : n2;
+        groups[m2].count++;
+        groups[m2].items.push(tx);
       } else {
-        groups[m].expected += nominal;
+        const m = tx.metode_pembayaran || "unknown";
+        if (!groups[m]) groups[m] = { expected: 0, count: 0, items: [] };
+        groups[m].expected += isExpense ? -nominal : nominal;
+        groups[m].count++;
+        groups[m].items.push(tx);
       }
-      
-      groups[m].count++;
-      groups[m].items.push(tx);
     }
     return groups;
   }, [transactions]);

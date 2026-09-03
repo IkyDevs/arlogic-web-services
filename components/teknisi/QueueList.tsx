@@ -298,21 +298,33 @@ export default function QueueList({
   const [showTakeConfirm, setShowTakeConfirm] = useState(false);
   const [pendingTakeService, setPendingTakeService] =
     useState<ExtendedServiceOrder | null>(null);
+  const [takingProject, setTakingProject] = useState(false);
 
   const requestTakeProject = async (service: ExtendedServiceOrder) => {
-    // Show confirmation popup - teknisi bebas ambil service tanpa limit
     setPendingTakeService(service);
     setShowTakeConfirm(true);
   };
 
   const confirmTakeProject = async () => {
     if (!pendingTakeService) return;
+    if (takingProject) return;
+    setTakingProject(true);
+
+    const serviceToTake = pendingTakeService;
+
+    setPendingServices((prev) => prev.filter((s) => s.id !== serviceToTake.id));
+    setMyServices((prev) => [{ ...serviceToTake, status: "assigned", assigned_teknisi_id: teknisiId } as any, ...prev]);
+    setShowTakeConfirm(false);
+    setPendingTakeService(null);
+    setShowDetailModal(false);
 
     const activeUser = (await supabase.auth.getUser()).data.user;
     const activeTeknisiId = activeUser?.id || teknisiId;
 
     if (!activeTeknisiId) {
       toast.error("Gagal memverifikasi identitas teknisi. Silakan refresh.");
+      fetchQueues();
+      setTakingProject(false);
       return;
     }
 
@@ -323,30 +335,27 @@ export default function QueueList({
         status: "assigned",
         start_date: new Date().toISOString(),
       })
-      .eq("id", pendingTakeService.id)
+      .eq("id", serviceToTake.id)
       .is("assigned_teknisi_id", null)
       .select();
 
     if (error) {
       toast.error("Gagal mengambil proyek: " + error.message);
+      fetchQueues();
     } else if (!updatedRows || updatedRows.length === 0) {
       toast.error("Proyek ini baru saja diambil oleh teknisi lain!");
       fetchQueues();
-      setShowDetailModal(false);
     } else {
       await supabase.from("service_timeline").insert({
-        service_order_id: pendingTakeService.id,
+        service_order_id: serviceToTake.id,
         teknisi_id: activeTeknisiId,
         status: "assigned",
         message: `Service diambil oleh teknisi`,
         details: { action: "take_project" },
       });
       toast.success("Proyek berhasil diambil!");
-      fetchQueues();
-      setShowDetailModal(false);
     }
-    setShowTakeConfirm(false);
-    setPendingTakeService(null);
+    setTakingProject(false);
   };
 
   const cancelTakeProject = () => {
@@ -1121,7 +1130,7 @@ export default function QueueList({
     : pendingServices;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {!forcedTab && (
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-1 rounded-xl flex gap-1">
           {tabs.map((tab) => (
@@ -1173,7 +1182,7 @@ export default function QueueList({
               </p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:gap-4">
+            <div className="grid gap-3 sm:gap-4 overflow-y-auto max-h-[calc(100vh-280px)] pr-1">
               {myServices.map((service, index) => {
                 const statusBadge = getStatusBadge(service.status);
                 const lastUpdateMessage =
@@ -1386,7 +1395,7 @@ export default function QueueList({
               </p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:gap-4">
+            <div className="grid gap-3 sm:gap-4 overflow-y-auto max-h-[calc(100vh-280px)] pr-1">
               {filteredPendingServices.map((service, index) => (
                 <motion.div
                   key={service.id}
@@ -1494,7 +1503,7 @@ export default function QueueList({
               </p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:gap-4">
+            <div className="grid gap-3 sm:gap-4 overflow-y-auto max-h-[calc(100vh-280px)] pr-1">
               {teknisiPendingServices.map((service, index) => (
                 <motion.div
                   key={service.id}
@@ -1620,7 +1629,11 @@ export default function QueueList({
             isOpen={showDetailModal}
             onClose={() => setShowDetailModal(false)}
             service={selectedService}
-            onTake={() => requestTakeProject(selectedService)}
+            onTake={() => {
+              setPendingServices((prev) => prev.filter((s) => s.id !== selectedService.id));
+              setMyServices((prev) => [{ ...selectedService, status: "assigned", assigned_teknisi_id: teknisiId } as any, ...prev]);
+              setShowDetailModal(false);
+            }}
             onSkip={() => setShowDetailModal(false)}
           />
 

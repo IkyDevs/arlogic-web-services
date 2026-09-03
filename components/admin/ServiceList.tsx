@@ -7,10 +7,11 @@ import { useBranchScope } from "@/lib/context/useBranchScope";
 import { useBranch } from "@/lib/context/BranchContext";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
-import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, Zap, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn, Edit, UserCheck, ShieldAlert, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { Search, Clock, ChevronDown, ChevronUp, Watch, Smartphone, Settings, Battery, Zap, X, Plus, RotateCw, Copy, Check, User, Phone, Hash, Tag, AlertCircle, FileText, ZoomIn, Edit, UserCheck, ShieldAlert, Trash2, AlertTriangle, Loader2, ArrowRightLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/stores/authStore";
 import ServiceInput from "@/components/admin/ServiceInput";
+import TransferServiceModal from "@/components/admin/TransferServiceModal";
 
 const serviceStatusLabels: Record<string, string> = {
   pending: "Menunggu", assigned: "Ditugaskan", in_progress: "Dalam Pengerjaan",
@@ -117,6 +118,7 @@ export default function ServiceList({ onAdd, readOnly = false, branchId: branchI
   const [deletingService, setDeletingService] = useState<any>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [transferService, setTransferService] = useState<any>(null);
 
   async function handleDeleteService() {
     if (!deletingService) return;
@@ -612,6 +614,15 @@ export default function ServiceList({ onAdd, readOnly = false, branchId: branchI
                   <p className="text-[10px] text-slate-500">Dibuat pada</p>
                   <p className="text-sm text-slate-700">{new Date(selectedService.created_at).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                 </div>
+                {selectedService.status === "pending" && !selectedService.assigned_teknisi_id && (
+                  <button
+                    onClick={() => setTransferService(selectedService)}
+                    className="col-span-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 font-medium rounded-xl hover:bg-blue-100 border border-blue-200 transition-all text-sm"
+                  >
+                    <ArrowRightLeft className="w-4 h-4" />
+                    Transfer ke Cabang Lain
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -722,6 +733,17 @@ export default function ServiceList({ onAdd, readOnly = false, branchId: branchI
               className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain bg-black/40" />
           </motion.div>
         </div>
+      )}
+
+      {transferService && (
+        <TransferServiceModal
+          service={transferService}
+          onClose={() => setTransferService(null)}
+          onSuccess={() => {
+            setTransferService(null);
+            fetchServices();
+          }}
+        />
       )}
     </div>
   );
