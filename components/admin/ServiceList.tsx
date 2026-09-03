@@ -180,6 +180,29 @@ export default function ServiceList({ onAdd, readOnly = false, branchId: branchI
       q = q.or(`customer_name.ilike.%${s}%,customer_phone.ilike.%${s}%,invoice_number.ilike.%${s}%`);
     }
     const { data } = await q.limit(100);
+    if (data && data.length > 0) {
+      const ids = data.map((s: any) => s.id);
+      const { data: timelines } = await supabase
+        .from("service_timeline")
+        .select("service_order_id, status, details")
+        .in("service_order_id", ids)
+        .eq("status", "transferred")
+        .order("created_at", { ascending: false });
+      const transferMap: Record<string, any> = {};
+      if (timelines) {
+        for (const tl of timelines) {
+          if (!transferMap[tl.service_order_id]) {
+            transferMap[tl.service_order_id] = tl;
+          }
+        }
+      }
+      for (const s of data) {
+        const tl = transferMap[s.id];
+        s._transferInfo = tl?.details?.from_branch_name
+          ? `Transfer dari ${tl.details.from_branch_name}`
+          : tl ? "Transfer dari cabang lain" : null;
+      }
+    }
     if (data) setServices(data);
     setLoading(false);
   };
@@ -359,6 +382,11 @@ export default function ServiceList({ onAdd, readOnly = false, branchId: branchI
                     className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openDetail(svc)}>
                     <td className="px-4 py-3">
                       <span className="font-mono text-xs font-semibold text-slate-900">{svc.invoice_number}</span>
+                      {(svc as any)._transferInfo && (
+                        <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                          🔄 {(svc as any)._transferInfo}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900 text-sm">{svc.customer_name}</div>
@@ -470,10 +498,15 @@ export default function ServiceList({ onAdd, readOnly = false, branchId: branchI
                 <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center">
                   <Watch className="w-4 h-4 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">Detail Service</h2>
-                  <p className="text-[11px] text-slate-500">{selectedService.invoice_number}</p>
-                </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Detail Service</h2>
+                <p className="text-[11px] text-slate-500">{selectedService.invoice_number}</p>
+                {(selectedService as any)._transferInfo && (
+                  <span className="mt-1 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                    🔄 {(selectedService as any)._transferInfo}
+                  </span>
+                )}
+              </div>
               </div>
               <button onClick={() => { setShowModal(false); setServicePhotos([]); setServicePhotoLabels([]); }} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
                 <X className="w-4 h-4 text-slate-400" />

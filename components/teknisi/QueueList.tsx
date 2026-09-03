@@ -66,7 +66,15 @@ interface ExtendedServiceOrder extends ServiceOrder {
     status: string;
     created_at: string;
     photo_url?: string;
+    details?: any;
   };
+}
+
+function getTransferBadge(service: ExtendedServiceOrder) {
+  const lu = service.last_update;
+  if (!lu || lu.status !== "transferred") return null;
+  const fromName = lu.details?.from_branch_name || lu.details?.from_branch || null;
+  return fromName ? `Transfer dari ${fromName}` : "Transfer dari cabang lain";
 }
 
 const MAX_FILES = 10;
@@ -1187,6 +1195,7 @@ export default function QueueList({
                 const statusBadge = getStatusBadge(service.status);
                 const lastUpdateMessage =
                   service.last_update?.message || "Belum ada update";
+                const transferBadge = getTransferBadge(service);
 
                 return (
                   <motion.div
@@ -1208,6 +1217,11 @@ export default function QueueList({
                         >
                           {statusBadge.label}
                         </span>
+                        {transferBadge && (
+                          <span className="px-2.5 py-1 text-[11px] font-semibold rounded-full border bg-purple-50 text-purple-700 border-purple-200">
+                            🔄 {transferBadge}
+                          </span>
+                        )}
                         {service.status === "revision_required" && (
                           <span className="px-2.5 py-1 text-[11px] bg-[var(--color-danger-bg)] text-[var(--color-danger)] font-bold rounded-full border border-[var(--color-danger)]/25">
                             REJECT QC
@@ -1439,6 +1453,11 @@ export default function QueueList({
                           <span className="px-2.5 py-1 bg-[var(--color-success-bg)] text-[var(--color-success)] text-[11px] font-semibold rounded-full border border-[var(--color-success)]/25">
                             BARU
                           </span>
+                          {getTransferBadge(service) && (
+                            <span className="px-2.5 py-1 text-[11px] font-semibold rounded-full border bg-purple-50 text-purple-700 border-purple-200">
+                              🔄 {getTransferBadge(service)}
+                            </span>
+                          )}
                           {service.category && (
                             <span className="px-2.5 py-1 bg-[var(--color-info-bg)] text-[var(--color-info)] text-[11px] font-medium rounded-full border border-[var(--color-info)]/25">
                               {service.category}
@@ -1532,6 +1551,11 @@ export default function QueueList({
                             ? "DISETUJUI"
                             : "PENDING"}
                         </span>
+                        {getTransferBadge(service) && (
+                          <span className="px-2.5 py-1 text-[11px] font-semibold rounded-full border bg-purple-50 text-purple-700 border-purple-200">
+                            🔄 {getTransferBadge(service)}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <span className="text-sm font-medium text-[var(--color-text)]">
