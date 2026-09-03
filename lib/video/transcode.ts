@@ -162,7 +162,8 @@ export async function ensureUploadableVideo(
   try {
     head = new Uint8Array(await file.slice(0, HEAD_BYTES).arrayBuffer());
   } catch {
-    return file;
+    console.warn('[ensureUploadableVideo] Gagal baca header, skip deteksi codec → lanjut transcode');
+    head = new Uint8Array(0);
   }
 
   const codec = detectVideoCodec(head);

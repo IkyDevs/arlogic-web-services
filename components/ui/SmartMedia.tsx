@@ -26,6 +26,7 @@ export default function SmartMedia({
   preferVideo,
 }: SmartMediaProps) {
   const [imgFailed, setImgFailed] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   if (!src) return null;
 
   const isVideoKnown = mediaType === "video";
@@ -33,14 +34,26 @@ export default function SmartMedia({
   const showVideo = preferVideo || isVideoKnown || (mediaType == null && imgFailed);
 
   if (showVideo) {
+    if (videoFailed) {
+      return (
+        <div className="flex items-center justify-center bg-gray-100 border border-gray-200 rounded-lg p-4 text-center">
+          <div>
+            <p className="text-sm text-gray-500">Video tidak dapat diputar</p>
+            <a href={src} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 underline mt-1 inline-block">Buka di tab baru</a>
+          </div>
+        </div>
+      )
+    }
     return (
       <video
-        src={src}
         controls
         playsInline
         preload="metadata"
+        onError={() => setVideoFailed(true)}
         className={videoClassName || "max-w-full rounded-lg bg-black"}
-      />
+      >
+        <source src={src} type="video/mp4" />
+      </video>
     );
   }
 
