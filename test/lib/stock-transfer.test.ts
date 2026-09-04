@@ -13,6 +13,7 @@ import {
   ApprovalFailedError,
   InvalidLocationError,
   RejectReasonRequiredError,
+  ReservationInsufficientError,
   mapDatabaseError,
 } from "@/lib/domain/transfer/errors";
 
@@ -96,6 +97,12 @@ describe("Transfer Error Classes", () => {
     expect(err.code).toBe("REJECT_REASON_REQUIRED");
     expect(err.name).toBe("RejectReasonRequiredError");
   });
+
+  it("ReservationInsufficientError has correct defaults", () => {
+    const err = new ReservationInsufficientError();
+    expect(err.code).toBe("RESERVATION_RELEASED");
+    expect(err.name).toBe("ReservationInsufficientError");
+  });
 });
 
 describe("mapDatabaseError", () => {
@@ -169,6 +176,12 @@ describe("mapDatabaseError", () => {
     const err = mapDatabaseError(new Error("REJECT_REASON_REQUIRED: alasan wajib"));
     expect(err).toBeInstanceOf(RejectReasonRequiredError);
     expect(err.code).toBe("REJECT_REASON_REQUIRED");
+  });
+
+  it("maps RESERVATION_RELEASED error", () => {
+    const err = mapDatabaseError(new Error("RESERVATION_RELEASED: reservasi telah dilepas"));
+    expect(err).toBeInstanceOf(ReservationInsufficientError);
+    expect(err.code).toBe("RESERVATION_RELEASED");
   });
 
   it("wraps unknown errors as TransferError", () => {

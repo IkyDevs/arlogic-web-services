@@ -94,6 +94,13 @@ export class RejectReasonRequiredError extends TransferError {
   }
 }
 
+export class ReservationInsufficientError extends TransferError {
+  constructor(message = "Reservasi tidak mencukupi atau telah dilepas") {
+    super("RESERVATION_RELEASED", message);
+    this.name = "ReservationInsufficientError";
+  }
+}
+
 // ─── Error Mapping ──────────────────────────────────────────────────
 
 const ERROR_MAP: Record<string, new (msg?: string) => TransferError> = {
@@ -109,6 +116,7 @@ const ERROR_MAP: Record<string, new (msg?: string) => TransferError> = {
   APPROVAL_FAILED: ApprovalFailedError,
   INVALID_LOCATION: InvalidLocationError,
   REJECT_REASON_REQUIRED: RejectReasonRequiredError,
+  RESERVATION_RELEASED: ReservationInsufficientError,
 };
 
 /**
