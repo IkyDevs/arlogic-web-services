@@ -17,6 +17,7 @@ import {
   Pencil, Trash2, Save, Loader2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { normalizePhone, buildWhatsAppUrl, buildTimelineUpdateMessage, isValidWhatsAppPhone } from '@/lib/whatsapp'
 
 interface ServiceTimelineProps {
   serviceId: string
@@ -55,6 +56,7 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
   const [editText, setEditText] = useState('')
   const [savingEditId, setSavingEditId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [whatsappUpdate, setWhatsappUpdate] = useState<any | null>(null)
 
   useEffect(() => {
     fetchTimeline()
@@ -244,6 +246,25 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     return badges[status] || badges.progress
   }
 
+  const openWhatsAppForUpdate = () => {
+    if (!whatsappUpdate) return
+    const phone = normalizePhone(customerPhone)
+    if (!phone) {
+      toast.error('Nomor WhatsApp customer belum tersedia atau tidak valid.')
+      return
+    }
+    const caption = whatsappUpdate.message || 'Progress service'
+    const message = buildTimelineUpdateMessage(caption)
+    const url = buildWhatsAppUrl(phone, message)
+    try {
+      window.open(url, '_blank')
+      toast.success('Membuka WhatsApp...')
+    } catch {
+      toast.error('WhatsApp tidak dapat dibuka otomatis. Silakan izinkan popup pada browser atau buka WhatsApp secara manual.')
+    }
+    setWhatsappUpdate(null)
+  }
+
   return (
     <div className="space-y-4">
       {/* Timeline History */}
@@ -276,6 +297,15 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
                             <button onClick={() => { setEditingId(update.id); setEditText(update.message || '') }} title="Edit catatan" className="p-1 rounded hover:bg-blue-50 text-blue-500"><Pencil className="w-3 h-3" /></button>
                             <button onClick={() => setDeletingId(update.id)} title="Hapus update ini" className="p-1 rounded hover:bg-red-50 text-red-400 hover:text-red-600"><Trash2 className="w-3 h-3" /></button>
                           </div>
+                        )}
+                        {isValidWhatsAppPhone(customerPhone) && editingId !== update.id && deletingId !== update.id && (
+                          <button
+                            onClick={() => setWhatsappUpdate(update)}
+                            title="Kirim update ini ke WhatsApp customer"
+                            className="p-1 rounded hover:bg-green-50 text-green-600 hover:text-green-700 ml-0.5"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
                         )}
                       </div>
                     </div>
@@ -455,6 +485,58 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
           )}
         </div>
       </div>
+      {/* WhatsApp Confirmation Modal */}
+      <AnimatePresence>
+        {whatsappUpdate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setWhatsappUpdate(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <ExternalLink className="w-5 h-5 text-green-600" />
+                <h3 className="text-sm font-bold text-gray-900">Kirim Update ke WhatsApp?</h3>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-3 mb-3 border border-gray-200">
+                <p className="text-xs text-gray-500 mb-1.5 font-medium">Preview pesan:</p>
+                <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+                  {buildTimelineUpdateMessage(whatsappUpdate.message || 'Progress service')}
+                </p>
+              </div>
+
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                Foto/video tidak akan dikirim otomatis. Foto/video perlu dilampirkan secara manual setelah WhatsApp dibuka.
+              </p>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setWhatsappUpdate(null)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={openWhatsAppForUpdate}
+                  className="px-4 py-2 rounded-xl bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors inline-flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Lanjut ke WhatsApp
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
