@@ -217,21 +217,6 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
     }
   }
 
-  const sendToCustomer = () => {
-    if (!customerPhone) { toast.error('No customer phone'); return }
-    let phone = customerPhone.replace(/\D/g, '')
-    if (phone.startsWith('0')) phone = '62' + phone.substring(1)
-    const msg = newMessage.trim() || 'Ada update progress service Anda. Silakan cek tracking untuk info lebih lanjut.'
-    const fullMsg = encodeURIComponent(
-      `Halo ${customerName || 'Customer'},\n\n` +
-      `Update Service ${invoiceNumber ? '(' + invoiceNumber + ')' : ''}:\n` +
-      `${msg}\n\n` +
-      `Terima kasih.\n- ${user?.full_name || 'Teknisi'}`
-    )
-    window.open(`https://wa.me/${phone}?text=${fullMsg}`, '_blank')
-    toast.success('Membuka WhatsApp...')
-  }
-
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; color: string }> = {
       diagnosis: { label: 'Diagnosis', color: 'bg-orange-100 text-orange-700 border border-orange-200' },
@@ -476,13 +461,6 @@ export default function ServiceTimeline({ serviceId, customerPhone, customerName
             Kirim
           </button>
 
-          {/* Kirim ke CS via WA */}
-          {customerPhone && (
-            <button onClick={sendToCustomer}
-              className="px-3 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-1">
-              <ExternalLink className="w-4 h-4" /> Kirim ke CS
-            </button>
-          )}
         </div>
       </div>
       {/* WhatsApp Confirmation Modal */}
