@@ -3,16 +3,23 @@ import { mapDatabaseError } from "./errors";
 
 // ─── Inventory Domain Service (Single Source of Truth) ─────────────
 // Semua perubahan stok WAJIB lewat sini -> RPC Postgres atomik
-// (adjust_store_stock / adjust_warehouse_stock). RPC menegakkan
-// otorisasi role/cabang, anti-minus, dual-write kolom legacy, dan
-// mencatat stock_movements.
 //
-// T002: Canonical movement engine RPCs:
-//   adjustStock()            -> ADJUSTMENT only
-//   useStock()               -> USAGE only
-//   reserveStock()           -> reservation creation
-//   releaseReservation()     -> reservation release
-//   executeTransferApproval() -> internal atomic transfer
+// LEGACY RPCs (still active, used by existing components):
+//   adjustStoreStock()          -> stock_toko + inventory.store_stock
+//   adjustWarehouseStock()      -> stock_gudang + inventory.warehouse_stock
+//
+// CANONICAL RPCs (V2):
+//   adjustStock()               -> ADJUSTMENT only (stock_balances)
+//   useStock()                  -> USAGE only (stock_balances)
+//   reserveStock()              -> reservation creation (internal)
+//   releaseReservation()        -> reservation release (internal)
+//
+// TRANSFER RPCs (V3):
+//   submitStockTransfer()       -> DRAFT → PENDING
+//   approveStockTransfer()      → PENDING → APPROVED
+//   rejectStockTransfer()       → PENDING → REJECTED
+
+// ─── Legacy RPCs (compatibility layer) ─────────────────────────────
 
 export type StockSource =
   | "web_app"
@@ -401,49 +408,59 @@ export async function releaseReservation(
   return Number(data ?? 0);
 }
 
-export interface ExecuteTransferApprovalParams {
-  stockItemId: string;
-  sourceLocationId: string;
-  destLocationId: string;
-  quantity: number;
-  sourceRefType: string;
-  sourceRefId: string;
-  destRefType: string;
-  destRefId: string;
-}
+// ─── T003: Transfer Lifecycle RPCs ───────────────────────────────
 
 /**
- * Internal atomic transfer: TRANSFER_OUT (source) + TRANSFER_IN (dest).
- * Used by future Transfer Approval workflow.
- * NOT exposed to frontend as general-purpose RPC.
- *
- * Atomic steps:
- *   1. Lock both balances (deterministic UUID order)
- *   2. Validate source has sufficient available stock
- *   3. Decrease source physical_quantity
- *   4. Decrease source reserved_quantity
- *   5. Increase destination physical_quantity
- *   6. Create TRANSFER_OUT movement (source)
- *   7. Create TRANSFER_IN movement (dest)
- *
- * If any step fails, EVERYTHING rolls back.
+ * Submit a DRAFT transfer → PENDING.
+ * Reserves source stock for all items.
  */
-export async function executeTransferApproval(
+export async function submitStockTransfer(
   supabase: SupabaseClient,
-  params: ExecuteTransferApprovalParams,
+  transferId: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc("execute_transfer_approval", {
-    p_stock_item_id: params.stockItemId,
-    p_source_location: params.sourceLocationId,
-    p_dest_location: params.destLocationId,
-    p_quantity: params.quantity,
-    p_source_ref_type: params.sourceRefType,
-    p_source_ref_id: params.sourceRefId,
-    p_dest_ref_type: params.destRefType,
-    p_dest_ref_id: params.destRefId,
+  const { error } = await supabase.rpc("submit_stock_transfer", {
+    p_transfer_id: transferId,
   });
   if (error) throw mapDatabaseError(error);
 }
+
+/**
+ * Approve a PENDING transfer → APPROVED.
+ * Executes atomic transfer for all items.
+ * This is the ONLY public RPC for PENDING → APPROVED.
+ */
+export async function approveStockTransfer(
+  supabase: SupabaseClient,
+  transferId: string,
+  notes?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("approve_stock_transfer", {
+    p_transfer_id: transferId,
+    p_notes: notes || null,
+  });
+  if (error) throw mapDatabaseError(error);
+}
+
+/**
+ * Reject a PENDING transfer → REJECTED.
+ * Releases reservations for all items.
+ */
+export async function rejectStockTransfer(
+  supabase: SupabaseClient,
+  transferId: string,
+  reason: string,
+): Promise<void> {
+  if (!reason || reason.trim() === "") {
+    throw new Error("REJECT_REASON_REQUIRED: alasan reject wajib diisi");
+  }
+  const { error } = await supabase.rpc("reject_stock_transfer", {
+    p_transfer_id: transferId,
+    p_reason: reason,
+  });
+  if (error) throw mapDatabaseError(error);
+}
+
+// ─── Stock delta computation (used by transaction service) ─────────
 
 export interface InventoryRefLine {
   inventory_id?: string | null;

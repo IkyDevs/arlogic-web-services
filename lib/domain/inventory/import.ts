@@ -227,12 +227,31 @@ export function calculateImpact(
 }
 
 // ─── Mapping model baru: System Field ← Imported File Column ───────
-export type FieldKey = SystemField | "price" | "supplier";
+export type FieldKey = SystemField | "price" | "buy_price" | "min_stock" | "unit" | "category" | "item_class" | "stock" | "supplier";
+
+export const CATALOG_FIELDS: Array<{
+  key: FieldKey;
+  label: string;
+  required: boolean;
+  storable: boolean;
+  dbColumn: string;
+}> = [
+  { key: "sku", label: "SKU", required: true, storable: true, dbColumn: "sku" },
+  { key: "name", label: "Nama Produk", required: true, storable: true, dbColumn: "name" },
+  { key: "quantity", label: "Stok Gudang", required: false, storable: true, dbColumn: "stock" },
+  { key: "price", label: "Harga Jual", required: false, storable: true, dbColumn: "sell_price" },
+  { key: "buy_price", label: "Harga Beli", required: false, storable: true, dbColumn: "buy_price" },
+  { key: "min_stock", label: "Min Stok", required: false, storable: true, dbColumn: "default_minimum_stock" },
+  { key: "unit", label: "Satuan", required: false, storable: true, dbColumn: "unit" },
+  { key: "category", label: "Kategori", required: false, storable: true, dbColumn: "category" },
+  { key: "item_class", label: "Jenis (sparepart/jam)", required: false, storable: true, dbColumn: "item_class" },
+  { key: "supplier", label: "Supplier", required: false, storable: false, dbColumn: "" },
+];
+
 export const SYSTEM_FIELDS: Array<{
   key: FieldKey;
   label: string;
   required: boolean;
-  /** opsi 1: supplier ditampilkan tapi selalu ignored (tanpa kolom DB) */
   storable: boolean;
 }> = [
   { key: "sku", label: "SKU", required: true, storable: true },
@@ -300,4 +319,159 @@ export function columnMapToFieldMapping(
     if (field !== "ignore" && !out[field]) out[field] = col;
   }
   return out;
+}
+
+const CATALOG_ALIASES: Record<FieldKey, string[]> = {
+  sku: ["sku", "kode", "kode_barang", "kode_barang_edit", "productsku", "produksku"],
+  name: ["nama", "nama_barang", "nama_barang_edit", "item_name", "productname", "namaproduk", "namasparepart", "name"],
+  quantity: ["quantity", "stok", "stock", "stok_edit", "jumlahstock", "jumlah", "qty", "stock_gudang", "stok_gudang"],
+  price: ["harga", "harga_jual", "harga_jual_edit", "sell_price", "price", "harga_jual_eceran"],
+  buy_price: ["harga_beli", "harga_beli_edit", "buy_price", "modal", "harga_modal"],
+  min_stock: ["min_stok", "minimum_stok", "minimumstock", "stok_minimum", "min_stock", "minimum"],
+  unit: ["satuan", "unit", "berat_dan_satuan"],
+  category: ["kategori", "category", "jenis"],
+  item_class: ["jenis_stock", "jenis_barang", "item_class", "tipe"],
+  stock: ["stock", "stok", "stok_awal", "initial_stock"],
+  supplier: ["supplier", "vendor"],
+};
+
+export function autoMapCatalogColumns(headers: string[]): Record<string, FieldKey | "ignore"> {
+  const map: Record<string, FieldKey | "ignore"> = {};
+  const used = new Set<FieldKey>();
+  for (const h of headers) {
+    const norm = h.toLowerCase().replace(/[\s_-]/g, "");
+    let target: FieldKey | undefined;
+    for (const field of Object.keys(CATALOG_ALIASES) as FieldKey[]) {
+      if (!used.has(field) && CATALOG_ALIASES[field].includes(norm)) {
+        target = field;
+        break;
+      }
+    }
+    if (target) {
+      map[h] = target;
+      used.add(target);
+    } else {
+      map[h] = "ignore";
+    }
+  }
+  return map;
+}
+
+export function validateCatalogMapping(
+  table: ParsedTable,
+  mapping: Partial<Record<FieldKey, string>>,
+): { ok: boolean; error?: string } {
+  const required = CATALOG_FIELDS.filter((f) => f.required);
+  for (const f of required) {
+    if (!mapping[f.key]) return { ok: false, error: `${f.label} wajib dipetakan.` };
+  }
+  const seen = new Map<string, FieldKey>();
+  for (const [fk, col] of Object.entries(mapping) as [FieldKey, string][]) {
+    if (!col || col === "ignore") continue;
+    if (!table.headers.includes(col))
+      return { ok: false, error: `Kolom "${col}" tidak ada di file` };
+    const prev = seen.get(col);
+    if (prev && prev !== fk)
+      return { ok: false, error: `Kolom "${col}" tidak boleh dipetakan ke dua field` };
+    seen.set(col, fk);
+  }
+  return { ok: true };
+}
+
+export interface CatalogImportRow {
+  rowNumber: number;
+  sku: string;
+  name: string;
+  item_class: string;
+  unit: string;
+  category: string | null;
+  default_minimum_stock: number;
+  sell_price: number;
+  buy_price: number;
+  stock: number;
+}
+
+export interface CatalogValidationResult {
+  valid: CatalogImportRow[];
+  errors: Array<{ rowNumber: number; sku: string; error: string }>;
+  skippedEmpty: number;
+}
+
+export function validateCatalogRows(
+  table: ParsedTable,
+  mapping: Partial<Record<FieldKey, string>>,
+): CatalogValidationResult {
+  const colFor = (f: FieldKey) => mapping[f];
+  const skuCol = colFor("sku");
+  const nameCol = colFor("name");
+
+  const errors: CatalogValidationResult["errors"] = [];
+  const valid: CatalogImportRow[] = [];
+  const seenSku = new Set<string>();
+  let skippedEmpty = 0;
+
+  if (!skuCol) return { valid, errors: [{ rowNumber: 0, sku: "-", error: "SKU wajib dipetakan" }], skippedEmpty };
+  if (!nameCol) return { valid, errors: [{ rowNumber: 0, sku: "-", error: "Nama Produk wajib dipetakan" }], skippedEmpty };
+
+  const numCol = (f: FieldKey) => colFor(f);
+
+  table.rows.forEach((row, i) => {
+    const rowNumber = i + 2;
+    const rawSku = String(row[skuCol] ?? "").trim();
+    const rawName = String(row[nameCol] ?? "").trim();
+
+    if (!rawSku && !rawName) {
+      skippedEmpty++;
+      return;
+    }
+    if (!rawSku) {
+      errors.push({ rowNumber, sku: "-", error: "SKU kosong" });
+      return;
+    }
+    if (!rawName) {
+      errors.push({ rowNumber, sku: rawSku, error: "Nama kosong" });
+      return;
+    }
+
+    const key = rawSku.toUpperCase();
+    if (seenSku.has(key)) {
+      errors.push({ rowNumber, sku: rawSku, error: "SKU duplikat" });
+      return;
+    }
+    seenSku.add(key);
+
+    const readNum = (f: FieldKey, fallback: number): number => {
+      const col = numCol(f);
+      if (!col) return fallback;
+      const v = row[col];
+      if (v === "" || v === null || v === undefined) return fallback;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fallback;
+    };
+
+    const readStr = (f: FieldKey, fallback: string): string => {
+      const col = numCol(f);
+      if (!col) return fallback;
+      const v = String(row[col] ?? "").trim();
+      return v || fallback;
+    };
+
+    const rawItemClass = readStr("item_class", "sparepart").toLowerCase();
+    const itemClass = rawItemClass === "jam" ? "jam" : "sparepart";
+
+    valid.push({
+      rowNumber,
+      sku: rawSku,
+      name: rawName,
+      item_class: itemClass,
+      unit: readStr("unit", "pcs"),
+      category: readStr("category", "") || null,
+      default_minimum_stock: Math.max(0, Math.floor(readNum("min_stock", 0))),
+      sell_price: Math.max(0, readNum("price", 0)),
+      buy_price: Math.max(0, readNum("buy_price", 0)),
+      stock: Math.max(0, Math.floor(readNum("quantity", 0))),
+    });
+  });
+
+  return { valid, errors, skippedEmpty };
 }

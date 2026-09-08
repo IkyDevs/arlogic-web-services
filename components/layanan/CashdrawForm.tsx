@@ -49,7 +49,7 @@ export default function CashdrawForm({ onSuccess, onClose }: CashdrawFormProps) 
   }, []);
 
   const fetchUsers = async () => {
-    const { data } = await supabase.from("profiles").select("id, full_name").in("role", ["admin", "teknisi", "supervisor"]).order("full_name");
+    const { data } = await supabase.from("profiles").select("id, full_name").in("role", ["admin", "teknisi", "supervisor", "owner"]).order("full_name");
     if (data) setUsers(data);
   };
 

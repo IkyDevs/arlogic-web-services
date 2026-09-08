@@ -179,7 +179,7 @@ export default memo(function PengeluaranForm({
     const { data } = await supabase
       .from("profiles")
       .select("id, full_name, role")
-      .in("role", ["admin", "teknisi", "supervisor"])
+      .in("role", ["admin", "teknisi", "supervisor", "owner"])
       .order("full_name");
     if (data) setUsers(data);
   };

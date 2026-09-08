@@ -70,6 +70,8 @@ interface LayananFormProps {
   onSuccess?: () => void;
   onClose?: () => void;
   initialData?: any;
+  /** Branch ID fallback untuk Owner (cabang pusat). Hanya aktif jika activeBranch null. */
+  defaultBranchId?: string | null;
 }
 
 const jenisLayananOptions = [
@@ -114,6 +116,7 @@ export default memo(function LayananForm({
   onSuccess,
   onClose,
   initialData,
+  defaultBranchId,
 }: LayananFormProps) {
   const { user } = useAuthStore();
   const supabase = createClient();
@@ -121,6 +124,9 @@ export default memo(function LayananForm({
   const [uploadKey] = useState(() => (initialData as any)?.upload_session_key || `layanan_${user?.id || 'anon'}_${Date.now()}`)
   const upload = useCentralUpload(uploadKey);
   const { activeBranch } = useBranch();
+
+  // Branch ID efektif: user's own branch > selected branch > defaultBranchId (Owner) > null
+  const effectiveBranchId = user?.branch_id ?? (activeBranch as any)?.id ?? defaultBranchId ?? null;
   // Tipe baris SKU utk service_langsung: jasa (default) | sparepart
   const [skuMode, setSkuMode] = useState<
     Record<string, "jasa" | "sparepart">
@@ -242,7 +248,7 @@ export default memo(function LayananForm({
   );
 
   // Cabang sumber stok utk picker Sparepart/Jam (admin cabang terkunci di cabangnya)
-  const stockBranchId = user?.branch_id ?? (activeBranch as any)?.id ?? null;
+  const stockBranchId = effectiveBranchId;
 
   const getSkuMode = (i: number, j: number): "jasa" | "sparepart" =>
     skuMode[`${i}-${j}`] ?? "jasa";
@@ -489,7 +495,7 @@ export default memo(function LayananForm({
     let q = supabase
       .from("profiles")
       .select("id, full_name, role")
-      .in("role", ["admin", "teknisi", "supervisor", "qc"])
+      .in("role", ["admin", "teknisi", "supervisor", "qc", "owner"])
       .order("full_name");
     // Filter staff per cabang (handleBy hanya staff cabang yang sama)
     if ((activeBranch as any)?.id) q = q.eq("branch_id", (activeBranch as any)?.id);
@@ -766,7 +772,7 @@ export default memo(function LayananForm({
           notes,
           photo_urls: photoUrls,
           upload_session_key: uploadKey,
-          branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
+          branch_id: effectiveBranchId,
           linked_service_order_ids:
             hasAmbilJam && linkedServiceOrderIds.length > 0
               ? linkedServiceOrderIds
@@ -807,7 +813,7 @@ export default memo(function LayananForm({
           telegram_chat_id: tgChatId,
           telegram_message_id: tgMessageId,
           upload_session_key: uploadKey,
-          branch_id: user?.branch_id ?? ((activeBranch as any)?.id ?? null),
+          branch_id: effectiveBranchId,
           linked_service_order_ids:
             hasAmbilJam && linkedServiceOrderIds.length > 0
               ? linkedServiceOrderIds
@@ -843,7 +849,7 @@ export default memo(function LayananForm({
         // Potong stok sparepart/jam kini ditangani createTransaction (atomic RPC).
       }
 
-      syncCustomer(customerName, customerWhatsapp, (activeBranch as any)?.id).catch(() => {});
+      syncCustomer(customerName, customerWhatsapp, effectiveBranchId).catch(() => {});
 
       // STEP 2: Upload foto di background dan update transaksi dengan hasilnya
       const step2TxId = isEdit ? initialData.id : newTxId;
@@ -1826,7 +1832,7 @@ export default memo(function LayananForm({
 
       <ServicePickupPicker
         open={pickupTargetIdx !== null}
-        branchId={user?.branch_id ?? (activeBranch as any)?.id}
+        branchId={effectiveBranchId}
         alreadyLinkedIds={linkedServiceOrderIds}
         onClose={() => setPickupTargetIdx(null)}
         onSelect={handlePickService}

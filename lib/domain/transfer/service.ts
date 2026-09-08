@@ -4,6 +4,11 @@ import { mapDatabaseError } from "./errors";
 // ─── Stock Transfer Domain Service ─────────────────────────────────
 // T003: Transfer lifecycle management.
 // All physical mutations go through T002 Movement Engine.
+//
+// Table names:
+//   inventory_transfers        -> transfer header
+//   inventory_transfer_items   -> line items
+//   inventory_transfer_history -> lifecycle audit trail
 
 export type TransferStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
 
@@ -57,65 +62,46 @@ export interface UpdateTransferParams {
 
 // ─── CRUD Operations ───────────────────────────────────────────────
 
-/**
- * Create a new DRAFT transfer.
- */
 export async function createTransfer(
   supabase: SupabaseClient,
   params: CreateTransferParams,
 ): Promise<StockTransfer> {
-  // Validate source != destination
   if (params.source_location_id === params.dest_location_id) {
     throw new Error("INVALID_LOCATION: source dan destination tidak boleh sama");
   }
 
-  // Validate has items
   if (!params.items || params.items.length === 0) {
     throw new Error("EMPTY_TRANSFER: transfer harus memiliki minimal 1 item");
   }
 
-  // Validate quantities
   for (const item of params.items) {
     if (item.requested_quantity <= 0) {
       throw new Error("INVALID_QUANTITY: quantity harus positif");
     }
   }
 
-  // Create transfer
-  const { data: transfer, error: transferError } = await supabase
-    .from("stock_transfers")
-    .insert({
-      source_location_id: params.source_location_id,
-      dest_location_id: params.dest_location_id,
-      notes: params.notes || null,
-    })
+  const { data: transferId, error: rpcError } = await supabase.rpc(
+    "create_transfer",
+    {
+      p_source_location_id: params.source_location_id,
+      p_dest_location_id: params.dest_location_id,
+      p_notes: params.notes || null,
+      p_items: params.items.map((item) => ({
+        stock_item_id: item.stock_item_id,
+        requested_quantity: item.requested_quantity,
+      })),
+    },
+  );
+
+  if (rpcError) throw mapDatabaseError(rpcError);
+
+  const { data: transfer, error: fetchError } = await supabase
+    .from("inventory_transfers")
     .select()
+    .eq("id", transferId)
     .single();
 
-  if (transferError) throw mapDatabaseError(transferError);
-
-  // Create items
-  const items = params.items.map((item) => ({
-    transfer_id: transfer.id,
-    stock_item_id: item.stock_item_id,
-    requested_quantity: item.requested_quantity,
-  }));
-
-  const { error: itemsError } = await supabase
-    .from("stock_transfer_items")
-    .insert(items);
-
-  if (itemsError) throw mapDatabaseError(itemsError);
-
-  // Create audit trail
-  const { error: historyError } = await supabase
-    .from("stock_transfer_history")
-    .insert({
-      transfer_id: transfer.id,
-      action: "CREATED",
-    });
-
-  if (historyError) throw mapDatabaseError(historyError);
+  if (fetchError) throw mapDatabaseError(fetchError);
 
   return transfer;
 }
@@ -130,7 +116,7 @@ export async function updateTransfer(
 ): Promise<StockTransfer> {
   // Get current transfer
   const { data: current, error: fetchError } = await supabase
-    .from("stock_transfers")
+    .from("inventory_transfers")
     .select("status")
     .eq("id", transferId)
     .single();
@@ -144,7 +130,7 @@ export async function updateTransfer(
   // Update notes if provided
   if (params.notes !== undefined) {
     const { error } = await supabase
-      .from("stock_transfers")
+      .from("inventory_transfers")
       .update({ notes: params.notes, updated_at: new Date().toISOString() })
       .eq("id", transferId);
 
@@ -155,7 +141,7 @@ export async function updateTransfer(
   if (params.items !== undefined) {
     // Delete existing items
     const { error: deleteError } = await supabase
-      .from("stock_transfer_items")
+      .from("inventory_transfer_items")
       .delete()
       .eq("transfer_id", transferId);
 
@@ -169,7 +155,7 @@ export async function updateTransfer(
     }));
 
     const { error: insertError } = await supabase
-      .from("stock_transfer_items")
+      .from("inventory_transfer_items")
       .insert(items);
 
     if (insertError) throw mapDatabaseError(insertError);
@@ -177,7 +163,7 @@ export async function updateTransfer(
 
   // Return updated transfer
   const { data: updated, error: returnError } = await supabase
-    .from("stock_transfers")
+    .from("inventory_transfers")
     .select()
     .eq("id", transferId)
     .single();
@@ -195,15 +181,15 @@ export async function getTransfer(
   transferId: string,
 ): Promise<StockTransferWithItems> {
   const { data: transfer, error: transferError } = await supabase
-    .from("stock_transfers")
-    .select("*, source_location:branches!stock_transfers_source_location_id_fkey(name), dest_location:branches!stock_transfers_dest_location_id_fkey(name)")
+    .from("inventory_transfers")
+    .select("*, source_location:branches!inventory_transfers_source_location_id_fkey(name), dest_location:branches!inventory_transfers_dest_location_id_fkey(name)")
     .eq("id", transferId)
     .single();
 
   if (transferError) throw mapDatabaseError(transferError);
 
   const { data: items, error: itemsError } = await supabase
-    .from("stock_transfer_items")
+    .from("inventory_transfer_items")
     .select("*")
     .eq("transfer_id", transferId);
 
@@ -232,8 +218,8 @@ export async function listTransfers(
   },
 ): Promise<StockTransferWithItems[]> {
   let query = supabase
-    .from("stock_transfers")
-    .select("*, source_location:branches!stock_transfers_source_location_id_fkey(name), dest_location:branches!stock_transfers_dest_location_id_fkey(name)")
+    .from("inventory_transfers")
+    .select("*, source_location:branches!inventory_transfers_source_location_id_fkey(name), dest_location:branches!inventory_transfers_dest_location_id_fkey(name)")
     .order("created_at", { ascending: false });
 
   if (filters?.status) {
@@ -261,7 +247,7 @@ export async function listTransfers(
   const result: StockTransferWithItems[] = [];
   for (const transfer of transfers || []) {
     const { data: items } = await supabase
-      .from("stock_transfer_items")
+      .from("inventory_transfer_items")
       .select("*")
       .eq("transfer_id", transfer.id);
 

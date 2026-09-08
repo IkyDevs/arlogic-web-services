@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   LayoutDashboard,
   LogOut,
@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Menu,
   RefreshCw,
+  ShoppingCart,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
@@ -29,13 +30,16 @@ import WatchDatabase from "@/components/owner/WatchDatabase";
 import CustomerList from "@/components/admin/CustomerList";
 import TrackingVisits from "@/components/owner/TrackingVisits";
 import WidgetRenderer from "@/components/owner/WidgetRenderer";
+import LayananForm from "@/components/layanan/LayananForm";
+import TransactionManagement from "@/components/layanan/TransactionManagement";
+import { useBranch } from "@/lib/context/BranchContext";
 import { useOwnerDashboard } from "@/hooks/useOwnerDashboard";
 import { WIDGET_ORDER } from "@/constants/owner";
 import { formatCompactRupiah } from "@/lib/owner/format";
 import type { WidgetContext } from "@/types/owner";
 
 type DateRange = "today" | "week" | "month" | "custom";
-type Tab = "dashboard" | "feedback" | "closing" | "watch_db" | "customer" | "tracking";
+type Tab = "dashboard" | "feedback" | "closing" | "watch_db" | "customer" | "tracking" | "transaction";
 
 const rangeLabel: Record<DateRange, string> = {
   today: "Today",
@@ -46,6 +50,7 @@ const rangeLabel: Record<DateRange, string> = {
 
 const menu: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "transaction", label: "Transaksi", icon: ShoppingCart },
   { id: "feedback", label: "Feedback", icon: Star },
   { id: "closing", label: "Closing", icon: FileText },
   { id: "watch_db", label: "Watch DB", icon: Database },
@@ -83,6 +88,20 @@ export default function OwnerDashboard() {
   const [customEnd, setCustomEnd] = useState<Date>(() => new Date());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showLayananForm, setShowLayananForm] = useState(false);
+  const [centralBranchId, setCentralBranchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("branches")
+      .select("id")
+      .eq("is_central", true)
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data?.id) setCentralBranchId(data.id);
+      });
+  }, []);
 
   const dateRange = useMemo(
     () => resolveRange(range, customStart, customEnd),
@@ -298,6 +317,7 @@ export default function OwnerDashboard() {
           {tab === "watch_db" && <WatchDatabase />}
           {tab === "customer" && <CustomerList />}
           {tab === "tracking" && <TrackingVisits />}
+          {tab === "transaction" && <TransactionManagement defaultBranchId={centralBranchId} />}
 
           {tab === "dashboard" && isLoading && (
             <div className="space-y-4">
@@ -350,6 +370,16 @@ export default function OwnerDashboard() {
           )}
         </main>
       </div>
+
+      {showLayananForm && (
+        <LayananForm
+          onSuccess={() => {
+            setShowLayananForm(false);
+          }}
+          onClose={() => setShowLayananForm(false)}
+          defaultBranchId={centralBranchId}
+        />
+      )}
 
       <ReportModal
         open={showReport}

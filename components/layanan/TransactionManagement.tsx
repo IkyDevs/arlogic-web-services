@@ -76,7 +76,7 @@ function LoadingSpinner() {
   );
 }
 
-export default function TransactionManagement({ isDark = false, readOnly = false, branchId: branchIdProp }: { isDark?: boolean; readOnly?: boolean; branchId?: string | null }) {
+export default function TransactionManagement({ isDark = false, readOnly = false, branchId: branchIdProp, defaultBranchId }: { isDark?: boolean; readOnly?: boolean; branchId?: string | null; defaultBranchId?: string | null }) {
   const { transactions, analytics, fetch, loading } = useTransactionStore();
   const scopeBranchId = useBranchScope().branchId;
   const branchId = branchIdProp ?? scopeBranchId;
@@ -480,7 +480,7 @@ export default function TransactionManagement({ isDark = false, readOnly = false
       
       {showAddForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70] p-3 sm:p-4">
-          <LayananForm onSuccess={() => setShowAddForm(false)} onClose={() => setShowAddForm(false)} />
+          <LayananForm onSuccess={() => setShowAddForm(false)} onClose={() => setShowAddForm(false)} defaultBranchId={defaultBranchId} />
         </div>
       )}
       {showExpenseForm && (
@@ -493,7 +493,7 @@ export default function TransactionManagement({ isDark = false, readOnly = false
           {editData.items?.[0]?.jenis_layanan === "pengeluaran" || editData.jenis_layanan === "pengeluaran" ? (
             <PengeluaranForm initialData={editData} onSuccess={() => { setShowEditForm(false); setEditData(null); }} onClose={() => { setShowEditForm(false); setEditData(null); }} />
           ) : (
-            <LayananForm initialData={editData} onSuccess={() => { setShowEditForm(false); setEditData(null); }} onClose={() => { setShowEditForm(false); setEditData(null); }} />
+            <LayananForm initialData={editData} onSuccess={() => { setShowEditForm(false); setEditData(null); }} onClose={() => { setShowEditForm(false); setEditData(null); }} defaultBranchId={defaultBranchId} />
           )}
         </div>
       )}
