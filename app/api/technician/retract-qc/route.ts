@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     const result = await transitionWithTimeline(
       supabase,
       serviceOrderId,
-      ALLOWED_STATUSES,
+      service.status,
       "in_progress",
       user.id,
       "in_progress",

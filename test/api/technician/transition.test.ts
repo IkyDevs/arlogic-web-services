@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock Supabase client
-const createMockSupabase = (overrides: Record<string, any> = {}) => {
-  const mockChain = {
+function createMockSupabase(topOverrides: Record<string, any> = {}) {
+  const chain = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     single: vi.fn().mockReturnThis(),
@@ -10,11 +9,11 @@ const createMockSupabase = (overrides: Record<string, any> = {}) => {
     update: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
-    ...overrides,
   };
 
-  return {
-    from: vi.fn().mockReturnValue(mockChain),
+  const base: Record<string, any> = {
+    from: vi.fn().mockReturnValue(chain),
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
     auth: {
       getUser: vi.fn().mockResolvedValue({
         data: { user: { id: "user-123", email: "test@example.com" } },
@@ -22,135 +21,257 @@ const createMockSupabase = (overrides: Record<string, any> = {}) => {
       }),
     },
   };
-};
 
-describe("transitionServiceStatus", () => {
+  return { ...base, ...topOverrides } as any;
+}
+
+describe("transitionWithTimeline (atomic RPC)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("transitions from assigned to in_progress", async () => {
-    const mockSupabase = createMockSupabase({
-      single: vi.fn().mockResolvedValue({
-        data: { id: "service-123", status: "assigned", assigned_teknisi_id: "user-123" },
-        error: null,
-        count: 1,
-      }),
+  it("calls technician_transition_service RPC with correct parameters", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        success: true,
+        previous_status: "assigned",
+        new_status: "in_progress",
+        service_id: "service-123",
+        invoice_number: "INV-001",
+        customer_name: "Test Customer",
+      },
+      error: null,
     });
+    const supabase = createMockSupabase({ rpc });
 
-    const { transitionServiceStatus } = await import("@/lib/api/technician/transition");
-    const result = await transitionServiceStatus(
-      mockSupabase as any,
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
+    const result = await transitionWithTimeline(
+      supabase,
       "service-123",
       "assigned",
-      "in_progress"
+      "in_progress",
+      "user-123",
+      "in_progress",
+      "Service started",
+      { start_date: "2026-01-01" },
+      { action: "start_service" }
     );
 
     expect(result.success).toBe(true);
+    expect(result.previousStatus).toBe("assigned");
     expect(result.newStatus).toBe("in_progress");
-    expect(mockSupabase.from).toHaveBeenCalledWith("service_orders");
-  });
 
-  it("throws INVALID_STATUS_TRANSITION when status mismatch", async () => {
-    const mockSupabase = createMockSupabase({
-      single: vi.fn()
-        .mockResolvedValueOnce({
-          data: null,
-          error: null,
-          count: 0,
-        })
-        .mockResolvedValueOnce({
-          data: { status: "in_progress" },
-          error: null,
-        }),
-    });
-
-    const { transitionServiceStatus } = await import("@/lib/api/technician/transition");
-
-    await expect(
-      transitionServiceStatus(
-        mockSupabase as any,
-        "service-123",
-        "assigned",
-        "in_progress"
-      )
-    ).rejects.toMatchObject({
-      code: "INVALID_STATUS_TRANSITION",
+    expect(rpc).toHaveBeenCalledWith("technician_transition_service", {
+      p_service_order_id: "service-123",
+      p_expected_status: "assigned",
+      p_new_status: "in_progress",
+      p_timeline_status: "in_progress",
+      p_timeline_message: "Service started",
+      p_additional_updates: { start_date: "2026-01-01" },
+      p_timeline_details: { action: "start_service" },
     });
   });
 
-  it("throws SERVICE_NOT_FOUND when service does not exist", async () => {
-    const mockSupabase = createMockSupabase({
-      single: vi.fn()
-        .mockResolvedValueOnce({
-          data: null,
-          error: null,
-          count: 0,
-        })
-        .mockResolvedValueOnce({
-          data: null,
-          error: null,
-        }),
+  it("maps FORBIDDEN (non-teknisi) RPC error to 403", async () => {
+    const supabase = createMockSupabase({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "FORBIDDEN: only technicians may perform this action" },
+      }),
     });
 
-    const { transitionServiceStatus } = await import("@/lib/api/technician/transition");
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
 
     await expect(
-      transitionServiceStatus(
-        mockSupabase as any,
-        "nonexistent",
-        "assigned",
-        "in_progress"
+      transitionWithTimeline(
+        supabase, "service-123", "assigned", "in_progress",
+        "user-123", "in_progress", "Service started"
       )
-    ).rejects.toMatchObject({
-      code: "SERVICE_NOT_FOUND",
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("maps SERVICE_NOT_FOUND RPC error to 404", async () => {
+    const supabase = createMockSupabase({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "SERVICE_NOT_FOUND: service order does not exist" },
+      }),
     });
+
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
+
+    await expect(
+      transitionWithTimeline(
+        supabase, "nonexistent", "assigned", "in_progress",
+        "user-123", "in_progress", "Service started"
+      )
+    ).rejects.toMatchObject({ code: "SERVICE_NOT_FOUND" });
+  });
+
+  it("maps assignment mismatch to NOT_ASSIGNED_TECHNICIAN", async () => {
+    const supabase = createMockSupabase({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "FORBIDDEN: you can only act on services assigned to you" },
+      }),
+    });
+
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
+
+    await expect(
+      transitionWithTimeline(
+        supabase, "service-123", "assigned", "in_progress",
+        "user-123", "in_progress", "Service started"
+      )
+    ).rejects.toMatchObject({ code: "NOT_ASSIGNED_TECHNICIAN" });
+  });
+
+  it("maps INVALID_STATUS_TRANSITION RPC error correctly", async () => {
+    const supabase = createMockSupabase({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          message: "INVALID_STATUS_TRANSITION: cannot transition from assigned to in_progress (current: qc_pending)",
+        },
+      }),
+    });
+
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
+
+    await expect(
+      transitionWithTimeline(
+        supabase, "service-123", "assigned", "in_progress",
+        "user-123", "in_progress", "Service started"
+      )
+    ).rejects.toMatchObject({ code: "INVALID_STATUS_TRANSITION" });
+  });
+
+  it("maps concurrent modification RPC error to INVALID_STATUS_TRANSITION", async () => {
+    const supabase = createMockSupabase({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "INVALID_STATUS_TRANSITION: concurrent modification detected on service" },
+      }),
+    });
+
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
+
+    await expect(
+      transitionWithTimeline(
+        supabase, "service-123", "assigned", "in_progress",
+        "user-123", "in_progress", "Service started"
+      )
+    ).rejects.toMatchObject({ code: "INVALID_STATUS_TRANSITION" });
+  });
+
+  it("maps unknown RPC error to INTERNAL_ERROR without leaking SQL", async () => {
+    const supabase = createMockSupabase({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { message: "relation \"public.wrong_table\" does not exist" },
+      }),
+    });
+
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
+
+    await expect(
+      transitionWithTimeline(
+        supabase, "service-123", "assigned", "in_progress",
+        "user-123", "in_progress", "Service started"
+      )
+    ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+  });
+
+  it("handles array expectedStatus by passing first element to RPC", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        success: true,
+        previous_status: "qc_pending",
+        new_status: "in_progress",
+        service_id: "service-123",
+        invoice_number: "INV-001",
+        customer_name: "Test",
+      },
+      error: null,
+    });
+    const supabase = createMockSupabase({ rpc });
+
+    const { transitionWithTimeline } = await import("@/lib/api/technician/transition");
+    await transitionWithTimeline(
+      supabase, "service-123",
+      ["qc_pending", "revision_required"],
+      "in_progress", "user-123", "in_progress", "Retract QC"
+    );
+
+    expect(rpc).toHaveBeenCalledWith(
+      "technician_transition_service",
+      expect.objectContaining({ p_expected_status: "qc_pending" })
+    );
   });
 });
 
-describe("insertTimeline", () => {
+describe("requireTechnician role restriction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
   });
 
-  it("inserts timeline entry", async () => {
-    const mockSupabase = createMockSupabase({
-      insert: vi.fn().mockResolvedValue({ error: null }),
-    });
+  function mockSupabaseForRole(role: string, userId = "user-test") {
+    vi.doMock("@/lib/supabase/server", () => ({
+      createClient: vi.fn().mockResolvedValue({
+        auth: {
+          getUser: vi.fn().mockResolvedValue({
+            data: { user: { id: userId, email: `${role}@example.com` } },
+            error: null,
+          }),
+        },
+        from: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { id: userId, role, full_name: `${role} User` },
+            error: null,
+          }),
+        }),
+      }),
+    }));
+  }
 
-    const { insertTimeline } = await import("@/lib/api/technician/transition");
+  it("allows teknisi role", async () => {
+    mockSupabaseForRole("teknisi", "user-tech");
 
-    await expect(
-      insertTimeline(
-        mockSupabase as any,
-        "service-123",
-        "user-123",
-        "in_progress",
-        "Service started",
-        { action: "start_service" }
-      )
-    ).resolves.toBeUndefined();
-
-    expect(mockSupabase.from).toHaveBeenCalledWith("service_timeline");
+    const { requireTechnician } = await import("@/lib/api/technician/auth");
+    const ctx = await requireTechnician(new Request("http://localhost"));
+    expect(ctx.profile.role).toBe("teknisi");
   });
 
-  it("throws INTERNAL_ERROR on insert failure", async () => {
-    const mockSupabase = createMockSupabase({
-      insert: vi.fn().mockResolvedValue({ error: { message: "Insert failed" } }),
-    });
+  it("rejects admin role", async () => {
+    mockSupabaseForRole("admin", "user-admin");
 
-    const { insertTimeline } = await import("@/lib/api/technician/transition");
+    const { requireTechnician } = await import("@/lib/api/technician/auth");
 
     await expect(
-      insertTimeline(
-        mockSupabase as any,
-        "service-123",
-        "user-123",
-        "in_progress",
-        "Service started"
-      )
-    ).rejects.toMatchObject({
-      code: "INTERNAL_ERROR",
-    });
+      requireTechnician(new Request("http://localhost"))
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects supervisor role", async () => {
+    mockSupabaseForRole("supervisor", "user-sup");
+
+    const { requireTechnician } = await import("@/lib/api/technician/auth");
+
+    await expect(
+      requireTechnician(new Request("http://localhost"))
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("rejects qc role", async () => {
+    mockSupabaseForRole("qc", "user-qc");
+
+    const { requireTechnician } = await import("@/lib/api/technician/auth");
+
+    await expect(
+      requireTechnician(new Request("http://localhost"))
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -52,7 +52,7 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
 export async function requireTechnician(request: Request): Promise<AuthContext> {
   const ctx = await requireAuth(request);
 
-  const allowedRoles: UserRole[] = ["teknisi", "admin", "supervisor", "qc"];
+  const allowedRoles: UserRole[] = ["teknisi"];
   if (!allowedRoles.includes(ctx.profile.role)) {
     throw new AuthError("FORBIDDEN", "Technician access required");
   }
