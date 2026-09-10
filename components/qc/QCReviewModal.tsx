@@ -626,7 +626,7 @@ export default function QCReviewModal({
 
       const newStatus =
         status === "approved" ? "completed" : "revision_required";
-      const { error: updateError } = await supabase
+      const { data: updatedRows, error: updateError } = await supabase
         .from("service_orders")
         .update({
           status: newStatus,
@@ -634,8 +634,12 @@ export default function QCReviewModal({
           discount: effectiveDiscount,
           discount_percentage: discountPercent,
         })
-        .eq("id", service.id);
+        .eq("id", service.id)
+        .select();
       if (updateError) throw updateError;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("Update status gagal — kemungkinan tidak punya izin atau order tidak ditemukan");
+      }
 
       await supabase.from("qc_reviews").insert({
         service_order_id: service.id,

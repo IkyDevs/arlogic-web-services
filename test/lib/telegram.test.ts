@@ -69,36 +69,6 @@ describe("sendTelegramMessage", () => {
   });
 });
 
-describe("editMessageCaption", () => {
-  it("returns true on success", async () => {
-    const { editMessageCaption } = await import("@/lib/telegram");
-    mockFetch.mockResolvedValueOnce(makeFetchResponse(true));
-
-    const result = await editMessageCaption("@test", 123, "New caption");
-    expect(result).toBe(true);
-  });
-
-  it("returns false on API error", async () => {
-    const { editMessageCaption } = await import("@/lib/telegram");
-    mockFetch.mockImplementation(() => Promise.resolve({
-      ok: true,
-      status: 200,
-      text: () => Promise.resolve(JSON.stringify({ ok: false, description: "API error" })),
-    } as any));
-
-    const result = await editMessageCaption("@test", 123, "New caption");
-    expect(result).toBe(false);
-  });
-
-  it("returns false on fetch error", async () => {
-    const { editMessageCaption } = await import("@/lib/telegram");
-    mockFetch.mockRejectedValue(new Error("Network error"));
-
-    const result = await editMessageCaption("@test", 123, "New caption");
-    expect(result).toBe(false);
-  });
-});
-
 describe("uploadMultipleToTelegram", () => {
   it("returns empty array when no files", async () => {
     const { uploadMultipleToTelegram } = await import("@/lib/telegram");

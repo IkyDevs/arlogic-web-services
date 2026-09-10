@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { editMessageCaption } from '@/lib/telegram'
+import { replaceTelegramDocumentation } from '@/lib/telegram'
 import { telegramEditCaptionSchema } from '@/lib/validation/schemas'
 
 export async function POST(request: NextRequest) {
@@ -10,9 +10,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
-    // Cari service_documentation stage 'qc' milik service ini.
-    // TIDAK difilter chat_id global — karena foto sudah masuk channel PER-CABANG
-    // (misal @jbr_qc_update), dan chat_id asli tersimpan di kolom telegram_chat_id.
     const { data: docsResult } = await supabase
       .from('service_documentation')
       .select('id, telegram_chat_id, telegram_message_id, stage')
@@ -28,14 +25,20 @@ export async function POST(request: NextRequest) {
 
     const firstDocWithRef = docsResult[0];
 
-    if (firstDocWithRef) {
-      const ok = await editMessageCaption(firstDocWithRef.telegram_chat_id, firstDocWithRef.telegram_message_id, parsed.new_caption)
-      if (ok) {
-        return NextResponse.json({ success: true, edited_doc_id: firstDocWithRef.id, stage: firstDocWithRef.stage })
-      }
+    const result = await replaceTelegramDocumentation(firstDocWithRef.id, {
+      newCaption: parsed.new_caption,
+    });
+
+    if (result.success) {
+      return NextResponse.json({
+        success: true,
+        edited_doc_id: result.newDocId,
+        old_doc_id: firstDocWithRef.id,
+        stage: firstDocWithRef.stage,
+      });
     }
 
-    return NextResponse.json({ error: 'Failed to edit caption on the relevant message' }, { status: 500 })
+    return NextResponse.json({ error: result.error || 'Failed to replace Telegram documentation' }, { status: 500 })
   } catch (error: any) {
     console.error('[Edit Caption Error]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })

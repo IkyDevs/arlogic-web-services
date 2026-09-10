@@ -292,13 +292,167 @@ export async function resolveChatId(channelUsername: string): Promise<string> {
   }
 }
 
-export async function editMessageCaption(chatId: string, messageId: number, caption: string): Promise<boolean> {
-  try {
-    await tgPost("editMessageCaption", { chat_id: chatId, message_id: messageId, caption });
-    return true;
-  } catch {
-    return false;
+async function sendPhotoWithFileIdOrBlob(
+  channelId: string,
+  mediaSource: { fileId: string } | { blob: Blob; fileName: string },
+  caption?: string,
+): Promise<TelegramMessageResult> {
+  const formData = new FormData();
+  formData.append("chat_id", channelId);
+
+  if ("fileId" in mediaSource) {
+    formData.append("photo", mediaSource.fileId);
+  } else {
+    formData.append("photo", mediaSource.blob, mediaSource.fileName);
   }
+
+  if (caption) formData.append("caption", caption);
+
+  const result = await tgPost("sendPhoto", formData, true);
+  const chat_id = String(result.chat.id);
+  const message_id = result.message_id;
+  const fileId = result.photo[result.photo.length - 1].file_id;
+  const url = await getFileUrl(fileId);
+
+  return { url: url || "", chat_id, message_id, file_id: fileId };
+}
+
+export interface ReplaceDocumentationResult {
+  success: boolean;
+  newDocId?: string;
+  chatId?: string;
+  messageId?: number;
+  fileId?: string;
+  error?: string;
+}
+
+/**
+ * Ganti pesan Telegram untuk service_documentation: kirim pesan baru → hapus pesan lama.
+ *
+ * Flow (generalisasi D3/D6):
+ * - caption-only: reuse file_id lama → sendPhoto → insert baru → delete lama
+ * - foto+caption: upload file baru → sendPhoto → insert baru → delete lama
+ *
+ * @param documentationId - ID baris service_documentation yang akan diganti
+ * @param options - { newCaption: string, newFile?: { buffer: Buffer, fileName: string, mimeType?: string } }
+ * @returns ReplaceDocumentationResult
+ */
+export async function replaceTelegramDocumentation(
+  documentationId: string,
+  options: {
+    newCaption: string;
+    newFile?: { buffer: Buffer; fileName: string; mimeType?: string };
+  },
+): Promise<ReplaceDocumentationResult> {
+  const supabase = getSupabaseAdmin() as any;
+
+  // a. Ambil record service_documentation existing
+  const { data: existingDoc, error: fetchError } = await supabase
+    .from("service_documentation")
+    .select("id, telegram_chat_id, telegram_message_id, telegram_file_ids, service_order_id, stage, created_at, uploaded_by")
+    .eq("id", documentationId)
+    .single();
+
+  if (fetchError || !existingDoc) {
+    return { success: false, error: `Documentation not found: ${documentationId}` };
+  }
+
+  const {
+    telegram_chat_id: oldChatId,
+    telegram_message_id: oldMessageId,
+    telegram_file_ids: oldFileIds,
+    service_order_id,
+    stage,
+    created_at,
+    uploaded_by,
+  } = existingDoc;
+
+  // service_documentation: satu baris = satu foto/pesan Telegram
+  // Array bisa berisi multiple file_id (legacy dari buildTelegramMetadata),
+  // tapi untuk resend kita pakai elemen pertama
+  const oldFileId = Array.isArray(oldFileIds) && oldFileIds.length > 0 ? oldFileIds[0] : null;
+
+  if (!oldChatId || !oldMessageId) {
+    return { success: false, error: "Existing documentation has no Telegram reference" };
+  }
+
+  // b. Tentukan sumber media untuk pesan baru
+  let mediaSource: { fileId: string } | { blob: Blob; fileName: string };
+
+  if (options.newFile) {
+    const blob = new Blob([new Uint8Array(options.newFile.buffer)], {
+      type: options.newFile.mimeType || "image/jpeg",
+    });
+    mediaSource = { blob, fileName: options.newFile.fileName };
+  } else {
+    if (!oldFileId) {
+      return { success: false, error: "No file_id available for reuse" };
+    }
+    mediaSource = { fileId: oldFileId };
+  }
+
+  // c. Kirim PESAN BARU via sendPhoto
+  let newMessage: TelegramMessageResult;
+  try {
+    newMessage = await sendPhotoWithFileIdOrBlob(oldChatId, mediaSource, options.newCaption);
+  } catch (error: any) {
+    // g. Kalau gagal: STOP total. Jangan insert, jangan hapus.
+    return { success: false, error: error.message || "Failed to send new Telegram message" };
+  }
+
+  // d. Pastikan pengiriman sukses dan dapat data baru
+  if (!newMessage || !newMessage.chat_id || !newMessage.message_id) {
+    return { success: false, error: "Invalid Telegram response" };
+  }
+
+  // e. Insert baris baru dengan identitas Telegram yang baru
+  const newDocRow = {
+    service_order_id,
+    photo_url: newMessage.url,
+    stage,
+    created_at,
+    uploaded_by,
+    telegram_chat_id: newMessage.chat_id,
+    telegram_message_id: newMessage.message_id,
+    telegram_file_ids: [newMessage.file_id],
+    telegram_sync: "synced",
+  };
+
+  const { data: insertedDoc, error: insertError } = await supabase
+    .from("service_documentation")
+    .insert(newDocRow)
+    .select("id")
+    .single();
+
+  if (insertError) {
+    try {
+      await deleteTelegramMessage(newMessage.chat_id, newMessage.message_id);
+    } catch {
+      // Non-fatal
+    }
+    return { success: false, error: `Failed to insert new documentation: ${insertError.message}` };
+  }
+
+  // f. SETELAH insert sukses: hapus pesan LAMA di Telegram
+  try {
+    await deleteTelegramMessage(oldChatId, oldMessageId);
+  } catch {
+    // Non-fatal — pesan lama akan stale
+  }
+
+  try {
+    await supabase.from("service_documentation").delete().eq("id", documentationId);
+  } catch {
+    // Non-fatal
+  }
+
+  return {
+    success: true,
+    newDocId: insertedDoc.id,
+    chatId: newMessage.chat_id,
+    messageId: newMessage.message_id,
+    fileId: newMessage.file_id,
+  };
 }
 
 export async function deleteTelegramMessage(chatId: string | number, messageId: number): Promise<boolean> {

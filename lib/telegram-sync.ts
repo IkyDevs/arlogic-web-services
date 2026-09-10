@@ -2,8 +2,7 @@
 
 /**
  * Protokol sinkronisasi Telegram (D3/D6):
- * - Data berubah, foto TIDAK berubah → edit caption pesan lama (editMessageCaption).
- * - Foto berubah (tambah/hapus) → KIRIM DULU pesan baru, tunggu sukses, BARU hapus pesan lama.
+ * - Data berubah → kirim pesan baru, setelah sukses hapus pesan lama.
  * Client-side helper yang memanggil route /api/telegram/* yang sudah ada.
  */
 
@@ -30,7 +29,6 @@ export function extractTelegramRefs(row: Record<string, unknown> | null | undefi
   return ids.length > 0 ? { chat_id: chatId, message_ids: ids } : null
 }
 
-/** Edit caption pesan lama (hanya pesan pertama album — batasan Telegram, D1). */
 export async function editTelegramCaption(
   chatId: string | number,
   messageId: number,
