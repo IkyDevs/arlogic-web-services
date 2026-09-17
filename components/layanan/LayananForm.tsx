@@ -389,6 +389,11 @@ export default memo(function LayananForm({
       setLinkedServiceOrderIds(services.map((s) => s.id));
       setPickedInvoices(services.map((s) => s.invoice_number));
       setPickupTargetIdx(null);
+      if (services.length === 1) {
+        const svc = services[0];
+        if (svc.customer_name) setCustomerName(svc.customer_name);
+        if (svc.customer_phone) setCustomerWhatsapp(svc.customer_phone);
+      }
     },
     [pickupTargetIdx],
   );
@@ -1761,7 +1766,7 @@ export default memo(function LayananForm({
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
-                    className="absolute top-1.5 right-1.5 p-1 bg-black/60 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                    className="absolute top-1.5 right-1.5 p-1 bg-black/60 text-white rounded-lg hover:bg-black/80"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -2053,6 +2058,30 @@ export default memo(function LayananForm({
               </button>
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Photo Detail Popup */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div className="relative max-w-3xl w-full max-h-[90vh] flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => setPreviewPhoto(null)}
+              className="absolute -top-10 right-0 p-2 text-white/70 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={previewPhoto}
+              alt="Detail foto"
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         </div>
       )}
     </motion.div>
