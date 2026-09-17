@@ -25,6 +25,17 @@ export const deleteUserSchema = z.object({
   userId: z.string().uuid(),
 })
 
+export const updateUserSchema = z.object({
+  userId: z.string().uuid(),
+  full_name: z.string().min(1).optional(),
+  branch_id: z.string().uuid().nullable().optional(),
+  is_stock_approver: z.boolean().optional(),
+})
+
+export const softDeleteUserSchema = z.object({
+  userId: z.string().uuid(),
+})
+
 export const layananSchema = z.object({
   customer_name: z.string().min(1),
   customer_whatsapp: z.string().optional(),

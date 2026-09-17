@@ -66,6 +66,8 @@ export interface TransactionAnalytics {
   metodeRevenue: Record<string, number>
   metodeCount: Record<string, number>
   staffStats: Record<string, { count: number; revenue: number }>
+  leadSourceCount: Record<string, number>
+  leadSourceRevenue: Record<string, number>
 }
 
 // ─── Split Payment ─────────────────────────────────────────────────

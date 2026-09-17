@@ -162,6 +162,8 @@ export function computeAnalytics(data: TransactionData[]): TransactionAnalytics 
   const metodeRevenue: Record<string, number> = {}
   const metodeCount: Record<string, number> = {}
   const staffStats: Record<string, { count: number; revenue: number }> = {}
+  const leadSourceCount: Record<string, number> = {}
+  const leadSourceRevenue: Record<string, number> = {}
   let active = 0, completed = 0, cancelled = 0
 
   for (const tx of data) {
@@ -207,6 +209,10 @@ export function computeAnalytics(data: TransactionData[]): TransactionAnalytics 
     staffStats[staff].count++
     if (!isExpense) staffStats[staff].revenue += nominal
 
+    const ls = tx.lead_source || "unknown"
+    leadSourceCount[ls] = (leadSourceCount[ls] || 0) + 1
+    if (!isExpense) leadSourceRevenue[ls] = (leadSourceRevenue[ls] || 0) + nominal
+
     if (tx.status === "active") active++
     else if (tx.status === "completed") completed++
     else if (tx.status === "cancelled") cancelled++
@@ -225,6 +231,8 @@ export function computeAnalytics(data: TransactionData[]): TransactionAnalytics 
     metodeRevenue,
     metodeCount,
     staffStats,
+    leadSourceCount,
+    leadSourceRevenue,
   }
 }
 

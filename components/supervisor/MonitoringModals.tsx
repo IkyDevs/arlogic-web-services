@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import dynamic from "next/dynamic";
+import type { PeriodValue } from "@/components/filters/types";
 
 const TransactionManagement = dynamic(
   () => import("@/components/layanan/TransactionManagement"),
@@ -30,6 +31,7 @@ interface MonitoringModalProps {
   open: boolean;
   branch: ModalBranch;
   onClose: () => void;
+  initialPeriod?: PeriodValue;
 }
 
 function MonitoringModalShell({
@@ -101,6 +103,7 @@ export function SupervisorTransactionsModal({
   open,
   branch,
   onClose,
+  initialPeriod,
 }: MonitoringModalProps) {
   return (
     <MonitoringModalShell
@@ -109,7 +112,7 @@ export function SupervisorTransactionsModal({
       subtitle="Read-only · klik item untuk detail lengkap"
       onClose={onClose}
     >
-      <TransactionManagement readOnly branchId={branch.id} />
+      <TransactionManagement readOnly branchId={branch.id} initialPeriod={initialPeriod} />
     </MonitoringModalShell>
   );
 }

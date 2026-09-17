@@ -109,6 +109,35 @@ export default function QCDashboard() {
     checkTodayAttendance();
   }, [centralBranchId]);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("qc-dashboard-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "service_orders" },
+        () => {
+          fetchServices();
+          fetchPendingApprovals();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "service_orders" },
+        () => {
+          fetchServices();
+          fetchProcessingServices();
+          fetchCompletedServices();
+          fetchRevisionServices();
+          fetchPendingApprovals();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, centralBranchId]);
+
   // Close sidebar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
 import { useBranch } from "@/lib/context/BranchContext";
 import toast from "react-hot-toast";
+import type { PeriodValue } from "@/components/filters/types";
 import {
   LayoutDashboard,
   Users,
@@ -148,6 +149,14 @@ export default function SupervisorDashboard() {
       setLoadingStats(false);
     }
   }, [branches, supabase, period, dateRangeStart, dateRangeEnd]);
+
+  const modalPeriodValue = useMemo<PeriodValue>(() => {
+    const { start, end } = getWindow(period, dateRangeStart, dateRangeEnd);
+    return {
+      type: "custom",
+      range: { start: start.split("T")[0], end: end.split("T")[0] },
+    };
+  }, [period, dateRangeStart, dateRangeEnd]);
 
   useEffect(() => {
     const t = setTimeout(fetchOverview, 0);
@@ -893,6 +902,7 @@ export default function SupervisorDashboard() {
         open={modal?.type === "tx"}
         branch={modal?.branch ?? ALL_BRANCH}
         onClose={() => setModal(null)}
+        initialPeriod={modalPeriodValue}
       />
       <SupervisorServicesModal
         open={modal?.type === "svc"}
