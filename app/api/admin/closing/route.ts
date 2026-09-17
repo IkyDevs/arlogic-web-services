@@ -123,7 +123,7 @@ async function handleAction(action: string, payload: any) {
     case "list": {
       let q = closings().select("*");
       if (payload?.branch_id) q = q.eq("branch_id", payload.branch_id);
-      const { data, error } = await q.order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await q.order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     }

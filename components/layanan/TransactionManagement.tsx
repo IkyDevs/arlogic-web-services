@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, ShoppingCart, FileText, Receipt, Banknote, Phone } from "lucide-react";
+import { Search, X, ShoppingCart, FileText, Receipt, Banknote, Phone, MapPin } from "lucide-react";
 import LayananList from "./LayananList";
 import PengeluaranForm from "./PengeluaranForm";
 import CashdrawForm from "./CashdrawForm";
@@ -12,9 +12,9 @@ import { useTransactionStore } from "@/stores/transaction-store";
 import { realtimeService } from "@/lib/realtime";
 import { formatRupiah } from "@/lib/transaction-service";
 import { computeAnalytics } from "@/lib/domain/transaction/service";
-import { jenisLayananLabels } from "@/lib/domain/transaction/enums";
+import { jenisLayananLabels, leadSourceLabels } from "@/lib/domain/transaction/enums";
 import { useBranchScope } from "@/lib/context/useBranchScope";
-import BranchSelector from "@/components/ui/BranchSelector";
+import { useBranch } from "@/lib/context/BranchContext";
 import { PeriodFilter, type PeriodValue, DEFAULT_PERIOD } from "@/components/filters/PeriodFilter";
 
 const paymentLabels: Record<string, string> = {
@@ -76,13 +76,15 @@ function LoadingSpinner() {
   );
 }
 
-export default function TransactionManagement({ isDark = false, readOnly = false, branchId: branchIdProp, defaultBranchId }: { isDark?: boolean; readOnly?: boolean; branchId?: string | null; defaultBranchId?: string | null }) {
+export default function TransactionManagement({ isDark = false, readOnly = false, branchId: branchIdProp, defaultBranchId, initialPeriod }: { isDark?: boolean; readOnly?: boolean; branchId?: string | null; defaultBranchId?: string | null; initialPeriod?: PeriodValue }) {
   const { transactions, analytics, fetch, loading } = useTransactionStore();
+  const { branches, isGlobal } = useBranch();
   const scopeBranchId = useBranchScope().branchId;
-  const branchId = branchIdProp ?? scopeBranchId;
+  const [localBranchId, setLocalBranchId] = useState<string | null>(defaultBranchId ?? null);
+  const branchId = branchIdProp ?? localBranchId ?? scopeBranchId;
   
   // Period filter state
-  const [periodValue, setPeriodValue] = useState<PeriodValue>(DEFAULT_PERIOD);
+  const [periodValue, setPeriodValue] = useState<PeriodValue>(initialPeriod ?? DEFAULT_PERIOD);
   
   // UI states
   const [filterModal, setFilterModal] = useState<{ title: string; filtered: any[]; filterKey?: string; filterType?: string } | null>(null);
@@ -184,6 +186,13 @@ export default function TransactionManagement({ isDark = false, readOnly = false
     ];
     return () => ids.forEach((id) => cleanup.unsubscribe(id));
   }, [fetchWithPeriod, periodValue]);
+
+  useEffect(() => {
+    if (!isInitialMount.current) {
+      transactionCache.clear();
+      fetchWithPeriod(periodValue);
+    }
+  }, [branchId]);
 
   // Listen retry upload
   useEffect(() => {
@@ -317,7 +326,21 @@ export default function TransactionManagement({ isDark = false, readOnly = false
             </div>
           )}
           <div className="flex items-center gap-2 flex-wrap">
-            {!branchIdProp && <BranchSelector />}
+            {!branchIdProp && isGlobal && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs">
+                <MapPin className="w-3.5 h-3.5 text-blue-500" />
+                <select
+                  value={localBranchId || ""}
+                  onChange={(e) => setLocalBranchId(e.target.value || null)}
+                  className="bg-transparent outline-none text-gray-700 font-medium cursor-pointer"
+                >
+                  <option value="">Semua Cabang</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <PeriodFilter
               value={periodValue}
               onChange={handlePeriodChange}
@@ -380,7 +403,7 @@ export default function TransactionManagement({ isDark = false, readOnly = false
       </div>
 
       {/* Analytics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 flex-shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 md:gap-3 flex-shrink-0">
         <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
           <p className="text-[10px] md:text-sm font-bold text-blue-600 uppercase mb-1 md:mb-2">Jenis Layanan</p>
           <div className="space-y-0.5 md:space-y-1">
@@ -454,9 +477,25 @@ export default function TransactionManagement({ isDark = false, readOnly = false
             })}
           </div>
         </div>
+        <div className="bg-white rounded-lg md:rounded-xl py-2 md:py-4 px-3 md:px-5 border border-slate-200 shadow-sm">
+          <p className="text-[10px] md:text-sm font-bold text-rose-600 uppercase mb-1 md:mb-2">Lead Source</p>
+          <div className="space-y-0.5 md:space-y-1">
+            {Object.entries(filteredAnalytics.leadSourceRevenue).sort(([, a], [, b]) => Number(b) - Number(a)).slice(0, 4).map(([key, val]) => {
+              const totalLsCount = Object.values(filteredAnalytics.leadSourceCount).reduce((s, v) => s + v, 0);
+              const lsCount = filteredAnalytics.leadSourceCount[key] || 0;
+              const pct = totalLsCount > 0 ? Math.round(lsCount / totalLsCount * 100) : 0;
+              const label = leadSourceLabels[key] || key;
+              return <BarItem key={key} label={label} value={formatRupiah(Number(val))} pct={pct}
+                onClick={() => setFilterModal({
+                  title: `Lead: ${label}`,
+                  filtered: filteredTransactions.filter((item) => (item.lead_source || "unknown") === key),
+                  filterKey: key,
+                  filterType: 'lead_source',
+                })} />;
+            })}
+          </div>
+        </div>
       </div>
-
-      {/* Transaction List */}
       <div className="w-full">
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200">

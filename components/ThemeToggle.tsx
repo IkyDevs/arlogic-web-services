@@ -17,14 +17,14 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label={isDark ? "Aktifkan Light Mode" : "Aktifkan Dark Mode"}
+      aria-label={mounted ? (isDark ? "Aktifkan Light Mode" : "Aktifkan Dark Mode") : "Toggle Theme"}
       style={{
         background: "var(--color-surface)",
         borderColor: "var(--color-border)",
         color: "var(--color-text-secondary)",
       }}
       className="p-2 rounded-lg border transition-all duration-150 hover:opacity-80 flex-shrink-0"
-      title={isDark ? "Aktifkan Light Mode" : "Aktifkan Dark Mode"}
+      title={mounted ? (isDark ? "Aktifkan Light Mode" : "Aktifkan Dark Mode") : "Toggle Theme"}
     >
       {!mounted ? (
         <span className="w-4 h-4 block" />

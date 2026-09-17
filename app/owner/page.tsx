@@ -15,6 +15,7 @@ import {
   Menu,
   RefreshCw,
   ShoppingCart,
+  Wrench,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { createClient } from "@/lib/supabase/client";
@@ -22,7 +23,6 @@ import { useRouter } from "next/navigation";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import ThemeToggle from "@/components/ThemeToggle";
 import UserAvatar from "@/components/ui/UserAvatar";
-import BranchSelector from "@/components/ui/BranchSelector";
 import ReportModal from "@/components/ui/ReportModal";
 import FeedbackList from "@/components/owner/FeedbackList";
 import ClosingApproval from "@/components/admin/ClosingApproval";
@@ -32,6 +32,7 @@ import TrackingVisits from "@/components/owner/TrackingVisits";
 import WidgetRenderer from "@/components/owner/WidgetRenderer";
 import LayananForm from "@/components/layanan/LayananForm";
 import TransactionManagement from "@/components/layanan/TransactionManagement";
+import OwnerServiceView from "@/components/owner/OwnerServiceView";
 import { useBranch } from "@/lib/context/BranchContext";
 import { useOwnerDashboard } from "@/hooks/useOwnerDashboard";
 import { WIDGET_ORDER } from "@/constants/owner";
@@ -39,7 +40,7 @@ import { formatCompactRupiah } from "@/lib/owner/format";
 import type { WidgetContext } from "@/types/owner";
 
 type DateRange = "today" | "week" | "month" | "custom";
-type Tab = "dashboard" | "feedback" | "closing" | "watch_db" | "customer" | "tracking" | "transaction";
+type Tab = "dashboard" | "feedback" | "closing" | "watch_db" | "customer" | "tracking" | "transaction" | "service";
 
 const rangeLabel: Record<DateRange, string> = {
   today: "Today",
@@ -51,6 +52,7 @@ const rangeLabel: Record<DateRange, string> = {
 const menu: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "transaction", label: "Transaksi", icon: ShoppingCart },
+  { id: "service", label: "Service", icon: Wrench },
   { id: "feedback", label: "Feedback", icon: Star },
   { id: "closing", label: "Closing", icon: FileText },
   { id: "watch_db", label: "Watch DB", icon: Database },
@@ -298,7 +300,6 @@ export default function OwnerDashboard() {
                   </button>
                 </>
               )}
-              <BranchSelector />
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden p-2 hover:bg-slate-100 rounded-lg"
@@ -317,6 +318,7 @@ export default function OwnerDashboard() {
           {tab === "watch_db" && <WatchDatabase />}
           {tab === "customer" && <CustomerList />}
           {tab === "tracking" && <TrackingVisits />}
+          {tab === "service" && <OwnerServiceView />}
           {tab === "transaction" && <TransactionManagement defaultBranchId={centralBranchId} />}
 
           {tab === "dashboard" && isLoading && (
